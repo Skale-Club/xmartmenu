@@ -12,6 +12,7 @@ const navItems = [
   { href: '/menu/products', label: 'Produtos', icon: '🍽️' },
   { href: '/settings/branding', label: 'Branding', icon: '🎨' },
   { href: '/settings/qrcode', label: 'QR Code', icon: '📱' },
+  { href: '/settings/password', label: 'Alterar senha', icon: '🔑' },
 ]
 
 export default function AdminSidebar({ tenantName }: { tenantName: string }) {
