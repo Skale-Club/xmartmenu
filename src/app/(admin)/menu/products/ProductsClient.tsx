@@ -104,19 +104,21 @@ export default function ProductsClient({ products: initial, categories, tenantId
     }
 
     if (editingId) {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('products')
         .update(payload)
         .eq('id', editingId)
         .select('*, category:categories(id, name)')
         .single()
+      if (error) { alert('Erro ao salvar: ' + error.message); setLoading(false); return }
       if (data) setProducts(products.map(p => p.id === editingId ? data : p))
     } else {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('products')
         .insert(payload)
         .select('*, category:categories(id, name)')
         .single()
+      if (error) { alert('Erro ao salvar: ' + error.message); setLoading(false); return }
       if (data) setProducts([...products, data])
     }
 
