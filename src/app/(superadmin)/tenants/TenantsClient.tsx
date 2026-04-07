@@ -238,7 +238,7 @@ export default function TenantsClient({ tenants: initial }: { tenants: TenantRow
               className="text-xs px-2.5 py-1 rounded-full font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
             >
               Excluir
-            </a>
+            </button>
             <a
               href={`/${tenant.slug}`}
               target="_blank"
