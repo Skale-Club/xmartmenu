@@ -10,24 +10,32 @@ export default function Home() {
   useEffect(() => {
     const supabase = createClient()
 
-    // Aguarda Supabase processar tokens do hash da URL (magic link)
-    supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
+    async function redirect(userId: string | undefined) {
+      if (userId) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('role')
-          .eq('id', session.user.id)
+          .eq('id', userId)
           .single()
-
-        if (profile?.role === 'superadmin') {
-          router.replace('/tenants')
-        } else {
-          router.replace('/dashboard')
-        }
+        router.replace(profile?.role === 'superadmin' ? '/tenants' : '/dashboard')
       } else {
         router.replace('/auth/login')
       }
+    }
+
+    // Verifica sessão atual imediatamente
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      redirect(session?.user?.id)
     })
+
+    // Também escuta mudanças (ex: magic link no hash da URL)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        redirect(session?.user?.id)
+      }
+    })
+
+    return () => subscription.unsubscribe()
   }, [router])
 
   return (

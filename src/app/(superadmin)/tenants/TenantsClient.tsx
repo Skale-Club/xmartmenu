@@ -216,6 +216,20 @@ export default function TenantsClient({ tenants: initial }: { tenants: TenantRow
             >
               {tenant.is_active ? 'Ativo' : 'Inativo'}
             </button>
+            <a
+              href={`/api/admin/enter-preview?tenant=${tenant.id}`}
+              className="text-xs px-2.5 py-1 rounded-full font-medium bg-zinc-900 text-white hover:bg-zinc-700 transition-colors"
+            >
+              Acessar painel
+            </a>
+            <a
+              href={`/${tenant.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs px-2.5 py-1 rounded-full font-medium bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors"
+            >
+              Ver cardápio
+            </a>
           </div>
         ))}
       </div>
