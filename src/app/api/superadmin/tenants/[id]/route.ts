@@ -1,17 +1,21 @@
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+
+async function assertSuperadmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  return profile?.role === 'superadmin' ? supabase : null
+}
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  if (profile?.role !== 'superadmin') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const supabase = await assertSuperadmin()
+  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
   const allowed = ['is_active', 'plan', 'name']
@@ -22,6 +26,30 @@ export async function PATCH(
 
   const { data, error } = await supabase.from('tenants').update(update).eq('id', id).select().single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
   return NextResponse.json(data)
+}
+
+export async function DELETE(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+  const supabase = await assertSuperadmin()
+  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const service = await createServiceClient()
+
+  // Busca usuários do tenant para deletar do Auth
+  const { data: profiles } = await service.from('profiles').select('id').eq('tenant_id', id)
+  if (profiles) {
+    for (const p of profiles) {
+      await service.auth.admin.deleteUser(p.id)
+    }
+  }
+
+  // Deleta tenant (cascade deleta categorias, produtos, etc.)
+  const { error } = await service.from('tenants').delete().eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ success: true })
 }

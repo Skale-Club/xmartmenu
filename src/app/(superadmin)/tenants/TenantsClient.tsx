@@ -59,6 +59,17 @@ export default function TenantsClient({ tenants: initial }: { tenants: TenantRow
     setLoading(false)
   }
 
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Excluir "${name}"? Isso irá remover o tenant, todos os produtos, categorias e usuários. Esta ação é irreversível.`)) return
+    const res = await fetch(`/api/superadmin/tenants/${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setTenants(tenants.filter(t => t.id !== id))
+    } else {
+      const data = await res.json()
+      alert('Erro ao excluir: ' + data.error)
+    }
+  }
+
   async function toggleActive(id: string, current: boolean) {
     await fetch(`/api/superadmin/tenants/${id}`, {
       method: 'PATCH',
@@ -221,6 +232,12 @@ export default function TenantsClient({ tenants: initial }: { tenants: TenantRow
               className="text-xs px-2.5 py-1 rounded-full font-medium bg-zinc-900 text-white hover:bg-zinc-700 transition-colors"
             >
               Acessar painel
+            </a>
+            <button
+              onClick={() => handleDelete(tenant.id, tenant.name)}
+              className="text-xs px-2.5 py-1 rounded-full font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors"
+            >
+              Excluir
             </a>
             <a
               href={`/${tenant.slug}`}
