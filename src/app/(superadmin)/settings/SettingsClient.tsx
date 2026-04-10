@@ -98,23 +98,23 @@ export default function SettingsClient({ settings }: Props) {
         <div className={section}>
           <h2 className={sectionTitle}>Plataforma</h2>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Nome do app</label><input className={input} value={platform.app_name} onChange={e => setPlatform(p => ({ ...p, app_name: e.target.value }))} /></div>
-            <div><label className={label}>Nome da marca</label><input className={input} value={platform.brand_name} onChange={e => setPlatform(p => ({ ...p, brand_name: e.target.value }))} /></div>
-            <div><label className={label}>Rodapé do cardápio público</label><input className={input} value={platform.menu_footer_brand} onChange={e => setPlatform(p => ({ ...p, menu_footer_brand: e.target.value }))} /></div>
+            <div><label className={label}>Nome do app</label><input className={input} value={platform.app_name} onChange={e => setPlatform({ ...platform, app_name: e.target.value })} /></div>
+            <div><label className={label}>Nome da marca</label><input className={input} value={platform.brand_name} onChange={e => setPlatform({ ...platform, brand_name: e.target.value })} /></div>
+            <div><label className={label}>Rodapé do cardápio público</label><input className={input} value={platform.menu_footer_brand} onChange={e => setPlatform({ ...platform, menu_footer_brand: e.target.value })} /></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={label}>Cor primária padrão (novos tenants)</label>
               <div className="flex items-center gap-3">
-                <input type="color" value={platform.default_primary_color} onChange={e => setPlatform(p => ({ ...p, default_primary_color: e.target.value }))} className="w-10 h-10 rounded-lg border border-zinc-300 cursor-pointer p-0.5" />
-                <input className={input} value={platform.default_primary_color} onChange={e => setPlatform(p => ({ ...p, default_primary_color: e.target.value }))} />
+                <input type="color" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} className="w-10 h-10 rounded-lg border border-zinc-300 cursor-pointer p-0.5" />
+                <input className={input} value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} />
               </div>
             </div>
             <div>
               <label className={label}>Cor de destaque padrão (novos tenants)</label>
               <div className="flex items-center gap-3">
-                <input type="color" value={platform.default_accent_color} onChange={e => setPlatform(p => ({ ...p, default_accent_color: e.target.value }))} className="w-10 h-10 rounded-lg border border-zinc-300 cursor-pointer p-0.5" />
-                <input className={input} value={platform.default_accent_color} onChange={e => setPlatform(p => ({ ...p, default_accent_color: e.target.value }))} />
+                <input type="color" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} className="w-10 h-10 rounded-lg border border-zinc-300 cursor-pointer p-0.5" />
+                <input className={input} value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} />
               </div>
             </div>
           </div>
@@ -124,14 +124,14 @@ export default function SettingsClient({ settings }: Props) {
         <div className={section}>
           <h2 className={sectionTitle}>Landing Page — Hero</h2>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Badge (topo)</label><input className={input} value={hero.badge} onChange={e => setHero(h => ({ ...h, badge: e.target.value }))} /></div>
-            <div><label className={label}>Destaque em gradiente</label><input className={input} value={hero.heading_highlight} onChange={e => setHero(h => ({ ...h, heading_highlight: e.target.value }))} /></div>
+            <div><label className={label}>Badge (topo)</label><input className={input} value={hero.badge} onChange={e => setHero({ ...hero, badge: e.target.value })} /></div>
+            <div><label className={label}>Destaque em gradiente</label><input className={input} value={hero.heading_highlight} onChange={e => setHero({ ...hero, heading_highlight: e.target.value })} /></div>
           </div>
-          <div><label className={label}>Título principal</label><input className={input} value={hero.heading} onChange={e => setHero(h => ({ ...h, heading: e.target.value }))} /></div>
-          <div><label className={label}>Subtítulo</label><textarea rows={2} className={textarea} value={hero.subheading} onChange={e => setHero(h => ({ ...h, subheading: e.target.value }))} /></div>
+          <div><label className={label}>Título principal</label><input className={input} value={hero.heading} onChange={e => setHero({ ...hero, heading: e.target.value })} /></div>
+          <div><label className={label}>Subtítulo</label><textarea rows={2} className={textarea} value={hero.subheading} onChange={e => setHero({ ...hero, subheading: e.target.value })} /></div>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Botão primário</label><input className={input} value={hero.cta_primary} onChange={e => setHero(h => ({ ...h, cta_primary: e.target.value }))} /></div>
-            <div><label className={label}>Botão secundário</label><input className={input} value={hero.cta_secondary} onChange={e => setHero(h => ({ ...h, cta_secondary: e.target.value }))} /></div>
+            <div><label className={label}>Botão primário</label><input className={input} value={hero.cta_primary} onChange={e => setHero({ ...hero, cta_primary: e.target.value })} /></div>
+            <div><label className={label}>Botão secundário</label><input className={input} value={hero.cta_secondary} onChange={e => setHero({ ...hero, cta_secondary: e.target.value })} /></div>
           </div>
         </div>
 
@@ -139,8 +139,8 @@ export default function SettingsClient({ settings }: Props) {
         <div className={section}>
           <h2 className={sectionTitle}>Landing Page — Como funciona</h2>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Título da seção</label><input className={input} value={howItWorks.title} onChange={e => setHowItWorks(h => ({ ...h, title: e.target.value }))} /></div>
-            <div><label className={label}>Subtítulo</label><input className={input} value={howItWorks.subtitle} onChange={e => setHowItWorks(h => ({ ...h, subtitle: e.target.value }))} /></div>
+            <div><label className={label}>Título da seção</label><input className={input} value={howItWorks.title} onChange={e => setHowItWorks({ ...howItWorks, title: e.target.value })} /></div>
+            <div><label className={label}>Subtítulo</label><input className={input} value={howItWorks.subtitle} onChange={e => setHowItWorks({ ...howItWorks, subtitle: e.target.value })} /></div>
           </div>
           {howItWorks.steps.map((step: any, i: number) => (
             <div key={i} className="bg-zinc-50 rounded-lg p-4 space-y-2">
@@ -158,8 +158,8 @@ export default function SettingsClient({ settings }: Props) {
         <div className={section}>
           <h2 className={sectionTitle}>Landing Page — Funcionalidades</h2>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Título da seção</label><input className={input} value={features.title} onChange={e => setFeatures(f => ({ ...f, title: e.target.value }))} /></div>
-            <div><label className={label}>Subtítulo</label><input className={input} value={features.subtitle} onChange={e => setFeatures(f => ({ ...f, subtitle: e.target.value }))} /></div>
+            <div><label className={label}>Título da seção</label><input className={input} value={features.title} onChange={e => setFeatures({ ...features, title: e.target.value })} /></div>
+            <div><label className={label}>Subtítulo</label><input className={input} value={features.subtitle} onChange={e => setFeatures({ ...features, subtitle: e.target.value })} /></div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {features.items.map((item: any, i: number) => (
@@ -178,8 +178,8 @@ export default function SettingsClient({ settings }: Props) {
         <div className={section}>
           <h2 className={sectionTitle}>Landing Page — Planos</h2>
           <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Título da seção</label><input className={input} value={pricing.title} onChange={e => setPricing(p => ({ ...p, title: e.target.value }))} /></div>
-            <div><label className={label}>Subtítulo</label><input className={input} value={pricing.subtitle} onChange={e => setPricing(p => ({ ...p, subtitle: e.target.value }))} /></div>
+            <div><label className={label}>Título da seção</label><input className={input} value={pricing.title} onChange={e => setPricing({ ...pricing, title: e.target.value })} /></div>
+            <div><label className={label}>Subtítulo</label><input className={input} value={pricing.subtitle} onChange={e => setPricing({ ...pricing, subtitle: e.target.value })} /></div>
           </div>
           <div className="grid grid-cols-3 gap-4">
             {pricing.plans.map((plan: any, i: number) => (
@@ -204,15 +204,15 @@ export default function SettingsClient({ settings }: Props) {
         {/* CTA Final */}
         <div className={section}>
           <h2 className={sectionTitle}>Landing Page — CTA Final</h2>
-          <div><label className={label}>Título</label><input className={input} value={cta.heading} onChange={e => setCta(c => ({ ...c, heading: e.target.value }))} /></div>
-          <div><label className={label}>Texto</label><input className={input} value={cta.text} onChange={e => setCta(c => ({ ...c, text: e.target.value }))} /></div>
-          <div><label className={label}>Botão</label><input className={input} value={cta.button} onChange={e => setCta(c => ({ ...c, button: e.target.value }))} /></div>
+          <div><label className={label}>Título</label><input className={input} value={cta.heading} onChange={e => setCta({ ...cta, heading: e.target.value })} /></div>
+          <div><label className={label}>Texto</label><input className={input} value={cta.text} onChange={e => setCta({ ...cta, text: e.target.value })} /></div>
+          <div><label className={label}>Botão</label><input className={input} value={cta.button} onChange={e => setCta({ ...cta, button: e.target.value })} /></div>
         </div>
 
         {/* Rodapé */}
         <div className={section}>
           <h2 className={sectionTitle}>Landing Page — Rodapé</h2>
-          <div><label className={label}>Texto de copyright (use {'{year}'} para o ano)</label><input className={input} value={footer.copyright} onChange={e => setFooter(f => ({ ...f, copyright: e.target.value }))} /></div>
+          <div><label className={label}>Texto de copyright (use {'{year}'} para o ano)</label><input className={input} value={footer.copyright} onChange={e => setFooter({ ...footer, copyright: e.target.value })} /></div>
         </div>
 
         <div className="sticky bottom-0 bg-white border-t border-zinc-100 -mx-8 px-8 py-4 flex items-center gap-4">
