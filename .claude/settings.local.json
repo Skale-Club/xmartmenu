@@ -23,7 +23,17 @@
       "Bash(git commit -m 'feat: superadmin can preview any tenant'\\\\''s admin panel:*)",
       "Bash(git commit -m 'feat: add delete tenant/user from superadmin panel:*)",
       "Bash(git commit -m 'fix: correct closing tag on delete button:*)",
-      "Bash(git commit -m 'fix: use React cache\\(\\) to deduplicate Supabase client per request, resolving auth token lock conflict:*)"
+      "Bash(git commit -m 'fix: use React cache\\(\\) to deduplicate Supabase client per request, resolving auth token lock conflict:*)",
+      "Bash(netstat -ano)",
+      "Bash(tasklist:*)",
+      "Bash(powershell Get-Process -Id 14732 | Select-Object Name, Id, CPU, WorkingSet:*)",
+      "Bash(powershell Stop-Process -Id 14732 -Force; Start-Sleep 1; Get-NetTCPConnection -LocalPort 3000 -ErrorAction SilentlyContinue:*)",
+      "Bash(npx supabase:*)",
+      "Bash(bash scripts/seed-menu.sh)",
+      "Bash(git submodule:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git:*)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }
