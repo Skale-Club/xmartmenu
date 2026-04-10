@@ -27,7 +27,9 @@ export async function GET() {
       full_name: profile?.full_name ?? u.user_metadata?.full_name ?? null,
       role: profile?.role ?? null,
       tenant_id: profile?.tenant_id ?? null,
-      tenant: (profile?.tenants as { id: string; name: string; slug: string } | null) ?? null,
+      tenant: (Array.isArray(profile?.tenants)
+        ? profile.tenants[0] ?? null
+        : profile?.tenants ?? null) as { id: string; name: string; slug: string } | null,
       provider: u.app_metadata?.provider ?? 'email',
       created_at: u.created_at,
       last_sign_in_at: u.last_sign_in_at,
