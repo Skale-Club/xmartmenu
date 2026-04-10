@@ -25,7 +25,7 @@ export default async function TenantsPage() {
       plan: tenant.plan,
       is_active: tenant.is_active,
       created_at: tenant.created_at,
-      logo_url: (tenant.tenant_settings as { logo_url: string | null } | null)?.logo_url ?? null,
+      logo_url: ((tenant.tenant_settings as unknown as Array<{ logo_url: string | null }> | null)?.[0]?.logo_url) ?? null,
       // dados do usuário
       user_id: profile?.id ?? null,
       email: authUser?.email ?? null,
