@@ -22,7 +22,7 @@ export default async function UsersPage() {
       full_name: profile?.full_name ?? (u.user_metadata?.full_name as string | null) ?? null,
       role: profile?.role ?? null,
       tenant_id: profile?.tenant_id ?? null,
-      tenant: (profile?.tenants as { id: string; name: string; slug: string } | null) ?? null,
+      tenant: ((profile?.tenants as unknown as Array<{ id: string; name: string; slug: string }> | null) ?? [])[0] ?? null,
       provider: (u.app_metadata?.provider as string) ?? 'email',
       created_at: u.created_at,
       last_sign_in_at: u.last_sign_in_at ?? null,
