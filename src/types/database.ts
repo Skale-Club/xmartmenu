@@ -1,4 +1,4 @@
-export type UserRole = 'superadmin' | 'admin'
+export type UserRole = 'superadmin' | 'store-admin' | 'store-staff' | 'customer'
 export type Plan = 'free' | 'pro' | 'enterprise'
 
 export interface Tenant {

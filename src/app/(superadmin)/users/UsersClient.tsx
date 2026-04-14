@@ -163,8 +163,10 @@ function UserRow({
           className="text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
         >
           <option value="">No role</option>
-          <option value="admin">Admin</option>
           <option value="superadmin">Super Admin</option>
+          <option value="store-admin">Store Admin</option>
+          <option value="store-staff">Store Staff</option>
+          <option value="customer">Customer</option>
         </select>
       </td>
       <td className="px-5 py-3">

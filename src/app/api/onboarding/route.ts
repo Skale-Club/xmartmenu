@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   await service.from('profiles').upsert({
     id: user.id,
     tenant_id: tenant.id,
-    role: 'admin',
+    role: 'store-admin',
     full_name: user.user_metadata?.full_name ?? null,
   })
 

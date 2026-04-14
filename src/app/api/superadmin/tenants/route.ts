@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
   if (userData.user) {
     await service.from('profiles')
-      .upsert({ id: userData.user.id, tenant_id: tenant.id, role: 'admin' })
+      .upsert({ id: userData.user.id, tenant_id: tenant.id, role: 'store-admin' })
   }
 
   return NextResponse.json({

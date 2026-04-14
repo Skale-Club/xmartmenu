@@ -22,11 +22,11 @@ export async function GET(request: Request) {
           return NextResponse.redirect(`${origin}/overview`)
         }
 
-        // Garante que o profile existe e tem role='admin'
-        if (!profile || !['superadmin', 'admin'].includes(profile.role)) {
+        // Garante que o profile existe e tem role válido
+        if (!profile || !['superadmin', 'store-admin', 'store-staff', 'customer'].includes(profile.role)) {
           await service.from('profiles').upsert({
             id: user.id,
-            role: 'admin',
+            role: 'store-admin',
             full_name: user.user_metadata?.full_name ?? null,
           }, { onConflict: 'id' })
           return NextResponse.redirect(`${origin}/onboarding`)
