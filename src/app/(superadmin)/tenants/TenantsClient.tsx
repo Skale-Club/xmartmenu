@@ -142,8 +142,8 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
     <div className="p-8">
       <ConfirmDialog
         open={!!confirmItem}
-        title="Excluir cliente"
-        message={`Excluir "${confirmItem?.name ?? confirmItem?.email}"? Esta ação é irreversível.`}
+        title="Delete client"
+        message={`Delete "${confirmItem?.name ?? confirmItem?.email}"? This action cannot be undone.`}
         onConfirm={handleDelete}
         onCancel={() => setConfirmItem(null)}
       />
@@ -151,13 +151,13 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Clientes</h1>
-          <p className="text-sm text-zinc-500 mt-1">{withTenant.length} cliente(s) cadastrado(s)</p>
+          <p className="text-sm text-zinc-500 mt-1">{withTenant.length} client(s)</p>
         </div>
         <button
           onClick={() => { setShowForm(true); setCredentials(null) }}
           className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
         >
-          + Novo cliente
+          + New client
         </button>
       </div>
 
@@ -170,26 +170,26 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
 
       {credentials && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-5 mb-4">
-          <p className="text-sm font-semibold text-green-800 mb-3">Cliente criado! Credenciais de acesso:</p>
+          <p className="text-sm font-semibold text-green-800 mb-3">Client created! Access credentials:</p>
           <div className="bg-white rounded-lg border border-green-200 p-4 space-y-2 font-mono text-sm mb-3">
             <div className="flex items-center justify-between">
-              <span className="text-zinc-500 text-xs">E-mail</span>
+              <span className="text-zinc-500 text-xs">Email</span>
               <span className="text-zinc-900 font-medium">{credentials.email}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-zinc-500 text-xs">Senha temporária</span>
+              <span className="text-zinc-500 text-xs">Temporary password</span>
               <span className="text-zinc-900 font-medium tracking-wider">{credentials.password}</span>
             </div>
           </div>
           <div className="flex gap-2">
             <button
-              onClick={() => navigator.clipboard.writeText(`E-mail: ${credentials.email}\nSenha: ${credentials.password}`)}
+              onClick={() => navigator.clipboard.writeText(`Email: ${credentials.email}\nPassword: ${credentials.password}`)}
               className="text-xs bg-green-700 text-white px-3 py-1.5 rounded-lg hover:bg-green-800 transition-colors"
             >
-              Copiar credenciais
+              Copy credentials
             </button>
             <button onClick={() => setCredentials(null)} className="text-xs text-green-700 px-3 py-1.5 rounded-lg hover:bg-green-100 transition-colors">
-              Fechar
+              Close
             </button>
           </div>
         </div>
@@ -197,11 +197,11 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
 
       {showForm && (
         <div className="bg-white border border-zinc-200 rounded-xl p-6 mb-4 max-w-lg">
-          <h2 className="text-base font-semibold text-zinc-900 mb-4">Novo cliente</h2>
+          <h2 className="text-base font-semibold text-zinc-900 mb-4">New client</h2>
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Nome do restaurante *</label>
-              <input required value={form.name} onChange={e => handleNameChange(e.target.value)} placeholder="Burguer do Zé"
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Restaurant name *</label>
+              <input required value={form.name} onChange={e => handleNameChange(e.target.value)} placeholder="Joe's Burgers"
                 className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900" />
             </div>
             <div>
@@ -213,12 +213,12 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">E-mail *</label>
-              <input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="admin@restaurante.com"
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Email *</label>
+              <input required type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="admin@restaurant.com"
                 className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Plano</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Plan</label>
               <select value={form.plan} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))}
                 className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900">
                 <option value="free">Free</option>
@@ -230,11 +230,11 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
             <div className="flex gap-3">
               <button type="submit" disabled={loading}
                 className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors">
-                {loading ? 'Criando...' : 'Criar cliente'}
+                {loading ? 'Creating...' : 'Create client'}
               </button>
               <button type="button" onClick={() => setShowForm(false)}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 transition-colors">
-                Cancelar
+                Cancel
               </button>
             </div>
           </form>
@@ -268,39 +268,39 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                 className={`text-xs px-2.5 py-1 rounded-full font-medium transition-colors flex-shrink-0 ${
                   client.is_active ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
                 }`}>
-                {client.is_active ? 'Ativo' : 'Inativo'}
+                {client.is_active ? 'Active' : 'Inactive'}
               </button>
               <button
                 onClick={() => editingId === client.id ? cancelEdit() : startEdit(client)}
                 className="text-xs px-2.5 py-1 rounded-full font-medium bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors flex-shrink-0"
               >
-                {editingId === client.id ? 'Cancelar' : 'Editar'}
+                {editingId === client.id ? 'Cancel' : 'Edit'}
               </button>
               <a href={`/api/admin/enter-preview?tenant=${client.id}`}
                 className="text-xs px-2.5 py-1 rounded-full font-medium bg-zinc-900 text-white hover:bg-zinc-700 transition-colors flex-shrink-0">
-                Painel
+                Dashboard
               </a>
               <a href={`/customize/${client.id}`}
                 className="text-xs px-2.5 py-1 rounded-full font-medium bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors flex-shrink-0">
-                Personalizar
+                Customize
               </a>
               <a href={`/${client.slug}`} target="_blank" rel="noopener noreferrer"
                 className="text-xs px-2.5 py-1 rounded-full font-medium bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors flex-shrink-0">
-                Cardápio
+                Menu
               </a>
               <button onClick={() => setConfirmItem(client)}
                 className="text-xs px-2.5 py-1 rounded-full font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex-shrink-0">
-                Excluir
+                Delete
               </button>
             </div>
 
             {/* Inline edit form */}
             {editingId === client.id && (
               <div className="border-t border-zinc-100 bg-zinc-50 px-5 py-4">
-                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Editar cliente</p>
+                <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider mb-3">Edit client</p>
                 <div className="flex items-end gap-3">
                   <div className="flex-1">
-                    <label className="block text-xs font-medium text-zinc-600 mb-1">Nome</label>
+                    <label className="block text-xs font-medium text-zinc-600 mb-1">Name</label>
                     <input
                       value={editForm.name}
                       onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
@@ -308,7 +308,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                     />
                   </div>
                   <div className="w-40">
-                    <label className="block text-xs font-medium text-zinc-600 mb-1">Plano</label>
+                    <label className="block text-xs font-medium text-zinc-600 mb-1">Plan</label>
                     <select
                       value={editForm.plan}
                       onChange={e => setEditForm(f => ({ ...f, plan: e.target.value }))}
@@ -324,7 +324,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                     disabled={loading}
                     className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
                   >
-                    {loading ? 'Salvando...' : 'Salvar'}
+                    {loading ? 'Saving...' : 'Save'}
                   </button>
                 </div>
               </div>
@@ -336,7 +336,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
       {/* Usuários sem cliente */}
       {withoutTenant.length > 0 && (
         <div className="mt-8">
-          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Aguardando atribuição</p>
+          <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Pending assignment</p>
           <div className="space-y-2">
             {withoutTenant.map(u => (
               <div key={u.user_id} className="bg-white border border-amber-200 rounded-xl px-5 py-3 flex items-center gap-4">
@@ -350,7 +350,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                 {u.provider === 'google' && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium flex-shrink-0">Google</span>
                 )}
-                <span className="text-xs text-amber-600 font-medium flex-shrink-0">Sem cliente</span>
+                <span className="text-xs text-amber-600 font-medium flex-shrink-0">No client</span>
                 <button onClick={() => setConfirmItem(u)}
                   className="text-xs px-2.5 py-1 rounded-full font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex-shrink-0">
                   Excluir

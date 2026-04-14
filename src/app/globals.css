@@ -15,6 +15,18 @@ body {
   color: var(--foreground);
 }
 
+button,
+a,
+[role="button"],
+select,
+label[for],
+input[type="checkbox"],
+input[type="radio"],
+input[type="color"],
+input[type="file"] {
+  cursor: pointer;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

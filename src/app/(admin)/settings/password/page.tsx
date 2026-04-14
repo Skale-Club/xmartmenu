@@ -15,11 +15,11 @@ export default function PasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (password !== confirm) {
-      setMessage({ type: 'error', text: 'As senhas não coincidem' })
+      setMessage({ type: 'error', text: 'Passwords do not match' })
       return
     }
     if (password.length < 8) {
-      setMessage({ type: 'error', text: 'A senha deve ter pelo menos 8 caracteres' })
+      setMessage({ type: 'error', text: 'Password must be at least 8 characters' })
       return
     }
     setLoading(true)
@@ -27,7 +27,7 @@ export default function PasswordPage() {
     if (error) {
       setMessage({ type: 'error', text: error.message })
     } else {
-      setMessage({ type: 'success', text: 'Senha atualizada com sucesso!' })
+      setMessage({ type: 'success', text: 'Password updated successfully!' })
       setPassword('')
       setConfirm('')
     }
@@ -37,28 +37,28 @@ export default function PasswordPage() {
   return (
     <div className="p-8 max-w-md">
       <h1 className="text-2xl font-bold text-zinc-900 mb-1">Alterar senha</h1>
-      <p className="text-sm text-zinc-500 mb-8">Defina uma nova senha para sua conta</p>
+      <p className="text-sm text-zinc-500 mb-8">Set a new password for your account</p>
 
       <form onSubmit={handleSubmit} className="bg-white border border-zinc-200 rounded-xl p-6 space-y-4">
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1">Nova senha</label>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">New password</label>
           <input
             type="password"
             required
             value={password}
             onChange={e => setPassword(e.target.value)}
-            placeholder="Mínimo 8 caracteres"
+            placeholder="Minimum 8 characters"
             className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1">Confirmar senha</label>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Confirm password</label>
           <input
             type="password"
             required
             value={confirm}
             onChange={e => setConfirm(e.target.value)}
-            placeholder="Repita a senha"
+            placeholder="Repeat password"
             className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
           />
         </div>
@@ -74,7 +74,7 @@ export default function PasswordPage() {
           disabled={loading}
           className="w-full bg-zinc-900 text-white py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
         >
-          {loading ? 'Salvando...' : 'Atualizar senha'}
+          {loading ? 'Saving...' : 'Update password'}
         </button>
       </form>
     </div>

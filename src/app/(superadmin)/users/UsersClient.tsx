@@ -69,15 +69,15 @@ export default function UsersClient({ users: initial, tenants }: { users: UserRo
     <div className="p-8">
       <ConfirmDialog
         open={!!confirmId}
-        title="Excluir usuário"
-        message={`Excluir "${confirmEmail}"? Esta ação é irreversível.`}
+        title="Delete user"
+        message={`Delete "${confirmEmail}"? This action cannot be undone.`}
         onConfirm={confirmDelete}
         onCancel={() => setConfirmId(null)}
       />
 
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-zinc-900">Usuários</h1>
-        <p className="text-sm text-zinc-500 mt-1">{users.length} usuário(s) cadastrado(s)</p>
+        <p className="text-sm text-zinc-500 mt-1">{users.length} user(s)</p>
       </div>
 
       {error && (
@@ -91,9 +91,9 @@ export default function UsersClient({ users: initial, tenants }: { users: UserRo
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-zinc-100 bg-zinc-50">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Usuário</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">User</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Login</th>
-              <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Papel</th>
+              <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Role</th>
               <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Tenant</th>
               <th className="px-5 py-3"></th>
             </tr>
@@ -115,7 +115,7 @@ export default function UsersClient({ users: initial, tenants }: { users: UserRo
 
         {users.length === 0 && (
           <div className="text-center py-16 text-zinc-400">
-            <p className="font-medium">Nenhum usuário encontrado</p>
+            <p className="font-medium">No users found</p>
           </div>
         )}
       </div>
@@ -147,7 +147,7 @@ function UserRow({
       <td className="px-5 py-3">
         <p className="font-medium text-zinc-900">{user.email}</p>
         {user.full_name && <p className="text-xs text-zinc-400">{user.full_name}</p>}
-        <p className="text-xs text-zinc-400">{new Date(user.created_at).toLocaleDateString('pt-BR')}</p>
+        <p className="text-xs text-zinc-400">{new Date(user.created_at).toLocaleDateString('en-US')}</p>
       </td>
       <td className="px-5 py-3">
         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -162,9 +162,9 @@ function UserRow({
           onChange={e => setRole(e.target.value)}
           className="text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
         >
-          <option value="">Sem papel</option>
+          <option value="">No role</option>
           <option value="admin">Admin</option>
-          <option value="superadmin">Superadmin</option>
+          <option value="superadmin">Super Admin</option>
         </select>
       </td>
       <td className="px-5 py-3">
@@ -173,7 +173,7 @@ function UserRow({
           onChange={e => setTenant(e.target.value)}
           className="text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 max-w-[180px]"
         >
-          <option value="">Sem tenant</option>
+          <option value="">No tenant</option>
           {tenants.map(t => (
             <option key={t.id} value={t.id}>{t.name}</option>
           ))}
@@ -187,14 +187,14 @@ function UserRow({
               disabled={loading}
               className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Salvando...' : 'Salvar'}
+              {loading ? 'Saving...' : 'Save'}
             </button>
           )}
           <button
             onClick={() => onDeleteRequest(user.id, user.email)}
             className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
           >
-            Excluir
+            Delete
           </button>
         </div>
       </td>

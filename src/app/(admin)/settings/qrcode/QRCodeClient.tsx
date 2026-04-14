@@ -63,7 +63,7 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-zinc-900 mb-1">QR Code</h1>
-      <p className="text-sm text-zinc-500 mb-8">Gere e baixe o QR Code do seu cardápio</p>
+      <p className="text-sm text-zinc-500 mb-8">Generate and download your menu QR Code</p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Preview do QR */}
@@ -74,19 +74,19 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
             onClick={downloadPNG}
             className="w-full bg-zinc-900 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
           >
-            Baixar PNG
+            Download PNG
           </button>
         </div>
 
         {/* Gerenciar QR codes */}
         <div className="space-y-4">
           <div className="bg-white border border-zinc-200 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-zinc-900 mb-3">Criar novo QR Code</h2>
+            <h2 className="text-sm font-semibold text-zinc-900 mb-3">Create new QR Code</h2>
             <div className="flex gap-2">
               <input
                 value={label}
                 onChange={e => setLabel(e.target.value)}
-                placeholder="Rótulo (ex: Mesa 1, Balcão)"
+                placeholder="Label (e.g. Table 1, Counter)"
                 className="flex-1 px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
               />
               <button
@@ -94,15 +94,15 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
                 disabled={loading}
                 className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors whitespace-nowrap"
               >
-                {loading ? '...' : '+ Criar'}
+                {loading ? '...' : '+ Create'}
               </button>
             </div>
           </div>
 
           <div className="bg-white border border-zinc-200 rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-zinc-900 mb-3">QR Codes gerados</h2>
+            <h2 className="text-sm font-semibold text-zinc-900 mb-3">Generated QR Codes</h2>
             {qrcodes.length === 0 ? (
-              <p className="text-sm text-zinc-400">Nenhum QR Code gerado ainda.</p>
+              <p className="text-sm text-zinc-400">No QR Codes generated yet.</p>
             ) : (
               <div className="space-y-2">
                 {qrcodes.map(qr => (
@@ -116,7 +116,7 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium text-zinc-800">{qr.label ?? 'Cardápio principal'}</span>
+                      <span className="font-medium text-zinc-800">{qr.label ?? 'Main menu'}</span>
                       <span className="text-xs text-zinc-400">{qr.scans} scans</span>
                     </div>
                   </button>

@@ -19,13 +19,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq('is_active', true)
     .single()
 
-  if (!tenant) return { title: 'Cardápio' }
+  if (!tenant) return { title: 'Menu' }
 
   return {
-    title: `Cardápio — ${tenant.name}`,
-    description: `Veja o cardápio completo de ${tenant.name}`,
+    title: `Menu — ${tenant.name}`,
+    description: `View the full menu of ${tenant.name}`,
     openGraph: {
-      title: `Cardápio — ${tenant.name}`,
+      title: `Menu — ${tenant.name}`,
       images: [(tenant.tenant_settings as any)?.logo_url ?? ''],
     },
   }

@@ -5,7 +5,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Xmartmenu',
+  title: 'XmartMenu',
   description: 'Cardápio digital via QR Code para restaurantes',
 }
 

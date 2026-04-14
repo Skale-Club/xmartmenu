@@ -13,7 +13,7 @@ export default function ConfirmDialog({
   open,
   title,
   message,
-  confirmLabel = 'Excluir',
+  confirmLabel = 'Delete',
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -30,7 +30,7 @@ export default function ConfirmDialog({
             onClick={onCancel}
             className="px-4 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100 rounded-lg transition-colors"
           >
-            Cancelar
+            Cancel
           </button>
           <button
             onClick={onConfirm}

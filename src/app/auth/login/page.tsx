@@ -23,7 +23,7 @@ export default function LoginPage() {
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     })
     if (error) {
-      setError('Erro ao conectar com o Google. Tente novamente.')
+      setError('Failed to connect with Google. Please try again.')
       setGoogleLoading(false)
     }
   }
@@ -37,7 +37,7 @@ export default function LoginPage() {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setError('E-mail ou senha incorretos.')
+      setError('Incorrect email or password.')
       setEmailLoading(false)
       return
     }
@@ -62,8 +62,8 @@ export default function LoginPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM13 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V4zM13 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-3z" />
               </svg>
             </div>
-            <h1 className="text-xl font-bold text-zinc-900">Xmartmenu</h1>
-            <p className="text-sm text-zinc-500 mt-1">Acesse seu painel de cardápio</p>
+            <a href="/" className="text-xl font-bold text-zinc-900 hover:text-zinc-600 transition-colors">XmartMenu</a>
+            <p className="text-sm text-zinc-500 mt-1">Sign in to your menu dashboard</p>
           </div>
 
           {/* Google */}
@@ -85,20 +85,20 @@ export default function LoginPage() {
                 <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
               </svg>
             )}
-            {googleLoading ? 'Redirecionando...' : 'Continuar com Google'}
+            {googleLoading ? 'Redirecting...' : 'Continue with Google'}
           </button>
 
           {/* Divisor */}
           <div className="flex items-center gap-3 my-5">
             <div className="flex-1 h-px bg-zinc-200" />
-            <span className="text-xs text-zinc-400">ou entre com e-mail</span>
+            <span className="text-xs text-zinc-400">or sign in with email</span>
             <div className="flex-1 h-px bg-zinc-200" />
           </div>
 
           {/* Formulário e-mail/senha */}
           <form onSubmit={handleEmailLogin} className="space-y-3">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">E-mail</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
               <input
                 type="email"
                 required
@@ -109,7 +109,7 @@ export default function LoginPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Senha</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Password</label>
               <input
                 type="password"
                 required
@@ -127,17 +127,17 @@ export default function LoginPage() {
               disabled={emailLoading || googleLoading}
               className="w-full bg-zinc-900 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
             >
-              {emailLoading ? 'Entrando...' : 'Entrar'}
+              {emailLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
 
           <p className="text-xs text-zinc-400 text-center mt-6">
-            Ao entrar, você concorda com os termos de uso da plataforma.
+            By signing in, you agree to the platform terms of use.
           </p>
         </div>
 
         <p className="text-xs text-zinc-400 text-center mt-4">
-          Xmartmenu © {new Date().getFullYear()}
+          <a href="/" className="hover:text-zinc-600 transition-colors">XmartMenu</a> © {new Date().getFullYear()}
         </p>
       </div>
     </div>

@@ -53,31 +53,31 @@ export default async function OverviewPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-zinc-900">Dashboard</h1>
-        <p className="text-sm text-zinc-500 mt-1">Visão geral da plataforma</p>
+        <p className="text-sm text-zinc-500 mt-1">Platform overview</p>
       </div>
 
       {/* Cards de stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Clientes totais" value={allTenants.length} sub={`${active} ativos · ${inactive} inativos`} color="zinc" />
-        <StatCard label="Usuários" value={allUsers.length} sub={unassigned > 0 ? `${unassigned} sem tenant` : 'todos atribuídos'} color={unassigned > 0 ? 'amber' : 'zinc'} />
-        <StatCard label="Plano Pro" value={planCount.pro} sub={`${planCount.enterprise} enterprise`} color="blue" />
-        <StatCard label="Plano Free" value={planCount.free} sub="sem assinatura" color="zinc" />
-        <StatCard label="Scans hoje" value={totalScansToday} sub="todas as lojas (BRT)" color="green" />
+        <StatCard label="Total clients" value={allTenants.length} sub={`${active} active · ${inactive} inactive`} color="zinc" />
+        <StatCard label="Users" value={allUsers.length} sub={unassigned > 0 ? `${unassigned} unassigned` : 'all assigned'} color={unassigned > 0 ? 'amber' : 'zinc'} />
+        <StatCard label="Pro plan" value={planCount.pro} sub={`${planCount.enterprise} enterprise`} color="blue" />
+        <StatCard label="Free plan" value={planCount.free} sub="no subscription" color="zinc" />
+        <StatCard label="Scans today" value={totalScansToday} sub="all stores" color="green" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Clientes recentes */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-zinc-900">Clientes recentes</h2>
-            <Link href="/tenants" className="text-xs text-zinc-500 hover:text-zinc-900 underline">Ver todos</Link>
+            <h2 className="text-sm font-semibold text-zinc-900">Recent clients</h2>
+            <Link href="/tenants" className="text-xs text-zinc-500 hover:text-zinc-900 underline">View all</Link>
           </div>
           <div className="space-y-2">
             {recent.map(t => (
               <div key={t.id} className="flex items-center justify-between py-2 border-b border-zinc-50 last:border-0">
                 <div>
                   <p className="text-sm font-medium text-zinc-900">{t.name}</p>
-                  <p className="text-xs text-zinc-400">/{t.slug} · {new Date(t.created_at).toLocaleDateString('pt-BR')}</p>
+                  <p className="text-xs text-zinc-400">/{t.slug} · {new Date(t.created_at).toLocaleDateString('en-US')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -87,7 +87,7 @@ export default async function OverviewPage() {
                   }`}>{t.plan}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                     t.is_active ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-400'
-                  }`}>{t.is_active ? 'Ativo' : 'Inativo'}</span>
+                  }`}>{t.is_active ? 'Active' : 'Inactive'}</span>
                 </div>
               </div>
             ))}
@@ -96,9 +96,9 @@ export default async function OverviewPage() {
 
         {/* Scans hoje */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Scans hoje por loja</h2>
+          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Scans today by store</h2>
           {topScanners.length === 0 ? (
-            <p className="text-sm text-zinc-400">Nenhum scan registrado hoje.</p>
+            <p className="text-sm text-zinc-400">No scans recorded today.</p>
           ) : (
             <div className="space-y-2">
               {topScanners.map(t => (
@@ -118,12 +118,12 @@ export default async function OverviewPage() {
 
         {/* Ações rápidas */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Ações rápidas</h2>
+          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Quick actions</h2>
           <div className="space-y-2">
             {[
-              { href: '/tenants', icon: '🏢', label: 'Gerenciar clientes', desc: 'Criar, editar e excluir tenants' },
-              { href: '/users', icon: '👥', label: 'Gerenciar usuários', desc: 'Atribuir roles e tenants' },
-              { href: '/settings', icon: '⚙️', label: 'Configurações da plataforma', desc: 'Textos, cores e landing page' },
+              { href: '/tenants', icon: '🏢', label: 'Manage clients', desc: 'Create, edit and delete tenants' },
+              { href: '/users', icon: '👥', label: 'Manage users', desc: 'Assign roles and tenants' },
+              { href: '/settings', icon: '⚙️', label: 'Platform settings', desc: 'Text, colors and landing page' },
             ].map(item => (
               <Link key={item.href} href={item.href} className="flex items-center gap-4 p-3 rounded-xl hover:bg-zinc-50 transition-colors border border-transparent hover:border-zinc-200">
                 <span className="text-2xl">{item.icon}</span>

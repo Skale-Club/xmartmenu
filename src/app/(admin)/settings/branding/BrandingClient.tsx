@@ -60,16 +60,16 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
   return (
     <div className="p-8 max-w-2xl">
       <h1 className="text-2xl font-bold text-zinc-900 mb-1">Branding</h1>
-      <p className="text-sm text-zinc-500 mb-6">Personalize a identidade visual do seu cardápio</p>
+      <p className="text-sm text-zinc-500 mb-6">Customize the visual identity of your menu</p>
 
       <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 mb-6 text-sm flex items-center justify-between">
         <div>
-          <p className="text-zinc-500">Link do cardápio público:</p>
+          <p className="text-zinc-500">Public menu link:</p>
           <a href={publicUrl} target="_blank" rel="noopener noreferrer" className="text-zinc-900 font-medium hover:underline">{publicUrl}</a>
         </div>
         <a href={publicUrl} target="_blank" rel="noopener noreferrer"
           className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors flex-shrink-0 ml-4">
-          Ver cardápio
+          View menu
         </a>
       </div>
 
@@ -84,18 +84,18 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
             <div>
               <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo')}
                 className="text-sm text-zinc-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200" />
-              {uploading === 'logo' && <p className="text-xs text-zinc-400 mt-1">Enviando...</p>}
+              {uploading === 'logo' && <p className="text-xs text-zinc-400 mt-1">Uploading...</p>}
               {logoUrl && uploading !== 'logo' && (
-                <button type="button" onClick={() => setLogoUrl('')} className="text-xs text-red-500 hover:text-red-700 mt-1 block">Remover logo</button>
+                <button type="button" onClick={() => setLogoUrl('')} className="text-xs text-red-500 hover:text-red-700 mt-1 block">Remove logo</button>
               )}
-              <p className="text-xs text-zinc-400 mt-1">PNG ou SVG recomendado. Máx 2MB.</p>
+              <p className="text-xs text-zinc-400 mt-1">PNG or SVG recommended. Max 2MB.</p>
             </div>
           </div>
         </div>
 
         {/* Banner */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Banner do cardápio</h2>
+          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Menu banner</h2>
           {bannerUrl && (
             <div className="w-full h-28 rounded-xl border border-zinc-200 overflow-hidden mb-3">
               <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
@@ -103,20 +103,20 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
           )}
           <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'banner')}
             className="text-sm text-zinc-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200" />
-          {uploading === 'banner' && <p className="text-xs text-zinc-400 mt-1">Enviando...</p>}
+          {uploading === 'banner' && <p className="text-xs text-zinc-400 mt-1">Uploading...</p>}
           {bannerUrl && uploading !== 'banner' && (
-            <button type="button" onClick={() => setBannerUrl('')} className="text-xs text-red-500 hover:text-red-700 mt-1 block">Remover banner</button>
+            <button type="button" onClick={() => setBannerUrl('')} className="text-xs text-red-500 hover:text-red-700 mt-1 block">Remove banner</button>
           )}
-          <p className="text-xs text-zinc-400 mt-1">Aparece logo abaixo do header no cardápio. Proporção 3:1 recomendada.</p>
+          <p className="text-xs text-zinc-400 mt-1">Appears just below the header in the menu. 3:1 ratio recommended.</p>
         </div>
 
         {/* Cores */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Cores</h2>
+          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Colors</h2>
           <div className="grid grid-cols-2 gap-4">
             {[
-              { key: 'primary_color', label: 'Cor primária (header)' },
-              { key: 'accent_color', label: 'Cor de destaque (preços)' },
+              { key: 'primary_color', label: 'Primary color (header)' },
+              { key: 'accent_color', label: 'Accent color (prices)' },
             ].map(field => (
               <div key={field.key}>
                 <label className="block text-sm text-zinc-600 mb-2">{field.label}</label>
@@ -135,13 +135,13 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
 
         {/* Contato */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Informações de contato</h2>
+          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Contact information</h2>
           <div className="space-y-3">
             {[
-              { key: 'address', label: 'Endereço', placeholder: 'Rua das Flores, 123 — São Paulo/SP' },
-              { key: 'phone', label: 'Telefone', placeholder: '(11) 99999-0000' },
-              { key: 'whatsapp', label: 'WhatsApp (número completo)', placeholder: '5511999990000' },
-              { key: 'instagram', label: 'Instagram (sem @)', placeholder: 'meurestaurante' },
+              { key: 'address', label: 'Address', placeholder: '123 Main St, New York, NY' },
+              { key: 'phone', label: 'Phone', placeholder: '+1 (555) 000-0000' },
+              { key: 'whatsapp', label: 'WhatsApp (full number)', placeholder: '15550000000' },
+              { key: 'instagram', label: 'Instagram (without @)', placeholder: 'myrestaurant' },
             ].map(field => (
               <div key={field.key}>
                 <label className="block text-sm text-zinc-600 mb-1">{field.label}</label>
@@ -156,7 +156,7 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
 
         <button type="submit" disabled={loading}
           className="bg-zinc-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors">
-          {loading ? 'Salvando...' : saved ? '✓ Salvo!' : 'Salvar configurações'}
+          {loading ? 'Saving...' : saved ? '✓ Saved!' : 'Save settings'}
         </button>
       </form>
     </div>

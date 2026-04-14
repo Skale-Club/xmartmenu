@@ -22,15 +22,15 @@ export default async function DashboardPage() {
   ])
 
   const stats = [
-    { label: 'Produtos cadastrados', value: totalProducts ?? 0, icon: '🍽️' },
-    { label: 'Categorias', value: totalCategories ?? 0, icon: '📂' },
-    { label: 'Scans hoje', value: scansToday ?? 0, icon: '📱' },
+    { label: 'Products', value: totalProducts ?? 0, icon: '🍽️' },
+    { label: 'Categories', value: totalCategories ?? 0, icon: '📂' },
+    { label: 'Scans today', value: scansToday ?? 0, icon: '📱' },
   ]
 
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-zinc-900 mb-2">Dashboard</h1>
-      <p className="text-sm text-zinc-500 mb-8">Visão geral do seu cardápio</p>
+      <p className="text-sm text-zinc-500 mb-8">Overview of your menu</p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
         {stats.map((stat) => (
@@ -43,23 +43,23 @@ export default async function DashboardPage() {
       </div>
 
       <div className="bg-white rounded-xl border border-zinc-200 p-6">
-        <h2 className="text-base font-semibold text-zinc-900 mb-4">Início rápido</h2>
+        <h2 className="text-base font-semibold text-zinc-900 mb-4">Quick start</h2>
         <div className="space-y-3 text-sm text-zinc-600">
           <div className="flex items-center gap-3">
             <span className="w-6 h-6 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center font-bold">1</span>
-            <span>Configure o branding do seu restaurante em <strong>Configurações → Branding</strong></span>
+            <span>Set up your restaurant branding in <strong>Settings → Branding</strong></span>
           </div>
           <div className="flex items-center gap-3">
             <span className="w-6 h-6 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center font-bold">2</span>
-            <span>Crie suas categorias em <strong>Cardápio → Categorias</strong></span>
+            <span>Create your categories in <strong>Menu → Categories</strong></span>
           </div>
           <div className="flex items-center gap-3">
             <span className="w-6 h-6 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center font-bold">3</span>
-            <span>Adicione seus produtos em <strong>Cardápio → Produtos</strong></span>
+            <span>Add your products in <strong>Menu → Products</strong></span>
           </div>
           <div className="flex items-center gap-3">
             <span className="w-6 h-6 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center font-bold">4</span>
-            <span>Gere e imprima seu QR Code em <strong>QR Code</strong></span>
+            <span>Generate and print your QR Code in <strong>QR Code</strong></span>
           </div>
         </div>
       </div>

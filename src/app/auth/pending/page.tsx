@@ -7,15 +7,15 @@ export default function PendingPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <h1 className="text-xl font-bold text-zinc-900 mb-2">Conta em análise</h1>
+        <h1 className="text-xl font-bold text-zinc-900 mb-2">Account under review</h1>
         <p className="text-sm text-zinc-500 mb-6">
-          Seu acesso ainda não foi configurado. Entre em contato com o suporte ou aguarde a ativação da sua conta pelo administrador.
+          Your access has not been configured yet. Please contact support or wait for your account to be activated by an administrator.
         </p>
         <a
           href="/auth/login"
           className="inline-block text-sm font-medium text-zinc-600 hover:text-zinc-900 underline"
         >
-          Voltar ao login
+          Back to login
         </a>
       </div>
     </div>

@@ -12,7 +12,7 @@ export default async function AdminLayout({
 }) {
   const service = await createServiceClient()
   const { data: platformSettings } = await service.from('platform_settings').select('app_name').single()
-  const appName = platformSettings?.app_name ?? 'Xmartmenu'
+  const appName = platformSettings?.app_name ?? 'XmartMenu'
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -50,8 +50,8 @@ export default async function AdminLayout({
       <div className="flex h-screen bg-zinc-50">
         <div className="flex flex-col w-60 flex-shrink-0">
           <div className="bg-amber-500 text-white text-xs text-center py-1.5 font-medium">
-            Visualizando: {tenant.name}
-            <a href="/api/admin/exit-preview" className="ml-2 underline">Sair</a>
+            Viewing: {tenant.name}
+            <a href="/api/admin/exit-preview" className="ml-2 underline">Exit</a>
           </div>
           <div className="flex-1">
             <AdminSidebar tenantName={tenant.name} tenantSlug={tenant.slug} appName={appName} />
@@ -64,7 +64,7 @@ export default async function AdminLayout({
 
   return (
     <div className="flex h-screen bg-zinc-50">
-      <AdminSidebar tenantName={profile.tenants?.name ?? 'Meu Restaurante'} tenantSlug={(profile.tenants as any)?.slug} />
+      <AdminSidebar tenantName={profile.tenants?.name ?? 'My Restaurant'} tenantSlug={(profile.tenants as any)?.slug} />
       <main className="flex-1 overflow-y-auto">
         {children}
       </main>

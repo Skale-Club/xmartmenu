@@ -12,11 +12,11 @@ interface Props {
 }
 
 const DAYS: Record<string, string> = {
-  mon: 'Segunda', tue: 'Terça', wed: 'Quarta',
-  thu: 'Quinta', fri: 'Sexta', sat: 'Sábado', sun: 'Domingo',
+  mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday',
+  thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
 }
 
-export default function MenuPage({ tenant, categories, products, footerBrand = 'Xmartmenu' }: Props) {
+export default function MenuPage({ tenant, categories, products, footerBrand = 'XmartMenu' }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -45,7 +45,7 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
 
   function openWhatsApp(product: Product) {
     if (!whatsapp) return
-    const msg = encodeURIComponent(`Olá! Quero pedir: ${product.name} — ${formatPrice(product.price)}`)
+    const msg = encodeURIComponent(`Hi! I'd like to order: ${product.name} — ${formatPrice(product.price)}`)
     window.open(`https://wa.me/${whatsapp}?text=${msg}`, '_blank')
   }
 
@@ -73,7 +73,7 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
             type="search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar no cardápio..."
+            placeholder="Search the menu..."
             className="w-full px-4 py-2.5 rounded-xl text-zinc-900 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-white/50 placeholder:text-zinc-400"
           />
         </div>
@@ -96,7 +96,7 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
                 style={!activeCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
                 className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${!activeCategory ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
               >
-                Todos
+                All
               </button>
               {categories.map(cat => (
                 <button
@@ -117,7 +117,7 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
         {/* Destaques */}
         {featured.length > 0 && !search && !activeCategory && (
           <section>
-            <h2 className="text-base font-bold text-zinc-900 mb-3">⭐ Destaques</h2>
+            <h2 className="text-base font-bold text-zinc-900 mb-3">⭐ Featured</h2>
             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
               {featured.map(p => (
                 <button key={p.id} onClick={() => setSelectedProduct(p)}
@@ -138,8 +138,8 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
         {filtered.length === 0 && (
           <div className="text-center py-16 text-zinc-400">
             <p className="text-4xl mb-3">🔍</p>
-            <p className="font-medium">Nenhum item encontrado</p>
-            <p className="text-sm mt-1">Tente outro termo de busca</p>
+            <p className="font-medium">No items found</p>
+            <p className="text-sm mt-1">Try a different search term</p>
           </div>
         )}
 
@@ -156,7 +156,7 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
 
         {uncategorized.length > 0 && (
           <section>
-            <h2 className="text-base font-bold text-zinc-900 mb-3">Outros</h2>
+            <h2 className="text-base font-bold text-zinc-900 mb-3">Other</h2>
             <div className="space-y-2">
               {uncategorized.map(p => (
                 <ProductCard key={p.id} product={p} accentColor={accentColor} onClick={() => setSelectedProduct(p)} />
@@ -168,7 +168,7 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
         {/* Horários de funcionamento */}
         {hasHours && (
           <section className="bg-white rounded-xl border border-zinc-200 p-5">
-            <h2 className="text-sm font-bold text-zinc-900 mb-3">Horário de funcionamento</h2>
+            <h2 className="text-sm font-bold text-zinc-900 mb-3">Opening hours</h2>
             <div className="space-y-1.5">
               {Object.entries(DAYS).map(([key, label]) => {
                 const value = hours?.[key as keyof typeof hours]
@@ -187,7 +187,7 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
         {/* Contato */}
         {hasContact && (
           <section className="bg-white rounded-xl border border-zinc-200 p-5">
-            <h2 className="text-sm font-bold text-zinc-900 mb-3">Contato</h2>
+            <h2 className="text-sm font-bold text-zinc-900 mb-3">Contact</h2>
             <div className="space-y-2">
               {settings?.phone && (
                 <a href={`tel:${settings.phone}`} className="flex items-center gap-3 text-sm text-zinc-700 hover:text-zinc-900">
@@ -216,8 +216,8 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
         )}
 
         <footer className="pt-2 pb-10 text-center">
-          <p className="text-xs text-zinc-400">Cardápio digital por</p>
-          <p className="text-xs font-semibold text-zinc-500">{footerBrand}</p>
+          <p className="text-xs text-zinc-400">Digital menu by</p>
+          <a href="/" className="text-xs font-semibold text-zinc-500 hover:text-zinc-700 transition-colors">{footerBrand}</a>
         </footer>
       </div>
 
@@ -241,7 +241,7 @@ function ProductCard({ product, accentColor, onClick }: { product: Product; acce
       <div className="flex-1 min-w-0">
         <div className="flex items-start gap-2 flex-wrap">
           <p className="text-sm font-semibold text-zinc-900">{product.name}</p>
-          {product.is_featured && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Destaque</span>}
+          {product.is_featured && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Featured</span>}
         </div>
         {product.tags?.length > 0 && (
           <div className="flex gap-1 mt-1 flex-wrap">
@@ -286,7 +286,7 @@ function ProductModal({ product, accentColor, whatsapp, onClose, onWhatsApp }: {
             </div>
             {whatsapp && (
               <button onClick={onWhatsApp} className="bg-green-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-600 transition-colors">
-                Pedir pelo WhatsApp
+                Order via WhatsApp
               </button>
             )}
           </div>

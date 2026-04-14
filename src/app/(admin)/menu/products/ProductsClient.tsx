@@ -11,7 +11,7 @@ interface ProductWithCategory extends Product {
   category: { id: string; name: string } | null
 }
 
-const DEFAULT_TAGS = ['Vegetariano', 'Vegano', 'Sem Glúten', 'Picante', 'Destaque do chef']
+const DEFAULT_TAGS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Spicy', 'Chef\'s special']
 
 interface Props {
   products: ProductWithCategory[]
@@ -154,21 +154,21 @@ export default function ProductsClient({ products: initial, categories, tenantId
     <div className="p-8">
       <ConfirmDialog
         open={!!confirmId}
-        title="Excluir produto"
-        message="Excluir este produto? Esta ação é irreversível."
+        title="Delete product"
+        message="Delete this product? This action cannot be undone."
         onConfirm={confirmDelete}
         onCancel={() => setConfirmId(null)}
       />
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Produtos</h1>
-          <p className="text-sm text-zinc-500 mt-1">{products.length} produto(s) cadastrado(s)</p>
+          <p className="text-sm text-zinc-500 mt-1">{products.length} product(s)</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
           className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
         >
-          + Novo produto
+          + New product
         </button>
       </div>
 
@@ -178,7 +178,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
           onClick={() => setFilterCategory('all')}
           className={`text-xs px-3 py-1.5 rounded-full font-medium transition-colors ${filterCategory === 'all' ? 'bg-zinc-900 text-white' : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50'}`}
         >
-          Todos
+          All
         </button>
         {categories.map(cat => (
           <button
@@ -195,32 +195,32 @@ export default function ProductsClient({ products: initial, categories, tenantId
       {showForm && (
         <div className="bg-white border border-zinc-200 rounded-xl p-6 mb-6">
           <h2 className="text-base font-semibold text-zinc-900 mb-5">
-            {editingId ? 'Editar produto' : 'Novo produto'}
+            {editingId ? 'Edit product' : 'New product'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Nome *</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Name *</label>
                 <input
                   required
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                  placeholder="Ex: X-Burguer Clássico"
+                  placeholder="e.g. Classic Cheeseburger"
                   className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
               </div>
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Descrição</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Description</label>
                 <textarea
                   rows={2}
                   value={form.description}
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="Ingredientes, detalhes do preparo..."
+                  placeholder="Ingredients, preparation details..."
                   className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Preço *</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Price *</label>
                 <input
                   required
                   type="number"
@@ -233,7 +233,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Preço original (de)</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Original price (was)</label>
                 <input
                   type="number"
                   step="0.01"
@@ -245,28 +245,28 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Categoria</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Category</label>
                 <select
                   value={form.category_id}
                   onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
                   className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
                 >
-                  <option value="">Sem categoria</option>
+                  <option value="">No category</option>
                   {categories.map(cat => (
                     <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Imagem</label>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Image</label>
                 <input
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
                   className="w-full text-sm text-zinc-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
                 />
-                {uploadingImage && <p className="text-xs text-zinc-400 mt-1">Enviando imagem...</p>}
-                {form.image_url && <p className="text-xs text-green-600 mt-1">Imagem carregada</p>}
+                {uploadingImage && <p className="text-xs text-zinc-400 mt-1">Uploading image...</p>}
+                {form.image_url && <p className="text-xs text-green-600 mt-1">Image uploaded</p>}
               </div>
             </div>
 
@@ -297,7 +297,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 onChange={e => setForm(f => ({ ...f, is_featured: e.target.checked }))}
                 className="w-4 h-4 rounded border-zinc-300"
               />
-              <span className="text-sm text-zinc-700">Produto em destaque</span>
+              <span className="text-sm text-zinc-700">Featured product</span>
             </label>
 
             {formError && (
@@ -309,10 +309,10 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 disabled={loading}
                 className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
               >
-                {loading ? 'Salvando...' : 'Salvar produto'}
+                {loading ? 'Saving...' : 'Save product'}
               </button>
               <button type="button" onClick={resetForm} className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 transition-colors">
-                Cancelar
+                Cancel
               </button>
             </div>
           </form>
@@ -323,8 +323,8 @@ export default function ProductsClient({ products: initial, categories, tenantId
       {filtered.length === 0 ? (
         <div className="text-center py-16 text-zinc-400">
           <p className="text-4xl mb-3">🍽️</p>
-          <p className="font-medium">Nenhum produto ainda</p>
-          <p className="text-sm mt-1">Adicione produtos para montar seu cardápio</p>
+          <p className="font-medium">No products yet</p>
+          <p className="text-sm mt-1">Add products to build your menu</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -345,13 +345,13 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold text-zinc-900">{product.name}</p>
                   {product.is_featured && (
-                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Destaque</span>
+                    <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Featured</span>
                   )}
                   {product.tags?.map(tag => (
                     <span key={tag} className="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">{tag}</span>
                   ))}
                 </div>
-                <p className="text-xs text-zinc-500 mt-0.5 truncate">{product.category?.name ?? 'Sem categoria'}</p>
+                <p className="text-xs text-zinc-500 mt-0.5 truncate">{product.category?.name ?? 'No category'}</p>
                 <div className="flex items-center gap-2 mt-1">
                   {product.original_price && (
                     <span className="text-xs text-zinc-400 line-through">{formatPrice(product.original_price)}</span>
@@ -368,19 +368,19 @@ export default function ProductsClient({ products: initial, categories, tenantId
                       : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
                   }`}
                 >
-                  {product.is_available ? 'Disponível' : 'Indisponível'}
+                  {product.is_available ? 'Available' : 'Unavailable'}
                 </button>
                 <button
                   onClick={() => startEdit(product)}
                   className="text-xs px-3 py-1 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
                 >
-                  Editar
+                  Edit
                 </button>
                 <button
                   onClick={() => setConfirmId(product.id)}
                   className="text-xs px-3 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
                 >
-                  Excluir
+                  Delete
                 </button>
               </div>
             </div>
