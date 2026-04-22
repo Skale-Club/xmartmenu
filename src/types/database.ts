@@ -28,6 +28,7 @@ export interface TenantSettings {
   language: string
   whatsapp_orders_enabled: boolean
   orders_enabled: boolean
+  direct_orders_enabled: boolean
   updated_at: string
 }
 
@@ -124,4 +125,25 @@ export interface Menu {
   is_default: boolean
   position: number
   created_at: string
+}
+
+export interface Order {
+  id: string
+  tenant_id: string
+  customer_name: string
+  customer_phone: string
+  status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  total: number
+  created_at: string
+  updated_at: string
+}
+
+export interface OrderItem {
+  id: string
+  order_id: string
+  product_id: string
+  product_name: string
+  quantity: number
+  unit_price: number
+  notes: string | null
 }

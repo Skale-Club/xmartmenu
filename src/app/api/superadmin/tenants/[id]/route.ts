@@ -1,12 +1,11 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { isSuperadminRequest } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
 
 async function assertSuperadmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  return profile?.role === 'superadmin' ? supabase : null
+  const allowed = await isSuperadminRequest()
+  if (!allowed) return null
+  return createClient()
 }
 
 export async function PATCH(

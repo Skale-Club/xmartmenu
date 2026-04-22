@@ -1,12 +1,9 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { isSuperadminRequest } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
 
 async function assertSuperadmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  return profile?.role === 'superadmin' ? true : null
+  return await isSuperadminRequest() ? true : null
 }
 
 export async function PATCH(
@@ -19,9 +16,40 @@ export async function PATCH(
   const body = await request.json()
   const service = await createServiceClient()
 
+  const rawRole = typeof body.role === 'string' && body.role.trim() ? body.role.trim() : null
+  const rawTenantId = typeof body.tenant_id === 'string' && body.tenant_id.trim() ? body.tenant_id.trim() : null
+
+  const allowedRoles = new Set(['superadmin', 'store-admin', 'store-staff', 'customer'])
+  if (rawRole && !allowedRoles.has(rawRole)) {
+    return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+  }
+
+  if ((rawRole === 'store-admin' || rawRole === 'store-staff') && !rawTenantId) {
+    return NextResponse.json({ error: 'Store Admin/Staff must be linked to a tenant' }, { status: 400 })
+  }
+
+  if (rawTenantId) {
+    const { data: tenant } = await service
+      .from('tenants')
+      .select('id')
+      .eq('id', rawTenantId)
+      .maybeSingle()
+
+    if (!tenant) {
+      return NextResponse.json({ error: 'Tenant not found' }, { status: 404 })
+    }
+  }
+
+  let normalizedTenantId = rawTenantId
+  if (rawRole === 'superadmin' || rawRole === 'customer' || !rawRole) {
+    normalizedTenantId = null
+  }
+
   const update: Record<string, unknown> = {}
-  if ('role' in body) update.role = body.role
-  if ('tenant_id' in body) update.tenant_id = body.tenant_id
+  if ('role' in body) update.role = rawRole
+  if ('tenant_id' in body || (rawRole === 'superadmin' || rawRole === 'customer' || !rawRole)) {
+    update.tenant_id = normalizedTenantId
+  }
 
   const { data, error } = await service
     .from('profiles')

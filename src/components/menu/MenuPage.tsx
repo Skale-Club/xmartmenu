@@ -50,6 +50,11 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
+interface CartItem {
+  product: Product
+  quantity: number
+}
+
 export default function MenuPage({ tenant, categories, products, menu = null, initialLanguage, footerBrand = 'XmartMenu' }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
@@ -59,6 +64,13 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
   const [pauseFeaturedAutoScroll, setPauseFeaturedAutoScroll] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage ?? menu?.language ?? 'en')
   const [visibleCategory, setVisibleCategory] = useState<string | null>(null)
+  const [cart, setCart] = useState<CartItem[]>([])
+  const [showCartModal, setShowCartModal] = useState(false)
+  const [customerName, setCustomerName] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [submittingOrder, setSubmittingOrder] = useState(false)
+  const [orderSuccess, setOrderSuccess] = useState(false)
+  const [orderError, setOrderError] = useState<string | null>(null)
   const footerRef = useRef<HTMLElement | null>(null)
   const featuredRailRef = useRef<HTMLDivElement | null>(null)
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
@@ -100,6 +112,90 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
     if (!whatsapp) return
     const msg = encodeURIComponent(`Hi! I'd like to order: ${product.name} — ${formatPrice(product.price, currency)}`)
     window.open(`https://wa.me/${whatsapp}?text=${msg}`, '_blank')
+  }
+
+  const directOrdersEnabled = settings?.direct_orders_enabled ?? false
+
+  const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+
+  function addToCart(product: Product) {
+    setCart(prev => {
+      const existing = prev.find(item => item.product.id === product.id)
+      if (existing) {
+        return prev.map(item =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        )
+      }
+      return [...prev, { product, quantity: 1 }]
+    })
+  }
+
+  function removeFromCart(productId: string) {
+    setCart(prev => prev.filter(item => item.product.id !== productId))
+  }
+
+  function updateCartQuantity(productId: string, quantity: number) {
+    if (quantity <= 0) {
+      removeFromCart(productId)
+      return
+    }
+    setCart(prev =>
+      prev.map(item =>
+        item.product.id === productId ? { ...item, quantity } : item
+      )
+    )
+  }
+
+  async function submitOrder() {
+    if (!customerName.trim() || !customerPhone.trim()) {
+      setOrderError('Please fill in your name and phone number')
+      return
+    }
+    if (cart.length === 0) {
+      setOrderError('Your cart is empty')
+      return
+    }
+
+    setSubmittingOrder(true)
+    setOrderError(null)
+
+    try {
+      const response = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: tenant.id,
+          customer_name: customerName.trim(),
+          customer_phone: customerPhone.trim(),
+          items: cart.map(item => ({
+            product_id: item.product.id,
+            product_name: item.product.name,
+            quantity: item.quantity,
+            unit_price: item.product.price,
+          })),
+        }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit order')
+      }
+
+      setOrderSuccess(true)
+      setCart([])
+      setCustomerName('')
+      setCustomerPhone('')
+      setShowCartModal(false)
+      setTimeout(() => setOrderSuccess(false), 3000)
+    } catch (error) {
+      setOrderError(error instanceof Error ? error.message : 'Failed to submit order')
+    } finally {
+      setSubmittingOrder(false)
+    }
   }
 
   const hours = settings?.business_hours
@@ -438,6 +534,38 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           lang={selectedLanguage}
           onClose={() => setSelectedProduct(null)}
           onWhatsApp={() => openWhatsApp(selectedProduct)}
+          onAddToCart={directOrdersEnabled ? () => { addToCart(selectedProduct); setSelectedProduct(null) } : undefined}
+        />
+      )}
+
+      {directOrdersEnabled && cart.length > 0 && !showCartModal && (
+        <button
+          onClick={() => setShowCartModal(true)}
+          className="fixed bottom-20 right-4 z-40 bg-zinc-900 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-2 hover:bg-zinc-800 transition-colors"
+        >
+          <span>🛒</span>
+          <span className="font-semibold">{formatPrice(cartTotal, currency)}</span>
+          {cartCount > 0 && (
+            <span className="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">{cartCount}</span>
+          )}
+        </button>
+      )}
+
+      {showCartModal && (
+        <CartModal
+          cart={cart}
+          currency={currency}
+          customerName={customerName}
+          customerPhone={customerPhone}
+          submittingOrder={submittingOrder}
+          orderSuccess={orderSuccess}
+          orderError={orderError}
+          onClose={() => setShowCartModal(false)}
+          onCustomerNameChange={setCustomerName}
+          onCustomerPhoneChange={setCustomerPhone}
+          onRemove={removeFromCart}
+          onUpdateQuantity={updateCartQuantity}
+          onSubmit={submitOrder}
         />
       )}
     </div>
@@ -518,8 +646,8 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
   )
 }
 
-function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp }: {
-  product: Product; accentColor: string; currency: string; whatsapp?: string | null; lang: string; onClose: () => void; onWhatsApp: () => void
+function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart }: {
+  product: Product; accentColor: string; currency: string; whatsapp?: string | null; lang: string; onClose: () => void; onWhatsApp: () => void; onAddToCart?: () => void
 }) {
   const images = getProductImages(product)
   const [imageIndex, setImageIndex] = useState(0)
@@ -634,13 +762,129 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
               {product.original_price && <p className="text-sm text-zinc-400 line-through">{formatPrice(product.original_price, currency)}</p>}
               <p style={{ color: accentColor }} className="text-2xl font-bold">{formatPrice(product.price, currency)}</p>
             </div>
-            {whatsapp && (
-              <button onClick={onWhatsApp} className="w-full sm:w-auto bg-green-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-600 transition-colors">
-                Order via WhatsApp
-              </button>
-            )}
+            <div className="flex flex-col sm:flex-row gap-2">
+              {whatsapp && (
+                <button onClick={onWhatsApp} className="w-full sm:w-auto bg-green-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-600 transition-colors">
+                  Order via WhatsApp
+                </button>
+              )}
+              {onAddToCart && (
+                <button onClick={onAddToCart} className="w-full sm:w-auto bg-zinc-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors">
+                  Add to cart
+                </button>
+              )}
+            </div>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function CartModal({ cart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, onClose, onCustomerNameChange, onCustomerPhoneChange, onRemove, onUpdateQuantity, onSubmit }: {
+  cart: CartItem[]
+  currency: string
+  customerName: string
+  customerPhone: string
+  submittingOrder: boolean
+  orderSuccess: boolean
+  orderError: string | null
+  onClose: () => void
+  onCustomerNameChange: (name: string) => void
+  onCustomerPhoneChange: (phone: string) => void
+  onRemove: (productId: string) => void
+  onUpdateQuantity: (productId: string, quantity: number) => void
+  onSubmit: () => void
+}) {
+  const total = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-md lg:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="p-5 sm:p-6 border-b border-zinc-200 flex items-center justify-between">
+          <h3 className="text-lg font-bold text-zinc-900">Your order</h3>
+          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 text-xl leading-none">✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+          {cart.length === 0 ? (
+            <p className="text-center text-zinc-400 py-8">Your cart is empty</p>
+          ) : (
+            <>
+              {cart.map(item => (
+                <div key={item.product.id} className="flex items-center gap-3 py-2 border-b border-zinc-100 last:border-0">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-zinc-900 truncate">{item.product.name}</p>
+                    <p className="text-sm text-zinc-500">{formatPrice(item.product.price, currency)} each</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
+                      className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-600"
+                    >
+                      -
+                    </button>
+                    <span className="w-8 text-center font-medium">{item.quantity}</span>
+                    <button
+                      onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
+                      className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-600"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <p className="w-20 text-right font-semibold">{formatPrice(item.product.price * item.quantity, currency)}</p>
+                  <button
+                    onClick={() => onRemove(item.product.id)}
+                    className="text-red-500 hover:text-red-700 text-sm"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+
+          {cart.length > 0 && (
+            <div className="pt-4 border-t border-zinc-200 space-y-4">
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={e => onCustomerNameChange(e.target.value)}
+                  placeholder="Your name"
+                  className="flex-1 px-4 py-2.5 border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={e => onCustomerPhoneChange(e.target.value)}
+                  placeholder="Your phone number"
+                  className="flex-1 px-4 py-2.5 border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+
+              {orderError && (
+                <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{orderError}</p>
+              )}
+            </div>
+          )}
+        </div>
+        {cart.length > 0 && (
+          <div className="p-5 sm:p-6 border-t border-zinc-200 bg-zinc-50">
+            <div className="flex items-center justify-between mb-4">
+              <span className="font-semibold text-zinc-900">Total</span>
+              <span className="text-xl font-bold text-zinc-900">{formatPrice(total, currency)}</span>
+            </div>
+            <button
+              onClick={onSubmit}
+              disabled={submittingOrder || orderSuccess}
+              className={`w-full py-3 rounded-xl text-sm font-semibold transition-colors ${orderSuccess ? 'bg-green-500 text-white' : 'bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50'}`}
+            >
+              {submittingOrder ? 'Submitting...' : orderSuccess ? 'Order submitted!' : 'Confirm order'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

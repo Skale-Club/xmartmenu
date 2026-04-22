@@ -13,6 +13,7 @@ const mainItems = [
   { href: '/menus', label: 'Menus', icon: '📋' },
   { href: '/menu/categories', label: 'Categories', icon: '📂' },
   { href: '/menu/products', label: 'Products', icon: '🍽️' },
+  { href: '/orders', label: 'Orders', icon: '📦' },
 ]
 
 const adminPanelItems = [

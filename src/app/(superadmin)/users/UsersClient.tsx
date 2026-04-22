@@ -22,6 +22,10 @@ interface UserRow {
   last_sign_in_at: string | null
 }
 
+function roleNeedsTenant(role: string) {
+  return role === 'store-admin' || role === 'store-staff'
+}
+
 export default function UsersClient({ users: initial, tenants }: { users: UserRow[]; tenants: TenantOption[] }) {
   const [users, setUsers] = useState(initial)
   const [loading, setLoading] = useState<string | null>(null)
@@ -140,6 +144,7 @@ function UserRow({
 }) {
   const [tenant, setTenant] = useState(user.tenant_id ?? '')
   const [role, setRole] = useState(user.role ?? '')
+  const missingRequiredTenant = roleNeedsTenant(role) && !tenant
   const changed = tenant !== (user.tenant_id ?? '') || role !== (user.role ?? '')
 
   return (
@@ -159,7 +164,11 @@ function UserRow({
       <td className="px-5 py-3">
         <select
           value={role}
-          onChange={e => setRole(e.target.value)}
+          onChange={e => {
+            const nextRole = e.target.value
+            setRole(nextRole)
+            if (!roleNeedsTenant(nextRole)) setTenant('')
+          }}
           className="text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
         >
           <option value="">No role</option>
@@ -173,7 +182,9 @@ function UserRow({
         <select
           value={tenant}
           onChange={e => setTenant(e.target.value)}
-          className="text-xs border border-zinc-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 max-w-[180px]"
+          className={`text-xs border rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900 max-w-[180px] ${
+            missingRequiredTenant ? 'border-red-300' : 'border-zinc-200'
+          }`}
         >
           <option value="">No tenant</option>
           {tenants.map(t => (
@@ -183,10 +194,13 @@ function UserRow({
       </td>
       <td className="px-5 py-3">
         <div className="flex items-center gap-2 justify-end">
+          {missingRequiredTenant && (
+            <span className="text-[11px] text-red-600">Select a tenant</span>
+          )}
           {changed && (
             <button
               onClick={() => onAssign(user.id, tenant, role)}
-              disabled={loading}
+              disabled={loading || missingRequiredTenant}
               className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 disabled:opacity-50 transition-colors"
             >
               {loading ? 'Saving...' : 'Save'}

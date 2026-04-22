@@ -1,5 +1,6 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { normalizeRole, parseSuperadminEmails } from '@/lib/auth/role-utils'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -19,11 +20,24 @@ export async function GET(request: Request) {
           .eq('id', user.id)
           .single()
 
-        if (profile?.role === 'superadmin') {
+        const role = normalizeRole(profile?.role)
+        const userEmail = user.email?.toLowerCase() ?? ''
+        const isConfiguredSuperadmin = parseSuperadminEmails().includes(userEmail)
+
+        if (isConfiguredSuperadmin && role !== 'superadmin') {
+          await service.from('profiles').upsert({
+            id: user.id,
+            role: 'superadmin',
+            full_name: user.user_metadata?.full_name ?? null,
+          }, { onConflict: 'id' })
           return NextResponse.redirect(`${origin}/overview`)
         }
 
-        if (profile?.role === 'customer') {
+        if (role === 'superadmin') {
+          return NextResponse.redirect(`${origin}/overview`)
+        }
+
+        if (role === 'customer') {
           return NextResponse.redirect(`${origin}${next}`)
         }
 
@@ -31,19 +45,17 @@ export async function GET(request: Request) {
           return NextResponse.redirect(`${origin}/settings/password?forced=1`)
         }
 
-        // Garante que o profile existe e tem role válido
-        if (!profile || !['superadmin', 'store-admin', 'store-staff', 'customer'].includes(profile.role)) {
-          await service.from('profiles').upsert({
-            id: user.id,
-            role: 'store-admin',
-            full_name: user.user_metadata?.full_name ?? null,
-          }, { onConflict: 'id' })
+        if (!profile || !role) {
+          return NextResponse.redirect(`${origin}/dashboard`)
+        }
+
+        // Store-admin sem tenant deve passar no onboarding.
+        if (role === 'store-admin' && !profile.tenant_id) {
           return NextResponse.redirect(`${origin}/onboarding`)
         }
 
-        // Usuário com role correto mas sem tenant → onboarding
         if (!profile.tenant_id) {
-          return NextResponse.redirect(`${origin}/onboarding`)
+          return NextResponse.redirect(`${origin}/dashboard`)
         }
 
         return NextResponse.redirect(`${origin}/dashboard`)

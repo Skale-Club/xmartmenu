@@ -34,7 +34,7 @@ export default function LoginPage() {
     setError(null)
 
     const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError('Incorrect email or password.')
@@ -42,18 +42,21 @@ export default function LoginPage() {
       return
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, must_change_password')
-      .eq('id', data.user.id)
-      .single()
+    const from = new URLSearchParams(window.location.search).get('from') ?? '/'
+    const response = await fetch('/api/auth/resolve-redirect', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ next: from }),
+    })
 
-    if (profile?.must_change_password) {
-      router.replace('/settings/password?forced=1')
+    if (!response.ok) {
+      setError('Unable to finish login right now. Please try again.')
+      setEmailLoading(false)
       return
     }
 
-    router.replace(profile?.role === 'superadmin' ? '/tenants' : '/dashboard')
+    const payload = await response.json() as { redirectTo?: string }
+    router.replace(payload.redirectTo ?? '/dashboard')
   }
 
   return (

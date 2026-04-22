@@ -16,7 +16,9 @@ export default async function TenantsPage() {
 
   // Monta lista combinada: cada cliente = tenant + seu usuário admin
   const clients = (tenants ?? []).map(tenant => {
-    const profile = (profiles ?? []).find(p => p.tenant_id === tenant.id && p.role === 'admin')
+    const profile = (profiles ?? []).find(
+      p => p.tenant_id === tenant.id && (p.role === 'store-admin' || p.role === 'admin')
+    )
     const authUser = profile ? authMap.get(profile.id) : null
     return {
       id: tenant.id,

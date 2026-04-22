@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 function RegisterForm() {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const from = searchParams.get('from') ?? '/'
+  const isQrFlow = from !== '/' && !from.startsWith('/auth')
 
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -23,13 +25,24 @@ function RegisterForm() {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, phone, password, redirectTo: from }),
+      body: JSON.stringify(
+        isQrFlow
+          ? { name, phone, redirectTo: from }
+          : { name, email, phone, password, redirectTo: from }
+      ),
     })
 
     const data = await res.json()
 
     if (!res.ok) {
       setError(data.error ?? 'Failed to create account')
+      setLoading(false)
+      return
+    }
+
+    if (isQrFlow) {
+      router.replace(data.redirect_to ?? from)
+      router.refresh()
       setLoading(false)
       return
     }
@@ -47,7 +60,9 @@ function RegisterForm() {
           </svg>
         </div>
         <a href="/" className="text-xl font-bold text-zinc-900 hover:text-zinc-600 transition-colors">XmartMenu</a>
-        <p className="text-sm text-zinc-500 mt-1">Create your account</p>
+        <p className="text-sm text-zinc-500 mt-1">
+          {isQrFlow ? 'Enter your name and phone to continue' : 'Create your account'}
+        </p>
       </div>
 
       {success ? (
@@ -82,17 +97,19 @@ function RegisterForm() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-            />
-          </div>
+          {!isQrFlow && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Phone</label>
@@ -106,18 +123,20 @@ function RegisterForm() {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-            />
-            <p className="text-xs text-zinc-400 mt-1">Minimum 8 characters</p>
-          </div>
+          {!isQrFlow && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Password</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              />
+              <p className="text-xs text-zinc-400 mt-1">Minimum 8 characters</p>
+            </div>
+          )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
@@ -126,13 +145,15 @@ function RegisterForm() {
             disabled={loading}
             className="w-full bg-zinc-900 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
           >
-            {loading ? 'Creating account...' : 'Create account'}
+            {loading ? 'Creating account...' : isQrFlow ? 'Continue' : 'Create account'}
           </button>
 
-          <p className="text-xs text-zinc-400 text-center">
-            Already have an account?{' '}
-            <a href={`/auth/login?from=${from}`} className="text-zinc-700 underline hover:text-zinc-900">Sign in</a>
-          </p>
+          {!isQrFlow && (
+            <p className="text-xs text-zinc-400 text-center">
+              Already have an account?{' '}
+              <a href={`/auth/login?from=${from}`} className="text-zinc-700 underline hover:text-zinc-900">Sign in</a>
+            </p>
+          )}
         </form>
       )}
     </div>

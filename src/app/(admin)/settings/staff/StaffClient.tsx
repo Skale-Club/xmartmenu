@@ -16,6 +16,12 @@ interface Credentials {
   password: string
 }
 
+interface StaffPayload {
+  id: string | null
+  email: string
+  full_name: string
+}
+
 export default function StaffClient() {
   const [staff, setStaff] = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)
@@ -26,6 +32,7 @@ export default function StaffClient() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
   const [credentials, setCredentials] = useState<Credentials | null>(null)
+  const [credentialsOwner, setCredentialsOwner] = useState<StaffPayload | null>(null)
 
   // Delete confirm
   const [confirmId, setConfirmId] = useState<string | null>(null)
@@ -54,10 +61,11 @@ export default function StaffClient() {
       setError(data.error)
     } else {
       setCredentials(data.credentials)
+      setCredentialsOwner(data.staff ?? null)
       setStaff(prev => [...prev, {
-        id: data.id ?? crypto.randomUUID(),
-        email: inviteEmail,
-        full_name: inviteName,
+        id: data.staff?.id ?? crypto.randomUUID(),
+        email: data.staff?.email ?? inviteEmail,
+        full_name: data.staff?.full_name ?? inviteName,
         phone: null,
         created_at: new Date().toISOString(),
       }])
@@ -77,6 +85,18 @@ export default function StaffClient() {
       setError(data.error)
     }
     setConfirmId(null)
+  }
+
+  async function handleResetPassword(member: StaffMember) {
+    setError(null)
+    const res = await fetch(`/api/admin/staff/${member.id}`, { method: 'PATCH' })
+    const data = await res.json()
+    if (!res.ok) {
+      setError(data.error ?? 'Failed to generate new password')
+      return
+    }
+    setCredentials(data.credentials)
+    setCredentialsOwner(data.staff ?? { id: member.id, email: member.email, full_name: member.full_name ?? '' })
   }
 
   const input = 'w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
@@ -108,12 +128,15 @@ export default function StaffClient() {
             <div>
               <p className="text-sm font-semibold text-green-800 mb-3">Staff member created! Share these credentials:</p>
               <div className="space-y-1 font-mono text-sm text-green-900">
+                {credentialsOwner?.full_name && (
+                  <p><span className="text-green-600">Name:</span> {credentialsOwner.full_name}</p>
+                )}
                 <p><span className="text-green-600">Email:</span> {credentials.email}</p>
                 <p><span className="text-green-600">Password:</span> {credentials.password}</p>
               </div>
-              <p className="text-xs text-green-600 mt-3">Save these now — the password won&apos;t be shown again.</p>
+              <p className="text-xs text-green-600 mt-3">This staff member will be required to change password on first access.</p>
             </div>
-            <button onClick={() => setCredentials(null)} className="text-green-500 hover:text-green-700 text-xl leading-none">✕</button>
+            <button onClick={() => { setCredentials(null); setCredentialsOwner(null) }} className="text-green-500 hover:text-green-700 text-xl leading-none">✕</button>
           </div>
         </div>
       )}
@@ -186,12 +209,20 @@ export default function StaffClient() {
                     {new Date(member.created_at).toLocaleDateString('en-US')}
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={() => { setConfirmId(member.id); setConfirmName(member.full_name ?? member.email ?? '') }}
-                      className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        onClick={() => void handleResetPassword(member)}
+                        className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 transition-colors"
+                      >
+                        New password
+                      </button>
+                      <button
+                        onClick={() => { setConfirmId(member.id); setConfirmName(member.full_name ?? member.email ?? '') }}
+                        className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}

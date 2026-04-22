@@ -18,6 +18,7 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
     whatsapp: settings?.whatsapp ?? '',
     whatsapp_orders_enabled: settings?.whatsapp_orders_enabled ?? false,
     orders_enabled: settings?.orders_enabled ?? true,
+    direct_orders_enabled: settings?.direct_orders_enabled ?? false,
   })
   const [logoUrl, setLogoUrl] = useState(settings?.logo_url ?? '')
   const [bannerUrl, setBannerUrl] = useState(settings?.banner_url ?? '')
@@ -204,6 +205,20 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
               className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.whatsapp_orders_enabled ? 'bg-zinc-900' : 'bg-zinc-200'}`}
             >
               <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${form.whatsapp_orders_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
+          </div>
+          {/* Direct orders toggle */}
+          <div className="mt-3 flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-zinc-800">Enable direct orders</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Allow customers to order directly from the menu</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, direct_orders_enabled: !f.direct_orders_enabled }))}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.direct_orders_enabled ? 'bg-zinc-900' : 'bg-zinc-200'}`}
+            >
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${form.direct_orders_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
             </button>
           </div>
           <p className="text-xs text-zinc-400 mt-3">Address and phone are managed in <a href="/settings/store" className="underline hover:text-zinc-600">Store Settings</a>.</p>

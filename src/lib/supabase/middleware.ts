@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { normalizeRole } from '@/lib/auth/role-utils'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -38,7 +39,11 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/menu') ||
     pathname.startsWith('/settings')
 
-  const isSuperadminRoute = pathname.startsWith('/tenants')
+  const isSuperadminRoute = pathname.startsWith('/tenants') ||
+    pathname.startsWith('/overview') ||
+    pathname.startsWith('/users')
+
+  const isOnboarding = pathname === '/onboarding'
 
   if ((isAdminRoute || isSuperadminRoute) && !user) {
     const url = request.nextUrl.clone()
@@ -46,14 +51,30 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && (isAdminRoute || pathname.startsWith('/menus'))) {
+  if (user && (isAdminRoute || pathname.startsWith('/menus') || isOnboarding)) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, must_change_password')
       .eq('id', user.id)
       .single()
 
-    const role = profile?.role
+    const role = normalizeRole(profile?.role)
+
+    // Superadmin nunca precisa de onboarding nem deve acessar rotas admin sem preview
+    if (role === 'superadmin') {
+      if (isOnboarding) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/overview'
+        return NextResponse.redirect(url)
+      }
+      if (isAdminRoute && !request.cookies.get('preview_tenant_id')?.value) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/overview'
+        return NextResponse.redirect(url)
+      }
+      return supabaseResponse
+    }
+
     const mustChangePassword = profile?.must_change_password === true
 
     if (mustChangePassword && !pathname.startsWith('/settings/password')) {

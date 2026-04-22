@@ -1,32 +1,30 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 
-async function assertStoreAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const effective = await getEffectiveTenant()
-  if (!effective) return null
-  if (effective.role !== 'store-admin' && effective.role !== 'superadmin') return null
-  return { supabase, tenantId: effective.tenantId }
-}
+interface Props { params: Promise<{ id: string }> }
 
 const DEFAULT_STAFF_PASSWORD = process.env.DEFAULT_STAFF_PASSWORD?.trim() || 'Staff@12345'
 
-export async function GET() {
-  const ctx = await assertStoreAdmin()
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+async function assertSuperadmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+  return profile?.role === 'superadmin' ? true : null
+}
+
+export async function GET(_req: Request, { params }: Props) {
+  const { id: tenantId } = await params
+  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = await createServiceClient()
   const { data } = await service
     .from('profiles')
     .select('id, full_name, phone, created_at')
-    .eq('tenant_id', ctx.tenantId)
+    .eq('tenant_id', tenantId)
     .eq('role', 'store-staff')
     .order('created_at', { ascending: false })
 
-  // Fetch emails from auth.users
   const ids = (data ?? []).map(p => p.id)
   const staffWithEmail = await Promise.all(
     ids.map(async (id) => {
@@ -39,9 +37,9 @@ export async function GET() {
   return NextResponse.json(staffWithEmail)
 }
 
-export async function POST(request: Request) {
-  const ctx = await assertStoreAdmin()
-  if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+export async function POST(request: Request, { params }: Props) {
+  const { id: tenantId } = await params
+  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
   const { name, email } = body
@@ -67,14 +65,13 @@ export async function POST(request: Request) {
   if (userData.user) {
     await service.from('profiles').upsert({
       id: userData.user.id,
-      tenant_id: ctx.tenantId,
+      tenant_id: tenantId,
       role: 'store-staff',
       full_name: name.trim(),
       must_change_password: true,
       password_changed_at: null,
     }, { onConflict: 'id' })
 
-    // Ensure auth metadata keeps the staff name (and never tenant/store name).
     await service.auth.admin.updateUserById(userData.user.id, {
       user_metadata: { full_name: name.trim() },
     })
@@ -82,11 +79,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
-    staff: {
-      id: userData.user?.id ?? null,
-      email,
-      full_name: name.trim(),
-    },
+    staff: { id: userData.user?.id ?? null, email, full_name: name.trim() },
     credentials: { email, password: DEFAULT_STAFF_PASSWORD },
   }, { status: 201 })
 }
