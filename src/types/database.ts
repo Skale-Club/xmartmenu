@@ -54,6 +54,7 @@ export interface Category {
   tenant_id: string
   menu_id: string | null
   name: string
+  translations?: Record<string, { name?: string; description?: string }>
   description: string | null
   position: number
   is_active: boolean
@@ -66,6 +67,7 @@ export interface Product {
   menu_id: string | null
   category_id: string | null
   name: string
+  translations?: Record<string, { name?: string; description?: string }>
   description: string | null
   price: number
   original_price: number | null
@@ -113,6 +115,8 @@ export interface Menu {
   slug: string
   description: string | null
   language: string
+  supported_languages: string[]
+  translations: Record<string, { name?: string; description?: string }>
   purpose: string
   is_active: boolean
   is_default: boolean

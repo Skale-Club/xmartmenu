@@ -3,21 +3,31 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { QRCode } from '@/types/database'
+import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface Props {
   qrcodes: QRCode[]
   tenantId: string
   menuUrl: string
   tenantName: string
+  activeMenuName: string | null
 }
 
-export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tenantName }: Props) {
+export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tenantName, activeMenuName }: Props) {
   const [qrcodes, setQrcodes] = useState(initial)
   const [label, setLabel] = useState('')
   const [loading, setLoading] = useState(false)
   const [selectedUrl, setSelectedUrl] = useState(menuUrl)
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const supabase = createClient()
+
+  useEffect(() => {
+    setQrcodes(initial)
+    setSelectedUrl(menuUrl)
+    setDeleteId(null)
+  }, [initial, menuUrl])
 
   useEffect(() => {
     generateQROnCanvas(selectedUrl)
@@ -60,10 +70,26 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
     link.click()
   }
 
+  async function handleDelete() {
+    if (!deleteId) return
+    setDeleting(true)
+    const { error } = await supabase.from('qr_codes').delete().eq('id', deleteId)
+    if (!error) {
+      setQrcodes(qrcodes.filter(qr => qr.id !== deleteId))
+      if (qrcodes.find(qr => qr.id === deleteId)?.target_url === selectedUrl) {
+        setSelectedUrl(menuUrl)
+      }
+    }
+    setDeleteId(null)
+    setDeleting(false)
+  }
+
   return (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-zinc-900 mb-1">QR Code</h1>
-      <p className="text-sm text-zinc-500 mb-8">Generate and download your menu QR Code</p>
+      <p className="text-sm text-zinc-500 mb-8">
+        Generate and download your menu QR Code{activeMenuName ? ` · Menu: ${activeMenuName}` : ''}
+      </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Preview do QR */}
@@ -106,26 +132,46 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
             ) : (
               <div className="space-y-2">
                 {qrcodes.map(qr => (
-                  <button
+                  <div
                     key={qr.id}
-                    onClick={() => setSelectedUrl(qr.target_url)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg border text-sm transition-colors ${
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-colors ${
                       selectedUrl === qr.target_url
                         ? 'border-zinc-900 bg-zinc-50'
                         : 'border-zinc-200 hover:bg-zinc-50'
                     }`}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-zinc-800">{qr.label ?? 'Main menu'}</span>
-                      <span className="text-xs text-zinc-400">{qr.scans} scans</span>
-                    </div>
-                  </button>
+                    <button
+                      onClick={() => setSelectedUrl(qr.target_url)}
+                      className="flex-1 text-left"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-zinc-800">{qr.label ?? 'Main menu'}</span>
+                        <span className="text-xs text-zinc-400">{qr.scans} scans</span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setDeleteId(qr.id)}
+                      className="text-zinc-400 hover:text-red-600 p-1 transition-colors"
+                      title="Delete QR Code"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!deleteId}
+        title="Delete QR Code"
+        message="Are you sure you want to delete this QR Code? This action cannot be undone."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteId(null)}
+        confirmLabel={deleting ? 'Deleting...' : 'Delete'}
+      />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
@@ -13,6 +13,28 @@ interface ProductWithCategory extends Product {
 
 const DEFAULT_TAGS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Spicy', 'Chef\'s special']
 
+const TAG_COLORS: Record<string, string> = {
+  'Vegetarian': 'bg-green-100 text-green-700',
+  'Vegetariano': 'bg-green-100 text-green-700',
+  'Vegan': 'bg-emerald-100 text-emerald-700',
+  'Vegano': 'bg-emerald-100 text-emerald-700',
+  'Gluten-Free': 'bg-amber-100 text-amber-700',
+  'Sem Glúten': 'bg-amber-100 text-amber-700',
+  'Spicy': 'bg-red-100 text-red-700',
+  'Picante': 'bg-red-100 text-red-700',
+  'Chef\'s special': 'bg-purple-100 text-purple-700',
+  'Especial do Chef': 'bg-purple-100 text-purple-700',
+}
+
+function getTagStyle(tag: string): string {
+  return TAG_COLORS[tag] ?? 'bg-zinc-100 text-zinc-600'
+}
+
+const CURRENCY_SYMBOL: Record<string, string> = {
+  USD: '$', BRL: 'R$', EUR: '€', GBP: '£',
+  CAD: 'CA$', AUD: 'A$', MXN: 'MX$', ARS: '$', CLP: '$', COP: '$',
+}
+
 interface Props {
   products: ProductWithCategory[]
   categories: Pick<Category, 'id' | 'name'>[]
@@ -20,9 +42,35 @@ interface Props {
   menuId: string | null
   activeMenuName: string | null
   availableTags?: string[]
+  currency?: string
 }
 
-export default function ProductsClient({ products: initial, categories, tenantId, menuId, activeMenuName, availableTags }: Props) {
+function Modal({
+  open,
+  title,
+  onClose,
+  children,
+}: {
+  open: boolean
+  title: string
+  onClose: () => void
+  children: ReactNode
+}) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-white rounded-xl border border-zinc-200 shadow-xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
+          <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
+          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-800">✕</button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+export default function ProductsClient({ products: initial, categories, tenantId, menuId, activeMenuName, availableTags, currency = 'BRL' }: Props) {
   const TAGS = availableTags?.length ? availableTags : DEFAULT_TAGS
   const [products, setProducts] = useState(initial)
   const [showForm, setShowForm] = useState(false)
@@ -32,6 +80,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
   const [filterCategory, setFilterCategory] = useState<string>('all')
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [supportsImageUrls, setSupportsImageUrls] = useState(true)
 
   const [form, setForm] = useState({
     name: '',
@@ -48,6 +97,13 @@ export default function ProductsClient({ products: initial, categories, tenantId
   const supabase = createClient()
   const router = useRouter()
 
+  useEffect(() => {
+    setProducts(initial)
+    setFilterCategory('all')
+    setConfirmId(null)
+    resetForm()
+  }, [initial, menuId])
+
   const filtered = filterCategory === 'all'
     ? products
     : products.filter(p => p.category_id === filterCategory)
@@ -55,6 +111,12 @@ export default function ProductsClient({ products: initial, categories, tenantId
   function getProductImages(product: ProductWithCategory) {
     if (product.image_urls && product.image_urls.length > 0) return product.image_urls
     return product.image_url ? [product.image_url] : []
+  }
+
+  function isImageUrlsSchemaError(message?: string) {
+    if (!message) return false
+    const normalized = message.toLowerCase()
+    return normalized.includes('image_urls') && normalized.includes('schema cache')
   }
 
   function resetForm() {
@@ -71,6 +133,8 @@ export default function ProductsClient({ products: initial, categories, tenantId
     })
     setEditingId(null)
     setShowForm(false)
+    setFormError(null)
+    setUploadingImage(false)
   }
 
   function startEdit(p: ProductWithCategory) {
@@ -87,6 +151,12 @@ export default function ProductsClient({ products: initial, categories, tenantId
       tags: p.tags ?? [],
     })
     setEditingId(p.id)
+    setFormError(null)
+    setShowForm(true)
+  }
+
+  function openCreateForm() {
+    resetForm()
     setShowForm(true)
   }
 
@@ -134,6 +204,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
+    setFormError(null)
 
     const payload = {
       tenant_id: tenantId,
@@ -149,22 +220,43 @@ export default function ProductsClient({ products: initial, categories, tenantId
       tags: form.tags,
       position: editingId ? undefined : products.length,
     }
+    const payloadWithoutImageUrls = (() => {
+      const { image_urls: _drop, ...rest } = payload
+      return rest
+    })()
 
     if (editingId) {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('products')
         .update(payload)
         .eq('id', editingId)
         .select('*, category:categories(id, name)')
         .single()
+      if (error && isImageUrlsSchemaError(error.message)) {
+        setSupportsImageUrls(false)
+        ;({ data, error } = await supabase
+          .from('products')
+          .update(payloadWithoutImageUrls)
+          .eq('id', editingId)
+          .select('*, category:categories(id, name)')
+          .single())
+      }
       if (error) { setFormError(error.message); setLoading(false); return }
       if (data) setProducts(products.map(p => p.id === editingId ? data : p))
     } else {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('products')
         .insert(payload)
         .select('*, category:categories(id, name)')
         .single()
+      if (error && isImageUrlsSchemaError(error.message)) {
+        setSupportsImageUrls(false)
+        ;({ data, error } = await supabase
+          .from('products')
+          .insert(payloadWithoutImageUrls)
+          .select('*, category:categories(id, name)')
+          .single())
+      }
       if (error) { setFormError(error.message); setLoading(false); return }
       if (data) setProducts([...products, data])
     }
@@ -207,7 +299,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
           <p className="text-sm text-zinc-500 mt-1">{products.length} product(s){activeMenuName ? ` · Menu: ${activeMenuName}` : ''}</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={openCreateForm}
           disabled={!menuId}
           className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
         >
@@ -240,13 +332,8 @@ export default function ProductsClient({ products: initial, categories, tenantId
         ))}
       </div>
 
-      {/* Formulário */}
-      {showForm && menuId && (
-        <div className="bg-white border border-zinc-200 rounded-xl p-6 mb-6">
-          <h2 className="text-base font-semibold text-zinc-900 mb-5">
-            {editingId ? 'Edit product' : 'New product'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <Modal open={showForm && !!menuId} title={editingId ? 'Edit product' : 'New product'} onClose={resetForm}>
+        <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Name *</label>
@@ -270,28 +357,34 @@ export default function ProductsClient({ products: initial, categories, tenantId
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Price *</label>
-                <input
-                  required
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.price}
-                  onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
-                  placeholder="29.90"
-                  className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                />
+                <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
+                  <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">{CURRENCY_SYMBOL[currency] ?? currency}</span>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.price}
+                    onChange={e => setForm(f => ({ ...f, price: e.target.value }))}
+                    placeholder="29.90"
+                    className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Original price (was)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={form.original_price}
-                  onChange={e => setForm(f => ({ ...f, original_price: e.target.value }))}
-                  placeholder="39.90"
-                  className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                />
+                <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
+                  <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">{CURRENCY_SYMBOL[currency] ?? currency}</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={form.original_price}
+                    onChange={e => setForm(f => ({ ...f, original_price: e.target.value }))}
+                    placeholder="39.90"
+                    className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Category</label>
@@ -311,11 +404,12 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 <input
                   type="file"
                   accept="image/*"
-                  multiple
+                  multiple={supportsImageUrls}
                   onChange={handleImageUpload}
                   className="w-full text-sm text-zinc-600 file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200"
                 />
                 {uploadingImage && <p className="text-xs text-zinc-400 mt-1">Uploading image(s)...</p>}
+                {!supportsImageUrls && <p className="text-xs text-amber-600 mt-1">Multiple images disabled for this database (missing `image_urls` column).</p>}
                 {form.image_urls.length > 0 && (
                   <p className="text-xs text-green-600 mt-1">{form.image_urls.length} image(s) uploaded</p>
                 )}
@@ -352,7 +446,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                     onClick={() => toggleTag(tag)}
                     className={`text-xs px-3 py-1 rounded-full border transition-colors ${
                       form.tags.includes(tag)
-                        ? 'bg-zinc-900 text-white border-zinc-900'
+                        ? getTagStyle(tag).replace('bg-', 'bg-').replace('text-', 'text-') + ' border-transparent'
                         : 'border-zinc-300 text-zinc-600 hover:bg-zinc-50'
                     }`}
                   >
@@ -387,9 +481,8 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 Cancel
               </button>
             </div>
-          </form>
-        </div>
-      )}
+        </form>
+      </Modal>
 
       {/* Lista de produtos */}
       {filtered.length === 0 ? (
@@ -420,7 +513,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                     <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">Featured</span>
                   )}
                   {product.tags?.map(tag => (
-                    <span key={tag} className="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">{tag}</span>
+                    <span key={tag} className={`text-xs px-2 py-0.5 rounded-full ${getTagStyle(tag)}`}>{tag}</span>
                   ))}
                 </div>
                 <p className="text-xs text-zinc-500 mt-0.5 truncate">{product.category?.name ?? 'No category'}</p>
@@ -429,9 +522,9 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 )}
                 <div className="flex items-center gap-2 mt-1">
                   {product.original_price && (
-                    <span className="text-xs text-zinc-400 line-through">{formatPrice(product.original_price)}</span>
+                    <span className="text-xs text-zinc-400 line-through">{formatPrice(product.original_price, currency)}</span>
                   )}
-                  <span className="text-sm font-bold text-zinc-900">{formatPrice(product.price)}</span>
+                  <span className="text-sm font-bold text-zinc-900">{formatPrice(product.price, currency)}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">

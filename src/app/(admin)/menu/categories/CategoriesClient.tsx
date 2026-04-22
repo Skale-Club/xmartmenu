@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import type { Category } from '@/types/database'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
@@ -9,6 +9,31 @@ interface Props {
   tenantId: string
   menuId: string | null
   activeMenuName: string | null
+}
+
+function Modal({
+  open,
+  title,
+  onClose,
+  children,
+}: {
+  open: boolean
+  title: string
+  onClose: () => void
+  children: ReactNode
+}) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg bg-white rounded-xl border border-zinc-200 shadow-xl">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
+          <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
+          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-800">✕</button>
+        </div>
+        <div className="p-5">{children}</div>
+      </div>
+    </div>
+  )
 }
 
 export default function CategoriesClient({ categories: initial, tenantId, menuId, activeMenuName }: Props) {
@@ -20,6 +45,16 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setCategories(initial)
+    setShowForm(false)
+    setEditingId(null)
+    setName('')
+    setDescription('')
+    setError(null)
+    setConfirmId(null)
+  }, [initial, menuId])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -105,7 +140,12 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
           <p className="text-sm text-zinc-500 mt-1">{categories.length} category(ies){activeMenuName ? ` · Menu: ${activeMenuName}` : ''}</p>
         </div>
         <button
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setEditingId(null)
+            setName('')
+            setDescription('')
+            setShowForm(true)
+          }}
           disabled={!menuId}
           className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
         >
@@ -126,46 +166,41 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
         </div>
       )}
 
-      {showForm && menuId && (
-        <div className="bg-white border border-zinc-200 rounded-xl p-6 mb-6">
-          <h2 className="text-base font-semibold text-zinc-900 mb-4">
-            {editingId ? 'Edit category' : 'New category'}
-          </h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Name *</label>
-              <input
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="e.g. Starters, Main courses, Drinks"
-                className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Description</label>
-              <input
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Optional"
-                className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-              />
-            </div>
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
-              >
-                {loading ? 'Saving...' : 'Save'}
-              </button>
-              <button type="button" onClick={cancelForm} className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 transition-colors">
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <Modal open={showForm && !!menuId} title={editingId ? 'Edit category' : 'New category'} onClose={cancelForm}>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Name *</label>
+            <input
+              required
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Starters, Main courses, Drinks"
+              className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Description</label>
+            <input
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Optional"
+              className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={loading}
+              className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+            >
+              {loading ? 'Saving...' : 'Save'}
+            </button>
+            <button type="button" onClick={cancelForm} className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {categories.length === 0 ? (
         <div className="text-center py-16 text-zinc-400">

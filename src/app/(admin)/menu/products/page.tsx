@@ -39,7 +39,7 @@ export default async function ProductsPage() {
       .order('position'),
     supabase
       .from('tenant_settings')
-      .select('custom_tags')
+      .select('custom_tags, currency')
       .eq('tenant_id', tenantId)
       .single(),
   ])
@@ -52,6 +52,7 @@ export default async function ProductsPage() {
       menuId={activeMenu.id}
       activeMenuName={activeMenu.name}
       availableTags={settings?.custom_tags ?? undefined}
+      currency={settings?.currency ?? 'BRL'}
     />
   )
 }

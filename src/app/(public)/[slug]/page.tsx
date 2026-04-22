@@ -7,6 +7,7 @@ import type { Metadata } from 'next'
 
 interface Props {
   params: Promise<{ slug: string }>
+  searchParams: Promise<{ lang?: string }>
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -31,8 +32,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-export default async function PublicMenuPage({ params }: Props) {
+export default async function PublicMenuPage({ params, searchParams }: Props) {
   const { slug } = await params
+  const { lang } = await searchParams
   const supabase = await createServiceClient()
 
   const { data: tenant } = await supabase
@@ -46,7 +48,7 @@ export default async function PublicMenuPage({ params }: Props) {
 
   const { data: menu } = await supabase
     .from('menus')
-    .select('id, name')
+    .select('*')
     .eq('tenant_id', tenant.id)
     .eq('is_active', true)
     .eq('is_default', true)
@@ -54,7 +56,7 @@ export default async function PublicMenuPage({ params }: Props) {
 
   const resolvedMenu = menu ?? (await supabase
     .from('menus')
-    .select('id, name')
+    .select('*')
     .eq('tenant_id', tenant.id)
     .eq('is_active', true)
     .order('position')
@@ -92,7 +94,8 @@ export default async function PublicMenuPage({ params }: Props) {
       tenant={tenant}
       categories={categories}
       products={products}
-      menuName={resolvedMenu?.name}
+      menu={resolvedMenu ?? null}
+      initialLanguage={lang}
     />
   )
 }

@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params
-  const supabase = await createServiceClient()
+  const supabase = createServiceClient()
 
   const { data: tenant, error } = await supabase
     .from('tenants')
@@ -21,7 +21,7 @@ export async function GET(
 
   const { data: menu } = await supabase
     .from('menus')
-    .select('id, name')
+    .select('*')
     .eq('tenant_id', tenant.id)
     .eq('is_active', true)
     .eq('is_default', true)
@@ -29,7 +29,7 @@ export async function GET(
 
   const resolvedMenu = menu ?? (await supabase
     .from('menus')
-    .select('id, name')
+    .select('*')
     .eq('tenant_id', tenant.id)
     .eq('is_active', true)
     .order('position')

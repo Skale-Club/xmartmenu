@@ -8,7 +8,14 @@ interface Props {
   tenant: TenantWithSettings
   categories: Category[]
   products: Product[]
-  menuName?: string
+  menu?: {
+    name: string
+    description?: string | null
+    language: string
+    supported_languages?: string[]
+    translations?: Record<string, { name?: string; description?: string }>
+  } | null
+  initialLanguage?: string
   footerBrand?: string
 }
 
@@ -23,15 +30,38 @@ function getProductImages(product: Product) {
   return Array.from(new Set([...fromArray, ...fromSingle]))
 }
 
-export default function MenuPage({ tenant, categories, products, footerBrand = 'XmartMenu' }: Props) {
+const UI_COPY: Record<string, { search: string; all: string; featured: string; noItems: string; tryAnother: string; other: string; createAccount: string }> = {
+  en: { search: 'Search the menu...', all: 'All', featured: 'Featured', noItems: 'No items found', tryAnother: 'Try a different search term', other: 'Other', createAccount: 'Create account' },
+  pt: { search: 'Buscar no cardápio...', all: 'Todos', featured: 'Destaques', noItems: 'Nenhum item encontrado', tryAnother: 'Tente outro termo de busca', other: 'Outros', createAccount: 'Criar conta' },
+  es: { search: 'Buscar en el menú...', all: 'Todos', featured: 'Destacados', noItems: 'No se encontraron items', tryAnother: 'Prueba otro término de búsqueda', other: 'Otros', createAccount: 'Crear cuenta' },
+  fr: { search: 'Rechercher dans le menu...', all: 'Tous', featured: 'En vedette', noItems: 'Aucun article trouvé', tryAnother: 'Essayez un autre terme', other: 'Autres', createAccount: 'Créer un compte' },
+  de: { search: 'Im Menü suchen...', all: 'Alle', featured: 'Empfohlen', noItems: 'Keine Artikel gefunden', tryAnother: 'Versuche einen anderen Suchbegriff', other: 'Andere', createAccount: 'Konto erstellen' },
+  it: { search: 'Cerca nel menu...', all: 'Tutti', featured: 'In evidenza', noItems: 'Nessun elemento trovato', tryAnother: 'Prova un altro termine', other: 'Altro', createAccount: 'Crea account' },
+}
+
+function getTranslatedMenuField(
+  menu: Props['menu'],
+  lang: string,
+  field: 'name' | 'description',
+  fallback: string
+) {
+  if (!menu?.translations) return fallback
+  const value = menu.translations?.[lang]?.[field]
+  return typeof value === 'string' && value.trim() ? value : fallback
+}
+
+export default function MenuPage({ tenant, categories, products, menu = null, initialLanguage, footerBrand = 'XmartMenu' }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [showFooterAtEnd, setShowFooterAtEnd] = useState(false)
   const [footerHeight, setFooterHeight] = useState(0)
   const [pauseFeaturedAutoScroll, setPauseFeaturedAutoScroll] = useState(false)
+  const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage ?? menu?.language ?? 'en')
+  const [visibleCategory, setVisibleCategory] = useState<string | null>(null)
   const footerRef = useRef<HTMLElement | null>(null)
   const featuredRailRef = useRef<HTMLDivElement | null>(null)
+  const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
 
   const settings = tenant.tenant_settings
   const primaryColor = settings?.primary_color ?? '#000000'
@@ -42,6 +72,10 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
 
   const featured = products.filter(p => p.is_featured)
   const featuredBase = featured.length === 1 ? [featured[0], featured[0], featured[0]] : featured
+  const supportedLanguages = menu?.supported_languages?.length ? menu.supported_languages : [menu?.language ?? 'en']
+  const ui = UI_COPY[selectedLanguage] ?? UI_COPY.en
+  const menuTitle = getTranslatedMenuField(menu, selectedLanguage, 'name', menu?.name ?? tenant.name)
+  const menuDescription = getTranslatedMenuField(menu, selectedLanguage, 'description', menu?.description ?? '')
 
   const filtered = products.filter(p => {
     const matchSearch = search === '' ||
@@ -51,18 +85,14 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
     return matchSearch && matchCategory
   })
 
+  const categoryIds = new Set(categories.map(c => c.id))
+
   const groupedByCategory = categories.map(cat => ({
     category: cat,
     items: filtered.filter(p => p.category_id === cat.id),
   })).filter(g => g.items.length > 0)
 
-  const uncategorizedCategoryRegistered = categories.some(cat => {
-    const normalized = cat.name.trim().toLowerCase()
-    return normalized === 'outros' || normalized === 'other'
-  })
-  const uncategorized = uncategorizedCategoryRegistered
-    ? filtered.filter(p => !p.category_id)
-    : []
+  const uncategorized = filtered.filter(p => !p.category_id || !categoryIds.has(p.category_id))
 
   function openWhatsApp(product: Product) {
     if (!whatsapp) return
@@ -95,6 +125,37 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
       window.removeEventListener('resize', onScroll)
     }
   }, [])
+
+  useEffect(() => {
+    if (activeCategory || search) {
+      setVisibleCategory(null)
+      return
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries.filter(e => e.isIntersecting)
+        if (visibleEntries.length === 0) return
+
+        const topEntry = visibleEntries.reduce((a, b) =>
+          a.boundingClientRect.top < b.boundingClientRect.top ? a : b
+        )
+        const categoryId = topEntry.target.getAttribute('data-category-id')
+        if (categoryId) setVisibleCategory(categoryId)
+      },
+      {
+        rootMargin: '-20% 0px -60% 0px',
+        threshold: 0,
+      }
+    )
+
+    const refs = categoryRefs.current
+    Object.values(refs).forEach(el => {
+      if (el) observer.observe(el)
+    })
+
+    return () => observer.disconnect()
+  }, [groupedByCategory, activeCategory, search])
 
   useEffect(() => {
     if (!hasFixedFooter) {
@@ -148,21 +209,43 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
           )}
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold">{tenant.name}</h1>
+            {menuTitle && <p className="text-sm opacity-90 mt-0.5">{menuTitle}</p>}
+            {menuDescription && <p className="text-xs opacity-75 mt-0.5">{menuDescription}</p>}
             {settings?.address && <p className="text-sm opacity-75 mt-0.5">{settings.address}</p>}
           </div>
           <a
             href={`/auth/register?from=/${tenant.slug}`}
             className="w-full sm:w-auto text-center flex-shrink-0 text-xs font-semibold bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full"
           >
-            Create account
+            {ui.createAccount}
           </a>
         </div>
+        {supportedLanguages.length > 1 && (
+          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              {supportedLanguages.map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => {
+                    setSelectedLanguage(lang)
+                    const url = new URL(window.location.href)
+                    url.searchParams.set('lang', lang)
+                    window.history.replaceState({}, '', url.toString())
+                  }}
+                  className={`text-xs px-3 py-1 rounded-full border transition-colors ${selectedLanguage === lang ? 'bg-white text-zinc-900 border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}
+                >
+                  {lang.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-4">
           <input
             type="search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search the menu..."
+            placeholder={ui.search}
             className="w-full px-4 py-2.5 rounded-xl text-zinc-900 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-white/50 placeholder:text-zinc-400"
           />
         </div>
@@ -182,17 +265,17 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
             <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
               <button
                 onClick={() => setActiveCategory(null)}
-                style={!activeCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${!activeCategory ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                style={!activeCategory && !visibleCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
+                className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${!activeCategory && !visibleCategory ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
               >
-                All
+                {ui.all}
               </button>
               {categories.map(cat => (
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
-                  style={activeCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                  className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${activeCategory === cat.id ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                  style={activeCategory === cat.id || visibleCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
+                  className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${activeCategory === cat.id || visibleCategory === cat.id ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
                 >
                   {cat.name}
                 </button>
@@ -209,7 +292,7 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
         {/* Destaques */}
         {featured.length > 0 && !search && !activeCategory && (
           <section>
-            <h2 className="text-base font-bold text-zinc-900 mb-3">⭐ Featured</h2>
+            <h2 className="text-base font-bold text-zinc-900 mb-3">⭐ {ui.featured}</h2>
             <div
               ref={featuredRailRef}
               onMouseEnter={() => setPauseFeaturedAutoScroll(true)}
@@ -235,17 +318,21 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
         {filtered.length === 0 && (
           <div className="text-center py-16 text-zinc-400">
             <p className="text-4xl mb-3">🔍</p>
-            <p className="font-medium">No items found</p>
-            <p className="text-sm mt-1">Try a different search term</p>
+            <p className="font-medium">{ui.noItems}</p>
+            <p className="text-sm mt-1">{ui.tryAnother}</p>
           </div>
         )}
 
         {groupedByCategory.map(({ category, items }) => (
-          <section key={category.id}>
+          <section
+            key={category.id}
+            ref={el => { categoryRefs.current[category.id] = el }}
+            data-category-id={category.id}
+          >
             <h2 className="text-base font-bold text-zinc-900 mb-3">{category.name}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {items.map(p => (
-                <ProductCard key={p.id} product={p} accentColor={accentColor} currency={currency} onClick={() => setSelectedProduct(p)} />
+                <ProductCard key={p.id} product={p} accentColor={accentColor} currency={currency} lang={selectedLanguage} onClick={() => setSelectedProduct(p)} />
               ))}
             </div>
           </section>
@@ -253,10 +340,10 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
 
         {uncategorized.length > 0 && (
           <section>
-            <h2 className="text-base font-bold text-zinc-900 mb-3">Other</h2>
+            <h2 className="text-base font-bold text-zinc-900 mb-3">{ui.other}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {uncategorized.map(p => (
-                <ProductCard key={p.id} product={p} accentColor={accentColor} currency={currency} onClick={() => setSelectedProduct(p)} />
+                <ProductCard key={p.id} product={p} accentColor={accentColor} currency={currency} lang={selectedLanguage} onClick={() => setSelectedProduct(p)} />
               ))}
             </div>
           </section>
@@ -326,6 +413,7 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
           accentColor={accentColor}
           currency={currency}
           whatsapp={whatsapp}
+          lang={selectedLanguage}
           onClose={() => setSelectedProduct(null)}
           onWhatsApp={() => openWhatsApp(selectedProduct)}
         />
@@ -334,7 +422,50 @@ export default function MenuPage({ tenant, categories, products, footerBrand = '
   )
 }
 
-function ProductCard({ product, accentColor, currency, onClick }: { product: Product; accentColor: string; currency: string; onClick: () => void }) {
+const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
+  'Vegetarian': { en: 'Vegetarian', pt: 'Vegetariano', es: 'Vegetariano', fr: 'Végétarien', de: 'Vegetarisch', it: 'Vegetariano' },
+  'Vegan': { en: 'Vegan', pt: 'Vegano', es: 'Vegano', fr: 'Végan', de: 'Vegan', it: 'Vegano' },
+  'Gluten-Free': { en: 'Gluten-Free', pt: 'Sem Glúten', es: 'Sin Gluten', fr: 'Sans Gluten', de: 'Glutenfrei', it: 'Senza Glutine' },
+  'Spicy': { en: 'Spicy', pt: 'Picante', es: 'Picante', fr: 'Épicé', de: 'Scharf', it: 'Piccante' },
+  'Chef\'s special': { en: 'Chef\'s special', pt: 'Especial do Chef', es: 'Especial del Chef', fr: 'Spécialité du Chef', de: 'Spezialität des Kochs', it: 'Speciale dello Chef' },
+}
+
+const TAG_COLORS: Record<string, string> = {
+  'Vegetarian': 'bg-green-100 text-green-700',
+  'Vegetariano': 'bg-green-100 text-green-700',
+  'Végétarien': 'bg-green-100 text-green-700',
+  'Vegetarisch': 'bg-green-100 text-green-700',
+  'Vegan': 'bg-emerald-100 text-emerald-700',
+  'Vegano': 'bg-emerald-100 text-emerald-700',
+  'Végan': 'bg-emerald-100 text-emerald-700',
+  'Gluten-Free': 'bg-amber-100 text-amber-700',
+  'Sem Glúten': 'bg-amber-100 text-amber-700',
+  'Sin Gluten': 'bg-amber-100 text-amber-700',
+  'Sans Gluten': 'bg-amber-100 text-amber-700',
+  'Glutenfrei': 'bg-amber-100 text-amber-700',
+  'Senza Glutine': 'bg-amber-100 text-amber-700',
+  'Spicy': 'bg-red-100 text-red-700',
+  'Picante': 'bg-red-100 text-red-700',
+  'Épicé': 'bg-red-100 text-red-700',
+  'Scharf': 'bg-red-100 text-red-700',
+  'Piccante': 'bg-red-100 text-red-700',
+  'Chef\'s special': 'bg-purple-100 text-purple-700',
+  'Especial do Chef': 'bg-purple-100 text-purple-700',
+  'Especial del Chef': 'bg-purple-100 text-purple-700',
+  'Spécialité du Chef': 'bg-purple-100 text-purple-700',
+  'Spezialität des Kochs': 'bg-purple-100 text-purple-700',
+  'Speciale dello Chef': 'bg-purple-100 text-purple-700',
+}
+
+function translateTag(tag: string, lang: string): string {
+  return TAG_TRANSLATIONS[tag]?.[lang] ?? tag
+}
+
+function getTagStyle(tag: string): string {
+  return TAG_COLORS[tag] ?? 'bg-zinc-100 text-zinc-600'
+}
+
+function ProductCard({ product, accentColor, currency, lang, onClick }: { product: Product; accentColor: string; currency: string; lang: string; onClick: () => void }) {
   const images = getProductImages(product)
   return (
     <button onClick={onClick}
@@ -349,7 +480,10 @@ function ProductCard({ product, accentColor, currency, onClick }: { product: Pro
         </div>
         {product.tags?.length > 0 && (
           <div className="flex gap-1 mt-1 flex-wrap">
-            {product.tags.map(tag => <span key={tag} className="text-xs bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded">{tag}</span>)}
+            {product.tags.map(tag => {
+              const translated = translateTag(tag, lang)
+              return <span key={tag} className={`text-xs px-1.5 py-0.5 rounded ${getTagStyle(translated)}`}>{translated}</span>
+            })}
           </div>
         )}
         {product.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{product.description}</p>}
@@ -362,8 +496,8 @@ function ProductCard({ product, accentColor, currency, onClick }: { product: Pro
   )
 }
 
-function ProductModal({ product, accentColor, currency, whatsapp, onClose, onWhatsApp }: {
-  product: Product; accentColor: string; currency: string; whatsapp?: string | null; onClose: () => void; onWhatsApp: () => void
+function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp }: {
+  product: Product; accentColor: string; currency: string; whatsapp?: string | null; lang: string; onClose: () => void; onWhatsApp: () => void
 }) {
   const images = getProductImages(product)
   const [imageIndex, setImageIndex] = useState(0)
@@ -466,7 +600,10 @@ function ProductModal({ product, accentColor, currency, whatsapp, onClose, onWha
           </div>
           {product.tags?.length > 0 && (
             <div className="flex gap-1.5 mb-3 flex-wrap">
-              {product.tags.map(tag => <span key={tag} className="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded-full">{tag}</span>)}
+              {product.tags.map(tag => {
+                const translated = translateTag(tag, lang)
+                return <span key={tag} className={`text-xs px-2 py-0.5 rounded-full ${getTagStyle(translated)}`}>{translated}</span>
+              })}
             </div>
           )}
           {product.description && <p className="text-sm text-zinc-600 mb-4 leading-relaxed">{product.description}</p>}
