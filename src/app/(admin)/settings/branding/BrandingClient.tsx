@@ -78,8 +78,8 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
     console.log('Save result:', { data, error })
     
     if (error) {
-      console.error('Error saving tenant settings:', error)
-      alert('Error saving: ' + error.message)
+      console.error('Error saving tenant settings:', error?.message, error?.code, error?.details, error)
+      alert('Error saving: ' + (error.message ?? JSON.stringify(error)))
       setLoading(false)
       return
     }

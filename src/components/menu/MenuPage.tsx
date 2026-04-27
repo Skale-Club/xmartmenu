@@ -30,13 +30,13 @@ function getProductImages(product: Product) {
   return Array.from(new Set([...fromArray, ...fromSingle]))
 }
 
-const UI_COPY: Record<string, { search: string; all: string; featured: string; noItems: string; tryAnother: string; other: string; createAccount: string }> = {
-  en: { search: 'Search the menu...', all: 'All', featured: 'Featured', noItems: 'No items found', tryAnother: 'Try a different search term', other: 'Other', createAccount: 'Create account' },
-  pt: { search: 'Buscar no cardápio...', all: 'Todos', featured: 'Destaques', noItems: 'Nenhum item encontrado', tryAnother: 'Tente outro termo de busca', other: 'Outros', createAccount: 'Criar conta' },
-  es: { search: 'Buscar en el menú...', all: 'Todos', featured: 'Destacados', noItems: 'No se encontraron items', tryAnother: 'Prueba otro término de búsqueda', other: 'Otros', createAccount: 'Crear cuenta' },
-  fr: { search: 'Rechercher dans le menu...', all: 'Tous', featured: 'En vedette', noItems: 'Aucun article trouvé', tryAnother: 'Essayez un autre terme', other: 'Autres', createAccount: 'Créer un compte' },
-  de: { search: 'Im Menü suchen...', all: 'Alle', featured: 'Empfohlen', noItems: 'Keine Artikel gefunden', tryAnother: 'Versuche einen anderen Suchbegriff', other: 'Andere', createAccount: 'Konto erstellen' },
-  it: { search: 'Cerca nel menu...', all: 'Tutti', featured: 'In evidenza', noItems: 'Nessun elemento trovato', tryAnother: 'Prova un altro termine', other: 'Altro', createAccount: 'Crea account' },
+const UI_COPY: Record<string, { search: string; all: string; featured: string; noItems: string; tryAnother: string; other: string; createAccount: string; hoursBtn: string; hoursTitle: string }> = {
+  en: { search: 'Search the menu...', all: 'All', featured: 'Featured', noItems: 'No items found', tryAnother: 'Try a different search term', other: 'Other', createAccount: 'Create account', hoursBtn: 'See our hours', hoursTitle: 'Opening hours' },
+  pt: { search: 'Buscar no cardápio...', all: 'Todos', featured: 'Destaques', noItems: 'Nenhum item encontrado', tryAnother: 'Tente outro termo de busca', other: 'Outros', createAccount: 'Criar conta', hoursBtn: 'Veja nossos horários', hoursTitle: 'Horários de funcionamento' },
+  es: { search: 'Buscar en el menú...', all: 'Todos', featured: 'Destacados', noItems: 'No se encontraron items', tryAnother: 'Prueba otro término de búsqueda', other: 'Otros', createAccount: 'Crear cuenta', hoursBtn: 'Ver nuestros horarios', hoursTitle: 'Horarios de atención' },
+  fr: { search: 'Rechercher dans le menu...', all: 'Tous', featured: 'En vedette', noItems: 'Aucun article trouvé', tryAnother: 'Essayez un autre terme', other: 'Autres', createAccount: 'Créer un compte', hoursBtn: 'Voir nos horaires', hoursTitle: 'Horaires d\'ouverture' },
+  de: { search: 'Im Menü suchen...', all: 'Alle', featured: 'Empfohlen', noItems: 'Keine Artikel gefunden', tryAnother: 'Versuche einen anderen Suchbegriff', other: 'Andere', createAccount: 'Konto erstellen', hoursBtn: 'Öffnungszeiten', hoursTitle: 'Öffnungszeiten' },
+  it: { search: 'Cerca nel menu...', all: 'Tutti', featured: 'In evidenza', noItems: 'Nessun elemento trovato', tryAnother: 'Prova un altro termine', other: 'Altro', createAccount: 'Crea account', hoursBtn: 'Vedi i nostri orari', hoursTitle: 'Orari di apertura' },
 }
 
 function getTranslatedMenuField(
@@ -65,14 +65,15 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
   const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage ?? menu?.language ?? 'en')
   const [visibleCategory, setVisibleCategory] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
+  const [showSearch, setShowSearch] = useState(false)
   const [showCartModal, setShowCartModal] = useState(false)
+  const [showHoursModal, setShowHoursModal] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [submittingOrder, setSubmittingOrder] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [orderError, setOrderError] = useState<string | null>(null)
   const footerRef = useRef<HTMLElement | null>(null)
-  const featuredRailRef = useRef<HTMLDivElement | null>(null)
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
   const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   const categoryFilterRef = useRef<HTMLDivElement | null>(null)
@@ -289,118 +290,150 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
     return () => window.removeEventListener('resize', measure)
   }, [hasFixedFooter, hasContact, footerBrand])
 
-  useEffect(() => {
-    const enabled = featuredBase.length > 1 && !search && !activeCategory
-    if (!enabled) return
-
-    const rail = featuredRailRef.current
-    if (!rail) return
-
-    const timer = window.setInterval(() => {
-      if (pauseFeaturedAutoScroll) return
-      const card = rail.querySelector<HTMLElement>('[data-featured-card]')
-      if (!card) return
-
-      const gap = parseFloat(getComputedStyle(rail).gap || '0') || 0
-      const step = card.offsetWidth + gap
-      const maxScrollLeft = rail.scrollWidth - rail.clientWidth
-      const nextScrollLeft = rail.scrollLeft + step
-      rail.scrollTo({
-        left: nextScrollLeft >= maxScrollLeft - 2 ? 0 : nextScrollLeft,
-        behavior: 'smooth',
-      })
-    }, 2800)
-
-    return () => window.clearInterval(timer)
-  }, [featuredBase.length, search, activeCategory, pauseFeaturedAutoScroll])
 
   return (
     <div className="min-h-screen bg-zinc-50">
       {/* Header */}
-      <header style={{ backgroundColor: primaryColor }} className="text-white">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-5 sm:py-6 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
-          {settings?.logo_url ? (
-            <img src={settings.logo_url} alt={tenant.name} className="w-14 h-14 rounded-xl object-contain bg-white/10 p-1" />
-          ) : (
-            <div className="w-14 h-14 rounded-xl bg-white/20 flex items-center justify-center text-3xl">🏪</div>
-          )}
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold">{tenant.name}</h1>
-            {menuTitle && <p className="text-sm opacity-90 mt-0.5">{menuTitle}</p>}
-            {menuDescription && <p className="text-xs opacity-75 mt-0.5">{menuDescription}</p>}
-            {settings?.address && <p className="text-sm opacity-75 mt-0.5">{settings.address}</p>}
-          </div>
-          <a
-            href={`/auth/register?from=/${tenant.slug}`}
-            className="w-full sm:w-auto text-center flex-shrink-0 text-xs font-semibold bg-white/20 hover:bg-white/30 transition-colors px-3 py-1.5 rounded-full"
-          >
-            {ui.createAccount}
-          </a>
-        </div>
-        {supportedLanguages.length > 1 && (
-          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-3">
-            <div className="flex items-center gap-2 flex-wrap">
-              {supportedLanguages.map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => {
-                    setSelectedLanguage(lang)
-                    const url = new URL(window.location.href)
-                    url.searchParams.set('lang', lang)
-                    window.history.replaceState({}, '', url.toString())
-                  }}
-                  className={`text-xs px-3 py-1 rounded-full border transition-colors ${selectedLanguage === lang ? 'bg-white text-zinc-900 border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}
+      <header
+        className="relative text-white overflow-hidden"
+        style={!settings?.banner_url ? { backgroundColor: primaryColor } : undefined}
+      >
+        {/* Banner as background when set */}
+        {settings?.banner_url && (
+          <>
+            <img src={settings.banner_url} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0" style={{ backgroundColor: primaryColor, opacity: 0.65 }} />
+          </>
+        )}
+        {/* Content over banner or blue background */}
+        <div className="relative z-10">
+          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-5 sm:py-6 flex flex-col items-center gap-3">
+            {settings?.logo_url ? (
+              <img src={settings.logo_url} alt={tenant.name} className="w-20 h-20 rounded-xl object-cover bg-white/10 p-1" />
+            ) : (
+              <div className="w-20 h-20 rounded-xl bg-white/20 flex items-center justify-center text-4xl">🏪</div>
+            )}
+            <div className="text-center">
+              <h1 className="text-xl font-bold leading-tight">{tenant.name}</h1>
+              {menuTitle && <p className="text-sm opacity-90 mt-0.5">{menuTitle}</p>}
+              {menuDescription && <p className="text-xs opacity-75 mt-0.5">{menuDescription}</p>}
+              {settings?.address && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1 text-sm opacity-75 hover:opacity-100 transition-opacity mt-0.5"
                 >
-                  {lang.toUpperCase()}
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                  </svg>
+                  {settings.address}
+                </a>
+              )}
+              {settings?.phone && (
+                <a
+                  href={`tel:${settings.phone}`}
+                  className="inline-flex items-center justify-center gap-1 text-sm opacity-75 hover:opacity-100 transition-opacity mt-0.5 ml-3"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>
+                  </svg>
+                  {settings.phone}
+                </a>
+              )}
+              {hasHours && (
+                <div className="mt-3">
+                <button
+                  onClick={() => setShowHoursModal(true)}
+                  className="inline-flex items-center justify-center gap-1 text-sm opacity-75 hover:opacity-100 transition-opacity px-3 py-1 rounded-full border border-white/40 bg-white/10 hover:bg-white/20"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
+                  </svg>
+                  {ui.hoursBtn}
                 </button>
-              ))}
+                </div>
+              )}
             </div>
           </div>
-        )}
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-4">
-          <input
-            type="search"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={ui.search}
-            className="w-full px-4 py-2.5 rounded-xl text-zinc-900 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-white/50 placeholder:text-zinc-400"
-          />
+          {supportedLanguages.length > 1 && (
+            <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                {supportedLanguages.map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => {
+                      setSelectedLanguage(lang)
+                      const url = new URL(window.location.href)
+                      url.searchParams.set('lang', lang)
+                      window.history.replaceState({}, '', url.toString())
+                    }}
+                    className={`text-xs px-3 py-1 rounded-full border transition-colors ${selectedLanguage === lang ? 'bg-white text-zinc-900 border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}
+                  >
+                    {lang.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </header>
-
-      {/* Banner */}
-      {settings?.banner_url && (
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pt-4 sm:pt-5">
-          <img src={settings.banner_url} alt="Banner" className="w-full rounded-xl object-cover max-h-48 sm:max-h-64 lg:max-h-72" />
-        </div>
-      )}
 
       {/* Filtro de categorias */}
       {categories.length > 0 && (
         <div className="sticky top-0 z-20 bg-white border-b border-zinc-200 shadow-sm supports-backdrop-blur:bg-white/95 supports-backdrop-blur:backdrop-blur-sm">
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
-            <div ref={categoryFilterRef} className="flex gap-2 overflow-x-auto py-3 scrollbar-hide -mx-4 sm:-mx-6 lg:-mx-8 xl:-mx-12 px-4 sm:px-6 lg:px-8 xl:px-12">
+            <div ref={categoryFilterRef} className="flex gap-2 justify-center items-center overflow-x-auto py-3 scrollbar-hide">
               <button
-                onClick={() => setActiveCategory(null)}
-                style={!activeCategory && !visibleCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${!activeCategory && !visibleCategory ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
+                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors"
               >
-                {ui.all}
+                {showSearch
+                  ? <span className="text-xs font-medium leading-none">✕</span>
+                  : <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                }
               </button>
-              {categories.map(cat => (
-                <button
-                  key={cat.id}
-                  ref={el => { categoryButtonRefs.current[cat.id] = el }}
-                  onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
-                  style={activeCategory === cat.id || visibleCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                  className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${activeCategory === cat.id || visibleCategory === cat.id ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
-                >
-                  {cat.name}
-                </button>
-              ))}
+              {showSearch ? (
+                <input
+                  autoFocus
+                  type="search"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Buscar..."
+                  className="w-64 sm:w-80 px-3 py-1 rounded-full border border-zinc-300 text-sm text-zinc-900 focus:outline-none focus:ring-1 transition-all"
+                />
+              ) : (
+                <>
+                  <button
+                    onClick={() => setActiveCategory(null)}
+                    style={!activeCategory && !visibleCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
+                    className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${!activeCategory && !visibleCategory ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                  >
+                    {ui.all}
+                  </button>
+                  {categories.map(cat => (
+                    <button
+                      key={cat.id}
+                      ref={el => { categoryButtonRefs.current[cat.id] = el }}
+                      onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
+                      style={activeCategory === cat.id || visibleCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
+                      className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${activeCategory === cat.id || visibleCategory === cat.id ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </div>
+      )}
+
+      {showSearch && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => { setShowSearch(false); setSearch('') }}
+        />
       )}
 
       <div
@@ -411,24 +444,27 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         {featured.length > 0 && !search && !activeCategory && (
           <section>
             <h2 className="text-base font-bold text-zinc-900 mb-3">⭐ {ui.featured}</h2>
-            <div
-              ref={featuredRailRef}
-              onMouseEnter={() => setPauseFeaturedAutoScroll(true)}
-              onMouseLeave={() => setPauseFeaturedAutoScroll(false)}
-              className="-mx-4 sm:-mx-6 lg:-mx-8 xl:-mx-12 flex gap-3 sm:gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory [scrollbar-gutter:stable]"
-            >
-              {featuredBase.map((p, idx) => (
-                <button key={`${p.id}-${idx}`} onClick={() => setSelectedProduct(p)} data-featured-card
-                  className="flex-shrink-0 snap-start basis-[calc((100%-0.75rem)/2)] sm:basis-[calc((100%-2rem)/3)] lg:basis-[calc((100%-3rem)/4)] bg-white rounded-xl border border-zinc-200 overflow-hidden text-left hover:shadow-md transition-shadow">
-                  {getProductImages(p)[0]
-                    ? <img src={getProductImages(p)[0]} alt={p.name} className="w-full h-24 sm:h-28 lg:h-32 object-cover" />
-                    : <div className="w-full h-24 sm:h-28 lg:h-32 bg-zinc-100 flex items-center justify-center text-3xl">🍽️</div>}
-                  <div className="p-2">
-                    <p className="text-xs font-semibold text-zinc-900 truncate">{p.name}</p>
-                    <p style={{ color: accentColor }} className="text-sm font-bold mt-0.5">{formatPrice(p.price, currency)}</p>
-                  </div>
-                </button>
-              ))}
+            <div className="-mx-4 sm:-mx-6 lg:-mx-8 xl:-mx-12 overflow-hidden pb-2">
+              <div
+                onMouseEnter={() => setPauseFeaturedAutoScroll(true)}
+                onMouseLeave={() => setPauseFeaturedAutoScroll(false)}
+                className={`flex gap-3 sm:gap-4 w-max ${pauseFeaturedAutoScroll ? 'animate-marquee-paused' : 'animate-marquee'}`}
+              >
+                {[...featuredBase, ...featuredBase].map((p, idx) => (
+                  <button key={`${p.id}-${idx}`} onClick={() => setSelectedProduct(p)}
+                    className="flex-shrink-0 w-40 sm:w-48 lg:w-56 bg-white rounded-xl border border-zinc-200 overflow-hidden text-left hover:shadow-md active:scale-[0.97] transition-all duration-200 ease-out">
+                    <div className="w-full aspect-video bg-zinc-100 overflow-hidden">
+                      {getProductImages(p)[0]
+                        ? <img src={getProductImages(p)[0]} alt={p.name} className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>}
+                    </div>
+                    <div className="p-2">
+                      <p className="text-xs font-semibold text-zinc-900 truncate">{p.name}</p>
+                      <p style={{ color: accentColor }} className="text-sm font-bold mt-0.5">{formatPrice(p.price, currency)}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
         )}
@@ -467,25 +503,6 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           </section>
         )}
 
-        {/* Horários de funcionamento */}
-        {hasHours && (
-          <section className="bg-white rounded-xl border border-zinc-200 p-5">
-            <h2 className="text-sm font-bold text-zinc-900 mb-3">Opening hours</h2>
-            <div className="space-y-1.5">
-              {Object.entries(DAYS).map(([key, label]) => {
-                const value = hours?.[key as keyof typeof hours]
-                if (!value) return null
-                return (
-                  <div key={key} className="flex justify-between text-sm">
-                    <span className="text-zinc-500">{label}</span>
-                    <span className="text-zinc-900 font-medium">{value}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-        )}
-
       </div>
 
       {hasFixedFooter && (
@@ -513,7 +530,16 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                     ✉️ {email}
                   </a>
                 )}
-                {settings?.address && <span className="text-zinc-600">📍 {settings.address}</span>}
+                {settings?.address && (
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-zinc-600 hover:text-zinc-900 transition-colors"
+                  >
+                    📍 {settings.address}
+                  </a>
+                )}
               </div>
             )}
             {footerBrand && (
@@ -549,6 +575,29 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             <span className="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">{cartCount}</span>
           )}
         </button>
+      )}
+
+      {showHoursModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={() => setShowHoursModal(false)}>
+          <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="p-5 sm:p-6 border-b border-zinc-200 flex items-center justify-between">
+              <h3 className="text-base font-bold text-zinc-900">{ui.hoursTitle}</h3>
+              <button onClick={() => setShowHoursModal(false)} className="text-zinc-400 hover:text-zinc-600 text-xl leading-none">✕</button>
+            </div>
+            <div className="p-5 sm:p-6 space-y-2">
+              {Object.entries(DAYS).map(([key, label]) => {
+                const value = hours?.[key as keyof typeof hours]
+                if (!value) return null
+                return (
+                  <div key={key} className="flex justify-between text-sm">
+                    <span className="text-zinc-500">{label}</span>
+                    <span className="text-zinc-900 font-medium">{value}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       )}
 
       {showCartModal && (
@@ -619,10 +668,12 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
   const images = getProductImages(product)
   return (
     <button onClick={onClick}
-      className="w-full bg-white rounded-xl border border-zinc-200 overflow-hidden text-left hover:shadow-sm transition-shadow">
-      {images[0]
-        ? <img src={images[0]} alt={product.name} className="w-full h-32 object-cover" />
-        : <div className="w-full h-32 bg-zinc-100 flex items-center justify-center text-3xl">🍽️</div>}
+      className="w-full bg-white rounded-xl border border-zinc-200 overflow-hidden text-left hover:shadow-md hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 ease-out">
+      <div className="w-full aspect-video bg-zinc-100 overflow-hidden">
+        {images[0]
+          ? <img src={images[0]} alt={product.name} className="w-full h-full object-cover block" />
+          : <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>}
+      </div>
       <div className="p-2">
         <div className="flex items-start gap-1 flex-wrap">
           <p className="text-sm font-semibold text-zinc-900 truncate">{product.name}</p>
@@ -699,7 +750,7 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
       <div className="bg-white w-full sm:max-w-md lg:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         {images[imageIndex] && (
           <div
-            className="relative"
+            className="relative w-full aspect-video bg-zinc-100 overflow-hidden"
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
@@ -708,7 +759,7 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
             <img
               src={images[imageIndex]}
               alt={`${product.name} ${imageIndex + 1}`}
-              className={`w-full h-56 sm:h-64 object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
+              className={`w-full h-full object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
               style={{ transform: `translateX(${touchOffsetX}px)` }}
             />
             {hasManyImages && (

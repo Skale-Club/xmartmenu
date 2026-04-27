@@ -4,9 +4,9 @@
       "Bash(npx create-next-app@latest:*)",
       "Bash(npm install:*)",
       "Bash(npm run:*)",
-      "Bash(sed -i 's/your-supabase-project-url/https:\\\\/\\\\/placeholder.supabase.co/' /c/Users/User/Desktop/qrcode/.env.local)",
-      "Bash(sed -i 's/your-supabase-anon-key/placeholder-anon-key/' /c/Users/User/Desktop/qrcode/.env.local)",
-      "Bash(sed -i 's/your-supabase-service-role-key/placeholder-service-key/' /c/Users/User/Desktop/qrcode/.env.local)",
+      "Bash(sed -i 's/your-supabase-project-url/https:\\\\/\\\\/placeholder.supabase.co/' /c/Users/User/Desktop/qrcode/xmartmenu/.env.local)",
+      "Bash(sed -i 's/your-supabase-anon-key/placeholder-anon-key/' /c/Users/User/Desktop/qrcode/xmartmenu/.env.local)",
+      "Bash(sed -i 's/your-supabase-service-role-key/placeholder-service-key/' /c/Users/User/Desktop/qrcode/xmartmenu/.env.local)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)",
       "Bash(node:*)",
       "Bash(npm uninstall:*)",
@@ -33,7 +33,8 @@
       "Bash(git submodule:*)",
       "Bash(git ls-tree:*)",
       "Bash(git:*)",
-      "Bash(echo \"EXIT: $?\")"
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(xargs -0 grep -h \"ADD COLUMN.*translations\\\\|CREATE TABLE\")"
     ]
   }
 }
