@@ -5,6 +5,12 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 First, run the development server:
 
 ```bash
+cp .env.example .env.local
+```
+
+Then fill the Supabase values in `.env.local` and run:
+
+```bash
 npm run dev
 # or
 yarn dev
