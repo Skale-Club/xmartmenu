@@ -1,26 +1,131 @@
 name: Supabase Keepalive
 
-# Supabase free tier pausa projetos após 1 semana sem atividade.
+# Supabase free tier pausa projetos apos ~1 semana sem atividade.
 # Este workflow faz uma query leve a cada 3 dias para manter o projeto ativo.
+# Em caso de falha transitoria, faz retry com backoff antes de abortar.
 
 on:
   schedule:
-    - cron: '0 10 */3 * *'   # a cada 3 dias às 10h UTC
+    - cron: '0 10 */3 * *'   # a cada 3 dias as 10h UTC
   workflow_dispatch:          # permite rodar manualmente
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/supabase-keepalive.yml'
 
 jobs:
   keepalive:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Ping Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" \
-            "${{ secrets.SUPABASE_URL }}/rest/v1/tenants?select=id&limit=1" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
-          echo "HTTP status: $response"
-          if [ "$response" != "200" ] && [ "$response" != "406" ]; then
-            echo "Unexpected response: $response"
+          set -uo pipefail
+
+          # 1) Sanitiza secrets (remove espacos, CR, barra final)
+          url="$(printf '%s' "${SUPABASE_URL:-}" | tr -d '[:space:]\r')"
+          url="${url%/}"
+          key="$(printf '%s' "${SUPABASE_ANON_KEY:-}" | tr -d '[:space:]\r')"
+
+          # 2) Valida secrets
+          if [ -z "$url" ]; then
+            echo "::error::Secret SUPABASE_URL nao esta configurado em Settings > Secrets and variables > Actions."
             exit 1
           fi
-          echo "Supabase is alive."
+          if [ -z "$key" ]; then
+            echo "::error::Secret SUPABASE_ANON_KEY nao esta configurado em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          case "$url" in
+            https://*.supabase.co|https://*.supabase.in) ;;
+            *)
+              echo "::error::SUPABASE_URL invalido. Esperado 'https://<project-ref>.supabase.co'."
+              exit 1
+              ;;
+          esac
+
+          host="$(echo "$url" | sed -E 's#^https?://##' | cut -d/ -f1)"
+          echo "Pingando host: $host"
+
+          # 3) Ping com retry e backoff
+          max_attempts=5
+          attempt=0
+          last_status=""
+          last_curl_exit=""
+
+          while [ "$attempt" -lt "$max_attempts" ]; do
+            attempt=$((attempt + 1))
+            echo "::group::Tentativa $attempt/$max_attempts"
+
+            body_file="$(mktemp)"
+            status="$(curl -sS -o "$body_file" -w '%{http_code}' \
+              --max-time 30 \
+              --connect-timeout 10 \
+              "${url}/rest/v1/tenants?select=id&limit=1" \
+              -H "apikey: ${key}" \
+              -H "Authorization: Bearer ${key}" \
+              -H "Accept: application/json")"
+            curl_exit=$?
+            last_status="$status"
+            last_curl_exit="$curl_exit"
+
+            echo "curl_exit=$curl_exit http=$status"
+
+            # 200/206/406 = REST respondeu (suficiente para keepalive).
+            if [ "$curl_exit" -eq 0 ] && { [ "$status" = "200" ] || [ "$status" = "206" ] || [ "$status" = "406" ]; }; then
+              echo "Supabase esta vivo."
+              rm -f "$body_file"
+              echo "::endgroup::"
+              exit 0
+            fi
+
+            # 401/403 = credencial invalida: aborta sem retry.
+            if [ "$status" = "401" ] || [ "$status" = "403" ]; then
+              echo "::error::Status $status indica credencial invalida. Verifique SUPABASE_ANON_KEY."
+              echo "Resposta (primeiros 500 bytes):"
+              head -c 500 "$body_file" || true
+              echo
+              rm -f "$body_file"
+              echo "::endgroup::"
+              exit 1
+            fi
+
+            # 404 = tabela inexistente; cai no fallback no fim.
+            if [ "$status" = "404" ]; then
+              echo "Tabela 'tenants' retornou 404 — tentando fallback no fim."
+            fi
+
+            echo "Resposta (primeiros 300 bytes):"
+            head -c 300 "$body_file" || true
+            echo
+            rm -f "$body_file"
+            echo "::endgroup::"
+
+            if [ "$attempt" -lt "$max_attempts" ]; then
+              sleep_for=$((attempt * 10))
+              echo "Aguardando ${sleep_for}s antes do proximo retry..."
+              sleep "$sleep_for"
+            fi
+          done
+
+          # 4) Fallback: ping em /rest/v1/ (existe sempre que o projeto estiver ativo).
+          echo "::group::Fallback: ping em /rest/v1/"
+          status="$(curl -sS -o /dev/null -w '%{http_code}' \
+            --max-time 30 --connect-timeout 10 \
+            "${url}/rest/v1/" \
+            -H "apikey: ${key}" \
+            -H "Authorization: Bearer ${key}")"
+          curl_exit=$?
+          echo "fallback curl_exit=$curl_exit http=$status"
+          if [ "$curl_exit" -eq 0 ] && [ "$status" != "000" ] && [ "${status:0:1}" != "5" ]; then
+            echo "Fallback respondeu — Supabase esta acessivel (status $status)."
+            echo "::endgroup::"
+            exit 0
+          fi
+          echo "::endgroup::"
+
+          echo "::error::Falha apos $max_attempts tentativas. Ultimo status=$last_status, curl_exit=$last_curl_exit."
+          exit 1
