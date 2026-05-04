@@ -20,23 +20,35 @@ jobs:
     steps:
       - name: Ping Supabase
         env:
+          # Aceita ambos os nomes (com e sem prefixo NEXT_PUBLIC_) para casar com o
+          # .env do projeto. O workflow usa o primeiro que estiver definido.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: |
           set -uo pipefail
 
-          # 1) Sanitiza secrets (remove espacos, CR, barra final)
-          url="$(printf '%s' "${SUPABASE_URL:-}" | tr -d '[:space:]\r')"
-          url="${url%/}"
-          key="$(printf '%s' "${SUPABASE_ANON_KEY:-}" | tr -d '[:space:]\r')"
+          # 1) Resolve secrets (com fallback para nomes com prefixo NEXT_PUBLIC_)
+          raw_url="${SUPABASE_URL:-}"
+          [ -z "$raw_url" ] && raw_url="${NEXT_PUBLIC_SUPABASE_URL:-}"
+          raw_key="${SUPABASE_ANON_KEY:-}"
+          [ -z "$raw_key" ] && raw_key="${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}"
 
-          # 2) Valida secrets
+          # Sanitiza (remove espacos, CR, barra final)
+          url="$(printf '%s' "$raw_url" | tr -d '[:space:]\r')"
+          url="${url%/}"
+          key="$(printf '%s' "$raw_key" | tr -d '[:space:]\r')"
+
+          # 2) Valida secrets — mostra o que foi checado para facilitar debugging
           if [ -z "$url" ]; then
-            echo "::error::Secret SUPABASE_URL nao esta configurado em Settings > Secrets and variables > Actions."
+            echo "::error::Nenhum secret de URL do Supabase encontrado. Configure SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_URL em Settings > Secrets and variables > Actions."
+            echo "Secrets checados (em ordem): SUPABASE_URL, NEXT_PUBLIC_SUPABASE_URL"
             exit 1
           fi
           if [ -z "$key" ]; then
-            echo "::error::Secret SUPABASE_ANON_KEY nao esta configurado em Settings > Secrets and variables > Actions."
+            echo "::error::Nenhum secret de anon key encontrado. Configure SUPABASE_ANON_KEY ou NEXT_PUBLIC_SUPABASE_ANON_KEY em Settings > Secrets and variables > Actions."
+            echo "Secrets checados (em ordem): SUPABASE_ANON_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY"
             exit 1
           fi
           case "$url" in
