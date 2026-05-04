@@ -3,6 +3,9 @@ name: Supabase Keepalive
 # Supabase free tier pausa projetos apos ~1 semana sem atividade.
 # Este workflow faz uma query leve a cada 3 dias para manter o projeto ativo.
 # Em caso de falha transitoria, faz retry com backoff antes de abortar.
+#
+# Secrets aceitos (em ordem): SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_URL
+#                             SUPABASE_ANON_KEY ou NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 on:
   schedule:
