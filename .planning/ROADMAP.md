@@ -20,6 +20,8 @@
 
 **Requirements:** PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, PERF-06, PERF-07
 
+**Plans:** 2 plans
+
 **Success criteria:**
 1. `force-dynamic` removed from public routes — pages use ISR with 60s revalidate
 2. Root page (/) is static — no server work on a redirect
@@ -28,9 +30,9 @@
 5. Tenant + menu fetched in parallel — saves 1 round-trip per page load
 6. Before/after bundle analysis shows public menu route does not include Supabase browser client
 
-**Plans:**
-- Plan 1.1: Public route caching + query optimization
-- Plan 1.2: Bundle isolation (browserslist + chunk analysis)
+Plans:
+- [ ] 01-01-PLAN.md — Public route caching + query optimization (revalidate=60, React cache(), parallel fetch)
+- [ ] 01-02-PLAN.md — browserslist field in package.json to reduce polyfill bundle
 
 ---
 
