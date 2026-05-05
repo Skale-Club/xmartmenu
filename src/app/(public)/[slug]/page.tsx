@@ -1,5 +1,6 @@
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 
+import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import MenuPage from '@/components/menu/MenuPage'
@@ -10,15 +11,20 @@ interface Props {
   searchParams: Promise<{ lang?: string }>
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const { slug } = await params
-  const supabase = await createServiceClient()
-  const { data: tenant } = await supabase
+const getTenantBySlug = cache(async (slug: string) => {
+  const supabase = createServiceClient()
+  const { data } = await supabase
     .from('tenants')
-    .select('name, tenant_settings(logo_url)')
+    .select('*, tenant_settings(*)')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
+  return data
+})
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
+  const tenant = await getTenantBySlug(slug)
 
   if (!tenant) return { title: 'Menu' }
 
@@ -35,16 +41,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PublicMenuPage({ params, searchParams }: Props) {
   const { slug } = await params
   const { lang } = await searchParams
-  const supabase = await createServiceClient()
 
-  const { data: tenant } = await supabase
-    .from('tenants')
-    .select('*, tenant_settings(*)')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
-
+  const tenant = await getTenantBySlug(slug)
   if (!tenant) notFound()
+
+  const supabase = createServiceClient()
 
   const { data: menu } = await supabase
     .from('menus')
