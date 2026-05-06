@@ -1,22 +1,18 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { assertSuperadmin } from '@/lib/superadmin-auth'
+import { checkPasswordChangeRequired } from '@/lib/auth/password-guard'
 import { NextResponse } from 'next/server'
 
 interface Props { params: Promise<{ id: string }> }
 
 const DEFAULT_STAFF_PASSWORD = process.env.DEFAULT_STAFF_PASSWORD?.trim() || 'Staff@12345'
 
-async function assertSuperadmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return null
-  const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-  return profile?.role === 'superadmin' ? true : null
-}
-
 export async function GET(_req: Request, { params }: Props) {
-  const { id: tenantId } = await params
+  const guard = await checkPasswordChangeRequired()
+  if (guard) return guard
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { id: tenantId } = await params
   const service = await createServiceClient()
   const { data } = await service
     .from('profiles')
@@ -38,9 +34,11 @@ export async function GET(_req: Request, { params }: Props) {
 }
 
 export async function POST(request: Request, { params }: Props) {
-  const { id: tenantId } = await params
+  const guard = await checkPasswordChangeRequired()
+  if (guard) return guard
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const { id: tenantId } = await params
   const body = await request.json()
   const { name, email } = body
   if (!name?.trim() || !email?.trim()) {

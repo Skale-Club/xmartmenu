@@ -1,10 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
-import { isSuperadminRequest } from '@/lib/superadmin-auth'
+import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
-
-async function assertSuperadmin() {
-  return await isSuperadminRequest() ? true : null
-}
 
 export async function PATCH(
   request: Request,
