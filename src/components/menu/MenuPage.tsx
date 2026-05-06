@@ -853,11 +853,11 @@ function CartModal({ cart, currency, customerName, customerPhone, submittingOrde
   onClose: () => void
   onCustomerNameChange: (name: string) => void
   onCustomerPhoneChange: (phone: string) => void
-  onRemove: (productId: string) => void
-  onUpdateQuantity: (productId: string, quantity: number) => void
+  onRemove: (itemCartKey: string) => void
+  onUpdateQuantity: (itemCartKey: string, quantity: number) => void
   onSubmit: () => void
 }) {
-  const total = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+  const total = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={onClose}>
@@ -872,29 +872,37 @@ function CartModal({ cart, currency, customerName, customerPhone, submittingOrde
           ) : (
             <>
               {cart.map(item => (
-                <div key={item.product.id} className="flex items-center gap-3 py-2 border-b border-zinc-100 last:border-0">
+                <div key={item.cartKey} className="flex items-center gap-3 py-2 border-b border-zinc-100 last:border-0">
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-zinc-900 truncate">{item.product.name}</p>
-                    <p className="text-sm text-zinc-500">{formatPrice(item.product.price, currency)} each</p>
+                    {Object.keys(item.selectedOptions).length > 0 && (
+                      <p className="text-xs text-zinc-500 mt-0.5 truncate">
+                        {Object.entries(item.selectedOptions)
+                          .filter(([, v]) => v)
+                          .map(([k, v]) => `${k}: ${v}`)
+                          .join(', ')}
+                      </p>
+                    )}
+                    <p className="text-sm text-zinc-500">{formatPrice(item.unitPrice, currency)} each</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => onUpdateQuantity(item.product.id, item.quantity - 1)}
+                      onClick={() => onUpdateQuantity(item.cartKey, item.quantity - 1)}
                       className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-600"
                     >
                       -
                     </button>
                     <span className="w-8 text-center font-medium">{item.quantity}</span>
                     <button
-                      onClick={() => onUpdateQuantity(item.product.id, item.quantity + 1)}
+                      onClick={() => onUpdateQuantity(item.cartKey, item.quantity + 1)}
                       className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-600"
                     >
                       +
                     </button>
                   </div>
-                  <p className="w-20 text-right font-semibold">{formatPrice(item.product.price * item.quantity, currency)}</p>
+                  <p className="w-20 text-right font-semibold">{formatPrice(item.unitPrice * item.quantity, currency)}</p>
                   <button
-                    onClick={() => onRemove(item.product.id)}
+                    onClick={() => onRemove(item.cartKey)}
                     className="text-red-500 hover:text-red-700 text-sm"
                   >
                     ✕
