@@ -28,10 +28,10 @@
 
 ### Cart
 
-- [ ] **ORD-13**: Customer can view cart popup at bottom of menu page with all items, quantities, and totals
-- [ ] **ORD-14**: Customer can increment/decrement item quantity from cart (+/- controls)
-- [ ] **ORD-15**: Customer can remove an item from cart
-- [ ] **ORD-16**: Cart total recalculates automatically when items change
+- [x] **ORD-13**: Customer can view cart popup at bottom of menu page with all items, quantities, and totals
+- [x] **ORD-14**: Customer can increment/decrement item quantity from cart (+/- controls)
+- [x] **ORD-15**: Customer can remove an item from cart
+- [x] **ORD-16**: Cart total recalculates automatically when items change
 
 ### Checkout
 
@@ -78,10 +78,10 @@
 | ORD-10 | Phase 6 — Public Menu + Cart | Pending |
 | ORD-11 | Phase 6 — Public Menu + Cart | Pending |
 | ORD-12 | Phase 6 — Public Menu + Cart | Pending |
-| ORD-13 | Phase 6 — Public Menu + Cart | Pending |
-| ORD-14 | Phase 6 — Public Menu + Cart | Pending |
-| ORD-15 | Phase 6 — Public Menu + Cart | Pending |
-| ORD-16 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-13 | Phase 6 — Public Menu + Cart | Complete |
+| ORD-14 | Phase 6 — Public Menu + Cart | Complete |
+| ORD-15 | Phase 6 — Public Menu + Cart | Complete |
+| ORD-16 | Phase 6 — Public Menu + Cart | Complete |
 | ORD-17 | Phase 7 — Checkout | Pending |
 | ORD-18 | Phase 7 — Checkout | Pending |
 | ORD-19 | Phase 7 — Checkout | Pending |
