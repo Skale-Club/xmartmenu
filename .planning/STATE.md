@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
 status: executing
-stopped_at: Completed 09-text-seeding-09-02-PLAN.md
-last_updated: "2026-05-06T22:12:49.934Z"
+stopped_at: Completed 09-text-seeding-09-03-PLAN.md
+last_updated: "2026-05-06T23:26:10.782Z"
 last_activity: 2026-05-06 — Plan 09-01 complete (AI infra scaffolding)
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 11
 ---
 
@@ -62,6 +62,7 @@ Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1
 | Phase 08-tenant-orders-view P01 | 138 | 1 tasks | 1 files |
 | Phase 09-text-seeding P01 | 15min | 2 tasks | 4 files |
 | Phase 09-text-seeding P09-02 | 25min | 2 tasks | 2 files |
+| Phase 09-text-seeding P09-03 | 20min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,8 @@ Recent decisions affecting current work:
 - [Phase 09-text-seeding]: Single seed route with type field in POST body handles all 6 seed types without proliferating routes
 - [Phase 09-text-seeding]: Zod v4 z.record requires two args: z.record(z.string(), z.any()) — single-arg form not valid in Zod v4
 - [Phase 09-text-seeding]: TranslationsSchema kept flat as z.record(z.string(), z.any()) to avoid Gemini structured output validation failures with deeply nested schemas (Pitfall 3)
+- [Phase 09-text-seeding]: categories-list endpoint created at /api/superadmin/tenants/[id]/menus/[menuId]/categories-list — no existing superadmin route covered per-menu category listing
+- [Phase 09-text-seeding]: AI Tools section placed outside tab system, always visible below Tabs block per UI-SPEC Layout Specification
 
 ### Pending Todos
 
@@ -116,6 +119,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-06T22:12:48.887Z
-Stopped at: Completed 09-text-seeding-09-02-PLAN.md
+Last session: 2026-05-06T23:26:10.775Z
+Stopped at: Completed 09-text-seeding-09-03-PLAN.md
 Resume file: None

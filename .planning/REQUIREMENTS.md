@@ -19,7 +19,7 @@ All AI generation writes directly to the database. There is no separate "review 
 - [x] **AI-03**: System generates English product name and description for representative items within each generated category, respecting existing products (does not overwrite)
 - [x] **AI-04**: System generates English restaurant copy (suggested name override, tagline, "about" text) for the tenant's profile
 - [x] **AI-05**: When a tenant has additional languages enabled (via existing i18n `translations` field), seeding generates that content in each enabled language and stores it in the same `translations` JSONB
-- [ ] **AI-06**: Superadmin sees a "Seed" button next to the "Add category" and "Add product" inputs in the superadmin tenant view; clicking it generates that single item via AI
+- [x] **AI-06**: Superadmin sees a "Seed" button next to the "Add category" and "Add product" inputs in the superadmin tenant view; clicking it generates that single item via AI
 
 ### Image Seeding (Phase 10)
 
@@ -70,7 +70,7 @@ All AI generation writes directly to the database. There is no separate "review 
 | AI-03 | Phase 9 — Text Seeding | Complete |
 | AI-04 | Phase 9 — Text Seeding | Complete |
 | AI-05 | Phase 9 — Text Seeding | Complete |
-| AI-06 | Phase 9 — Text Seeding | Pending |
+| AI-06 | Phase 9 — Text Seeding | Complete |
 | AI-07 | Phase 10 — Image Seeding | Pending |
 | AI-08 | Phase 10 — Image Seeding | Pending |
 | AI-09 | Phase 10 — Image Seeding | Pending |
