@@ -83,8 +83,8 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Server component: option groups fetch (staged, gated by directOrdersEnabled) + optionGroupsByProductId prop wiring
-- [ ] 06-02-PLAN.md — CartItem extension (selectedOptions/unitPrice/cartKey) + cart function refactors + CartModal updates
+- [x] 06-01-PLAN.md — Server component: option groups fetch (staged, gated by directOrdersEnabled) + optionGroupsByProductId prop wiring
+- [x] 06-02-PLAN.md — CartItem extension (selectedOptions/unitPrice/cartKey) + cart function refactors + CartModal updates
 - [ ] 06-03-PLAN.md — ProductModal option selector UI (radio/checkbox/half-and-half) + canAddToCart gate + price preview + call site
 
 ### Phase 7: Checkout
@@ -121,6 +121,6 @@ Plans:
 | 3. CI/CD | v1.0 | 1/1 | Complete | 2026-05-06 |
 | 4. Schema | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 5. Admin Product Options UI | v1.1 | 3/3 | Complete | 2026-05-06 |
-| 6. Public Menu: Option Selectors + Cart | v1.1 | 0/3 | Not started | - |
+| 6. Public Menu: Option Selectors + Cart | v1.1 | 2/3 | In Progress|  |
 | 7. Checkout | v1.1 | 0/? | Not started | - |
 | 8. Tenant Orders View | v1.1 | 0/? | Not started | - |
