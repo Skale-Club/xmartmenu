@@ -58,7 +58,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
   3. If the tenant has additional languages enabled, seeding also populates the `translations` JSONB for each generated item
   4. Superadmin can click a "Seed" button next to the "Add category" and "Add product" inputs to generate a single item via AI
   5. All LLM prompts sanitize tenant-supplied strings before interpolation; public menu routes are revalidated after seeding writes
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 09-01-PLAN.md — AI infrastructure: migration 022, sanitize utility, npm packages, TypeScript types
+- [ ] 09-02-PLAN.md — Seed API route: all 6 seed types, Gemini calls, additive DB writes, ai_usage logging, revalidatePath
+- [ ] 09-03-PLAN.md — UI extension: page.tsx prop expansion + TenantDetailClient AI Tools section
 **UI hint**: yes
 
 ### Phase 10: Image Seeding
@@ -95,6 +99,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 3/3 | Complete | 2026-05-06 |
 | 7. Checkout | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
-| 9. Text Seeding | v1.2 | 0/? | Not started | - |
+| 9. Text Seeding | v1.2 | 0/3 | Not started | - |
 | 10. Image Seeding | v1.2 | 0/? | Not started | - |
 | 11. Menu Photo OCR | v1.2 | 0/? | Not started | - |
