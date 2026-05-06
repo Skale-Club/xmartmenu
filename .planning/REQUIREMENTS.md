@@ -35,9 +35,9 @@ All AI generation writes directly to the database. There is no separate "review 
 
 ### Infrastructure & Safety (cross-cutting, scaffolded in Phase 9)
 
-- [ ] **AI-13**: All LLM prompts sanitize tenant-supplied strings (`company_name`, `business_type`, free-form fields) before interpolation to prevent prompt injection
+- [x] **AI-13**: All LLM prompts sanitize tenant-supplied strings (`company_name`, `business_type`, free-form fields) before interpolation to prevent prompt injection
 - [ ] **AI-14**: Public menu routes are revalidated via `revalidatePath()` after any AI seeding write commits data (prevents stale ISR cache)
-- [ ] **AI-15**: `ai_usage` table tracks AI calls per tenant (`tenant_id`, `feature_key`, `date`, `call_count`, `token_count`) for cost attribution; not used as a blocking gate
+- [x] **AI-15**: `ai_usage` table tracks AI calls per tenant (`tenant_id`, `feature_key`, `date`, `call_count`, `token_count`) for cost attribution; not used as a blocking gate
 
 ## Future Requirements (deferred from v1.2)
 
@@ -77,6 +77,6 @@ All AI generation writes directly to the database. There is no separate "review 
 | AI-10 | Phase 11 — Menu Photo OCR | Pending |
 | AI-11 | Phase 11 — Menu Photo OCR | Pending |
 | AI-12 | Phase 11 — Menu Photo OCR | Pending |
-| AI-13 | Phase 9 — Text Seeding (infra scaffold) | Pending |
+| AI-13 | Phase 9 — Text Seeding (infra scaffold) | ✅ Complete (09-01) |
 | AI-14 | Phase 9 — Text Seeding (infra scaffold) | Pending |
-| AI-15 | Phase 9 — Text Seeding (infra scaffold) | Pending |
+| AI-15 | Phase 9 — Text Seeding (infra scaffold) | ✅ Complete (09-01) |
