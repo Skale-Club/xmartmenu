@@ -29,11 +29,11 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 
 ## Current State
 
-**v1.1 Phase 7 complete (2026-05-06)** — Checkout: order placed, confirmation screen shown.
-- `selected_options` persisted to DB via API + order_items insert (ORD-19)
-- `orderId`/`confirmedCart` state + CartModal confirmation view with order #, items, total (ORD-17, ORD-18)
-- Explicit "Close" button dismiss; no auto-close timer
+**v1.1 Phase 8 complete (2026-05-06)** — Tenant Orders View: Items count column + selected_options + notes in admin orders UI.
+- Items count column in order list table (singular/plural, ORD-20)
+- `selected_options` summary per item in detail modal, Notes section above status (ORD-21)
 
+*Phase 7 (2026-05-06)*: Checkout: order placed, confirmation screen shown.
 *Phase 6 (2026-05-06)*: Public menu option selectors + cart (radio/checkbox/half-and-half, composite cartKey).
 *Phase 5 (2026-05-06)*: Admin option group CRUD at `/admin/menu/products/[id]`.
 
@@ -68,6 +68,7 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 - ✓ Admin UI: option group + option CRUD, adaptive price field, ↑↓ reorder — Phase 5
 - ✓ Public menu: option selectors (radio/checkbox/half-and-half), cart with composite keys, unitPrice — Phase 6
 - ✓ Checkout: selected_options to DB, order confirmation screen with order ID, items, total — Phase 7
+- ✓ Tenant orders view: Items count column, selected_options summary, notes in admin UI — Phase 8
 
 ### Active — v1.1
 
@@ -108,4 +109,4 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-06 after Phase 7 (Checkout)*
+*Last updated: 2026-05-06 after Phase 8 (Tenant Orders View) — v1.1 milestone complete*
