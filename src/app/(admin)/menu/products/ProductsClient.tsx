@@ -548,7 +548,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                     {product.is_available ? 'Available' : 'Unavailable'}
                   </button>
                   <button
-                    onClick={() => startEdit(product)}
+                    onClick={() => router.push(`/admin/menu/products/${product.id}`)}
                     className="text-xs px-3 py-1 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
                   >
                     Edit
