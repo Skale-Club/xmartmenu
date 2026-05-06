@@ -45,7 +45,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
   2. RLS policies enforce: tenant admin can read/write their orders; public can insert orders only if orders_enabled=true; public can read product options
   3. src/types/database.ts is extended with all 4 new table types
   4. npm run build passes with no type errors related to the new types
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — SQL migration 021: ALTER orders/order_items + CREATE product_option_groups/product_options with RLS
+- [ ] 04-02-PLAN.md — TypeScript types: update Order/OrderItem, add ProductOptionGroup/ProductOption, verify build
 
 ### Phase 5: Admin Product Options UI
 **Goal**: Store admin can configure option groups and options per product (sizes, toppings, half-and-half)
@@ -107,7 +111,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 | 1. Performance | v1.0 | 2/2 | Complete | 2026-05-06 |
 | 2. Security | v1.0 | 3/3 | Complete | 2026-05-06 |
 | 3. CI/CD | v1.0 | 1/1 | Complete | 2026-05-06 |
-| 4. Schema | v1.1 | 0/? | Not started | - |
+| 4. Schema | v1.1 | 0/2 | Not started | - |
 | 5. Admin Product Options UI | v1.1 | 0/? | Not started | - |
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 0/? | Not started | - |
 | 7. Checkout | v1.1 | 0/? | Not started | - |
