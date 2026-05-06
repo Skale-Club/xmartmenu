@@ -28,7 +28,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 ## Phases
 
-- [ ] **Phase 4: Schema** — All database tables for orders and product options exist with correct structure, RLS, and TypeScript types
+- [x] **Phase 4: Schema** — All database tables for orders and product options exist with correct structure, RLS, and TypeScript types
 - [ ] **Phase 5: Admin Product Options UI** — Store admin can configure option groups and options per product (sizes, toppings, half-and-half)
 - [ ] **Phase 6: Public Menu: Option Selectors + Cart** — Customers can select product options and add items to an in-memory cart shown as a popup at the bottom of the menu page
 - [ ] **Phase 7: Checkout** — Customer enters name and phone and places order; receives confirmation screen
@@ -49,7 +49,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 Plans:
 - [x] 04-01-PLAN.md — SQL migration 021: ALTER orders/order_items + CREATE product_option_groups/product_options with RLS
-- [ ] 04-02-PLAN.md — TypeScript types: update Order/OrderItem, add ProductOptionGroup/ProductOption, verify build
+- [x] 04-02-PLAN.md — TypeScript types: update Order/OrderItem, add ProductOptionGroup/ProductOption, verify build
 
 ### Phase 5: Admin Product Options UI
 **Goal**: Store admin can configure option groups and options per product (sizes, toppings, half-and-half)
@@ -111,7 +111,7 @@ Plans:
 | 1. Performance | v1.0 | 2/2 | Complete | 2026-05-06 |
 | 2. Security | v1.0 | 3/3 | Complete | 2026-05-06 |
 | 3. CI/CD | v1.0 | 1/1 | Complete | 2026-05-06 |
-| 4. Schema | v1.1 | 1/2 | In Progress|  |
+| 4. Schema | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 5. Admin Product Options UI | v1.1 | 0/? | Not started | - |
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 0/? | Not started | - |
 | 7. Checkout | v1.1 | 0/? | Not started | - |

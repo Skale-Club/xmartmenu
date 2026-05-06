@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Orders
 status: executing
-stopped_at: Completed 04-schema/04-01-PLAN.md
-last_updated: "2026-05-06T13:04:25.308Z"
+stopped_at: Completed 04-schema/04-02-PLAN.md
+last_updated: "2026-05-06T13:25:00.000Z"
 last_activity: 2026-05-06
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 20
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 
 ## Current Position
 
-Phase: 04 (schema) — EXECUTING
+Phase: 04 (schema) — COMPLETE
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — all plans executed
 Last activity: 2026-05-06
 
-Progress: [░░░░░░░░░░] 0% (v1.1)
+Progress: [██░░░░░░░░] 20% (v1.1)
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0% (v1.1)
 
 *Updated after each plan completion*
 | Phase 04 P01 | 1 | 1 tasks | 1 files |
+| Phase 04 P02 | 8min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - [Phase 04]: Migration 021 does not touch orders_public_insert — already fixed in 020 with orders_enabled gate
 - [Phase 04]: base_price nullable on product_options to distinguish absolute option price from additive price_modifier
 - [Phase 04]: Status UPDATE rows before DROP+ADD CONSTRAINT to avoid CHECK constraint violation on existing data
+- [Phase 04]: Order.status union uses kitchen workflow language: pending/preparing/ready/done/cancelled (not confirmed/completed)
+- [Phase 04]: base_price vs price_modifier: base_price is absolute option price (nullable), price_modifier is additive delta (non-nullable)
 
 ### Pending Todos
 
@@ -76,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-06T13:04:25.293Z
-Stopped at: Completed 04-schema/04-01-PLAN.md
+Last session: 2026-05-06T13:25:00Z
+Stopped at: Completed 04-schema/04-02-PLAN.md
 Resume file: None
