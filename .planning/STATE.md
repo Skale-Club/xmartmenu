@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
 status: executing
-stopped_at: Completed 09-text-seeding-09-01-PLAN.md
-last_updated: "2026-05-06T21:21:00.000Z"
-last_activity: 2026-05-06 — Phase 9 Plan 01 complete
+stopped_at: Executing phase 9 — plan 09-01 complete, plan 09-02 next
+last_updated: "2026-05-06"
+last_activity: 2026-05-06 — Plan 09-01 complete (AI infra scaffolding)
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 9
+  total_plans: 3
   completed_plans: 1
-  percent: 11
+  percent: 33
 ---
 
 # Project State
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.2 AI Onboarding — Phase 9: Text Seeding
+**Current focus:** Phase 09 — text-seeding
 
 ## Current Position
 
