@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface Tenant {
@@ -29,6 +29,7 @@ interface Menu {
   is_active: boolean | null
   position: number | null
   created_at: string
+  supported_languages?: string[]
 }
 
 interface Credentials { email: string; password: string }
@@ -37,10 +38,12 @@ export default function TenantDetailClient({
   tenant,
   initialStaff,
   initialMenus,
+  businessType,
 }: {
   tenant: Tenant
   initialStaff: StaffMember[]
   initialMenus: Menu[]
+  businessType: string | null
 }) {
   const [tab, setTab] = useState<'staff' | 'menus'>('staff')
   const [staff, setStaff] = useState(initialStaff)
@@ -56,6 +59,16 @@ export default function TenantDetailClient({
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [confirmName, setConfirmName] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  // AI Tools state
+  const [seedLoading, setSeedLoading] = useState(false)
+  const [seedStatus, setSeedStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [selectedMenuId, setSelectedMenuId] = useState<string>(initialMenus[0]?.id ?? '')
+  const [businessTypeInput, setBusinessTypeInput] = useState('')
+  const [perItemLoading, setPerItemLoading] = useState<string | null>(null)
+  const [perItemError, setPerItemError] = useState<string | null>(null)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
+  const [menuCategories, setMenuCategories] = useState<{ id: string; name: string }[]>([])
 
   const base = `/api/superadmin/tenants/${tenant.id}/staff`
 
@@ -109,6 +122,102 @@ export default function TenantDetailClient({
     }
     setCredentials(data.credentials)
     setCredentialsOwner({ full_name: member.full_name ?? '', email: member.email ?? '' })
+  }
+
+  // Fetch categories for selected menu (per-item Seed product)
+  useEffect(() => {
+    if (!selectedMenuId) { setMenuCategories([]); setSelectedCategoryId(''); return }
+    fetch(`/api/superadmin/tenants/${tenant.id}/menus/${selectedMenuId}/categories-list`)
+      .then(r => r.json())
+      .then(d => setMenuCategories(d.categories ?? []))
+      .catch(() => setMenuCategories([]))
+    setSelectedCategoryId('')
+  }, [selectedMenuId, tenant.id])
+
+  function buildSuccessMessage(type: string, data: { categoriesCreated?: number; productsCreated?: number }): string {
+    const cats = data.categoriesCreated ?? 0
+    const prods = data.productsCreated ?? 0
+    if (type === 'menu') {
+      if (cats === 0 && prods === 0) return 'Nothing added — all generated items already exist.'
+      return `Menu seeded. ${cats} ${cats === 1 ? 'category' : 'categories'} and ${prods} ${prods === 1 ? 'product' : 'products'} added.`
+    }
+    if (type === 'categories') {
+      if (cats === 0) return 'Nothing added — all generated items already exist.'
+      return `${cats} ${cats === 1 ? 'category' : 'categories'} added.`
+    }
+    if (type === 'products') {
+      if (prods === 0) return 'Nothing added — all generated items already exist.'
+      return `${prods} ${prods === 1 ? 'product' : 'products'} added.`
+    }
+    if (type === 'copy') return 'Restaurant copy updated.'
+    if (type === 'single_category') return cats > 0 ? 'Category added.' : 'Nothing added — already exists.'
+    if (type === 'single_product') return prods > 0 ? 'Product added.' : 'Nothing added — already exists.'
+    return 'Done.'
+  }
+
+  async function handleSeed(type: string) {
+    if (!selectedMenuId) {
+      setSeedStatus({ type: 'error', message: 'Select a menu before seeding.' })
+      return
+    }
+    const effectiveBusinessType = businessTypeInput.trim() || businessType || ''
+    if (!effectiveBusinessType) {
+      setSeedStatus({ type: 'error', message: 'Enter a business type before seeding.' })
+      return
+    }
+    setSeedLoading(true)
+    setSeedStatus(null)
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/seed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type,
+          menuId: selectedMenuId,
+          businessType: effectiveBusinessType,
+          companyName: tenant.name,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setSeedStatus({ type: 'error', message: data.error ?? 'Seeding failed. Check the API logs and retry.' })
+      } else {
+        setSeedStatus({ type: 'success', message: buildSuccessMessage(type, data) })
+      }
+    } catch {
+      setSeedStatus({ type: 'error', message: 'Seeding failed. Check the API logs and retry.' })
+    }
+    setSeedLoading(false)
+  }
+
+  async function handleSeedSingle(type: 'single_category' | 'single_product', categoryId?: string) {
+    if (!selectedMenuId) return
+    const effectiveBusinessType = businessTypeInput.trim() || businessType || ''
+    const key = type === 'single_product' ? (categoryId ?? 'prod') : 'cat'
+    setPerItemLoading(key)
+    setPerItemError(null)
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/seed`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type,
+          menuId: selectedMenuId,
+          categoryId,
+          businessType: effectiveBusinessType,
+          companyName: tenant.name,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setPerItemError(data.error ?? 'Failed — retry?')
+        setTimeout(() => setPerItemError(null), 5000)
+      }
+    } catch {
+      setPerItemError('Failed — retry?')
+      setTimeout(() => setPerItemError(null), 5000)
+    }
+    setPerItemLoading(null)
   }
 
   const input = 'w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
@@ -308,6 +417,159 @@ export default function TenantDetailClient({
           )}
         </div>
       )}
+
+      {/* AI Tools section — D-02: placed below Tabs, always visible */}
+      <div className="mt-8 bg-white border border-zinc-200 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-zinc-900 mb-1">AI Tools</h2>
+
+        {/* Business type context line */}
+        {businessType && !businessTypeInput ? (
+          <p className="text-xs text-zinc-400 mb-4">
+            Seeding for: <span className="font-medium text-zinc-700">{businessType}</span>
+          </p>
+        ) : (
+          <div className="mb-4">
+            <p className="text-xs text-zinc-400 mb-1">Business type not set — enter to enable seeding:</p>
+            <input
+              type="text"
+              value={businessTypeInput}
+              onChange={e => setBusinessTypeInput(e.target.value)}
+              placeholder="e.g. pizzeria, cafe, bar"
+              className="w-64 px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          </div>
+        )}
+
+        {/* Menu selector — shown only when tenant has multiple menus */}
+        {menus.length > 1 && (
+          <select
+            value={selectedMenuId}
+            onChange={e => setSelectedMenuId(e.target.value)}
+            className="px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 mb-4 block"
+            disabled={seedLoading}
+          >
+            <option value="">Select menu to seed...</option>
+            {menus.map(m => (
+              <option key={m.id} value={m.id}>{m.name}</option>
+            ))}
+          </select>
+        )}
+
+        {/* No menus state */}
+        {menus.length === 0 && (
+          <p className="text-xs text-zinc-400 mb-4">No menus yet — create a menu first to enable seeding.</p>
+        )}
+
+        {/* Bulk seed buttons — D-03 */}
+        {menus.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => void handleSeed('menu')}
+              disabled={seedLoading || !selectedMenuId}
+              className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+            >
+              {seedLoading ? 'Seeding...' : 'Seed menu'}
+            </button>
+            <button
+              onClick={() => void handleSeed('categories')}
+              disabled={seedLoading || !selectedMenuId}
+              className="border border-zinc-200 text-zinc-700 bg-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+            >
+              Seed categories
+            </button>
+            <button
+              onClick={() => void handleSeed('products')}
+              disabled={seedLoading || !selectedMenuId}
+              className="border border-zinc-200 text-zinc-700 bg-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+            >
+              Seed products
+            </button>
+            <button
+              onClick={() => void handleSeed('copy')}
+              disabled={seedLoading || !selectedMenuId}
+              className="border border-zinc-200 text-zinc-700 bg-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+            >
+              Seed copy
+            </button>
+          </div>
+        )}
+
+        {/* Loading pulse message */}
+        {seedLoading && (
+          <p className="text-xs text-zinc-400 mt-3 animate-pulse">
+            Generating menu content — this may take up to 20 seconds...
+          </p>
+        )}
+
+        {/* Success banner */}
+        {seedStatus?.type === 'success' && (
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-4">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-green-800">{seedStatus.message}</p>
+              <button onClick={() => setSeedStatus(null)} className="text-green-500 hover:text-green-700 text-xl">✕</button>
+            </div>
+          </div>
+        )}
+
+        {/* Error banner */}
+        {seedStatus?.type === 'error' && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mt-4 text-sm text-red-700 flex items-center justify-between">
+            {seedStatus.message}
+            <button onClick={() => setSeedStatus(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
+          </div>
+        )}
+
+        {/* Per-item seed section — D-03: single category and single product — AI-06 */}
+        {menus.length > 0 && selectedMenuId && (
+          <div className="mt-5 pt-4 border-t border-zinc-100">
+            <p className="text-xs text-zinc-400 mb-3">Per-item seeding</p>
+
+            {/* Seed category row */}
+            <div className="flex items-center gap-2 mb-3">
+              <button
+                onClick={() => void handleSeedSingle('single_category')}
+                disabled={!!perItemLoading || seedLoading}
+                className="border border-zinc-200 text-zinc-700 bg-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+              >
+                {perItemLoading === 'cat' ? 'Seeding...' : 'Seed category'}
+              </button>
+            </div>
+
+            {/* Seed product row — requires category selection */}
+            <div className="flex items-center gap-2">
+              <select
+                value={selectedCategoryId}
+                onChange={e => setSelectedCategoryId(e.target.value)}
+                disabled={!!perItemLoading || seedLoading}
+                className="px-3 py-1 border border-zinc-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:opacity-50"
+              >
+                <option value="">Select category...</option>
+                {menuCategories.map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => {
+                  if (!selectedCategoryId) {
+                    setPerItemError('Select a category first.')
+                    setTimeout(() => setPerItemError(null), 3000)
+                    return
+                  }
+                  void handleSeedSingle('single_product', selectedCategoryId)
+                }}
+                disabled={!!perItemLoading || seedLoading || !selectedCategoryId}
+                className="border border-zinc-200 text-zinc-700 bg-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+              >
+                {perItemLoading === selectedCategoryId ? 'Seeding...' : 'Seed product'}
+              </button>
+            </div>
+
+            {perItemError && (
+              <p className="text-xs text-red-500 mt-2">{perItemError}</p>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
