@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Orders
-status: completed
-stopped_at: Phase 5 context gathered
-last_updated: "2026-05-06T13:24:26.630Z"
+status: executing
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-05-06T14:09:11.001Z"
 last_activity: 2026-05-06
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 5
+  completed_plans: 3
   percent: 20
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 04 — schema
+**Current focus:** Phase 05 — admin-product-options-ui
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Status: Phase complete — all plans executed
+Phase: 05 (admin-product-options-ui) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-05-06
 
 Progress: [██░░░░░░░░] 20% (v1.1)
@@ -51,6 +51,7 @@ Progress: [██░░░░░░░░] 20% (v1.1)
 *Updated after each plan completion*
 | Phase 04 P01 | 1 | 1 tasks | 1 files |
 | Phase 04 P02 | 8min | 1 tasks | 3 files |
+| Phase 05 P01 | 1min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase 04]: Status UPDATE rows before DROP+ADD CONSTRAINT to avoid CHECK constraint violation on existing data
 - [Phase 04]: Order.status union uses kitchen workflow language: pending/preparing/ready/done/cancelled (not confirmed/completed)
 - [Phase 04]: base_price vs price_modifier: base_price is absolute option price (nullable), price_modifier is additive delta (non-nullable)
+- [Phase 05]: Edit button navigates to /admin/menu/products/[id] instead of opening modal (modal kept for future quick-edit use per D-03)
+- [Phase 05]: GroupWithOptions interface exported from [id]/page.tsx for ProductDetailClient (Plan 02) to import
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-06T13:24:26.602Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-admin-product-options-ui/05-CONTEXT.md
+Last session: 2026-05-06T14:09:10.988Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
