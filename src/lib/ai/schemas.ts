@@ -1,7 +1,8 @@
 import { z } from 'zod'
 
 // Translations JSONB shape — kept flat to avoid Gemini schema validation failures (Pitfall 3)
-const TranslationsSchema = z.record(z.any())
+// Zod v4: z.record requires two args (key schema, value schema)
+const TranslationsSchema = z.record(z.string(), z.any())
 
 // For bulk menu seed (type='menu') and category-only seed (type='categories')
 export const MenuSeedSchema = z.object({
