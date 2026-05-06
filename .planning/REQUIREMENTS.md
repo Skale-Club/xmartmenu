@@ -1,58 +1,89 @@
-# Requirements
+# Requirements — v1.1 Orders
 
-**Project:** xmartmenu
-**Last updated:** 2026-05-05
+**Milestone:** v1.1 Orders
+**Created:** 2026-05-06
 
 ## v1 Requirements
 
-### Performance
+### Schema (database layer)
 
-- [x] **PERF-01**: Public menu page (/{slug}/{menuSlug}) loads with TTFB < 500ms on warm Vercel
-- [x] **PERF-02**: Public menu JS bundle does not include admin-only code (Supabase browser client isolated)
-- [x] **PERF-03**: Public menu pages use ISR/revalidate instead of force-dynamic (menu data cached up to 60s)
-- [x] **PERF-04**: Root redirect (/) is statically generated, not force-dynamic
-- [x] **PERF-05**: Polyfill bundle reduced by targeting modern browsers (browserslist)
-- [x] **PERF-06**: generateMetadata and page render share tenant/menu data (no duplicate DB queries per request)
-- [x] **PERF-07**: Tenant + menu queries run in parallel where tenant_id is not required for menu lookup
+- [ ] **ORD-01**: `product_option_groups` table exists with fields: id, product_id, tenant_id, name, type (single|multiple|half_and_half), required, min_selections, max_selections, price_rule (max|average|sum|fixed), position, translations JSONB
+- [ ] **ORD-02**: `product_options` table exists with fields: id, group_id, tenant_id, name, base_price (nullable), price_modifier, is_available, position, translations JSONB
+- [ ] **ORD-03**: `orders` table exists with fields: id, tenant_id, customer_name, customer_phone, status (pending|preparing|ready|done|cancelled), total, notes, created_at — RLS: tenant-scoped for admin read, public insert only if orders_enabled
+- [ ] **ORD-04**: `order_items` table exists with fields: id, order_id, product_id, product_name, quantity, unit_price, selected_options JSONB, notes — unit_price stores final resolved price (size + half-and-half already computed)
 
-### Security (from CONCERNS.md — HIGH priority)
+### Admin — product option groups
 
-- [x] **SEC-01**: Orders table INSERT policy validates tenant context (not WITH CHECK (true))
-- [x] **SEC-02**: must_change_password enforced at API layer, not only middleware UI redirect
-- [x] **SEC-03**: Uniform auth middleware pattern across all API routes (assertRole helper)
+- [ ] **ORD-05**: Store admin can add option groups to a product (name, type, required, min/max_selections)
+- [ ] **ORD-06**: Store admin can add/edit/delete individual options within a group (name, base_price or price_modifier, availability)
+- [ ] **ORD-07**: Store admin can reorder option groups and options via position field
 
-### CI/CD
+### Public menu — option selection
 
-- [x] **CI-01**: PR gate: lint (eslint) + build (next build) must pass before merge
-- [x] **CI-02**: TypeScript errors block CI
+- [ ] **ORD-08**: Customer sees product option groups when opening a product detail
+- [ ] **ORD-09**: Customer can select exactly one option from a `single`-type group (radio — required group blocks add-to-cart if unselected)
+- [ ] **ORD-10**: Customer can select one or more options from a `multiple`-type group (checkboxes, respects min/max_selections)
+- [ ] **ORD-11**: Customer can pick two flavors for a `half_and_half`-type group (two sequential selectors); price resolves via `max(half1.base_price, half2.base_price)` for the chosen size
+- [ ] **ORD-12**: Customer can add product with resolved options and computed unit_price to cart
 
-## v2 Requirements (deferred)
+### Cart
 
-- Bundle size budget enforced in CI (lighthouse-ci or bundlesize)
-- Real-user metrics (Vercel Speed Insights)
-- DB EXPLAIN ANALYZE on hot queries (menu fetch, staff list)
-- E2E tests for critical flows (onboarding, menu display, order placement)
-- Playwright test suite for tenant isolation
+- [ ] **ORD-13**: Customer can view cart popup at bottom of menu page with all items, quantities, and totals
+- [ ] **ORD-14**: Customer can increment/decrement item quantity from cart (+/- controls)
+- [ ] **ORD-15**: Customer can remove an item from cart
+- [ ] **ORD-16**: Cart total recalculates automatically when items change
+
+### Checkout
+
+- [ ] **ORD-17**: Customer can enter name and phone number to place order
+- [ ] **ORD-18**: Customer sees order confirmation screen after successful order (order id, items, total)
+- [ ] **ORD-19**: Order is persisted to DB with all items and selected_options JSONB
+
+### Tenant order management
+
+- [ ] **ORD-20**: Store admin can view list of incoming orders sorted by date (most recent first)
+- [ ] **ORD-21**: Store admin can update order status (pending → preparing → ready → done)
+
+## Future Requirements (deferred from v1.1)
+
+- Order push notifications (kitchen display / WhatsApp)
+- Split-bill support
+- Table-side ordering (table number field)
+- Kitchen ticket printing
+- Order history for customer (by phone number)
+- Delivery address + delivery fee
+- Order editing after placement
+- Coupon / discount codes
 
 ## Out of Scope
 
-- Full test coverage — deferred, high effort, no existing infra
-- Supabase realtime subscriptions — not needed for current feature set
-- Edge runtime for admin routes — server-side auth is fine there
+- Payment processing — deferred to v1.2 (SEED-003 Stripe Connect)
+- Allergen / dietary labels — v1.3+
+- Multi-language option group names in public UI — i18n already stored in translations JSONB, display deferred
+- Real-time order status updates for customer — deferred (polling or push later)
 
 ## Traceability
 
 | REQ-ID | Phase | Status |
 |---|---|---|
-| PERF-01 | Phase 1 — Performance | Complete |
-| PERF-02 | Phase 1 — Performance | Complete |
-| PERF-03 | Phase 1 — Performance | Complete |
-| PERF-04 | Phase 1 — Performance | Complete |
-| PERF-05 | Phase 1 — Performance | Complete |
-| PERF-06 | Phase 1 — Performance | Complete |
-| PERF-07 | Phase 1 — Performance | Complete |
-| SEC-01 | Phase 2 — Security | Complete |
-| SEC-02 | Phase 2 — Security | Complete |
-| SEC-03 | Phase 2 — Security | Complete |
-| CI-01 | Phase 3 — CI/CD | Complete |
-| CI-02 | Phase 3 — CI/CD | Complete |
+| ORD-01 | Phase 4 — Schema | Pending |
+| ORD-02 | Phase 4 — Schema | Pending |
+| ORD-03 | Phase 4 — Schema | Pending |
+| ORD-04 | Phase 4 — Schema | Pending |
+| ORD-05 | Phase 5 — Admin Options UI | Pending |
+| ORD-06 | Phase 5 — Admin Options UI | Pending |
+| ORD-07 | Phase 5 — Admin Options UI | Pending |
+| ORD-08 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-09 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-10 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-11 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-12 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-13 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-14 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-15 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-16 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-17 | Phase 7 — Checkout | Pending |
+| ORD-18 | Phase 7 — Checkout | Pending |
+| ORD-19 | Phase 7 — Checkout | Pending |
+| ORD-20 | Phase 8 — Tenant Orders View | Pending |
+| ORD-21 | Phase 8 — Tenant Orders View | Pending |
