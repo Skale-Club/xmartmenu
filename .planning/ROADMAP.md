@@ -8,7 +8,7 @@
 
 | # | Phase | Goal | Requirements | Status |
 |---|---|---|---|---|
-| 1 | Performance | 1/2 | In Progress|  |
+| 1 | Performance | 1/2 | Complete    | 2026-05-06 |
 | 2 | Security | Fix HIGH issues from audit | SEC-01–03 | 🔲 Not started |
 | 3 | CI/CD | No broken builds on main | CI-01–02 | 🔲 Not started |
 
@@ -20,7 +20,7 @@
 
 **Requirements:** PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, PERF-06, PERF-07
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 **Success criteria:**
 1. `force-dynamic` removed from public routes — pages use ISR with 60s revalidate
