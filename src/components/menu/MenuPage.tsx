@@ -575,7 +575,13 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           lang={selectedLanguage}
           onClose={() => setSelectedProduct(null)}
           onWhatsApp={() => openWhatsApp(selectedProduct)}
-          onAddToCart={directOrdersEnabled ? (selectedOptions, unitPrice) => { addToCart(selectedProduct, selectedOptions, unitPrice); setSelectedProduct(null) } : undefined}
+          optionGroups={optionGroupsByProductId[selectedProduct.id] ?? []}
+          onAddToCart={directOrdersEnabled
+            ? (selectedOptions, unitPrice) => {
+                addToCart(selectedProduct, selectedOptions, unitPrice)
+                setSelectedProduct(null)
+              }
+            : undefined}
         />
       )}
 
@@ -880,10 +886,196 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
             </div>
           )}
           {product.description && <p className="text-sm text-zinc-600 mb-4 leading-relaxed">{product.description}</p>}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          {optionGroups.length > 0 && (
+            <div className="mt-4 space-y-6">
+              {optionGroups.map(group => {
+                const groupUi = UI_COPY[lang] ?? UI_COPY.en
+                // Min/max hint text
+                const hintText = (() => {
+                  const min = group.min_selections
+                  const max = group.max_selections
+                  if (min > 0 && max !== null && min !== max) return groupUi.chooseBetween.replace('{min}', String(min)).replace('{max}', String(max))
+                  if (min > 0 && (max === null || max === min)) return groupUi.chooseAtLeast.replace('{min}', String(min))
+                  if (max !== null) return groupUi.chooseUpTo.replace('{max}', String(max))
+                  return null
+                })()
+
+                return (
+                  <div key={group.id}>
+                    {/* Group header */}
+                    <div className="flex items-center mb-2">
+                      <span className="text-sm font-bold text-zinc-900">{group.name}</span>
+                      {group.required && (
+                        <span className="ml-2 text-xs bg-red-50 text-red-600 px-1.5 py-0.5 rounded">
+                          {groupUi.required}
+                        </span>
+                      )}
+                    </div>
+                    {hintText && group.type !== 'half_and_half' && (
+                      <p className="text-xs text-zinc-400 mb-2">{hintText}</p>
+                    )}
+
+                    {/* Single-type: radio buttons */}
+                    {group.type === 'single' && (
+                      <div className="space-y-1">
+                        {group.options.map(opt => {
+                          const isSelected = singleSelections[group.id] === opt.id
+                          return (
+                            <label
+                              key={opt.id}
+                              className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border cursor-pointer min-h-[44px] ${isSelected ? 'bg-zinc-50 border-zinc-900' : 'bg-white border-zinc-200'}`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <input
+                                  type="radio"
+                                  name={group.id}
+                                  value={opt.id}
+                                  checked={isSelected}
+                                  onChange={() => setSingleSelections(prev => ({ ...prev, [group.id]: opt.id }))}
+                                  className="sr-only"
+                                />
+                                <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`} />
+                                <span className="text-sm text-zinc-900 truncate">{opt.name}</span>
+                                {opt.price_modifier !== 0 && opt.base_price === null && (
+                                  <span className="text-sm text-zinc-500 flex-shrink-0">
+                                    {opt.price_modifier > 0 ? '+' : ''}{formatPrice(opt.price_modifier, currency)}
+                                  </span>
+                                )}
+                              </div>
+                              {opt.base_price !== null && (
+                                <span className="text-sm font-bold text-zinc-900 flex-shrink-0">{formatPrice(opt.base_price, currency)}</span>
+                              )}
+                            </label>
+                          )
+                        })}
+                      </div>
+                    )}
+
+                    {/* Multiple-type: checkboxes */}
+                    {group.type === 'multiple' && (() => {
+                      const selected = multiSelections[group.id] ?? []
+                      const maxReached = group.max_selections !== null && selected.length >= group.max_selections
+                      return (
+                        <div className="space-y-1">
+                          {group.options.map(opt => {
+                            const isChecked = selected.includes(opt.id)
+                            const isDisabled = maxReached && !isChecked
+                            return (
+                              <label
+                                key={opt.id}
+                                aria-disabled={isDisabled ? 'true' : undefined}
+                                className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border cursor-pointer min-h-[44px] ${isChecked ? 'bg-zinc-50 border-zinc-900' : 'bg-white border-zinc-200'} ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <input
+                                    type="checkbox"
+                                    value={opt.id}
+                                    checked={isChecked}
+                                    onChange={() => {
+                                      setMultiSelections(prev => {
+                                        const cur = prev[group.id] ?? []
+                                        return {
+                                          ...prev,
+                                          [group.id]: isChecked ? cur.filter(id => id !== opt.id) : [...cur, opt.id],
+                                        }
+                                      })
+                                    }}
+                                    className="sr-only"
+                                  />
+                                  <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center ${isChecked ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`}>
+                                    {isChecked && (
+                                      <svg viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" className="w-3 h-3">
+                                        <polyline points="2,6 5,9 10,3" />
+                                      </svg>
+                                    )}
+                                  </span>
+                                  <span className="text-sm text-zinc-900 truncate">{opt.name}</span>
+                                  {opt.price_modifier !== 0 && (
+                                    <span className="text-sm text-zinc-500 flex-shrink-0">
+                                      {opt.price_modifier > 0 ? '+' : ''}{formatPrice(opt.price_modifier, currency)}
+                                    </span>
+                                  )}
+                                </div>
+                              </label>
+                            )
+                          })}
+                        </div>
+                      )
+                    })()}
+
+                    {/* Half-and-half: two stacked radio selectors */}
+                    {group.type === 'half_and_half' && (() => {
+                      const half = halfSelections[group.id] ?? { half1: null, half2: null }
+                      const groupUiLocal = UI_COPY[lang] ?? UI_COPY.en
+                      const halfNames: Array<'half1' | 'half2'> = ['half1', 'half2']
+                      const halfLabels = [groupUiLocal.firstHalf, groupUiLocal.secondHalf]
+                      const halfPrice = (() => {
+                        if (!half.half1 || !half.half2) return null
+                        const opt1 = group.options.find(o => o.id === half.half1)
+                        const opt2 = group.options.find(o => o.id === half.half2)
+                        return Math.max(opt1?.base_price ?? 0, opt2?.base_price ?? 0)
+                      })()
+                      return (
+                        <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-3 space-y-3">
+                          {halfNames.map((halfKey, idx) => (
+                            <div key={halfKey}>
+                              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">
+                                {group.name} — {halfLabels[idx]}
+                              </p>
+                              <div className="space-y-1">
+                                {group.options.map(opt => {
+                                  const isSelected = half[halfKey] === opt.id
+                                  return (
+                                    <label
+                                      key={opt.id}
+                                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border cursor-pointer min-h-[44px] ${isSelected ? 'bg-white border-zinc-900' : 'bg-white border-zinc-200'}`}
+                                    >
+                                      <div className="flex items-center gap-2 min-w-0">
+                                        <input
+                                          type="radio"
+                                          name={`${group.id}-${halfKey}`}
+                                          value={opt.id}
+                                          checked={isSelected}
+                                          onChange={() => setHalfSelections(prev => ({
+                                            ...prev,
+                                            [group.id]: { ...(prev[group.id] ?? { half1: null, half2: null }), [halfKey]: opt.id },
+                                          }))}
+                                          className="sr-only"
+                                        />
+                                        <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`} />
+                                        <span className="text-sm text-zinc-900 truncate">{opt.name}</span>
+                                      </div>
+                                      {opt.base_price !== null && (
+                                        <span className="text-sm font-bold text-zinc-900 flex-shrink-0">{formatPrice(opt.base_price, currency)}</span>
+                                      )}
+                                    </label>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                          {halfPrice !== null && (
+                            <p className="text-xs text-zinc-500 pt-1">
+                              Price: {formatPrice(halfPrice, currency)}
+                            </p>
+                          )}
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4">
             <div>
               {product.original_price && <p className="text-sm text-zinc-400 line-through">{formatPrice(product.original_price, currency)}</p>}
-              <p style={{ color: accentColor }} className="text-2xl font-bold">{formatPrice(product.price, currency)}</p>
+              <p style={{ color: accentColor }} className="text-2xl font-bold">
+                {formatPrice(computedUnitPrice, currency)}
+              </p>
+              {optionGroups.length > 0 && computedUnitPrice !== product.price && (
+                <p className="text-xs text-zinc-400">Base: {formatPrice(product.price, currency)}</p>
+              )}
             </div>
             <div className="flex flex-col sm:flex-row gap-2">
               {whatsapp && (
@@ -892,7 +1084,41 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
                 </button>
               )}
               {onAddToCart && (
-                <button onClick={() => onAddToCart({}, computedUnitPrice)} className="w-full sm:w-auto bg-zinc-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors">
+                <button
+                  onClick={() => {
+                    if (!onAddToCart) return
+                    // Build selectedOptions from current selections
+                    const opts: Record<string, unknown> = {}
+                    for (const group of optionGroups) {
+                      if (group.type === 'single') {
+                        const optId = singleSelections[group.id]
+                        if (optId) {
+                          const opt = group.options.find(o => o.id === optId)
+                          if (opt) opts[group.name] = opt.name
+                        }
+                      } else if (group.type === 'half_and_half') {
+                        const half = halfSelections[group.id]
+                        if (half?.half1 && half?.half2) {
+                          const opt1 = group.options.find(o => o.id === half.half1)
+                          const opt2 = group.options.find(o => o.id === half.half2)
+                          if (opt1 && opt2) opts[group.name] = `${opt1.name} / ${opt2.name}`
+                        }
+                      } else if (group.type === 'multiple') {
+                        const sel = multiSelections[group.id] ?? []
+                        if (sel.length > 0) {
+                          opts[group.name] = sel
+                            .map(id => group.options.find(o => o.id === id)?.name)
+                            .filter(Boolean)
+                            .join(', ')
+                        }
+                      }
+                    }
+                    onAddToCart(opts, computedUnitPrice)
+                  }}
+                  disabled={!canAddToCart}
+                  aria-disabled={!canAddToCart}
+                  className={`w-full sm:w-auto bg-zinc-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${canAddToCart ? 'hover:bg-zinc-800' : 'opacity-50 cursor-not-allowed'}`}
+                >
                   Add to cart
                 </button>
               )}
