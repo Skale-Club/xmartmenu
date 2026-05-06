@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { checkPasswordChangeRequired } from '@/lib/auth/password-guard'
 
 interface Props { params: Promise<{ id: string }> }
 const PASSWORD_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
@@ -36,6 +37,8 @@ async function assertStaffOwnership(staffId: string) {
 }
 
 export async function PATCH(_req: Request, { params }: Props) {
+  const guard = await checkPasswordChangeRequired()
+  if (guard) return guard
   const { id } = await params
   const ctx = await assertStaffOwnership(id)
   if ('error' in ctx) return ctx.error
@@ -75,6 +78,8 @@ export async function PATCH(_req: Request, { params }: Props) {
 }
 
 export async function DELETE(_req: Request, { params }: Props) {
+  const guard = await checkPasswordChangeRequired()
+  if (guard) return guard
   const { id } = await params
   const ctx = await assertStaffOwnership(id)
   if ('error' in ctx) return ctx.error

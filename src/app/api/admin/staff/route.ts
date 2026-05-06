@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { checkPasswordChangeRequired } from '@/lib/auth/password-guard'
 
 async function assertStoreAdmin() {
   const supabase = await createClient()
@@ -40,6 +41,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const guard = await checkPasswordChangeRequired()
+  if (guard) return guard
   const ctx = await assertStoreAdmin()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
