@@ -7,6 +7,7 @@ interface OrderItem {
   quantity: number
   unit_price: number
   notes?: string
+  selected_options?: Record<string, unknown>
 }
 
 interface CreateOrderRequest {
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
       quantity: item.quantity,
       unit_price: item.unit_price,
       notes: item.notes || null,
+      selected_options: item.selected_options || null,
     }))
 
     const { error: itemsError } = await service
