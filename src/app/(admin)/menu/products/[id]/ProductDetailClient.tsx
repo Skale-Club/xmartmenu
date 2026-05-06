@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { formatPrice, cn } from '@/lib/utils'
+import { formatPrice } from '@/lib/utils'
 import { ChevronUp, ChevronDown, Pencil, Trash2, Plus } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { Product, ProductOption, OptionGroupType } from '@/types/database'
@@ -29,6 +29,236 @@ interface Props {
   canManage: boolean
 }
 
+function OptionGroupForm({
+  initial,
+  onSave,
+  onDiscard,
+}: {
+  initial?: { name: string; type: OptionGroupType; required: boolean; min_selections: number; max_selections: number | null }
+  onSave: (data: { name: string; type: OptionGroupType; required: boolean; min_selections: number; max_selections: number | null }) => Promise<void>
+  onDiscard: () => void
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [type, setType] = useState<OptionGroupType>(initial?.type ?? 'single')
+  const [required, setRequired] = useState(initial?.required ?? false)
+  const [minSelections, setMinSelections] = useState(initial?.min_selections ?? 1)
+  const [maxSelections, setMaxSelections] = useState<string>(
+    initial?.max_selections != null ? String(initial.max_selections) : ''
+  )
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    await onSave({
+      name,
+      type,
+      required,
+      min_selections: minSelections,
+      max_selections: maxSelections ? parseInt(maxSelections, 10) : null,
+    }).catch((err: Error) => setError(err.message))
+    setSaving(false)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Name *</label>
+          <input
+            required
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="e.g. Size, Toppings, Flavor"
+            className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Type *</label>
+          <select
+            value={type}
+            onChange={e => setType(e.target.value as OptionGroupType)}
+            className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 bg-white"
+          >
+            <option value="single">Single (radio)</option>
+            <option value="multiple">Multiple (checkboxes)</option>
+            <option value="half_and_half">Half &amp; Half</option>
+          </select>
+        </div>
+        <div className="flex items-end pb-2">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={required}
+              onChange={e => setRequired(e.target.checked)}
+              className="w-4 h-4 rounded border-zinc-300"
+            />
+            <span className="text-sm text-zinc-700">Required</span>
+          </label>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Min selections</label>
+          <input
+            type="number"
+            min="0"
+            value={minSelections}
+            onChange={e => setMinSelections(parseInt(e.target.value, 10) || 0)}
+            className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Max selections</label>
+          <input
+            type="number"
+            min="1"
+            value={maxSelections}
+            onChange={e => setMaxSelections(e.target.value)}
+            placeholder="No limit"
+            className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          />
+        </div>
+      </div>
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          Failed to save. {error}
+        </p>
+      )}
+      <div className="flex gap-2 pt-1">
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+        >
+          {saving ? 'Saving...' : 'Save group'}
+        </button>
+        <button
+          type="button"
+          onClick={onDiscard}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 transition-colors"
+        >
+          Discard group
+        </button>
+      </div>
+    </form>
+  )
+}
+
+function OptionForm({
+  parentGroupType,
+  currency,
+  initial,
+  onSave,
+  onDiscard,
+}: {
+  parentGroupType: OptionGroupType
+  currency: string
+  initial?: { name: string; base_price: number | null; price_modifier: number; is_available: boolean }
+  onSave: (data: { name: string; base_price: number | null; price_modifier: number; is_available: boolean }) => Promise<void>
+  onDiscard: () => void
+}) {
+  const isAbsolutePrice = parentGroupType === 'single' || parentGroupType === 'half_and_half'
+
+  const [name, setName] = useState(initial?.name ?? '')
+  const [priceValue, setPriceValue] = useState<string>(
+    initial != null
+      ? isAbsolutePrice
+        ? initial.base_price != null ? String(initial.base_price) : ''
+        : String(initial.price_modifier)
+      : ''
+  )
+  const [isAvailable, setIsAvailable] = useState(initial?.is_available ?? true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const priceLabel = isAbsolutePrice ? 'Base price (full size price)' : 'Price modifier (+/-)'
+  const priceHint = isAbsolutePrice
+    ? 'Absolute price for this option size'
+    : "Amount added to or subtracted from the product's base price"
+
+  const currencySymbol: Record<string, string> = {
+    USD: '$', BRL: 'R$', EUR: '€', GBP: '£',
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true)
+    setError(null)
+    const parsed = parseFloat(priceValue) || 0
+    const payload = isAbsolutePrice
+      ? { name, base_price: parsed, price_modifier: 0, is_available: isAvailable }
+      : { name, base_price: null, price_modifier: parsed, is_available: isAvailable }
+    await onSave(payload).catch((err: Error) => setError(err.message))
+    setSaving(false)
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">Name *</label>
+          <input
+            required
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="e.g. Small, Extra cheese"
+            className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700 mb-1">{priceLabel}</label>
+          <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
+            <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">
+              {currencySymbol[currency] ?? currency}
+            </span>
+            <input
+              type="number"
+              step="0.01"
+              {...(isAbsolutePrice ? { min: '0' } : {})}
+              value={priceValue}
+              onChange={e => setPriceValue(e.target.value)}
+              placeholder="0.00"
+              className="flex-1 px-3 py-2 text-sm focus:outline-none"
+            />
+          </div>
+          <p className="text-xs text-zinc-400 mt-0.5">{priceHint}</p>
+        </div>
+      </div>
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={isAvailable}
+          onChange={e => setIsAvailable(e.target.checked)}
+          className="w-4 h-4 rounded border-zinc-300"
+        />
+        <span className="text-sm text-zinc-700">Available</span>
+      </label>
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          Failed to save. {error}
+        </p>
+      )}
+      <div className="flex gap-2 pt-1">
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+        >
+          {saving ? 'Saving...' : 'Save option'}
+        </button>
+        <button
+          type="button"
+          onClick={onDiscard}
+          className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 transition-colors"
+        >
+          Discard option
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function ProductDetailClient({ product, initialGroups, tenantId: _tenantId, currency, canManage }: Props) {
   // Product fields form state
   const [productForm, setProductForm] = useState({
@@ -46,7 +276,7 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
   // Groups + options state (two-level nested)
   const [groups, setGroups] = useState<GroupWithOptions[]>(initialGroups)
 
-  // Expand state for inline forms (Plan 03 will use these)
+  // Expand state for inline forms
   const [expandedGroup, setExpandedGroup] = useState<'new' | string | null>(null)
   const [expandedOption, setExpandedOption] = useState<Record<string, 'new' | string | null>>({})
 
@@ -109,10 +339,159 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
     setConfirmOptionId(null)
   }
 
-  // Suppress unused variable warning — reorderInFlight is used by Plan 03
-  void reorderInFlight
-  void setReorderInFlight
-  void cn
+  async function handleSaveGroup(
+    data: {
+      name: string
+      type: OptionGroupType
+      required: boolean
+      min_selections: number
+      max_selections: number | null
+    },
+    editingId: string | null,
+    onSuccess: () => void,
+    onError: (msg: string) => void
+  ) {
+    if (editingId) {
+      const { error } = await supabase
+        .from('product_option_groups')
+        .update({ name: data.name, type: data.type, required: data.required, min_selections: data.min_selections, max_selections: data.max_selections })
+        .eq('id', editingId)
+      if (error) { onError(error.message); return }
+      setGroups(prev => prev.map(g =>
+        g.id === editingId ? { ...g, ...data } : g
+      ))
+    } else {
+      const { data: inserted, error } = await supabase
+        .from('product_option_groups')
+        .insert({
+          product_id: product.id,
+          tenant_id: _tenantId,
+          name: data.name,
+          type: data.type,
+          required: data.required,
+          min_selections: data.min_selections,
+          max_selections: data.max_selections,
+          price_rule: 'max',
+          position: groups.length,
+        })
+        .select()
+        .single()
+      if (error) { onError(error.message); return }
+      if (inserted) setGroups(prev => [...prev, { ...inserted, options: [] }])
+    }
+    onSuccess()
+  }
+
+  async function moveGroup(groupId: string, direction: 'up' | 'down') {
+    const idx = groups.findIndex(g => g.id === groupId)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= groups.length) return
+
+    const current = groups[idx]
+    const swap = groups[swapIdx]
+    const prevGroups = groups
+
+    // Optimistic update
+    const reordered = groups
+      .map(g => {
+        if (g.id === current.id) return { ...g, position: swap.position }
+        if (g.id === swap.id) return { ...g, position: current.position }
+        return g
+      })
+      .sort((a, b) => a.position - b.position)
+    setGroups(reordered)
+    setReorderInFlight(true)
+
+    try {
+      await Promise.all([
+        supabase.from('product_option_groups').update({ position: swap.position }).eq('id', current.id),
+        supabase.from('product_option_groups').update({ position: current.position }).eq('id', swap.id),
+      ])
+    } catch {
+      // Silent restore on error
+      setGroups(prevGroups)
+    } finally {
+      setReorderInFlight(false)
+    }
+  }
+
+  async function handleSaveOption(
+    groupId: string,
+    data: {
+      name: string
+      base_price: number | null
+      price_modifier: number
+      is_available: boolean
+    },
+    editingId: string | null,
+    onSuccess: () => void,
+    onError: (msg: string) => void
+  ) {
+    if (editingId) {
+      const { error } = await supabase
+        .from('product_options')
+        .update({ name: data.name, base_price: data.base_price, price_modifier: data.price_modifier, is_available: data.is_available })
+        .eq('id', editingId)
+      if (error) { onError(error.message); return }
+      updateGroupOptions(groupId, opts =>
+        opts.map(o => o.id === editingId ? { ...o, ...data } : o)
+      )
+    } else {
+      const group = groups.find(g => g.id === groupId)
+      const { data: inserted, error } = await supabase
+        .from('product_options')
+        .insert({
+          group_id: groupId,
+          tenant_id: _tenantId,
+          name: data.name,
+          base_price: data.base_price,
+          price_modifier: data.price_modifier,
+          is_available: data.is_available,
+          position: group?.options.length ?? 0,
+        })
+        .select()
+        .single()
+      if (error) { onError(error.message); return }
+      if (inserted) updateGroupOptions(groupId, opts => [...opts, inserted])
+    }
+    onSuccess()
+  }
+
+  async function moveOption(groupId: string, optionId: string, direction: 'up' | 'down') {
+    const group = groups.find(g => g.id === groupId)
+    if (!group) return
+    const opts = group.options
+    const idx = opts.findIndex(o => o.id === optionId)
+    const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+    if (swapIdx < 0 || swapIdx >= opts.length) return
+
+    const current = opts[idx]
+    const swap = opts[swapIdx]
+    const prevGroups = groups
+
+    // Optimistic update
+    const reorderedOpts = opts
+      .map(o => {
+        if (o.id === current.id) return { ...o, position: swap.position }
+        if (o.id === swap.id) return { ...o, position: current.position }
+        return o
+      })
+      .sort((a, b) => a.position - b.position)
+    updateGroupOptions(groupId, () => reorderedOpts)
+    setReorderInFlight(true)
+
+    try {
+      await Promise.all([
+        supabase.from('product_options').update({ position: swap.position }).eq('id', current.id),
+        supabase.from('product_options').update({ position: current.position }).eq('id', swap.id),
+      ])
+    } catch {
+      // Silent restore on error
+      setGroups(prevGroups)
+    } finally {
+      setReorderInFlight(false)
+    }
+  }
 
   return (
     <div className="p-8 max-w-3xl mx-auto">
@@ -250,18 +629,15 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
           </div>
         )}
 
-        {/* "Add group" inline form placeholder — Plan 03 renders real form here */}
+        {/* "Add group" inline form */}
         {expandedGroup === 'new' && (
           <div className="border border-zinc-200 rounded-xl p-4 mb-3 bg-zinc-50">
-            {/* Plan 03: OptionGroupForm component rendered here */}
-            <p className="text-sm text-zinc-400 italic">Group form (Plan 03)</p>
-            <button
-              type="button"
-              onClick={() => setExpandedGroup(null)}
-              className="mt-2 text-sm text-zinc-500 hover:text-zinc-800"
-            >
-              Discard group
-            </button>
+            <OptionGroupForm
+              onSave={async (data) => {
+                await handleSaveGroup(data, null, () => setExpandedGroup(null), (msg) => { throw new Error(msg) })
+              }}
+              onDiscard={() => setExpandedGroup(null)}
+            />
           </div>
         )}
 
@@ -272,15 +648,13 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
               {/* Group header row */}
               {expandedGroup === group.id ? (
                 <div className="p-4 bg-zinc-50">
-                  {/* Plan 03: OptionGroupForm pre-filled for edit rendered here */}
-                  <p className="text-sm text-zinc-400 italic">Edit group form (Plan 03)</p>
-                  <button
-                    type="button"
-                    onClick={() => setExpandedGroup(null)}
-                    className="mt-2 text-sm text-zinc-500 hover:text-zinc-800"
-                  >
-                    Discard group
-                  </button>
+                  <OptionGroupForm
+                    initial={{ name: group.name, type: group.type, required: group.required, min_selections: group.min_selections, max_selections: group.max_selections }}
+                    onSave={async (data) => {
+                      await handleSaveGroup(data, group.id, () => setExpandedGroup(null), (msg) => { throw new Error(msg) })
+                    }}
+                    onDiscard={() => setExpandedGroup(null)}
+                  />
                 </div>
               ) : (
                 <div className="flex items-center gap-3 px-4 py-3 min-h-[48px]">
@@ -290,7 +664,7 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
                       <button
                         aria-label="Move group up"
                         disabled={idx === 0 || reorderInFlight}
-                        onClick={() => {/* Plan 03: moveGroup(group.id, 'up') */}}
+                        onClick={() => moveGroup(group.id, 'up')}
                         className="text-zinc-400 hover:text-zinc-700 p-1 rounded disabled:opacity-30"
                       >
                         <ChevronUp size={16} />
@@ -298,7 +672,7 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
                       <button
                         aria-label="Move group down"
                         disabled={idx === groups.length - 1 || reorderInFlight}
-                        onClick={() => {/* Plan 03: moveGroup(group.id, 'down') */}}
+                        onClick={() => moveGroup(group.id, 'down')}
                         className="text-zinc-400 hover:text-zinc-700 p-1 rounded disabled:opacity-30"
                       >
                         <ChevronDown size={16} />
@@ -346,18 +720,20 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
                   </div>
                 )}
 
-                {/* "Add option" inline form placeholder — Plan 03 */}
+                {/* "Add option" inline form */}
                 {canManage && expandedOption[group.id] === 'new' && (
                   <div className="p-4 bg-zinc-50">
-                    {/* Plan 03: OptionForm rendered here */}
-                    <p className="text-sm text-zinc-400 italic">Option form (Plan 03)</p>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedOption(prev => ({ ...prev, [group.id]: null }))}
-                      className="mt-2 text-sm text-zinc-500 hover:text-zinc-800"
-                    >
-                      Discard option
-                    </button>
+                    <OptionForm
+                      parentGroupType={group.type}
+                      currency={currency}
+                      onSave={async (data) => {
+                        await handleSaveOption(group.id, data, null,
+                          () => setExpandedOption(prev => ({ ...prev, [group.id]: null })),
+                          (msg) => { throw new Error(msg) }
+                        )
+                      }}
+                      onDiscard={() => setExpandedOption(prev => ({ ...prev, [group.id]: null }))}
+                    />
                   </div>
                 )}
 
@@ -365,15 +741,18 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
                   <div key={option.id}>
                     {expandedOption[group.id] === option.id ? (
                       <div className="p-4 bg-zinc-50">
-                        {/* Plan 03: OptionForm pre-filled rendered here */}
-                        <p className="text-sm text-zinc-400 italic">Edit option form (Plan 03)</p>
-                        <button
-                          type="button"
-                          onClick={() => setExpandedOption(prev => ({ ...prev, [group.id]: null }))}
-                          className="mt-2 text-sm text-zinc-500 hover:text-zinc-800"
-                        >
-                          Discard option
-                        </button>
+                        <OptionForm
+                          parentGroupType={group.type}
+                          currency={currency}
+                          initial={{ name: option.name, base_price: option.base_price, price_modifier: option.price_modifier, is_available: option.is_available }}
+                          onSave={async (data) => {
+                            await handleSaveOption(group.id, data, option.id,
+                              () => setExpandedOption(prev => ({ ...prev, [group.id]: null })),
+                              (msg) => { throw new Error(msg) }
+                            )
+                          }}
+                          onDiscard={() => setExpandedOption(prev => ({ ...prev, [group.id]: null }))}
+                        />
                       </div>
                     ) : (
                       <div className="flex items-center gap-3 px-4 py-2.5 min-h-[40px] pl-10">
@@ -383,7 +762,7 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
                             <button
                               aria-label="Move option up"
                               disabled={optIdx === 0 || reorderInFlight}
-                              onClick={() => {/* Plan 03: moveOption(group.id, option.id, 'up') */}}
+                              onClick={() => moveOption(group.id, option.id, 'up')}
                               className="text-zinc-400 hover:text-zinc-700 p-0.5 rounded disabled:opacity-30"
                             >
                               <ChevronUp size={14} />
@@ -391,7 +770,7 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
                             <button
                               aria-label="Move option down"
                               disabled={optIdx === group.options.length - 1 || reorderInFlight}
-                              onClick={() => {/* Plan 03: moveOption(group.id, option.id, 'down') */}}
+                              onClick={() => moveOption(group.id, option.id, 'down')}
                               className="text-zinc-400 hover:text-zinc-700 p-0.5 rounded disabled:opacity-30"
                             >
                               <ChevronDown size={14} />
