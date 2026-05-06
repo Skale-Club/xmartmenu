@@ -3,7 +3,8 @@
 ## Milestones
 
 - ✅ **v1.0 Foundation** — Phases 1-3 (shipped 2026-05-06)
-- 🚧 **v1.1 Orders** — Phases 4-8 (in progress)
+- ✅ **v1.1 Orders** — Phases 4-8 (shipped 2026-05-06)
+- 🚧 **v1.2 AI Onboarding** — Phases 9-11 (in progress)
 
 ## Completed Milestones
 
@@ -20,102 +21,69 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 </details>
 
+<details>
+<summary>✅ v1.1 Orders (Phases 4-8) — SHIPPED 2026-05-06</summary>
+
+| # | Phase | Plans | Status |
+|---|---|---|---|
+| 4 | Schema | 2/2 | ✅ 2026-05-06 |
+| 5 | Admin Product Options UI | 3/3 | ✅ 2026-05-06 |
+| 6 | Public Menu: Option Selectors + Cart | 3/3 | ✅ 2026-05-06 |
+| 7 | Checkout | 2/2 | ✅ 2026-05-06 |
+| 8 | Tenant Orders View | 1/1 | ✅ 2026-05-06 |
+
+</details>
+
 ---
 
-## 🚧 v1.1 Orders (In Progress)
+## 🚧 v1.2 AI Onboarding (In Progress)
 
-**Milestone Goal:** Customers can place orders from the public menu — with product option groups (sizes, toppings, half-and-half), an in-memory cart, checkout, and tenant-side order management.
+**Milestone Goal:** Reduce restaurant setup from ~1h of typing to minutes via three independent AI paths: LLM text seeding, AI image seeding, and menu photo OCR.
 
 ## Phases
 
-- [x] **Phase 4: Schema** — All database tables for orders and product options exist with correct structure, RLS, and TypeScript types
-- [x] **Phase 5: Admin Product Options UI** — Store admin can configure option groups and options per product (sizes, toppings, half-and-half)
-- [x] **Phase 6: Public Menu: Option Selectors + Cart** — Customers can select product options and add items to an in-memory cart shown as a popup at the bottom of the menu page (completed 2026-05-06)
-- [ ] **Phase 7: Checkout** — Customer enters name and phone and places order; receives confirmation screen
-- [x] **Phase 8: Tenant Orders View** — Store admin sees incoming orders and can update their status (completed 2026-05-06)
+- [ ] **Phase 9: Text Seeding** — Tenant can generate a full starter menu (categories, products, copy) via LLM in seconds, review it, and commit only what they want
+- [ ] **Phase 10: Image Seeding** — Tenant can generate a cover photo and per-product stock photos via AI, review each image, and approve before upload
+- [ ] **Phase 11: Menu Photo OCR** — Tenant can photograph their physical menu and extract structured items via GPT-4.1-mini vision, then review and edit before committing
 
 ## Phase Details
 
-### Phase 4: Schema
-**Goal**: All database tables for orders and product options exist with correct structure, RLS, and TypeScript types
-**Depends on**: Phase 3 (v1.0 CI/CD)
-**Requirements**: ORD-01, ORD-02, ORD-03, ORD-04
+### Phase 9: Text Seeding
+**Goal**: Tenant can generate a complete starter menu from their business type, review and edit the output, then commit only approved content — with rate limiting and prompt injection mitigations in place from day one
+**Depends on**: Phase 8 (v1.1 complete)
+**Requirements**: AI-01, AI-02, AI-03, AI-04, AI-05, AI-06, AI-15, AI-16, AI-17, AI-18
 **Success Criteria** (what must be TRUE):
-  1. Supabase migration creates product_option_groups, product_options, orders, and order_items tables with all specified fields and constraints
-  2. RLS policies enforce: tenant admin can read/write their orders; public can insert orders only if orders_enabled=true; public can read product options
-  3. src/types/database.ts is extended with all 4 new table types
-  4. npm run build passes with no type errors related to the new types
-**Plans**: 2 plans
+  1. Tenant selects their business type during onboarding Step 5 and triggers AI generation; a loading indicator appears during the 2-20s LLM call
+  2. Generated output includes bilingual (PT + EN) categories, product names and descriptions, and restaurant copy (name, tagline, about text)
+  3. Review screen lets tenant edit any field inline, delete individual items or entire categories, and only writes to the database when they confirm
+  4. A second AI text seeding call on the same day from the same tenant is blocked server-side once the daily limit is reached (ai_usage table enforced)
+  5. Each of the three AI features (text, image, OCR) can be independently toggled on/off via feature flags; disabling text seeding has no effect on the other two
+**Plans**: TBD
+**UI hint**: yes
 
-Plans:
-- [x] 04-01-PLAN.md — SQL migration 021: ALTER orders/order_items + CREATE product_option_groups/product_options with RLS
-- [x] 04-02-PLAN.md — TypeScript types: update Order/OrderItem, add ProductOptionGroup/ProductOption, verify build
-
-### Phase 5: Admin Product Options UI
-**Goal**: Store admin can configure option groups and options per product (sizes, toppings, half-and-half)
-**Depends on**: Phase 4
-**Requirements**: ORD-05, ORD-06, ORD-07
+### Phase 10: Image Seeding
+**Goal**: Tenant can generate a restaurant cover photo and per-product stock photo suggestions, preview each one in a review grid, and approve or skip before anything is uploaded to Supabase Storage
+**Depends on**: Phase 9
+**Requirements**: AI-07, AI-08, AI-09, AI-10
 **Success Criteria** (what must be TRUE):
-  1. Product detail/edit page shows an option groups section listing all groups for that product
-  2. Admin can create a group with name, type (single/multiple/half_and_half), required flag, and min/max selections
-  3. Admin can add options to each group with name and base_price or price_modifier, and toggle availability
-  4. Admin can delete option groups and individual options
-  5. Position ordering works (↑↓ controls) for both groups and options
-**Plans**: 3 plans
+  1. A cover/banner photo generated by gpt-image-1-mini appears in the review screen conditioned on the tenant's business type and restaurant name
+  2. Each product seeded in Phase 9 is matched to a Pexels or Unsplash stock photo suggestion; tenant can swap to an alternative suggestion per item
+  3. Tenant can approve, skip, or reject each image individually; only approved images are uploaded to Supabase Storage as WebP
+  4. Image generation is blocked once the tenant's daily quota is exhausted (shared ai_usage table); the UI shows a clear over-quota message
+**Plans**: TBD
+**UI hint**: yes
 
-Plans:
-- [x] 05-01-PLAN.md — Entry point: update Edit button to navigate + create [id]/page.tsx server component
-- [x] 05-02-PLAN.md — ProductDetailClient.tsx shell: product fields form + option groups display with collapsed rows
-- [x] 05-03-PLAN.md — Inline forms + CRUD mutations + position reordering (OptionGroupForm, OptionForm, moveGroup, moveOption)
-
-### Phase 6: Public Menu: Option Selectors + Cart
-**Goal**: Customers can select product options and add items to an in-memory cart shown as a popup at the bottom of the menu page
-**Depends on**: Phase 5
-**Requirements**: ORD-08, ORD-09, ORD-10, ORD-11, ORD-12, ORD-13, ORD-14, ORD-15, ORD-16
+### Phase 11: Menu Photo OCR
+**Goal**: Tenant can photograph their physical menu, have GPT-4.1-mini extract structured categories and items, review and edit the draft (including prices), and import it — accessible from both the onboarding flow and the admin panel at any time
+**Depends on**: Phase 9
+**Requirements**: AI-11, AI-12, AI-13, AI-14
 **Success Criteria** (what must be TRUE):
-  1. Product modal shows option groups with appropriate selector UI: radio buttons for single groups, checkboxes for multiple groups, two sequential flavor selectors for half_and_half groups
-  2. Required single groups block the "Add to cart" button until a selection is made
-  3. Half-and-half group resolves price as max(half1.base_price, half2.base_price) and displays the computed price before adding to cart
-  4. CartContext ('use client' React Context) wraps the menu page and holds in-memory cart state
-  5. Cart popup appears at the bottom of the menu page when the cart contains at least one item
-  6. +/- controls in the cart change item quantity; individual items can be removed
-  7. Cart total updates in real time as items or quantities change
-**Plans**: 3 plans
-
-Plans:
-- [x] 06-01-PLAN.md — Server component: option groups fetch (staged, gated by directOrdersEnabled) + optionGroupsByProductId prop wiring
-- [x] 06-02-PLAN.md — CartItem extension (selectedOptions/unitPrice/cartKey) + cart function refactors + CartModal updates
-- [x] 06-03-PLAN.md — ProductModal option selector UI (radio/checkbox/half-and-half) + canAddToCart gate + price preview + call site
-
-### Phase 7: Checkout
-**Goal**: Customer enters name and phone and places order; receives confirmation screen
-**Depends on**: Phase 6
-**Requirements**: ORD-17, ORD-18, ORD-19
-**Success Criteria** (what must be TRUE):
-  1. "Place order" button opens a checkout form requesting customer name and phone (no payment fields)
-  2. POST /api/orders creates the order record and all order_items with selected_options JSONB persisted
-  3. Confirmation screen displays the order id, all ordered items, and the total
-  4. Cart clears automatically after a successful order submission
-  5. Existing orders API validates tenant existence and orders_enabled flag before inserting (already done in v1.0)
-**Plans**: 2 plans
-
-Plans:
-- [x] 07-01-PLAN.md — API: add selected_options to OrderItem interface and order_items DB insert
-- [x] 07-02-PLAN.md — UI: orderId state, UI_COPY confirmation keys, submitOrder updates, CartModal confirmation view
-
-### Phase 8: Tenant Orders View
-**Goal**: Store admin sees incoming orders and can update their status
-**Depends on**: Phase 7
-**Requirements**: ORD-20, ORD-21
-**Success Criteria** (what must be TRUE):
-  1. /admin/orders page lists all orders for the tenant sorted newest first
-  2. Each order row shows customer name, phone, items summary, total, current status, and creation time
-  3. Admin can advance an order through statuses: pending → preparing → ready → done
-  4. Status changes persist to the database immediately without a page reload
-**Plans**: 1 plan
-
-Plans:
-- [x] 08-01-PLAN.md — Add Items column to order table + selected_options and notes display in detail modal
+  1. Tenant uploads a menu photo directly to Supabase Storage (bypassing Vercel's 4.5 MB body limit); a progress indicator is shown during upload and OCR processing
+  2. OCR review screen displays extracted categories and items in an editable table; tenant can edit names and prices inline, delete rows, and add missing items before committing
+  3. No data is written to the database until the tenant explicitly confirms the reviewed draft — there is no auto-commit path
+  4. Store admin can access the photo import tool from the admin panel at any time, not only during initial onboarding
+**Plans**: TBD
+**UI hint**: yes
 
 ## Progress
 
@@ -126,6 +94,9 @@ Plans:
 | 3. CI/CD | v1.0 | 1/1 | Complete | 2026-05-06 |
 | 4. Schema | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 5. Admin Product Options UI | v1.1 | 3/3 | Complete | 2026-05-06 |
-| 6. Public Menu: Option Selectors + Cart | v1.1 | 3/3 | Complete   | 2026-05-06 |
+| 6. Public Menu: Option Selectors + Cart | v1.1 | 3/3 | Complete | 2026-05-06 |
 | 7. Checkout | v1.1 | 2/2 | Complete | 2026-05-06 |
-| 8. Tenant Orders View | v1.1 | 1/1 | Complete   | 2026-05-06 |
+| 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
+| 9. Text Seeding | v1.2 | 0/? | Not started | - |
+| 10. Image Seeding | v1.2 | 0/? | Not started | - |
+| 11. Menu Photo OCR | v1.2 | 0/? | Not started | - |
