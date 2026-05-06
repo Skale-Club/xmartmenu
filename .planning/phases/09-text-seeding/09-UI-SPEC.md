@@ -54,13 +54,14 @@ Exceptions:
 | Role | Size | Weight | Line Height | Tailwind |
 |------|------|--------|-------------|---------|
 | Body | 14px | 400 regular | 1.5 | `text-sm` |
-| Label | 14px | 500 medium | 1.4 | `text-sm font-medium` |
 | Heading (card) | 14px | 600 semibold | 1.3 | `text-sm font-semibold` |
 | Meta / badge | 12px | 400 regular | 1.3 | `text-xs` |
 
+**Declared weights: 2 — 400 (regular) and 600 (semibold).**
+
 **Source:** Extracted from `TenantDetailClient.tsx` — existing section headings use `text-sm font-semibold`, body text uses `text-sm`, badges and table headers use `text-xs`. No display-size headings in the superadmin panel.
 
-**Constraint:** Exactly 2 weights used: 400 (regular) and 600 (semibold). 500 used for labels only when existing pattern does so. No new weight values introduced.
+**Implementation note:** `font-medium` (weight 500) may appear in inherited markup or existing button classes already in the codebase, but it is NOT a declared design token for this phase. Do not introduce new uses of `font-medium`. Existing occurrences in pre-existing components are outside this contract's scope.
 
 ---
 
@@ -75,14 +76,9 @@ Exceptions:
 | AI section border | #e4e4e7 | `border-zinc-200` | AI Tools section card border — same as all other cards |
 | Disabled | opacity-50 | `disabled:opacity-50` | All buttons in loading state |
 
-**Accent reserved for:**
-- "Seed menu" primary bulk button
-- "Seed categories" button
-- "Seed products" button
-- "Seed copy" button
-- Per-item "Seed" inline buttons
+**Accent reserved for:** Primary CTA — Seed menu button only.
 
-**NOT accent:** Section container, status badges, informational text, business_type display pill, loading spinner background.
+**NOT accent:** Seed categories, Seed products, Seed copy, and per-item Seed buttons (all use secondary/outline styling: `border border-zinc-200 text-zinc-700 bg-white`). Section container, status badges, informational text, business_type display pill, loading spinner background.
 
 **AI section visual treatment:** The "AI Tools" section uses the same white card with `border border-zinc-200 rounded-xl` as all other sections. No special color treatment. No purple/gradient "AI branding" — internal tool only.
 
@@ -127,7 +123,7 @@ Four buttons in a single `flex flex-wrap gap-2` row:
 
 | Button | Label | Type variant |
 |--------|-------|-------------|
-| Seed everything | "Seed menu" | `bg-zinc-900 text-white` (primary) |
+| Seed everything | "Seed menu" | `bg-zinc-900 text-white` (primary / accent) |
 | Seed categories only | "Seed categories" | `border border-zinc-200 text-zinc-700` (secondary) |
 | Seed products only | "Seed products" | `border border-zinc-200 text-zinc-700` (secondary) |
 | Seed copy only | "Seed copy" | `border border-zinc-200 text-zinc-700` (secondary) |
@@ -144,7 +140,7 @@ Placed in the Menus tab, inline with the "Add category" and "Add product" inputs
 
 Button class: `border border-zinc-200 text-zinc-700 bg-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors`
 
-Label: "Seed" (verb only — context is clear from position)
+Label: "Seed" (verb only — intentional: spatial context of the inline form row makes the noun implicit; adding "category" or "product" would overflow the compact row layout)
 
 **Layout:** `flex gap-2 items-center` row containing the existing input + existing "Add" button + new "Seed" button. The "Seed" button is placed to the RIGHT of the "Add" button.
 
@@ -271,6 +267,8 @@ All seed buttons are disabled until a menu is selected.
 
 **Tone:** Operational, direct. No marketing language. No "AI-powered" label in the UI. Superadmin panel only.
 
+**Per-item "Seed" button — verb-only label is intentional.** The inline form-row context (input field + "Add" + "Seed" in a single row) makes the noun (category or product) visually implicit. Adding a noun would overflow the compact row. No label change needed.
+
 **No destructive actions in this phase.** Seeding is additive-only (D-07) — no confirmation dialog needed.
 
 ---
@@ -296,10 +294,10 @@ TenantDetailClient outer container: p-8 max-w-4xl
         ├── Business type context line (text-xs text-zinc-400)
         ├── Menu selector <select> (if multiple menus)
         ├── Bulk buttons row (flex flex-wrap gap-2)
-        │   ├── "Seed menu" (primary)
-        │   ├── "Seed categories" (secondary)
-        │   ├── "Seed products" (secondary)
-        │   └── "Seed copy" (secondary)
+        │   ├── "Seed menu" (primary — accent bg-zinc-900)
+        │   ├── "Seed categories" (secondary — outline)
+        │   ├── "Seed products" (secondary — outline)
+        │   └── "Seed copy" (secondary — outline)
         ├── Loading pulse message (during seeding)
         ├── Success banner (after seeding)
         └── Error banner (on failure)
@@ -339,7 +337,9 @@ No third-party UI registries. All components hand-built in-project following exi
 
 4. The `animate-pulse` class is used only on the loading message paragraph, NOT on buttons (buttons just go `opacity-50` via `disabled:opacity-50`).
 
-5. API call pattern (mirrors existing `handleInvite` pattern):
+5. Typography: weight 500 (`font-medium`) appears in existing button class patterns already in the codebase. It is NOT a declared design token. Do not introduce new `font-medium` usage beyond what button classes already carry from the existing pattern library.
+
+6. API call pattern (mirrors existing `handleInvite` pattern):
    ```typescript
    async function handleSeed(type: string) {
      setSeedLoading(true)
