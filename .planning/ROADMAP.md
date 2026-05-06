@@ -48,7 +48,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — SQL migration 021: ALTER orders/order_items + CREATE product_option_groups/product_options with RLS
+- [x] 04-01-PLAN.md — SQL migration 021: ALTER orders/order_items + CREATE product_option_groups/product_options with RLS
 - [ ] 04-02-PLAN.md — TypeScript types: update Order/OrderItem, add ProductOptionGroup/ProductOption, verify build
 
 ### Phase 5: Admin Product Options UI
@@ -111,7 +111,7 @@ Plans:
 | 1. Performance | v1.0 | 2/2 | Complete | 2026-05-06 |
 | 2. Security | v1.0 | 3/3 | Complete | 2026-05-06 |
 | 3. CI/CD | v1.0 | 1/1 | Complete | 2026-05-06 |
-| 4. Schema | v1.1 | 0/2 | Not started | - |
+| 4. Schema | v1.1 | 1/2 | In Progress|  |
 | 5. Admin Product Options UI | v1.1 | 0/? | Not started | - |
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 0/? | Not started | - |
 | 7. Checkout | v1.1 | 0/? | Not started | - |
