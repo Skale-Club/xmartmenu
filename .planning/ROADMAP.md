@@ -10,7 +10,7 @@
 |---|---|---|---|---|
 | 1 | Performance | 1/2 | Complete    | 2026-05-06 |
 | 2 | Security | Fix HIGH issues from audit | Complete    | 2026-05-06 |
-| 3 | CI/CD | No broken builds on main | CI-01–02 | 🔲 Not started |
+| 3 | CI/CD | No broken builds on main | Complete    | 2026-05-06 |
 
 ---
 
@@ -67,7 +67,7 @@ Plans:
 2. TypeScript errors fail the CI run
 3. Workflow passes on current main branch
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 03-01-PLAN.md — Fix 63 ESLint errors then add GitHub Actions CI workflow (lint + build gate)
