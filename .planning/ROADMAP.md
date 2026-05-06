@@ -64,7 +64,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Entry point: update Edit button to navigate + create [id]/page.tsx server component
+- [x] 05-01-PLAN.md — Entry point: update Edit button to navigate + create [id]/page.tsx server component
 - [ ] 05-02-PLAN.md — ProductDetailClient.tsx shell: product fields form + option groups display with collapsed rows
 - [ ] 05-03-PLAN.md — Inline forms + CRUD mutations + position reordering (OptionGroupForm, OptionForm, moveGroup, moveOption)
 
@@ -116,7 +116,7 @@ Plans:
 | 2. Security | v1.0 | 3/3 | Complete | 2026-05-06 |
 | 3. CI/CD | v1.0 | 1/1 | Complete | 2026-05-06 |
 | 4. Schema | v1.1 | 2/2 | Complete | 2026-05-06 |
-| 5. Admin Product Options UI | v1.1 | 0/3 | Not started | - |
+| 5. Admin Product Options UI | v1.1 | 1/3 | In Progress|  |
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 0/? | Not started | - |
 | 7. Checkout | v1.1 | 0/? | Not started | - |
 | 8. Tenant Orders View | v1.1 | 0/? | Not started | - |

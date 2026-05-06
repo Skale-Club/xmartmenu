@@ -14,7 +14,7 @@
 
 ### Admin — product option groups
 
-- [ ] **ORD-05**: Store admin can add option groups to a product (name, type, required, min/max_selections)
+- [x] **ORD-05**: Store admin can add option groups to a product (name, type, required, min/max_selections)
 - [ ] **ORD-06**: Store admin can add/edit/delete individual options within a group (name, base_price or price_modifier, availability)
 - [ ] **ORD-07**: Store admin can reorder option groups and options via position field
 
@@ -70,7 +70,7 @@
 | ORD-02 | Phase 4 — Schema | Complete |
 | ORD-03 | Phase 4 — Schema | Complete |
 | ORD-04 | Phase 4 — Schema | Complete |
-| ORD-05 | Phase 5 — Admin Options UI | Pending |
+| ORD-05 | Phase 5 — Admin Options UI | Complete |
 | ORD-06 | Phase 5 — Admin Options UI | Pending |
 | ORD-07 | Phase 5 — Admin Options UI | Pending |
 | ORD-08 | Phase 6 — Public Menu + Cart | Pending |
