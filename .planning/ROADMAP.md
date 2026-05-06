@@ -42,15 +42,17 @@ Plans:
 
 **Requirements:** SEC-01, SEC-02, SEC-03
 
+**Plans:** 3 plans
+
 **Success criteria:**
 1. Orders INSERT policy rejects requests without valid tenant context
 2. API routes block requests from users with must_change_password=true
 3. All API routes use the same auth assertion helper
 
-**Plans:**
-- Plan 2.1: Fix orders RLS INSERT policy
-- Plan 2.2: Enforce must_change_password at API layer
-- Plan 2.3: Unify auth middleware across API routes
+Plans:
+- [ ] 02-01-PLAN.md — Fix orders INSERT validation (tenant exists, is_active, orders_enabled)
+- [ ] 02-02-PLAN.md — Enforce must_change_password at API layer via password-guard helper
+- [ ] 02-03-PLAN.md — Unify superadmin auth — export assertSuperadmin() from lib, remove 10 local copies
 
 ---
 
