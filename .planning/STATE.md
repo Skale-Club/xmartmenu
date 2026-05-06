@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: Orders
-status: milestone_complete
-stopped_at: Phase 08 complete — v1.1 milestone complete (11/11 plans)
+milestone: v1.2
+milestone_name: AI Onboarding
+status: defining_requirements
+stopped_at: Milestone v1.2 started — defining requirements
 last_updated: "2026-05-06"
 last_activity: 2026-05-06
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 11
-  completed_plans: 11
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.1 milestone complete — ready to archive
+**Current focus:** v1.2 AI Onboarding — defining requirements
 
 ## Current Position
 
-Phase: 08 (complete)
-Plan: All complete
-Status: Milestone complete — ready to archive
-Last activity: 2026-05-06
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-06 — Milestone v1.2 started
 
-Progress: [████████████████████] 11/11 plans (100%)
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.2)
 
 ## Performance Metrics
 
@@ -101,5 +101,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-05-06
-Stopped at: Phase 08 complete — v1.1 milestone complete (8 phases, 11 plans), ready to archive
+Stopped at: Milestone v1.2 AI Onboarding started — defining requirements
 Resume file: None
