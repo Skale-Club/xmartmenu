@@ -8,8 +8,9 @@ type OrderWithItems = Order & { order_items: OrderItem[] }
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
-  confirmed: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
+  preparing: 'bg-blue-100 text-blue-800',
+  ready: 'bg-indigo-100 text-indigo-800',
+  done: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
 }
 
@@ -131,23 +132,32 @@ export default function OrdersClient({ initialOrders }: OrdersClientProps) {
               <div className="flex gap-2 pt-2">
                 {selectedOrder.status === 'pending' && (
                   <button
-                    onClick={() => updateStatus(selectedOrder.id, 'confirmed')}
+                    onClick={() => updateStatus(selectedOrder.id, 'preparing')}
                     disabled={loading}
                     className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                   >
-                    Confirm
+                    Start Preparing
                   </button>
                 )}
-                {selectedOrder.status === 'confirmed' && (
+                {selectedOrder.status === 'preparing' && (
                   <button
-                    onClick={() => updateStatus(selectedOrder.id, 'completed')}
+                    onClick={() => updateStatus(selectedOrder.id, 'ready')}
+                    disabled={loading}
+                    className="flex-1 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    Mark Ready
+                  </button>
+                )}
+                {selectedOrder.status === 'ready' && (
+                  <button
+                    onClick={() => updateStatus(selectedOrder.id, 'done')}
                     disabled={loading}
                     className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                   >
-                    Complete
+                    Mark Done
                   </button>
                 )}
-                {(selectedOrder.status === 'pending' || selectedOrder.status === 'confirmed') && (
+                {(selectedOrder.status === 'pending' || selectedOrder.status === 'preparing') && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'cancelled')}
                     disabled={loading}
