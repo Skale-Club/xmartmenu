@@ -31,7 +31,7 @@
 6. Before/after bundle analysis shows public menu route does not include Supabase browser client
 
 Plans:
-- [ ] 01-01-PLAN.md — Public route caching + query optimization (revalidate=60, React cache(), parallel fetch)
+- [x] 01-01-PLAN.md — Public route caching + query optimization (revalidate=60, React cache(), parallel fetch)
 - [x] 01-02-PLAN.md — browserslist field in package.json to reduce polyfill bundle
 
 ---
