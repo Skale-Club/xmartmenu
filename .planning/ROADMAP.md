@@ -29,7 +29,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 ## Phases
 
 - [x] **Phase 4: Schema** — All database tables for orders and product options exist with correct structure, RLS, and TypeScript types
-- [ ] **Phase 5: Admin Product Options UI** — Store admin can configure option groups and options per product (sizes, toppings, half-and-half)
+- [x] **Phase 5: Admin Product Options UI** — Store admin can configure option groups and options per product (sizes, toppings, half-and-half)
 - [ ] **Phase 6: Public Menu: Option Selectors + Cart** — Customers can select product options and add items to an in-memory cart shown as a popup at the bottom of the menu page
 - [ ] **Phase 7: Checkout** — Customer enters name and phone and places order; receives confirmation screen
 - [ ] **Phase 8: Tenant Orders View** — Store admin sees incoming orders and can update their status
@@ -66,7 +66,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md — Entry point: update Edit button to navigate + create [id]/page.tsx server component
 - [x] 05-02-PLAN.md — ProductDetailClient.tsx shell: product fields form + option groups display with collapsed rows
-- [ ] 05-03-PLAN.md — Inline forms + CRUD mutations + position reordering (OptionGroupForm, OptionForm, moveGroup, moveOption)
+- [x] 05-03-PLAN.md — Inline forms + CRUD mutations + position reordering (OptionGroupForm, OptionForm, moveGroup, moveOption)
 
 ### Phase 6: Public Menu: Option Selectors + Cart
 **Goal**: Customers can select product options and add items to an in-memory cart shown as a popup at the bottom of the menu page
@@ -116,7 +116,7 @@ Plans:
 | 2. Security | v1.0 | 3/3 | Complete | 2026-05-06 |
 | 3. CI/CD | v1.0 | 1/1 | Complete | 2026-05-06 |
 | 4. Schema | v1.1 | 2/2 | Complete | 2026-05-06 |
-| 5. Admin Product Options UI | v1.1 | 2/3 | In Progress|  |
+| 5. Admin Product Options UI | v1.1 | 3/3 | Complete | 2026-05-06 |
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 0/? | Not started | - |
 | 7. Checkout | v1.1 | 0/? | Not started | - |
 | 8. Tenant Orders View | v1.1 | 0/? | Not started | - |
