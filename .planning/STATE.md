@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Orders
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-05-06T14:15:11.000Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-05-06T18:06:00.000Z"
 last_activity: 2026-05-06
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
-  percent: 24
+  completed_plans: 5
+  percent: 40
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 05 — admin-product-options-ui
+**Current focus:** Phase 06 — public-menu-option-selectors-cart
 
 ## Current Position
 
-Phase: 05 (admin-product-options-ui) — EXECUTING
-Plan: 3 of 3
-Status: Ready to execute
+Phase: 05 (admin-product-options-ui) — COMPLETE
+Plan: 3 of 3 — all plans done
+Status: Phase 5 complete; Phase 6 next
 Last activity: 2026-05-06
 
-Progress: [██░░░░░░░░] 20% (v1.1)
+Progress: [████░░░░░░] 40% (v1.1)
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [██░░░░░░░░] 20% (v1.1)
 | Phase 04 P02 | 8min | 1 tasks | 3 files |
 | Phase 05 P01 | 1min | 2 tasks | 2 files |
 | Phase 05 P02 | 3min | 1 tasks | 1 files |
+| Phase 05 P03 | 8min | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Recent decisions affecting current work:
 - [Phase 04]: base_price vs price_modifier: base_price is absolute option price (nullable), price_modifier is additive delta (non-nullable)
 - [Phase 05]: Edit button navigates to /admin/menu/products/[id] instead of opening modal (modal kept for future quick-edit use per D-03)
 - [Phase 05]: GroupWithOptions interface exported from [id]/page.tsx for ProductDetailClient (Plan 02) to import
+- [Phase 05 P03]: OptionGroupForm/OptionForm declared before export default in same file — no separate files needed
+- [Phase 05 P03]: isAbsolutePrice = type==='single' || type==='half_and_half' drives price field label and min constraint
+- [Phase 05 P03]: price_modifier input has NO min attr to allow negative values (Pitfall 5 from RESEARCH.md)
 
 ### Pending Todos
 
@@ -83,6 +87,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-06T14:15:11.000Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-05-06T18:06:00.000Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
