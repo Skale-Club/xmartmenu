@@ -97,8 +97,11 @@ Plans:
   3. Confirmation screen displays the order id, all ordered items, and the total
   4. Cart clears automatically after a successful order submission
   5. Existing orders API validates tenant existence and orders_enabled flag before inserting (already done in v1.0)
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — API: add selected_options to OrderItem interface and order_items DB insert
+- [ ] 07-02-PLAN.md — UI: orderId state, UI_COPY confirmation keys, submitOrder updates, CartModal confirmation view
 
 ### Phase 8: Tenant Orders View
 **Goal**: Store admin sees incoming orders and can update their status
@@ -122,5 +125,5 @@ Plans:
 | 4. Schema | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 5. Admin Product Options UI | v1.1 | 3/3 | Complete | 2026-05-06 |
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 3/3 | Complete   | 2026-05-06 |
-| 7. Checkout | v1.1 | 0/? | Not started | - |
+| 7. Checkout | v1.1 | 0/2 | Not started | - |
 | 8. Tenant Orders View | v1.1 | 0/? | Not started | - |
