@@ -1,60 +1,74 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-current_phase: 3
-status: executing
-last_updated: "2026-05-06T12:37:43.220Z"
+milestone: v1.1
+milestone_name: Orders
+current_phase: 4
+status: ready_to_plan
+last_updated: "2026-05-05T00:00:00.000Z"
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
 
-**Project:** xmartmenu
-**Current milestone:** M1 — Foundation hardening
-**Current phase:** 3
-**Last updated:** 2026-05-05 (01-01 and 01-02 complete)
-**Last session stopped at:** Completed 01-performance-01-01-PLAN.md
+## Project Reference
 
-## Active Phase
+See: .planning/PROJECT.md (updated 2026-05-06)
 
-**Phase 1: Performance**
-Goal: Public menu loads faster — JS bundle shrinks, DB queries cached and parallelized, no admin JS leaked to public visitors.
+**Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
+**Current focus:** Phase 4 — Schema
 
-Status: Executing Phase 1
+## Current Position
 
-## Key Decisions
+Phase: 4 of 8 (Schema)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-05-05 — v1.1 Orders milestone roadmap created (Phases 4-8)
 
-| Decision | Outcome | Date |
-|---|---|---|
-| Turbopack default for dev+build | Active — 2.25× faster than webpack | 2026-05-05 |
-| `@next/bundle-analyzer` with `--webpack` flag | For baseline analysis only, not regular builds | 2026-05-05 |
-| React `cache()` for getTenantBySlug dedup | Eliminates duplicate tenant DB query between generateMetadata and page — 1 query instead of 2 | 2026-05-05 |
-| `revalidate = 60` for public menu | ISR on public QR-scan routes — menus change rarely, 60s staleness acceptable | 2026-05-05 |
-| Promise.all for tenant+menu parallel fetch | Saves 1 serial DB round-trip per QR scan in /[slug]/[menuSlug] page | 2026-05-05 |
-| `browserslist "> 0.5%, last 2 versions, not dead, not IE 11"` | Added to package.json — targets modern browsers to shrink polyfills chunk from 109 KB to ~60-80 KB | 2026-05-05 |
-| PERF-02 verified (read-only) | Public routes confirmed to import only supabase/server — no browser client in public bundle | 2026-05-05 |
+Progress: [░░░░░░░░░░] 0% (v1.1)
 
-## Completed Phases
+## Performance Metrics
+
+**Velocity (v1.0):**
+- Total plans completed: 6
+- Average duration: ~25 min
+- Total execution time: ~2.5 hours
+
+**By Phase (v1.0):**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 1. Performance | 2 | ~50 min | ~25 min |
+| 2. Security | 3 | ~75 min | ~25 min |
+| 3. CI/CD | 1 | ~25 min | ~25 min |
+
+*Updated after each plan completion*
+
+## Accumulated Context
+
+### Decisions
+
+Decisions are logged in PROJECT.md Key Decisions table.
+Recent decisions affecting current work:
+
+- In-memory cart (no localStorage) — matches skleanings pattern, avoids state-sync complexity
+- Option groups for product variants — pizza sizes + half-and-half require structured groups, not flat addons
+- CartContext must use 'use client' boundary — Next.js App Router constraint
+- half_and_half price rule: max(half1.base_price, half2.base_price) — Brazilian convention
+
+### Pending Todos
 
 None yet.
 
-## Baseline Metrics (2026-05-05)
+### Blockers/Concerns
 
-From bundle analysis (`ANALYZE=true npx next build --webpack`):
+None yet.
 
-- Total client JS: 1322 KB raw / 346 KB gz (all shared chunks)
-- Top shared chunks: 216 KB (app code/MenuPage), 195 KB (React DOM), 170 KB (Supabase client)
-- Supabase browser client in browser bundle: **confirmed** (chunk 5536, 47 KB gz)
-- Per-route page bundles: lean (5–21 KB) — problem is shared chunks
-- public menu page uses `force-dynamic` — no caching at all
-- `generateMetadata` makes 1–2 extra DB queries duplicating page-render queries
-- Root `/` page has `force-dynamic` despite being just a redirect
-- 20 client components total
+## Session Continuity
 
-Full baseline in: `.planning/phases/000-perf-baseline/REPORT.md`
-Analyzer reports: `.next/analyze/` (client.html, nodejs.html, edge.html)
+Last session: 2026-05-05
+Stopped at: Roadmap created for v1.1 Orders — Phase 4 ready to plan
+Resume file: None
