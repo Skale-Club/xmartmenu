@@ -134,6 +134,13 @@ None - this plan is TypeScript-only. No environment variables or external servic
 - `OptionGroupType` and `PriceRule` union types available for cart/order-api code
 - `Order.status` union is now consistent with both the DB constraint (migration 021) and the admin UI/API
 
+## Self-Check: PASSED
+
+- FOUND: .planning/phases/04-schema/04-02-SUMMARY.md
+- FOUND: src/types/database.ts
+- FOUND: commit 42a58c2 (feat: update database.ts with v1.1 types)
+- Build: npm run build exits 0, zero TypeScript errors
+
 ---
 *Phase: 04-schema*
 *Completed: 2026-05-06*
