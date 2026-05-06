@@ -132,8 +132,9 @@ export interface Order {
   tenant_id: string
   customer_name: string
   customer_phone: string
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled'
+  status: 'pending' | 'preparing' | 'ready' | 'done' | 'cancelled'
   total: number
+  notes: string | null
   created_at: string
   updated_at: string
 }
@@ -145,5 +146,39 @@ export interface OrderItem {
   product_name: string
   quantity: number
   unit_price: number
+  selected_options: Record<string, unknown> | null
   notes: string | null
+}
+
+export type OptionGroupType = 'single' | 'multiple' | 'half_and_half'
+export type PriceRule = 'max' | 'average' | 'sum' | 'fixed'
+
+export interface ProductOptionGroup {
+  id: string
+  product_id: string
+  tenant_id: string
+  name: string
+  type: OptionGroupType
+  required: boolean
+  min_selections: number
+  max_selections: number | null
+  price_rule: PriceRule
+  position: number
+  translations: Record<string, { name?: string }>
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductOption {
+  id: string
+  group_id: string
+  tenant_id: string
+  name: string
+  base_price: number | null
+  price_modifier: number
+  is_available: boolean
+  position: number
+  translations: Record<string, { name?: string }>
+  created_at: string
+  updated_at: string
 }
