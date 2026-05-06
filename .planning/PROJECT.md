@@ -29,10 +29,13 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 
 ## Current State
 
-**v1.0 Foundation shipped (2026-05-06)** — 3 phases, 6 plans.
-- Public menu ISR cached (60s revalidate), React `cache()` dedup, parallel DB fetch
-- 3 HIGH security issues closed: orders RLS, must_change_password API bypass, superadmin auth unification
-- CI/CD: GitHub Actions lint + build gate on every PR
+**v1.1 Phase 4 complete (2026-05-06)** — Schema for orders and product options in place.
+- `product_option_groups` + `product_options` tables created (ORD-01, ORD-02)
+- `orders` + `order_items` tables extended to v1.1 spec (ORD-03, ORD-04)
+- `src/types/database.ts` extended with all 4 new types; `npm run build` passes
+- **Pending manual step:** Apply migration 021 in Supabase SQL Editor
+
+*v1.0 Foundation shipped (2026-05-06)* — 3 phases, 6 plans. ISR caching, 3 security fixes, CI/CD.
 
 ## Requirements
 
@@ -54,6 +57,11 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 - ✓ Unified superadmin auth via assertSuperadmin() — v1.0
 - ✓ CI: lint + build gate on all PRs — v1.0
 - ✓ browserslist targets modern browsers (smaller polyfills) — v1.0
+
+### Validated — v1.1
+
+- ✓ DB schema: product_option_groups, product_options, orders v1.1, order_items v1.1 — Phase 4
+- ✓ TypeScript types for all 4 new tables — Phase 4
 
 ### Active — v1.1
 
@@ -94,4 +102,4 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-06 after v1.0 milestone*
+*Last updated: 2026-05-06 after Phase 4 (Schema)*
