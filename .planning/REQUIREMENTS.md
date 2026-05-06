@@ -7,13 +7,13 @@
 
 ### Performance
 
-- [ ] **PERF-01**: Public menu page (/{slug}/{menuSlug}) loads with TTFB < 500ms on warm Vercel
+- [x] **PERF-01**: Public menu page (/{slug}/{menuSlug}) loads with TTFB < 500ms on warm Vercel
 - [x] **PERF-02**: Public menu JS bundle does not include admin-only code (Supabase browser client isolated)
-- [ ] **PERF-03**: Public menu pages use ISR/revalidate instead of force-dynamic (menu data cached up to 60s)
-- [ ] **PERF-04**: Root redirect (/) is statically generated, not force-dynamic
+- [x] **PERF-03**: Public menu pages use ISR/revalidate instead of force-dynamic (menu data cached up to 60s)
+- [x] **PERF-04**: Root redirect (/) is statically generated, not force-dynamic
 - [x] **PERF-05**: Polyfill bundle reduced by targeting modern browsers (browserslist)
-- [ ] **PERF-06**: generateMetadata and page render share tenant/menu data (no duplicate DB queries per request)
-- [ ] **PERF-07**: Tenant + menu queries run in parallel where tenant_id is not required for menu lookup
+- [x] **PERF-06**: generateMetadata and page render share tenant/menu data (no duplicate DB queries per request)
+- [x] **PERF-07**: Tenant + menu queries run in parallel where tenant_id is not required for menu lookup
 
 ### Security (from CONCERNS.md — HIGH priority)
 
@@ -44,13 +44,13 @@
 
 | REQ-ID | Phase | Status |
 |---|---|---|
-| PERF-01 | Phase 1 — Performance | Pending |
+| PERF-01 | Phase 1 — Performance | Complete |
 | PERF-02 | Phase 1 — Performance | Complete |
-| PERF-03 | Phase 1 — Performance | Pending |
-| PERF-04 | Phase 1 — Performance | Pending |
+| PERF-03 | Phase 1 — Performance | Complete |
+| PERF-04 | Phase 1 — Performance | Complete |
 | PERF-05 | Phase 1 — Performance | Complete |
-| PERF-06 | Phase 1 — Performance | Pending |
-| PERF-07 | Phase 1 — Performance | Pending |
+| PERF-06 | Phase 1 — Performance | Complete |
+| PERF-07 | Phase 1 — Performance | Complete |
 | SEC-01 | Phase 2 — Security | Pending |
 | SEC-02 | Phase 2 — Security | Pending |
 | SEC-03 | Phase 2 — Security | Pending |

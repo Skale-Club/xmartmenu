@@ -9,8 +9,8 @@ progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 2
-  completed_plans: 1
-  bar: "[█████░░░░░] 50%"
+  completed_plans: 2
+  bar: "[██████████] 100%"
 ---
 
 # Project State
@@ -18,8 +18,8 @@ progress:
 **Project:** xmartmenu
 **Current milestone:** M1 — Foundation hardening
 **Current phase:** 1
-**Last updated:** 2026-05-05 (01-02 complete)
-**Last session stopped at:** Completed 01-performance-02-PLAN.md
+**Last updated:** 2026-05-05 (01-01 and 01-02 complete)
+**Last session stopped at:** Completed 01-performance-01-01-PLAN.md
 
 ## Active Phase
 
@@ -34,8 +34,9 @@ Status: Executing Phase 1
 |---|---|---|
 | Turbopack default for dev+build | Active — 2.25× faster than webpack | 2026-05-05 |
 | `@next/bundle-analyzer` with `--webpack` flag | For baseline analysis only, not regular builds | 2026-05-05 |
-| React `cache()` for metadata/page dedup | Planned for Phase 1 | 2026-05-05 |
-| `revalidate = 60` for public menu | Planned for Phase 1 — menus change rarely | 2026-05-05 |
+| React `cache()` for getTenantBySlug dedup | Eliminates duplicate tenant DB query between generateMetadata and page — 1 query instead of 2 | 2026-05-05 |
+| `revalidate = 60` for public menu | ISR on public QR-scan routes — menus change rarely, 60s staleness acceptable | 2026-05-05 |
+| Promise.all for tenant+menu parallel fetch | Saves 1 serial DB round-trip per QR scan in /[slug]/[menuSlug] page | 2026-05-05 |
 | `browserslist "> 0.5%, last 2 versions, not dead, not IE 11"` | Added to package.json — targets modern browsers to shrink polyfills chunk from 109 KB to ~60-80 KB | 2026-05-05 |
 | PERF-02 verified (read-only) | Public routes confirmed to import only supabase/server — no browser client in public bundle | 2026-05-05 |
 
