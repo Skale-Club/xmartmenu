@@ -5,6 +5,7 @@ status: draft
 shadcn_initialized: false
 preset: none
 created: 2026-05-06
+revised: 2026-05-06
 ---
 
 # Phase 5 — UI Design Contract
@@ -46,7 +47,7 @@ Declared values (multiples of 4 only):
 
 Exceptions:
 - Touch/click targets: minimum 32px height on all interactive row controls (Edit, Delete, up/down arrows)
-- Inline expand-form rows: `py-3 px-4` (12px + 16px) to match card inner rhythm
+- Inline expand-form rows: `py-4 px-4` (16px + 16px) to match card inner rhythm
 - Group header row height: 48px min to give adequate tap target for reorder arrows
 
 Source: measured from existing `ProductsClient.tsx` and `ConfirmDialog.tsx` class patterns.
@@ -57,14 +58,21 @@ Source: measured from existing `ProductsClient.tsx` and `ConfirmDialog.tsx` clas
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Body | 14px (text-sm) | 400 (regular) | 1.5 |
-| Label | 14px (text-sm) | 500 (medium) | 1.4 |
-| Heading (page) | 24px (text-2xl) | 700 (bold) | 1.2 |
-| Subheading (section title) | 16px (text-base) | 600 (semibold) | 1.3 |
+| Body / Label | 14px (text-sm) | 400 (regular) | 1.5 |
+| Heading (page) / Subheading / CTAs | 16px–24px (text-base – text-2xl) | 600 (semibold) | 1.2–1.3 |
 
-Source: detected from `ProductsClient.tsx` — `text-2xl font-bold` for page heading, `text-sm font-semibold` for card titles, `text-sm font-medium` for labels, `text-sm` body.
+Details:
+- Body text (option names, descriptions): 14px / weight 400 / line-height 1.5
+- Form labels: 14px / weight 400 / line-height 1.5
+- Subheading (section title, card titles): 16px / weight 600 / line-height 1.3
+- Page heading: 24px / weight 600 / line-height 1.2
+- CTA button labels: inherit size context / weight 600
 
-Note: Inter is a variable font; Tailwind maps `font-medium` = 500, `font-semibold` = 600, `font-bold` = 700. Declared weights are 400 (regular) and 600 (semibold) as the two primary weights — 700 reserved for the single page-level heading, and 500 for form labels only.
+Primary focal point: product name heading (text-2xl / 24px, weight 600, zinc-900).
+
+Source: detected from `ProductsClient.tsx` — `text-2xl font-semibold` for page heading, `text-sm font-semibold` for card titles, `text-sm` body. Collapsed to exactly 2 weights per spec rules.
+
+Note: Inter is a variable font. Only two weights are declared: 400 (regular) for body text and form labels, 600 (semibold) for all headings, subheadings, CTAs, and button labels. Weight 500 and weight 700 are not used in this phase.
 
 ---
 
@@ -78,7 +86,7 @@ Note: Inter is a variable font; Tailwind maps `font-medium` = 500, `font-semibol
 | Destructive | red-600 (`#dc2626`) | Delete group button, delete option button, ConfirmDialog confirm button |
 
 Accent reserved for:
-- Primary CTA buttons only ("Save group", "Save option", "+ Add group", "+ Add option")
+- Primary CTA buttons only ("Save product", "Save group", "Save option", "+ Add group", "+ Add option")
 - Active category filter pill background
 - Input focus ring (`focus:ring-2 focus:ring-zinc-900`)
 
@@ -119,7 +127,7 @@ New components to create for this phase:
 
 ```
 ┌─ Page header ──────────────────────────────────────────┐
-│  ← Back to Products     [Product Name]  (text-2xl bold) │
+│  ← Back to Products     [Product Name]  (text-2xl 600) │
 ├─ Product fields section ───────────────────────────────┤
 │  (name, description, price, original_price, category,  │
 │   images, tags, is_featured) — same fields as modal     │
@@ -137,7 +145,7 @@ New components to create for this phase:
 │  │  Name: [_______________]                         │   │
 │  │  Type: [single ▼]  Required: [checkbox]          │   │
 │  │  Min selections: [_]  Max selections: [_]        │   │
-│  │  [Save group]  [Cancel]                          │   │
+│  │  [Save group]  [Discard group]                   │   │
 │  └──────────────────────────────────────────────────┘   │
 │                                                         │
 │  ┌─ Group header row (with options list) ────────────┐  │
@@ -145,6 +153,10 @@ New components to create for this phase:
 │  │  ┌─ Option row ───────────────────────────────┐   │  │
 │  │  │  [↑][↓]  Pequena  R$ 29,90  [Available ●]  │   │  │
 │  │  │                          [Edit] [Delete]   │   │  │
+│  │  └────────────────────────────────────────────┘   │  │
+│  │  ┌─ Option row (expanded for edit/add) ───────┐   │  │
+│  │  │  Name: [_______________]  Price: [___]     │   │  │
+│  │  │  [Save option]  [Discard option]           │   │  │
 │  │  └────────────────────────────────────────────┘   │  │
 │  │  [+ Add option]                                   │  │
 │  └────────────────────────────────────────────────────┘ │
@@ -154,14 +166,16 @@ New components to create for this phase:
 ### Inline expand-form behavior
 - "+ Add group" click: appends a new blank OptionGroupForm below existing group rows. Form is visible; other "+ Add group" button is disabled while form is open.
 - "Edit" on group row: that row transforms in place into OptionGroupForm pre-filled with current values. No modal.
-- "Cancel" on form: form closes with no changes. Row returns to collapsed state.
-- "Save" on form: optimistic UI update + Supabase upsert. On error: inline error shown inside the form. On success: form collapses.
+- "Discard group" on group form: form closes with no changes. Row returns to collapsed state.
+- "Save group" on group form: optimistic UI update + Supabase upsert. On error: inline error shown inside the form. On success: form collapses.
 - Same pattern applies to OptionForm within each group.
+- "Discard option" on option form: form closes with no changes. Row returns to collapsed state.
 
 ### Position reorder
 - "↑" arrow: decrements position by 1 (swaps with the row above). Disabled when row is already first.
 - "↓" arrow: increments position by 1 (swaps with the row below). Disabled when row is already last.
 - Arrow buttons are styled as `text-zinc-400 hover:text-zinc-700 p-1 rounded` (icon-only, 24px Lucide arrows).
+- Accessibility: group reorder buttons carry `aria-label="Move group up"` and `aria-label="Move group down"`. Option reorder buttons carry `aria-label="Move option up"` and `aria-label="Move option down"`.
 - Position persists via Supabase update immediately on click.
 
 ### Availability toggle on options
@@ -200,7 +214,8 @@ New components to create for this phase:
 | Add option trigger | "+ Add option" |
 | Group form saving state | "Saving..." |
 | Option form saving state | "Saving..." |
-| Cancel button | "Cancel" |
+| Group inline form dismiss | "Discard group" |
+| Option inline form dismiss | "Discard option" |
 | Empty state — no option groups heading | "No option groups yet" |
 | Empty state — no option groups body | "Add a group to offer sizes, toppings, or half-and-half options for this product." |
 | Empty state — no options in a group heading | "No options yet" |
@@ -223,7 +238,7 @@ New components to create for this phase:
 | Price field hint — multiple | "Amount added to or subtracted from the product's base price" |
 | Option count summary | "1 option" / "N options" |
 
-Source: CONTEXT.md D-04, D-05, D-07, D-08, D-09. Copywriting defaults applied for all items not specified upstream.
+Source: CONTEXT.md D-04, D-05, D-07, D-08, D-09. Copywriting defaults applied for all items not specified upstream. "Cancel" generic label replaced with context-specific dismiss labels per checker BLOCK 1.
 
 ---
 
