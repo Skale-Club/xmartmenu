@@ -36,6 +36,22 @@ export async function POST(request: Request) {
 
     const service = await createServiceClient()
 
+    // SEC-01: Validate tenant exists, is active, and has orders enabled
+    const { data: tenantSettings, error: tenantError } = await service
+      .from('tenants')
+      .select('id, is_active, tenant_settings(orders_enabled)')
+      .eq('id', tenant_id)
+      .eq('is_active', true)
+      .single()
+
+    if (tenantError || !tenantSettings) {
+      return NextResponse.json({ error: 'Invalid tenant' }, { status: 400 })
+    }
+    const settings = (tenantSettings.tenant_settings as any)
+    if (!settings?.orders_enabled) {
+      return NextResponse.json({ error: 'Orders not enabled for this tenant' }, { status: 403 })
+    }
+
     const total = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
 
     const { data: order, error: orderError } = await service
