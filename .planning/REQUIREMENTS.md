@@ -20,11 +20,11 @@
 
 ### Public menu — option selection
 
-- [ ] **ORD-08**: Customer sees product option groups when opening a product detail
-- [ ] **ORD-09**: Customer can select exactly one option from a `single`-type group (radio — required group blocks add-to-cart if unselected)
-- [ ] **ORD-10**: Customer can select one or more options from a `multiple`-type group (checkboxes, respects min/max_selections)
-- [ ] **ORD-11**: Customer can pick two flavors for a `half_and_half`-type group (two sequential selectors); price resolves via `max(half1.base_price, half2.base_price)` for the chosen size
-- [ ] **ORD-12**: Customer can add product with resolved options and computed unit_price to cart
+- [x] **ORD-08**: Customer sees product option groups when opening a product detail
+- [x] **ORD-09**: Customer can select exactly one option from a `single`-type group (radio — required group blocks add-to-cart if unselected)
+- [x] **ORD-10**: Customer can select one or more options from a `multiple`-type group (checkboxes, respects min/max_selections)
+- [x] **ORD-11**: Customer can pick two flavors for a `half_and_half`-type group (two sequential selectors); price resolves via `max(half1.base_price, half2.base_price)` for the chosen size
+- [x] **ORD-12**: Customer can add product with resolved options and computed unit_price to cart
 
 ### Cart
 
@@ -73,11 +73,11 @@
 | ORD-05 | Phase 5 — Admin Options UI | Complete |
 | ORD-06 | Phase 5 — Admin Options UI | Complete |
 | ORD-07 | Phase 5 — Admin Options UI | Complete |
-| ORD-08 | Phase 6 — Public Menu + Cart | Pending |
-| ORD-09 | Phase 6 — Public Menu + Cart | Pending |
-| ORD-10 | Phase 6 — Public Menu + Cart | Pending |
-| ORD-11 | Phase 6 — Public Menu + Cart | Pending |
-| ORD-12 | Phase 6 — Public Menu + Cart | Pending |
+| ORD-08 | Phase 6 — Public Menu + Cart | Complete |
+| ORD-09 | Phase 6 — Public Menu + Cart | Complete |
+| ORD-10 | Phase 6 — Public Menu + Cart | Complete |
+| ORD-11 | Phase 6 — Public Menu + Cart | Complete |
+| ORD-12 | Phase 6 — Public Menu + Cart | Complete |
 | ORD-13 | Phase 6 — Public Menu + Cart | Complete |
 | ORD-14 | Phase 6 — Public Menu + Cart | Complete |
 | ORD-15 | Phase 6 — Public Menu + Cart | Complete |
