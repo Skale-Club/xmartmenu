@@ -38,9 +38,13 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 
 ## Current State
 
-**v1.1 completo (2026-05-06)** — 8 fases, 11 planos. Sistema de pedidos completo: schema, option groups, cart, checkout, confirmação, admin orders view.
+**v1.2 Phase 9 complete (2026-05-06)** — AI text seeding operational in superadmin panel.
+- Gemini 2.5 Flash generates English categories, products, restaurant copy, and translations
+- `sanitizeForPrompt()` guards all LLM inputs; `ai_usage` table tracks cost per tenant
+- AI Tools section in superadmin tenant detail: bulk seed + per-item "Seed category/product"
+- Requires: `GOOGLE_GENERATIVE_AI_API_KEY` in `.env.local` + Supabase migration 022
 
-*v1.1 Phase 8 (2026-05-06)*: Tenant Orders View: Items count column + selected_options + notes in admin orders UI.
+*v1.1 complete (2026-05-06)*: Orders system — 8 phases, 11 plans. Cart, checkout, option groups, admin orders view.
 - Items count column in order list table (singular/plural, ORD-20)
 - `selected_options` summary per item in detail modal, Notes section above status (ORD-21)
 
@@ -81,11 +85,15 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 - ✓ Checkout: selected_options to DB, order confirmation screen with order ID, items, total — Phase 7
 - ✓ Tenant orders view: Items count column, selected_options summary, notes in admin UI — Phase 8
 
+### Validated — v1.2
+
+- ✓ AI text seeding (superadmin): Gemini 2.5 Flash → categories, products, copy, translations — Phase 9
+- ✓ Infrastructure: ai_usage tracking, sanitizeForPrompt, revalidatePath, migration 022 — Phase 9
+
 ### Active — v1.2
 
-- [ ] AI text seeding: categorias, itens, descrições e copy via LLM (tipo de negócio → contexto)
-- [ ] AI image seeding: foto de capa e por-item gerada via modelo de imagem
-- [ ] Menu photo OCR: foto do cardápio → OCR + LLM → itens estruturados + tela de review
+- [ ] AI image seeding: cover photo via gpt-image-1-mini + Pexels/Unsplash per-product (Phase 10)
+- [ ] Menu photo OCR: GPT-4.1-mini vision → categories/items/prices → direct DB write (Phase 11)
 
 ### Deferred (seeds)
 
@@ -119,4 +127,4 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-06 — v1.2 AI Onboarding milestone started*
+*Last updated: 2026-05-06 after Phase 9 (AI Text Seeding)*
