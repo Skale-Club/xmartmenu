@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Multi-tenant SaaS platform that lets restaurants create and share digital menus via QR code. Restaurant owners sign up, configure their menu (categories, products, images, multi-language), and share a public URL that customers scan at the table. Customers can view the menu — ordering and payments are coming in v1.1.
+Multi-tenant SaaS platform that lets restaurants create and share digital menus via QR code. Restaurant owners sign up, configure their menu (categories, products, images, multi-language), and share a public URL that customers scan at the table. Customers can view the menu and place orders directly. AI-assisted onboarding (v1.2) will collapse the initial setup from ~1h to minutes.
 
 **Production domain:** xmartmenu.skale.club
 
@@ -27,9 +27,20 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
+## Current Milestone: v1.2 AI Onboarding
+
+**Goal:** Reduzir o setup de um novo restaurante de ~1h de digitação para minutos via 3 caminhos independentes de AI.
+
+**Target features:**
+- Text seeding — gerar categorias, descrições e copy via LLM baseado no tipo de negócio
+- Image seeding — gerar foto de capa e por-item via modelo de imagem (opt-in, rate-limited)
+- Menu photo OCR — foto do cardápio físico → OCR + LLM → itens estruturados + tela de review antes de salvar
+
 ## Current State
 
-**v1.1 Phase 8 complete (2026-05-06)** — Tenant Orders View: Items count column + selected_options + notes in admin orders UI.
+**v1.1 completo (2026-05-06)** — 8 fases, 11 planos. Sistema de pedidos completo: schema, option groups, cart, checkout, confirmação, admin orders view.
+
+*v1.1 Phase 8 (2026-05-06)*: Tenant Orders View: Items count column + selected_options + notes in admin orders UI.
 - Items count column in order list table (singular/plural, ORD-20)
 - `selected_options` summary per item in detail modal, Notes section above status (ORD-21)
 
@@ -70,15 +81,14 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 - ✓ Checkout: selected_options to DB, order confirmation screen with order ID, items, total — Phase 7
 - ✓ Tenant orders view: Items count column, selected_options summary, notes in admin UI — Phase 8
 
-### Active — v1.1
+### Active — v1.2
 
-- [ ] Customer order system (cart + addons + product option groups)
-- [ ] Half-and-half pizza support (type = 'half_and_half' option group)
-- [ ] Order confirmation flow + tenant-side order list
+- [ ] AI text seeding: categorias, itens, descrições e copy via LLM (tipo de negócio → contexto)
+- [ ] AI image seeding: foto de capa e por-item gerada via modelo de imagem
+- [ ] Menu photo OCR: foto do cardápio → OCR + LLM → itens estruturados + tela de review
 
 ### Deferred (seeds)
 
-- SEED-001 — AI-powered tenant onboarding (text/image/menu-photo)
 - SEED-003 — Stripe Connect payments (tenant-owned accounts)
 - SEED-004 — Full performance milestone (DB indices, RUM, Lighthouse budget)
 - SEED-005 — Marketing landing page (xmartmenu.skale.club)
@@ -109,4 +119,4 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-06 after Phase 8 (Tenant Orders View) — v1.1 milestone complete*
+*Last updated: 2026-05-06 — v1.2 AI Onboarding milestone started*
