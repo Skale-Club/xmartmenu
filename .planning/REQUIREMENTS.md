@@ -37,7 +37,7 @@
 
 - [ ] **ORD-17**: Customer can enter name and phone number to place order
 - [ ] **ORD-18**: Customer sees order confirmation screen after successful order (order id, items, total)
-- [ ] **ORD-19**: Order is persisted to DB with all items and selected_options JSONB
+- [x] **ORD-19**: Order is persisted to DB with all items and selected_options JSONB
 
 ### Tenant order management
 
@@ -84,6 +84,6 @@
 | ORD-16 | Phase 6 — Public Menu + Cart | Complete |
 | ORD-17 | Phase 7 — Checkout | Pending |
 | ORD-18 | Phase 7 — Checkout | Pending |
-| ORD-19 | Phase 7 — Checkout | Pending |
+| ORD-19 | Phase 7 — Checkout | Complete |
 | ORD-20 | Phase 8 — Tenant Orders View | Pending |
 | ORD-21 | Phase 8 — Tenant Orders View | Pending |
