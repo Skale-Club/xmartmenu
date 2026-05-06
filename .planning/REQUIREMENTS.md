@@ -17,9 +17,9 @@
 
 ### Security (from CONCERNS.md — HIGH priority)
 
-- [ ] **SEC-01**: Orders table INSERT policy validates tenant context (not WITH CHECK (true))
-- [ ] **SEC-02**: must_change_password enforced at API layer, not only middleware UI redirect
-- [ ] **SEC-03**: Uniform auth middleware pattern across all API routes (assertRole helper)
+- [x] **SEC-01**: Orders table INSERT policy validates tenant context (not WITH CHECK (true))
+- [x] **SEC-02**: must_change_password enforced at API layer, not only middleware UI redirect
+- [x] **SEC-03**: Uniform auth middleware pattern across all API routes (assertRole helper)
 
 ### CI/CD
 
@@ -51,8 +51,8 @@
 | PERF-05 | Phase 1 — Performance | Complete |
 | PERF-06 | Phase 1 — Performance | Complete |
 | PERF-07 | Phase 1 — Performance | Complete |
-| SEC-01 | Phase 2 — Security | Pending |
-| SEC-02 | Phase 2 — Security | Pending |
-| SEC-03 | Phase 2 — Security | Pending |
+| SEC-01 | Phase 2 — Security | Complete |
+| SEC-02 | Phase 2 — Security | Complete |
+| SEC-03 | Phase 2 — Security | Complete |
 | CI-01 | Phase 3 — CI/CD | Pending |
 | CI-02 | Phase 3 — CI/CD | Pending |

@@ -9,7 +9,7 @@
 | # | Phase | Goal | Requirements | Status |
 |---|---|---|---|---|
 | 1 | Performance | 1/2 | Complete    | 2026-05-06 |
-| 2 | Security | Fix HIGH issues from audit | SEC-01–03 | 🔲 Not started |
+| 2 | Security | Fix HIGH issues from audit | Complete    | 2026-05-06 |
 | 3 | CI/CD | No broken builds on main | CI-01–02 | 🔲 Not started |
 
 ---
@@ -42,7 +42,7 @@ Plans:
 
 **Requirements:** SEC-01, SEC-02, SEC-03
 
-**Plans:** 3 plans
+**Plans:** 3/3 plans complete
 
 **Success criteria:**
 1. Orders INSERT policy rejects requests without valid tenant context
