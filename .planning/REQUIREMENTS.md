@@ -41,8 +41,8 @@
 
 ### Tenant order management
 
-- [ ] **ORD-20**: Store admin can view list of incoming orders sorted by date (most recent first)
-- [ ] **ORD-21**: Store admin can update order status (pending → preparing → ready → done)
+- [x] **ORD-20**: Store admin can view list of incoming orders sorted by date (most recent first)
+- [x] **ORD-21**: Store admin can update order status (pending → preparing → ready → done)
 
 ## Future Requirements (deferred from v1.1)
 
@@ -85,5 +85,5 @@
 | ORD-17 | Phase 7 — Checkout | Complete |
 | ORD-18 | Phase 7 — Checkout | Complete |
 | ORD-19 | Phase 7 — Checkout | Complete |
-| ORD-20 | Phase 8 — Tenant Orders View | Pending |
-| ORD-21 | Phase 8 — Tenant Orders View | Pending |
+| ORD-20 | Phase 8 — Tenant Orders View | Complete |
+| ORD-21 | Phase 8 — Tenant Orders View | Complete |
