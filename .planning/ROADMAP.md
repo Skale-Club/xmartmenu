@@ -101,7 +101,7 @@ Plans:
 
 Plans:
 - [x] 07-01-PLAN.md — API: add selected_options to OrderItem interface and order_items DB insert
-- [ ] 07-02-PLAN.md — UI: orderId state, UI_COPY confirmation keys, submitOrder updates, CartModal confirmation view
+- [x] 07-02-PLAN.md — UI: orderId state, UI_COPY confirmation keys, submitOrder updates, CartModal confirmation view
 
 ### Phase 8: Tenant Orders View
 **Goal**: Store admin sees incoming orders and can update their status
@@ -125,5 +125,5 @@ Plans:
 | 4. Schema | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 5. Admin Product Options UI | v1.1 | 3/3 | Complete | 2026-05-06 |
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 3/3 | Complete   | 2026-05-06 |
-| 7. Checkout | v1.1 | 1/2 | In Progress|  |
+| 7. Checkout | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 8. Tenant Orders View | v1.1 | 0/? | Not started | - |
