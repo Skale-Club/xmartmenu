@@ -1,6 +1,8 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# dependencies
+# ---------------------------------------------------------------------------
+# Dependencies
+# ---------------------------------------------------------------------------
 /node_modules
 /.pnp
 .pnp.*
@@ -10,39 +12,193 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# Lockfile alternatives (this project uses package-lock.json — ignore others)
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
 
-# next.js
+# ---------------------------------------------------------------------------
+# Build / output
+# ---------------------------------------------------------------------------
 /.next/
 /out/
-
-# production
 /build
+/dist
 
-# misc
-.DS_Store
-*.pem
+# ---------------------------------------------------------------------------
+# TypeScript
+# ---------------------------------------------------------------------------
+*.tsbuildinfo
+next-env.d.ts
 
-# debug
+# ---------------------------------------------------------------------------
+# Testing / coverage
+# ---------------------------------------------------------------------------
+/coverage
+.nyc_output
+*.lcov
+/playwright-report
+/test-results
+/cypress/screenshots
+/cypress/videos
+
+# ---------------------------------------------------------------------------
+# Caches
+# ---------------------------------------------------------------------------
+.eslintcache
+.stylelintcache
+.cache/
+.parcel-cache/
+.turbo/
+.swc/
+.next/cache/
+
+# ---------------------------------------------------------------------------
+# Logs
+# ---------------------------------------------------------------------------
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+lerna-debug.log*
+.devserver.*.log
 
-# env files (can opt-in for committing if needed)
-.env*
+# ---------------------------------------------------------------------------
+# Env files (opt-in commit via !.env.example)
+# ---------------------------------------------------------------------------
+.env
+.env.*
 !.env.example
 
-# vercel
-.vercel
+# ---------------------------------------------------------------------------
+# Secrets / credentials (defense in depth)
+# ---------------------------------------------------------------------------
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+secrets/
+credentials.json
+service-account.json
+service-account-*.json
+gha-creds-*.json
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# claude
-.claude/
-
-# supabase
+# ---------------------------------------------------------------------------
+# Supabase
+# ---------------------------------------------------------------------------
 supabase/.temp/
+supabase/.branches/
+supabase/logs/
+supabase/seed.local.sql
+**/supabase-import-temp/
+
+# Database dumps / backups
+*.sql.bak
+*.dump
+*.backup
+*.sqlite
+*.sqlite-journal
+*.db
+!supabase/migrations/*.sql
+
+# ---------------------------------------------------------------------------
+# Deployment platforms
+# ---------------------------------------------------------------------------
+.vercel
+.netlify
+.serverless/
+.firebase/
+
+# ---------------------------------------------------------------------------
+# Storybook / docs
+# ---------------------------------------------------------------------------
+/storybook-static
+/.docusaurus
+
+# ---------------------------------------------------------------------------
+# Sentry
+# ---------------------------------------------------------------------------
+.sentryclirc
+
+# ---------------------------------------------------------------------------
+# IDE / editors
+# ---------------------------------------------------------------------------
+# VS Code — keep shared workspace settings, ignore personal
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.history/
+
+# JetBrains
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime / Vim / Emacs
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+# Zed
+.zed/
+
+# ---------------------------------------------------------------------------
+# AI / coding agent tooling
+# ---------------------------------------------------------------------------
+.claude/
+.kilo/
+.cursor/
+.codeium/
+.continue/
+.windsurf/
+.aider*
+.copilot/
+.augment/
+
+# ---------------------------------------------------------------------------
+# OS files
+# ---------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+# `nul` files created accidentally by `> nul` redirects on Windows
+/nul
+**/nul
+
+# Linux
+.directory
+.Trash-*
+.nfs*
+
+# ---------------------------------------------------------------------------
+# Misc temp / artifacts
+# ---------------------------------------------------------------------------
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+.tmp/
+tmp/
