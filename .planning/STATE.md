@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
-status: Roadmap ready, awaiting plan-phase
-stopped_at: Phase 9 UI-SPEC approved — ready to plan
-last_updated: "2026-05-06T20:50:44.650Z"
-last_activity: 2026-05-06 — Roadmap created for v1.2
+status: executing
+stopped_at: Completed 09-text-seeding-09-01-PLAN.md
+last_updated: "2026-05-06T21:21:00.000Z"
+last_activity: 2026-05-06 — Phase 9 Plan 01 complete
 progress:
   total_phases: 3
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 9
+  completed_plans: 1
+  percent: 11
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 
 ## Current Position
 
-Phase: 9 — Text Seeding (not started)
-Plan: —
-Status: Roadmap ready, awaiting plan-phase
-Last activity: 2026-05-06 — Roadmap created for v1.2
+Phase: 9 — Text Seeding (executing)
+Plan: 01 complete, 02 next
+Status: Executing Phase 9
+Last activity: 2026-05-06 — Plan 09-01 complete (AI infra scaffolding)
 
-Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.2)
+Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1.2)
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.
 | Phase 07 P01 | 4min | 1 tasks | 1 files |
 | Phase 07 P02 | 277s | 2 tasks | 1 files |
 | Phase 08-tenant-orders-view P01 | 138 | 1 tasks | 1 files |
+| Phase 09-text-seeding P01 | 15min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,9 @@ Recent decisions affecting current work:
 - [v1.2 Roadmap]: OCR two-route pattern is architectural: ocr-menu returns draft (no DB write), ocr-commit writes only after user confirmation
 - [v1.2 Roadmap]: Phase 10 (Image Seeding) depends on Phase 9 product IDs; Phase 11 (OCR) depends on Phase 9 infra but is DB-independent
 - [v1.2 Roadmap]: tenant_id must always be derived from Supabase auth session, never from request body
+- [Phase 09-01]: sanitizeForPrompt strips `{}<>\n\r` and backticks before any user value enters a prompt — OWASP LLM Top 10 #1
+- [Phase 09-01]: ai_usage UNIQUE(tenant_id, feature_key, date) enables upsert cost accumulation without extra SELECT
+- [Phase 09-01]: Migration 022 applied via Supabase SQL editor (local Docker not available)
 
 ### Pending Todos
 
@@ -108,6 +112,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-06T20:50:44.547Z
-Stopped at: Phase 9 UI-SPEC approved — ready to plan
-Resume file: .planning/phases/09-text-seeding/09-UI-SPEC.md
+Last session: 2026-05-06T21:21:00Z
+Stopped at: Completed 09-text-seeding-09-01-PLAN.md
+Resume file: .planning/phases/09-text-seeding/09-02-PLAN.md
