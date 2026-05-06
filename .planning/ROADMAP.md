@@ -67,8 +67,10 @@ Plans:
 2. TypeScript errors fail the CI run
 3. Workflow passes on current main branch
 
-**Plans:**
-- Plan 3.1: Add lint + build GitHub Actions workflow
+**Plans:** 1 plan
+
+Plans:
+- [ ] 03-01-PLAN.md — Fix 63 ESLint errors then add GitHub Actions CI workflow (lint + build gate)
 
 ---
 
