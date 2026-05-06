@@ -27,3 +27,24 @@ export async function isSuperadminRequest() {
 
   return true
 }
+
+/**
+ * SEC-03: Canonical superadmin auth guard for API routes.
+ * Returns the Supabase client if the current user is a superadmin, null otherwise.
+ *
+ * Usage:
+ *   const supabase = await assertSuperadmin()
+ *   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+ *   // use supabase if needed, or ignore and use createServiceClient() for service-role ops
+ */
+export async function assertSuperadmin() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+  return profile?.role === 'superadmin' ? supabase : null
+}
