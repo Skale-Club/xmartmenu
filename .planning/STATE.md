@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
-status: defining_requirements
-stopped_at: Milestone v1.2 started — defining requirements
+status: roadmap_ready
+stopped_at: Roadmap created — Phase 9 is next
 last_updated: "2026-05-06"
 last_activity: 2026-05-06
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.2 AI Onboarding — defining requirements
+**Current focus:** v1.2 AI Onboarding — Phase 9: Text Seeding
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 9 — Text Seeding (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-06 — Milestone v1.2 started
+Status: Roadmap ready, awaiting plan-phase
+Last activity: 2026-05-06 — Roadmap created for v1.2
 
 Progress: [░░░░░░░░░░░░░░░░░░░░] 0% (v1.2)
 
@@ -89,17 +89,25 @@ Recent decisions affecting current work:
 - [Phase 07-02]: Snapshot cart into confirmedCart before clearing to display ordered items in confirmation view
 - [Phase 07-02]: orderId && orderSuccess double-guard switches CartModal between confirmation and cart-form views
 - [Phase 08-01]: All changes confined to OrdersClient.tsx — Items column, selected_options display, and Notes modal section added additively without removing existing code
+- [v1.2 Roadmap]: AI SDK v6 uses Zod v4 internally — do not mix Zod v3 and v4
+- [v1.2 Roadmap]: ai_usage table schema planned as (tenant_id, feature_key, date, call_count, token_count) to cover all three AI features without future migration
+- [v1.2 Roadmap]: All AI routes must use Node.js runtime (not Edge) — Sharp requires native Node.js bindings
+- [v1.2 Roadmap]: OCR two-route pattern is architectural: ocr-menu returns draft (no DB write), ocr-commit writes only after user confirmation
+- [v1.2 Roadmap]: Phase 10 (Image Seeding) depends on Phase 9 product IDs; Phase 11 (OCR) depends on Phase 9 infra but is DB-independent
+- [v1.2 Roadmap]: tenant_id must always be derived from Supabase auth session, never from request body
 
 ### Pending Todos
 
-None yet.
+- Confirm Pexels/Unsplash attribution requirements before Phase 10 ships
+- Verify gpt-image-1-mini availability on project's OpenAI tier before Phase 10 begins (DALL-E 3 deprecated May 12 2026)
+- Define price parsing test matrix for locale edge cases (Brazilian comma-decimal, integers, free items) during Phase 11 planning
 
 ### Blockers/Concerns
 
-None yet.
+None.
 
 ## Session Continuity
 
 Last session: 2026-05-06
-Stopped at: Milestone v1.2 AI Onboarding started — defining requirements
-Resume file: None
+Stopped at: Roadmap created for v1.2 AI Onboarding — 3 phases, 18 requirements mapped
+Resume file: .planning/ROADMAP.md

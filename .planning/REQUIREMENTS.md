@@ -58,21 +58,21 @@
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| AI-01 | TBD — Text Seeding | Pending |
-| AI-02 | TBD — Text Seeding | Pending |
-| AI-03 | TBD — Text Seeding | Pending |
-| AI-04 | TBD — Text Seeding | Pending |
-| AI-05 | TBD — Text Seeding | Pending |
-| AI-06 | TBD — Text Seeding | Pending |
-| AI-07 | TBD — Image Seeding | Pending |
-| AI-08 | TBD — Image Seeding | Pending |
-| AI-09 | TBD — Image Seeding | Pending |
-| AI-10 | TBD — Image Seeding | Pending |
-| AI-11 | TBD — Menu OCR | Pending |
-| AI-12 | TBD — Menu OCR | Pending |
-| AI-13 | TBD — Menu OCR | Pending |
-| AI-14 | TBD — Menu OCR | Pending |
-| AI-15 | TBD — Infra | Pending |
-| AI-16 | TBD — Infra | Pending |
-| AI-17 | TBD — Infra | Pending |
-| AI-18 | TBD — Infra | Pending |
+| AI-01 | Phase 9 — Text Seeding | Pending |
+| AI-02 | Phase 9 — Text Seeding | Pending |
+| AI-03 | Phase 9 — Text Seeding | Pending |
+| AI-04 | Phase 9 — Text Seeding | Pending |
+| AI-05 | Phase 9 — Text Seeding | Pending |
+| AI-06 | Phase 9 — Text Seeding | Pending |
+| AI-07 | Phase 10 — Image Seeding | Pending |
+| AI-08 | Phase 10 — Image Seeding | Pending |
+| AI-09 | Phase 10 — Image Seeding | Pending |
+| AI-10 | Phase 10 — Image Seeding | Pending |
+| AI-11 | Phase 11 — Menu Photo OCR | Pending |
+| AI-12 | Phase 11 — Menu Photo OCR | Pending |
+| AI-13 | Phase 11 — Menu Photo OCR | Pending |
+| AI-14 | Phase 11 — Menu Photo OCR | Pending |
+| AI-15 | Phase 9 — Text Seeding (infra scaffold) | Pending |
+| AI-16 | Phase 9 — Text Seeding (infra scaffold) | Pending |
+| AI-17 | Phase 9 — Text Seeding (infra scaffold) | Pending |
+| AI-18 | Phase 9 — Text Seeding (infra scaffold) | Pending |
