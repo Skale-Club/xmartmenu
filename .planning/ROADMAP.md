@@ -61,7 +61,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 **Plans**: 3 plans
 Plans:
 - [x] 09-01-PLAN.md — AI infrastructure: migration 022, sanitize utility, npm packages, TypeScript types
-- [ ] 09-02-PLAN.md — Seed API route: all 6 seed types, Gemini calls, additive DB writes, ai_usage logging, revalidatePath
+- [x] 09-02-PLAN.md — Seed API route: all 6 seed types, Gemini calls, additive DB writes, ai_usage logging, revalidatePath
 - [ ] 09-03-PLAN.md — UI extension: page.tsx prop expansion + TenantDetailClient AI Tools section
 **UI hint**: yes
 
@@ -99,6 +99,6 @@ Plans:
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 3/3 | Complete | 2026-05-06 |
 | 7. Checkout | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
-| 9. Text Seeding | v1.2 | 1/3 | Executing | - |
+| 9. Text Seeding | v1.2 | 2/3 | In Progress|  |
 | 10. Image Seeding | v1.2 | 0/? | Not started | - |
 | 11. Menu Photo OCR | v1.2 | 0/? | Not started | - |
