@@ -30,7 +30,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 - [x] **Phase 4: Schema** — All database tables for orders and product options exist with correct structure, RLS, and TypeScript types
 - [x] **Phase 5: Admin Product Options UI** — Store admin can configure option groups and options per product (sizes, toppings, half-and-half)
-- [ ] **Phase 6: Public Menu: Option Selectors + Cart** — Customers can select product options and add items to an in-memory cart shown as a popup at the bottom of the menu page
+- [x] **Phase 6: Public Menu: Option Selectors + Cart** — Customers can select product options and add items to an in-memory cart shown as a popup at the bottom of the menu page (completed 2026-05-06)
 - [ ] **Phase 7: Checkout** — Customer enters name and phone and places order; receives confirmation screen
 - [ ] **Phase 8: Tenant Orders View** — Store admin sees incoming orders and can update their status
 
@@ -85,7 +85,7 @@ Plans:
 Plans:
 - [x] 06-01-PLAN.md — Server component: option groups fetch (staged, gated by directOrdersEnabled) + optionGroupsByProductId prop wiring
 - [x] 06-02-PLAN.md — CartItem extension (selectedOptions/unitPrice/cartKey) + cart function refactors + CartModal updates
-- [ ] 06-03-PLAN.md — ProductModal option selector UI (radio/checkbox/half-and-half) + canAddToCart gate + price preview + call site
+- [x] 06-03-PLAN.md — ProductModal option selector UI (radio/checkbox/half-and-half) + canAddToCart gate + price preview + call site
 
 ### Phase 7: Checkout
 **Goal**: Customer enters name and phone and places order; receives confirmation screen
@@ -121,6 +121,6 @@ Plans:
 | 3. CI/CD | v1.0 | 1/1 | Complete | 2026-05-06 |
 | 4. Schema | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 5. Admin Product Options UI | v1.1 | 3/3 | Complete | 2026-05-06 |
-| 6. Public Menu: Option Selectors + Cart | v1.1 | 2/3 | In Progress|  |
+| 6. Public Menu: Option Selectors + Cart | v1.1 | 3/3 | Complete   | 2026-05-06 |
 | 7. Checkout | v1.1 | 0/? | Not started | - |
 | 8. Tenant Orders View | v1.1 | 0/? | Not started | - |
