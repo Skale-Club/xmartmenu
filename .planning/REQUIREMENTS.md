@@ -7,10 +7,10 @@
 
 ### Schema (database layer)
 
-- [ ] **ORD-01**: `product_option_groups` table exists with fields: id, product_id, tenant_id, name, type (single|multiple|half_and_half), required, min_selections, max_selections, price_rule (max|average|sum|fixed), position, translations JSONB
-- [ ] **ORD-02**: `product_options` table exists with fields: id, group_id, tenant_id, name, base_price (nullable), price_modifier, is_available, position, translations JSONB
-- [ ] **ORD-03**: `orders` table exists with fields: id, tenant_id, customer_name, customer_phone, status (pending|preparing|ready|done|cancelled), total, notes, created_at — RLS: tenant-scoped for admin read, public insert only if orders_enabled
-- [ ] **ORD-04**: `order_items` table exists with fields: id, order_id, product_id, product_name, quantity, unit_price, selected_options JSONB, notes — unit_price stores final resolved price (size + half-and-half already computed)
+- [x] **ORD-01**: `product_option_groups` table exists with fields: id, product_id, tenant_id, name, type (single|multiple|half_and_half), required, min_selections, max_selections, price_rule (max|average|sum|fixed), position, translations JSONB
+- [x] **ORD-02**: `product_options` table exists with fields: id, group_id, tenant_id, name, base_price (nullable), price_modifier, is_available, position, translations JSONB
+- [x] **ORD-03**: `orders` table exists with fields: id, tenant_id, customer_name, customer_phone, status (pending|preparing|ready|done|cancelled), total, notes, created_at — RLS: tenant-scoped for admin read, public insert only if orders_enabled
+- [x] **ORD-04**: `order_items` table exists with fields: id, order_id, product_id, product_name, quantity, unit_price, selected_options JSONB, notes — unit_price stores final resolved price (size + half-and-half already computed)
 
 ### Admin — product option groups
 
@@ -66,10 +66,10 @@
 
 | REQ-ID | Phase | Status |
 |---|---|---|
-| ORD-01 | Phase 4 — Schema | Pending |
-| ORD-02 | Phase 4 — Schema | Pending |
-| ORD-03 | Phase 4 — Schema | Pending |
-| ORD-04 | Phase 4 — Schema | Pending |
+| ORD-01 | Phase 4 — Schema | Complete |
+| ORD-02 | Phase 4 — Schema | Complete |
+| ORD-03 | Phase 4 — Schema | Complete |
+| ORD-04 | Phase 4 — Schema | Complete |
 | ORD-05 | Phase 5 — Admin Options UI | Pending |
 | ORD-06 | Phase 5 — Admin Options UI | Pending |
 | ORD-07 | Phase 5 — Admin Options UI | Pending |
