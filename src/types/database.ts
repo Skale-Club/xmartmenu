@@ -30,6 +30,10 @@ export interface TenantSettings {
   orders_enabled: boolean
   direct_orders_enabled: boolean
   updated_at: string
+  // AI-04: New fields added in migration 022
+  business_type: string | null
+  tagline: string | null
+  about: string | null
 }
 
 export interface BusinessHours {
@@ -148,6 +152,16 @@ export interface OrderItem {
   unit_price: number
   selected_options: Record<string, unknown> | null
   notes: string | null
+}
+
+export interface AiUsage {
+  id: string
+  tenant_id: string
+  feature_key: string   // e.g. 'text_seed', 'image_seed', 'ocr'
+  date: string          // 'YYYY-MM-DD'
+  call_count: number
+  token_count: number
+  created_at: string
 }
 
 export type OptionGroupType = 'single' | 'multiple' | 'half_and_half'
