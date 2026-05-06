@@ -23,8 +23,8 @@
 
 ### CI/CD
 
-- [ ] **CI-01**: PR gate: lint (eslint) + build (next build) must pass before merge
-- [ ] **CI-02**: TypeScript errors block CI
+- [x] **CI-01**: PR gate: lint (eslint) + build (next build) must pass before merge
+- [x] **CI-02**: TypeScript errors block CI
 
 ## v2 Requirements (deferred)
 
@@ -54,5 +54,5 @@
 | SEC-01 | Phase 2 — Security | Complete |
 | SEC-02 | Phase 2 — Security | Complete |
 | SEC-03 | Phase 2 — Security | Complete |
-| CI-01 | Phase 3 — CI/CD | Pending |
-| CI-02 | Phase 3 — CI/CD | Pending |
+| CI-01 | Phase 3 — CI/CD | Complete |
+| CI-02 | Phase 3 — CI/CD | Complete |
