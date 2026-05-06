@@ -1,84 +1,30 @@
-# Roadmap
+# Roadmap: xmartmenu
 
-**Project:** xmartmenu
-**Milestone:** M1 — Foundation hardening (performance + security + CI)
-**Created:** 2026-05-05
+## Milestones
 
-## Overview
+- ✅ **v1.0 Foundation** — Phases 1-3 (shipped 2026-05-06)
+- 🚧 **v1.1 Orders** — Planning
 
-| # | Phase | Goal | Requirements | Status |
-|---|---|---|---|---|
-| 1 | Performance | 1/2 | Complete    | 2026-05-06 |
-| 2 | Security | Fix HIGH issues from audit | Complete    | 2026-05-06 |
-| 3 | CI/CD | No broken builds on main | Complete    | 2026-05-06 |
+## Completed Milestones
 
----
+<details>
+<summary>✅ v1.0 Foundation (Phases 1-3) — SHIPPED 2026-05-06</summary>
 
-## Phase 1: Performance
+| # | Phase | Plans | Status |
+|---|---|---|---|
+| 1 | Performance | 2/2 | ✅ 2026-05-06 |
+| 2 | Security | 3/3 | ✅ 2026-05-06 |
+| 3 | CI/CD | 1/1 | ✅ 2026-05-06 |
 
-**Goal:** The public menu page loads noticeably faster — JS bundle shrinks, DB queries are cached and parallelized, no admin code ships to public visitors.
+See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
-**Requirements:** PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, PERF-06, PERF-07
-
-**Plans:** 2/2 plans complete
-
-**Success criteria:**
-1. `force-dynamic` removed from public routes — pages use ISR with 60s revalidate
-2. Root page (/) is static — no server work on a redirect
-3. `browserslist` targets modern browsers — polyfill chunk visibly smaller in analyzer
-4. `generateMetadata` and page render share data via React `cache()` — only 1 tenant query per request instead of 2
-5. Tenant + menu fetched in parallel — saves 1 round-trip per page load
-6. Before/after bundle analysis shows public menu route does not include Supabase browser client
-
-Plans:
-- [x] 01-01-PLAN.md — Public route caching + query optimization (revalidate=60, React cache(), parallel fetch)
-- [x] 01-02-PLAN.md — browserslist field in package.json to reduce polyfill bundle
+</details>
 
 ---
 
-## Phase 2: Security
+## 🚧 v1.1 Orders
 
-**Goal:** The three HIGH security issues from the codebase audit are closed.
+**Goal:** Customers can place orders from the public menu — with product option groups (sizes, toppings, half-and-half).
 
-**Requirements:** SEC-01, SEC-02, SEC-03
+> Roadmap will be populated after `/gsd:new-milestone`
 
-**Plans:** 3/3 plans complete
-
-**Success criteria:**
-1. Orders INSERT policy rejects requests without valid tenant context
-2. API routes block requests from users with must_change_password=true
-3. All API routes use the same auth assertion helper
-
-Plans:
-- [ ] 02-01-PLAN.md — Fix orders INSERT validation (tenant exists, is_active, orders_enabled)
-- [ ] 02-02-PLAN.md — Enforce must_change_password at API layer via password-guard helper
-- [ ] 02-03-PLAN.md — Unify superadmin auth — export assertSuperadmin() from lib, remove 10 local copies
-
----
-
-## Phase 3: CI/CD
-
-**Goal:** Broken code cannot land on main — lint and build are gated on every PR.
-
-**Requirements:** CI-01, CI-02
-
-**Success criteria:**
-1. GitHub Actions workflow runs `npm run lint` and `npm run build` on every PR
-2. TypeScript errors fail the CI run
-3. Workflow passes on current main branch
-
-**Plans:** 1/1 plans complete
-
-Plans:
-- [ ] 03-01-PLAN.md — Fix 63 ESLint errors then add GitHub Actions CI workflow (lint + build gate)
-
----
-
-## Seeds (future milestones)
-
-See `.planning/seeds/` for the 5 planted seeds awaiting the right milestone:
-- SEED-001: AI-powered tenant onboarding
-- SEED-002: Customer order system (cart + addons)
-- SEED-003: Stripe Connect payments
-- SEED-004: Full performance milestone (this M1 Phase 1 is the start)
-- SEED-005: Marketing landing page
