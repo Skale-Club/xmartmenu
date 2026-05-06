@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
 status: executing
-stopped_at: Executing phase 9 — plan 09-01 complete, plan 09-02 next
-last_updated: "2026-05-06"
+stopped_at: Completed 09-text-seeding-09-02-PLAN.md
+last_updated: "2026-05-06T22:12:49.934Z"
 last_activity: 2026-05-06 — Plan 09-01 complete (AI infra scaffolding)
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 33
+  completed_plans: 2
+  percent: 11
 ---
 
 # Project State
@@ -61,6 +61,7 @@ Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1
 | Phase 07 P02 | 277s | 2 tasks | 1 files |
 | Phase 08-tenant-orders-view P01 | 138 | 1 tasks | 1 files |
 | Phase 09-text-seeding P01 | 15min | 2 tasks | 4 files |
+| Phase 09-text-seeding P09-02 | 25min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -99,6 +100,9 @@ Recent decisions affecting current work:
 - [Phase 09-01]: sanitizeForPrompt strips `{}<>\n\r` and backticks before any user value enters a prompt — OWASP LLM Top 10 #1
 - [Phase 09-01]: ai_usage UNIQUE(tenant_id, feature_key, date) enables upsert cost accumulation without extra SELECT
 - [Phase 09-01]: Migration 022 applied via Supabase SQL editor (local Docker not available)
+- [Phase 09-text-seeding]: Single seed route with type field in POST body handles all 6 seed types without proliferating routes
+- [Phase 09-text-seeding]: Zod v4 z.record requires two args: z.record(z.string(), z.any()) — single-arg form not valid in Zod v4
+- [Phase 09-text-seeding]: TranslationsSchema kept flat as z.record(z.string(), z.any()) to avoid Gemini structured output validation failures with deeply nested schemas (Pitfall 3)
 
 ### Pending Todos
 
@@ -112,6 +116,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-06T21:21:00Z
-Stopped at: Completed 09-text-seeding-09-01-PLAN.md
-Resume file: .planning/phases/09-text-seeding/09-02-PLAN.md
+Last session: 2026-05-06T22:12:48.887Z
+Stopped at: Completed 09-text-seeding-09-02-PLAN.md
+Resume file: None

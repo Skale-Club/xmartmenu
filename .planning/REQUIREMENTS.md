@@ -14,11 +14,11 @@ All AI generation writes directly to the database. There is no separate "review 
 
 ### Text Seeding (Phase 9)
 
-- [ ] **AI-01**: Superadmin can initiate AI text seeding for any tenant from the superadmin tenant detail page; seeding writes generated content directly to the tenant's `categories` and `products` tables
-- [ ] **AI-02**: System generates English menu categories based on the tenant's business type (e.g. `pizzeria` → Pizzas, Drinks, Desserts), respecting existing categories (does not overwrite)
-- [ ] **AI-03**: System generates English product name and description for representative items within each generated category, respecting existing products (does not overwrite)
-- [ ] **AI-04**: System generates English restaurant copy (suggested name override, tagline, "about" text) for the tenant's profile
-- [ ] **AI-05**: When a tenant has additional languages enabled (via existing i18n `translations` field), seeding generates that content in each enabled language and stores it in the same `translations` JSONB
+- [x] **AI-01**: Superadmin can initiate AI text seeding for any tenant from the superadmin tenant detail page; seeding writes generated content directly to the tenant's `categories` and `products` tables
+- [x] **AI-02**: System generates English menu categories based on the tenant's business type (e.g. `pizzeria` → Pizzas, Drinks, Desserts), respecting existing categories (does not overwrite)
+- [x] **AI-03**: System generates English product name and description for representative items within each generated category, respecting existing products (does not overwrite)
+- [x] **AI-04**: System generates English restaurant copy (suggested name override, tagline, "about" text) for the tenant's profile
+- [x] **AI-05**: When a tenant has additional languages enabled (via existing i18n `translations` field), seeding generates that content in each enabled language and stores it in the same `translations` JSONB
 - [ ] **AI-06**: Superadmin sees a "Seed" button next to the "Add category" and "Add product" inputs in the superadmin tenant view; clicking it generates that single item via AI
 
 ### Image Seeding (Phase 10)
@@ -36,7 +36,7 @@ All AI generation writes directly to the database. There is no separate "review 
 ### Infrastructure & Safety (cross-cutting, scaffolded in Phase 9)
 
 - [x] **AI-13**: All LLM prompts sanitize tenant-supplied strings (`company_name`, `business_type`, free-form fields) before interpolation to prevent prompt injection
-- [ ] **AI-14**: Public menu routes are revalidated via `revalidatePath()` after any AI seeding write commits data (prevents stale ISR cache)
+- [x] **AI-14**: Public menu routes are revalidated via `revalidatePath()` after any AI seeding write commits data (prevents stale ISR cache)
 - [x] **AI-15**: `ai_usage` table tracks AI calls per tenant (`tenant_id`, `feature_key`, `date`, `call_count`, `token_count`) for cost attribution; not used as a blocking gate
 
 ## Future Requirements (deferred from v1.2)
@@ -65,11 +65,11 @@ All AI generation writes directly to the database. There is no separate "review 
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| AI-01 | Phase 9 — Text Seeding | Pending |
-| AI-02 | Phase 9 — Text Seeding | Pending |
-| AI-03 | Phase 9 — Text Seeding | Pending |
-| AI-04 | Phase 9 — Text Seeding | Pending |
-| AI-05 | Phase 9 — Text Seeding | Pending |
+| AI-01 | Phase 9 — Text Seeding | Complete |
+| AI-02 | Phase 9 — Text Seeding | Complete |
+| AI-03 | Phase 9 — Text Seeding | Complete |
+| AI-04 | Phase 9 — Text Seeding | Complete |
+| AI-05 | Phase 9 — Text Seeding | Complete |
 | AI-06 | Phase 9 — Text Seeding | Pending |
 | AI-07 | Phase 10 — Image Seeding | Pending |
 | AI-08 | Phase 10 — Image Seeding | Pending |
@@ -78,5 +78,5 @@ All AI generation writes directly to the database. There is no separate "review 
 | AI-11 | Phase 11 — Menu Photo OCR | Pending |
 | AI-12 | Phase 11 — Menu Photo OCR | Pending |
 | AI-13 | Phase 9 — Text Seeding (infra scaffold) | ✅ Complete (09-01) |
-| AI-14 | Phase 9 — Text Seeding (infra scaffold) | Pending |
+| AI-14 | Phase 9 — Text Seeding (infra scaffold) | Complete |
 | AI-15 | Phase 9 — Text Seeding (infra scaffold) | ✅ Complete (09-01) |
