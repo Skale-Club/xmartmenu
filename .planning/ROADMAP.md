@@ -42,7 +42,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 ## Phases
 
-- [ ] **Phase 9: Text Seeding** — Superadmin can seed a tenant's categories, products, and restaurant copy via LLM from the superadmin panel; also adds per-item "Seed" buttons for individual categories/products
+- [x] **Phase 9: Text Seeding** — Superadmin can seed a tenant's categories, products, and restaurant copy via LLM from the superadmin panel; also adds per-item "Seed" buttons for individual categories/products (completed 2026-05-06)
 - [ ] **Phase 10: Image Seeding** — Superadmin can generate a tenant cover photo and per-product stock photos; uploads go directly to Supabase Storage via the existing Sharp/WebP pipeline
 - [ ] **Phase 11: Menu Photo OCR** — Superadmin can upload a photo of a tenant's physical menu; GPT-4.1-mini extracts categories, items, and prices and writes them directly to the tenant's tables
 
@@ -62,7 +62,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 Plans:
 - [x] 09-01-PLAN.md — AI infrastructure: migration 022, sanitize utility, npm packages, TypeScript types
 - [x] 09-02-PLAN.md — Seed API route: all 6 seed types, Gemini calls, additive DB writes, ai_usage logging, revalidatePath
-- [ ] 09-03-PLAN.md — UI extension: page.tsx prop expansion + TenantDetailClient AI Tools section
+- [x] 09-03-PLAN.md — UI extension: page.tsx prop expansion + TenantDetailClient AI Tools section
 **UI hint**: yes
 
 ### Phase 10: Image Seeding
@@ -99,6 +99,6 @@ Plans:
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 3/3 | Complete | 2026-05-06 |
 | 7. Checkout | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
-| 9. Text Seeding | v1.2 | 2/3 | In Progress|  |
+| 9. Text Seeding | v1.2 | 3/3 | Complete   | 2026-05-06 |
 | 10. Image Seeding | v1.2 | 0/? | Not started | - |
 | 11. Menu Photo OCR | v1.2 | 0/? | Not started | - |
