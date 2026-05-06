@@ -28,7 +28,7 @@ export default async function TenantDetailPage({ params }: Props) {
 
   const { data: settings } = await service
     .from('tenant_settings')
-    .select('logo_url')
+    .select('logo_url, business_type')
     .eq('tenant_id', id)
     .single()
 
@@ -48,7 +48,7 @@ export default async function TenantDetailPage({ params }: Props) {
 
   const { data: menus } = await service
     .from('menus')
-    .select('id, name, slug, language, is_active, position, created_at')
+    .select('id, name, slug, language, supported_languages, is_active, position, created_at')
     .eq('tenant_id', id)
     .order('position')
 
@@ -57,6 +57,7 @@ export default async function TenantDetailPage({ params }: Props) {
       tenant={{ ...tenant, logo_url: settings?.logo_url ?? null }}
       initialStaff={staffWithEmail}
       initialMenus={menus ?? []}
+      businessType={settings?.business_type ?? null}
     />
   )
 }
