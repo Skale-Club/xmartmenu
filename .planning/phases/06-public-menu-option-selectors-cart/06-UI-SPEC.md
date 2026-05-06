@@ -52,10 +52,11 @@ Exceptions:
 
 Source: established in `MenuPage.tsx`. Phase 6 adds no new type roles — all new text uses the existing scale.
 
+**Weight 600 (semibold) is not used — only 400 and 700.**
+
 | Role | Size | Weight | Line Height | Tailwind Classes |
 |------|------|--------|-------------|-----------------|
 | Body | 14px | 400 (regular) | 1.5 | `text-sm` |
-| Label | 14px | 600 (semibold) | 1.4 | `text-sm font-semibold` |
 | Heading (modal section) | 14px | 700 (bold) | 1.4 | `text-sm font-bold` |
 | Price display | 24px | 700 (bold) | 1.2 | `text-2xl font-bold` |
 
@@ -160,7 +161,7 @@ Row background:
 
 Price modifier display (additive, `price_modifier !== 0`): `text-sm text-zinc-500` inline after option name — e.g., "+ R$ 2.00" or "- R$ 1.00"
 
-Absolute price display (`base_price` is not null): right-aligned `text-sm font-semibold text-zinc-900` at end of row
+Absolute price display (`base_price` is not null): right-aligned `text-sm font-bold text-zinc-900` at end of row
 
 ### Multiple-Type Group (checkboxes)
 
@@ -179,7 +180,7 @@ Min/max hint: if `min_selections > 0` or `max_selections` is set, render a helpe
 Two stacked sub-selectors sharing the same option list, separated by 12px vertical gap.
 
 Each sub-selector:
-- Label above: `text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1`
+- Label above: `text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1`
   - First: "[Group name] — 1st half"
   - Second: "[Group name] — 2nd half"
 - Renders identical to single-type radio group (same row styles, same custom radio control)
