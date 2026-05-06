@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import MenuPage from '@/components/menu/MenuPage'
 import type { Metadata } from 'next'
+import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 
 interface Props {
   params: Promise<{ slug: string; menuSlug: string }>
@@ -51,6 +52,30 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
     supabase.from('products').select('*').eq('menu_id', menu.id).eq('is_available', true).order('position'),
   ])
 
+  const directOrdersEnabled = tenant.tenant_settings?.direct_orders_enabled ?? false
+  const productIds = (products ?? []).map(p => p.id)
+
+  const optionGroupsByProductId: Record<string, GroupWithOptions[]> = {}
+  if (directOrdersEnabled && productIds.length > 0) {
+    const { data: rawGroups } = await supabase
+      .from('product_option_groups')
+      .select('*, options:product_options(*)')
+      .in('product_id', productIds)
+      .order('position')
+      .order('position', { referencedTable: 'product_options' })
+
+    for (const group of rawGroups ?? []) {
+      const filtered: GroupWithOptions = {
+        ...group,
+        options: (group.options as GroupWithOptions['options']).filter(o => o.is_available),
+      }
+      if (!optionGroupsByProductId[group.product_id]) {
+        optionGroupsByProductId[group.product_id] = []
+      }
+      optionGroupsByProductId[group.product_id].push(filtered)
+    }
+  }
+
   supabase.from('scan_events').insert({ tenant_id: tenant.id }).then(() => {})
 
   return (
@@ -60,6 +85,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       products={products ?? []}
       menu={menu}
       initialLanguage={lang}
+      optionGroupsByProductId={optionGroupsByProductId}
     />
   )
 }
