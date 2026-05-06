@@ -29,11 +29,12 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 
 ## Current State
 
-**v1.1 Phase 6 complete (2026-05-06)** — Public menu option selection + cart.
-- Radio/checkbox/half-and-half selectors in product modal; `canAddToCart` gate (ORD-08–12)
-- `CartItem` extended with `selectedOptions`, `unitPrice`, composite `cartKey` (ORD-13–16)
-- Cart popup shows options summary per item; totals use `unitPrice`; feature-gated by `directOrdersEnabled`
+**v1.1 Phase 7 complete (2026-05-06)** — Checkout: order placed, confirmation screen shown.
+- `selected_options` persisted to DB via API + order_items insert (ORD-19)
+- `orderId`/`confirmedCart` state + CartModal confirmation view with order #, items, total (ORD-17, ORD-18)
+- Explicit "Close" button dismiss; no auto-close timer
 
+*Phase 6 (2026-05-06)*: Public menu option selectors + cart (radio/checkbox/half-and-half, composite cartKey).
 *Phase 5 (2026-05-06)*: Admin option group CRUD at `/admin/menu/products/[id]`.
 
 *Phase 4 (2026-05-06)*: DB schema — product_option_groups, product_options, orders v1.1, TypeScript types.
@@ -66,6 +67,7 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 - ✓ TypeScript types for all 4 new tables — Phase 4
 - ✓ Admin UI: option group + option CRUD, adaptive price field, ↑↓ reorder — Phase 5
 - ✓ Public menu: option selectors (radio/checkbox/half-and-half), cart with composite keys, unitPrice — Phase 6
+- ✓ Checkout: selected_options to DB, order confirmation screen with order ID, items, total — Phase 7
 
 ### Active — v1.1
 
@@ -106,4 +108,4 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-06 after Phase 6 (Public Menu Option Selectors + Cart)*
+*Last updated: 2026-05-06 after Phase 7 (Checkout)*
