@@ -60,6 +60,7 @@ export default function OrdersClient({ initialOrders }: OrdersClientProps) {
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">ID</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Customer</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Phone</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Items</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Total</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Status</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Date</th>
@@ -75,6 +76,11 @@ export default function OrdersClient({ initialOrders }: OrdersClientProps) {
                   <td className="px-4 py-3 text-xs text-zinc-500 font-mono">{order.id.slice(0, 8)}</td>
                   <td className="px-4 py-3 text-sm text-zinc-900">{order.customer_name}</td>
                   <td className="px-4 py-3 text-sm text-zinc-600">{order.customer_phone}</td>
+                  <td className="px-4 py-3 text-sm text-zinc-600">
+                    {(order.order_items?.length ?? 0) === 1
+                      ? '1 item'
+                      : `${order.order_items?.length ?? 0} items`}
+                  </td>
                   <td className="px-4 py-3 text-sm text-zinc-900 font-medium">R$ {order.total.toFixed(2)}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
@@ -108,13 +114,30 @@ export default function OrdersClient({ initialOrders }: OrdersClientProps) {
                 <p className="text-xs text-zinc-500 uppercase mb-1">Phone</p>
                 <p className="text-zinc-900">{selectedOrder.customer_phone}</p>
               </div>
+              {selectedOrder.notes && (
+                <div>
+                  <p className="text-xs text-zinc-500 uppercase mb-1">Notes</p>
+                  <p className="text-sm text-zinc-700">{selectedOrder.notes}</p>
+                </div>
+              )}
               <div>
                 <p className="text-xs text-zinc-500 uppercase mb-1">Items</p>
                 <div className="space-y-2">
                   {selectedOrder.order_items?.map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span className="text-zinc-700">{item.quantity}x {item.product_name}</span>
-                      <span className="text-zinc-900 font-medium">R$ {(item.unit_price * item.quantity).toFixed(2)}</span>
+                    <div key={idx} className="flex flex-col gap-0.5">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-zinc-700">{item.quantity}x {item.product_name}</span>
+                        <span className="text-zinc-900 font-medium">R$ {(item.unit_price * item.quantity).toFixed(2)}</span>
+                      </div>
+                      {item.selected_options &&
+                        typeof item.selected_options === 'object' &&
+                        Object.keys(item.selected_options).length > 0 && (
+                          <span className="text-xs text-zinc-500">
+                            {Object.values(item.selected_options as Record<string, unknown>)
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </span>
+                      )}
                     </div>
                   ))}
                 </div>
