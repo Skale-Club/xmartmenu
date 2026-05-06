@@ -29,10 +29,12 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 
 ## Current State
 
-**v1.1 Phase 5 complete (2026-05-06)** — Admin UI for product option groups shipped.
-- `/admin/menu/products/[id]` detail page with inline group/option CRUD (ORD-05, ORD-06, ORD-07)
-- `OptionGroupForm` + `OptionForm` with adaptive price field (base_price vs price_modifier per group type)
-- ↑↓ position reordering for groups and options, ConfirmDialog deletes, build exits 0
+**v1.1 Phase 6 complete (2026-05-06)** — Public menu option selection + cart.
+- Radio/checkbox/half-and-half selectors in product modal; `canAddToCart` gate (ORD-08–12)
+- `CartItem` extended with `selectedOptions`, `unitPrice`, composite `cartKey` (ORD-13–16)
+- Cart popup shows options summary per item; totals use `unitPrice`; feature-gated by `directOrdersEnabled`
+
+*Phase 5 (2026-05-06)*: Admin option group CRUD at `/admin/menu/products/[id]`.
 
 *Phase 4 (2026-05-06)*: DB schema — product_option_groups, product_options, orders v1.1, TypeScript types.
 *v1.0 Foundation (2026-05-06)*: 3 phases, 6 plans. ISR caching, 3 security fixes, CI/CD.
@@ -63,6 +65,7 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 - ✓ DB schema: product_option_groups, product_options, orders v1.1, order_items v1.1 — Phase 4
 - ✓ TypeScript types for all 4 new tables — Phase 4
 - ✓ Admin UI: option group + option CRUD, adaptive price field, ↑↓ reorder — Phase 5
+- ✓ Public menu: option selectors (radio/checkbox/half-and-half), cart with composite keys, unitPrice — Phase 6
 
 ### Active — v1.1
 
@@ -103,4 +106,4 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-06 after Phase 5 (Admin Product Options UI)*
+*Last updated: 2026-05-06 after Phase 6 (Public Menu Option Selectors + Cart)*
