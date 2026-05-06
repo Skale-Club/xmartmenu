@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { formatPrice } from '@/lib/utils'
 import type { Category, Product, TenantWithSettings } from '@/types/database'
+import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 
 interface Props {
   tenant: TenantWithSettings
@@ -17,6 +18,7 @@ interface Props {
   } | null
   initialLanguage?: string
   footerBrand?: string
+  optionGroupsByProductId?: Record<string, GroupWithOptions[]>
 }
 
 const DAYS: Record<string, string> = {
@@ -53,9 +55,18 @@ function getTranslatedMenuField(
 interface CartItem {
   product: Product
   quantity: number
+  selectedOptions: Record<string, unknown>
+  unitPrice: number
+  cartKey: string
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, initialLanguage, footerBrand = 'XmartMenu' }: Props) {
+function buildCartKey(productId: string, selectedOptions: Record<string, unknown>): string {
+  return `${productId}::${JSON.stringify(
+    Object.fromEntries(Object.entries(selectedOptions).sort(([a], [b]) => a.localeCompare(b)))
+  )}`
+}
+
+export default function MenuPage({ tenant, categories, products, menu = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {} }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -117,35 +128,34 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
 
   const directOrdersEnabled = settings?.direct_orders_enabled ?? false
 
-  const cartTotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0)
+  const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product) {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number) {
+    const key = buildCartKey(product.id, selectedOptions)
     setCart(prev => {
-      const existing = prev.find(item => item.product.id === product.id)
+      const existing = prev.find(item => item.cartKey === key)
       if (existing) {
         return prev.map(item =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+          item.cartKey === key ? { ...item, quantity: item.quantity + 1 } : item
         )
       }
-      return [...prev, { product, quantity: 1 }]
+      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key }]
     })
   }
 
-  function removeFromCart(productId: string) {
-    setCart(prev => prev.filter(item => item.product.id !== productId))
+  function removeFromCart(itemCartKey: string) {
+    setCart(prev => prev.filter(item => item.cartKey !== itemCartKey))
   }
 
-  function updateCartQuantity(productId: string, quantity: number) {
+  function updateCartQuantity(itemCartKey: string, quantity: number) {
     if (quantity <= 0) {
-      removeFromCart(productId)
+      removeFromCart(itemCartKey)
       return
     }
     setCart(prev =>
       prev.map(item =>
-        item.product.id === productId ? { ...item, quantity } : item
+        item.cartKey === itemCartKey ? { ...item, quantity } : item
       )
     )
   }
@@ -175,7 +185,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             product_id: item.product.id,
             product_name: item.product.name,
             quantity: item.quantity,
-            unit_price: item.product.price,
+            unit_price: item.unitPrice,
           })),
         }),
       })
@@ -560,7 +570,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           lang={selectedLanguage}
           onClose={() => setSelectedProduct(null)}
           onWhatsApp={() => openWhatsApp(selectedProduct)}
-          onAddToCart={directOrdersEnabled ? () => { addToCart(selectedProduct); setSelectedProduct(null) } : undefined}
+          onAddToCart={directOrdersEnabled ? () => { addToCart(selectedProduct, {}, selectedProduct.price); setSelectedProduct(null) } : undefined}
         />
       )}
 
