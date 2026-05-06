@@ -1,89 +1,78 @@
-# Requirements — v1.1 Orders
+# Requirements — v1.2 AI Onboarding
 
-**Milestone:** v1.1 Orders
+**Milestone:** v1.2 AI Onboarding
 **Created:** 2026-05-06
 
-## v1 Requirements
+## v1.2 Requirements
 
-### Schema (database layer)
+### Text Seeding
 
-- [x] **ORD-01**: `product_option_groups` table exists with fields: id, product_id, tenant_id, name, type (single|multiple|half_and_half), required, min_selections, max_selections, price_rule (max|average|sum|fixed), position, translations JSONB
-- [x] **ORD-02**: `product_options` table exists with fields: id, group_id, tenant_id, name, base_price (nullable), price_modifier, is_available, position, translations JSONB
-- [x] **ORD-03**: `orders` table exists with fields: id, tenant_id, customer_name, customer_phone, status (pending|preparing|ready|done|cancelled), total, notes, created_at — RLS: tenant-scoped for admin read, public insert only if orders_enabled
-- [x] **ORD-04**: `order_items` table exists with fields: id, order_id, product_id, product_name, quantity, unit_price, selected_options JSONB, notes — unit_price stores final resolved price (size + half-and-half already computed)
+- [ ] **AI-01**: Tenant can initiate AI text seeding during onboarding by selecting their business type (pizzaria, hamburgueria, churrascaria, etc.)
+- [ ] **AI-02**: System generates PT and EN menu categories based on selected business type (e.g. pizzaria → Pizzas, Bebidas, Sobremesas)
+- [ ] **AI-03**: System generates PT and EN product name and description for representative items within each generated category
+- [ ] **AI-04**: System generates restaurant copy in PT and EN: suggested name, tagline, and "about" text based on business type
+- [ ] **AI-05**: Tenant can review, edit, and selectively delete generated text content in a review screen before any data is written to the database
+- [ ] **AI-06**: Text seeding calls are rate-limited per tenant via an `ai_usage` table (daily limit enforced server-side)
 
-### Admin — product option groups
+### Image Seeding
 
-- [x] **ORD-05**: Store admin can add option groups to a product (name, type, required, min/max_selections)
-- [x] **ORD-06**: Store admin can add/edit/delete individual options within a group (name, base_price or price_modifier, availability)
-- [x] **ORD-07**: Store admin can reorder option groups and options via position field
+- [ ] **AI-07**: System generates a restaurant cover/banner photo via `gpt-image-1-mini` conditioned on business type and restaurant name
+- [ ] **AI-08**: System suggests per-product stock photos sourced from Pexels or Unsplash based on item name (safer than AI-generated food images)
+- [ ] **AI-09**: Tenant can review, approve, or reject each image in a review screen before any upload to Supabase Storage
+- [ ] **AI-10**: Image generation is rate-limited per tenant (daily limit shared with `ai_usage` table; each image counts against the quota)
 
-### Public menu — option selection
+### Menu Photo OCR
 
-- [x] **ORD-08**: Customer sees product option groups when opening a product detail
-- [x] **ORD-09**: Customer can select exactly one option from a `single`-type group (radio — required group blocks add-to-cart if unselected)
-- [x] **ORD-10**: Customer can select one or more options from a `multiple`-type group (checkboxes, respects min/max_selections)
-- [x] **ORD-11**: Customer can pick two flavors for a `half_and_half`-type group (two sequential selectors); price resolves via `max(half1.base_price, half2.base_price)` for the chosen size
-- [x] **ORD-12**: Customer can add product with resolved options and computed unit_price to cart
+- [ ] **AI-11**: Tenant can upload a photo of their physical menu during onboarding; upload goes directly to Supabase Storage (bypasses Vercel's 4.5 MB request body limit)
+- [ ] **AI-12**: System extracts categories, item names, and prices from the uploaded photo via GPT-4.1-mini vision, returning structured JSON
+- [ ] **AI-13**: Tenant can review, edit, and selectively delete extracted items in a review screen before any data is committed to the database — no auto-commit path exists
+- [ ] **AI-14**: Store admin can import a menu via photo from the admin panel at any time (not limited to the onboarding flow)
 
-### Cart
+### Infrastructure & Safety
 
-- [x] **ORD-13**: Customer can view cart popup at bottom of menu page with all items, quantities, and totals
-- [x] **ORD-14**: Customer can increment/decrement item quantity from cart (+/- controls)
-- [x] **ORD-15**: Customer can remove an item from cart
-- [x] **ORD-16**: Cart total recalculates automatically when items change
+- [ ] **AI-15**: Each AI feature (text seeding, image seeding, OCR) has an independent feature flag; a tenant can enable any subset without enabling all three
+- [ ] **AI-16**: All LLM prompts sanitize tenant-supplied strings (company_name, business_type) before interpolation to prevent prompt injection
+- [ ] **AI-17**: Public menu routes are revalidated via `revalidatePath()` after any AI seeding write commits data to the database (prevents stale ISR cache)
+- [ ] **AI-18**: `ai_usage` table tracks per-tenant daily AI calls; server-side guard blocks further calls once the daily limit is reached
 
-### Checkout
+## Future Requirements (deferred from v1.2)
 
-- [x] **ORD-17**: Customer can enter name and phone number to place order
-- [x] **ORD-18**: Customer sees order confirmation screen after successful order (order id, items, total)
-- [x] **ORD-19**: Order is persisted to DB with all items and selected_options JSONB
-
-### Tenant order management
-
-- [x] **ORD-20**: Store admin can view list of incoming orders sorted by date (most recent first)
-- [x] **ORD-21**: Store admin can update order status (pending → preparing → ready → done)
-
-## Future Requirements (deferred from v1.1)
-
-- Order push notifications (kitchen display / WhatsApp)
-- Split-bill support
-- Table-side ordering (table number field)
-- Kitchen ticket printing
-- Order history for customer (by phone number)
-- Delivery address + delivery fee
-- Order editing after placement
-- Coupon / discount codes
+- Automatic language detection from OCR output (currently caller must specify locale)
+- Handwritten menu support (low-quality photo enhancement before OCR)
+- AI-generated menu descriptions for existing (non-seeded) products
+- Credit balance per tenant (pay-per-use model) — v1.2 uses hard daily cap
+- Superadmin dashboard for AI cost attribution per tenant
+- Content moderation check on AI-generated images before storage
+- Allergen / dietary tag inference from product descriptions
 
 ## Out of Scope
 
-- Payment processing — deferred to v1.2 (SEED-003 Stripe Connect)
-- Allergen / dietary labels — v1.3+
-- Multi-language option group names in public UI — i18n already stored in translations JSONB, display deferred
-- Real-time order status updates for customer — deferred (polling or push later)
+- Payment processing — deferred to v1.3 (SEED-003 Stripe Connect)
+- Marketing landing page — deferred to v1.3+ (SEED-005)
+- Full performance milestone — deferred to SEED-004
+- Real-time AI generation progress (WebSocket) — SSE streaming is sufficient for v1.2
+- Auto-commit without review — explicitly prohibited by research findings
+- Local OCR libraries (Tesseract.js, pdfjs) — bundle too large for Vercel serverless
 
 ## Traceability
 
 | REQ-ID | Phase | Status |
-|---|---|---|
-| ORD-01 | Phase 4 — Schema | Complete |
-| ORD-02 | Phase 4 — Schema | Complete |
-| ORD-03 | Phase 4 — Schema | Complete |
-| ORD-04 | Phase 4 — Schema | Complete |
-| ORD-05 | Phase 5 — Admin Options UI | Complete |
-| ORD-06 | Phase 5 — Admin Options UI | Complete |
-| ORD-07 | Phase 5 — Admin Options UI | Complete |
-| ORD-08 | Phase 6 — Public Menu + Cart | Complete |
-| ORD-09 | Phase 6 — Public Menu + Cart | Complete |
-| ORD-10 | Phase 6 — Public Menu + Cart | Complete |
-| ORD-11 | Phase 6 — Public Menu + Cart | Complete |
-| ORD-12 | Phase 6 — Public Menu + Cart | Complete |
-| ORD-13 | Phase 6 — Public Menu + Cart | Complete |
-| ORD-14 | Phase 6 — Public Menu + Cart | Complete |
-| ORD-15 | Phase 6 — Public Menu + Cart | Complete |
-| ORD-16 | Phase 6 — Public Menu + Cart | Complete |
-| ORD-17 | Phase 7 — Checkout | Complete |
-| ORD-18 | Phase 7 — Checkout | Complete |
-| ORD-19 | Phase 7 — Checkout | Complete |
-| ORD-20 | Phase 8 — Tenant Orders View | Complete |
-| ORD-21 | Phase 8 — Tenant Orders View | Complete |
+|--------|-------|--------|
+| AI-01 | TBD — Text Seeding | Pending |
+| AI-02 | TBD — Text Seeding | Pending |
+| AI-03 | TBD — Text Seeding | Pending |
+| AI-04 | TBD — Text Seeding | Pending |
+| AI-05 | TBD — Text Seeding | Pending |
+| AI-06 | TBD — Text Seeding | Pending |
+| AI-07 | TBD — Image Seeding | Pending |
+| AI-08 | TBD — Image Seeding | Pending |
+| AI-09 | TBD — Image Seeding | Pending |
+| AI-10 | TBD — Image Seeding | Pending |
+| AI-11 | TBD — Menu OCR | Pending |
+| AI-12 | TBD — Menu OCR | Pending |
+| AI-13 | TBD — Menu OCR | Pending |
+| AI-14 | TBD — Menu OCR | Pending |
+| AI-15 | TBD — Infra | Pending |
+| AI-16 | TBD — Infra | Pending |
+| AI-17 | TBD — Infra | Pending |
+| AI-18 | TBD — Infra | Pending |
