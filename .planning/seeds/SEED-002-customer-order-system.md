@@ -1,7 +1,9 @@
 ---
 id: SEED-002
-status: dormant
+status: completed
 planted: 2026-05-05
+completed: 2026-05-06
+completed_in: v1.1 (Orders milestone — phases 04–08)
 planted_during: pre-GSD (no .planning/STATE.md yet)
 trigger_when: tenant onboarding is solid and at least one tenant has a populated menu to order from
 scope: large
