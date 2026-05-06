@@ -8,7 +8,7 @@
 
 | # | Phase | Goal | Requirements | Status |
 |---|---|---|---|---|
-| 1 | Performance | Public menu loads fast, no admin JS leak | PERF-01–07 | 🔲 Not started |
+| 1 | Performance | 1/2 | In Progress|  |
 | 2 | Security | Fix HIGH issues from audit | SEC-01–03 | 🔲 Not started |
 | 3 | CI/CD | No broken builds on main | CI-01–02 | 🔲 Not started |
 
@@ -20,7 +20,7 @@
 
 **Requirements:** PERF-01, PERF-02, PERF-03, PERF-04, PERF-05, PERF-06, PERF-07
 
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 **Success criteria:**
 1. `force-dynamic` removed from public routes — pages use ISR with 60s revalidate
@@ -32,7 +32,7 @@
 
 Plans:
 - [ ] 01-01-PLAN.md — Public route caching + query optimization (revalidate=60, React cache(), parallel fetch)
-- [ ] 01-02-PLAN.md — browserslist field in package.json to reduce polyfill bundle
+- [x] 01-02-PLAN.md — browserslist field in package.json to reduce polyfill bundle
 
 ---
 
