@@ -112,8 +112,10 @@ Plans:
   2. Each order row shows customer name, phone, items summary, total, current status, and creation time
   3. Admin can advance an order through statuses: pending → preparing → ready → done
   4. Status changes persist to the database immediately without a page reload
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+
+Plans:
+- [ ] 08-01-PLAN.md — Add Items column to order table + selected_options and notes display in detail modal
 
 ## Progress
 
@@ -126,4 +128,4 @@ Plans:
 | 5. Admin Product Options UI | v1.1 | 3/3 | Complete | 2026-05-06 |
 | 6. Public Menu: Option Selectors + Cart | v1.1 | 3/3 | Complete   | 2026-05-06 |
 | 7. Checkout | v1.1 | 2/2 | Complete | 2026-05-06 |
-| 8. Tenant Orders View | v1.1 | 0/? | Not started | - |
+| 8. Tenant Orders View | v1.1 | 0/1 | Not started | - |
