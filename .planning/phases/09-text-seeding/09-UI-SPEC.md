@@ -45,7 +45,6 @@ Declared values (multiples of 4 only):
 
 Exceptions:
 - `p-5` (20px) is used in existing card bodies — preserve for consistency, do not normalize to 24px
-- Touch targets for seed buttons: minimum 32px height (`py-1.5` + `text-xs` = ~30px) — internal tool, superadmin-only, 32px acceptable
 
 ---
 
@@ -138,7 +137,7 @@ Secondary button class: `border border-zinc-200 text-zinc-700 bg-white px-4 py-2
 
 Placed in the Menus tab, inline with the "Add category" and "Add product" inputs. Appears as a secondary action alongside the existing submit button for each input row.
 
-Button class: `border border-zinc-200 text-zinc-700 bg-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors`
+Button class: `border border-zinc-200 text-zinc-700 bg-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors`
 
 Label: "Seed" (verb only — intentional: spatial context of the inline form row makes the noun implicit; adding "category" or "product" would overflow the compact row layout)
 
