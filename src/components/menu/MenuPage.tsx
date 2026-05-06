@@ -32,13 +32,18 @@ function getProductImages(product: Product) {
   return Array.from(new Set([...fromArray, ...fromSingle]))
 }
 
-const UI_COPY: Record<string, { search: string; all: string; featured: string; noItems: string; tryAnother: string; other: string; createAccount: string; hoursBtn: string; hoursTitle: string }> = {
-  en: { search: 'Search the menu...', all: 'All', featured: 'Featured', noItems: 'No items found', tryAnother: 'Try a different search term', other: 'Other', createAccount: 'Create account', hoursBtn: 'See our hours', hoursTitle: 'Opening hours' },
-  pt: { search: 'Buscar no cardápio...', all: 'Todos', featured: 'Destaques', noItems: 'Nenhum item encontrado', tryAnother: 'Tente outro termo de busca', other: 'Outros', createAccount: 'Criar conta', hoursBtn: 'Veja nossos horários', hoursTitle: 'Horários de funcionamento' },
-  es: { search: 'Buscar en el menú...', all: 'Todos', featured: 'Destacados', noItems: 'No se encontraron items', tryAnother: 'Prueba otro término de búsqueda', other: 'Otros', createAccount: 'Crear cuenta', hoursBtn: 'Ver nuestros horarios', hoursTitle: 'Horarios de atención' },
-  fr: { search: 'Rechercher dans le menu...', all: 'Tous', featured: 'En vedette', noItems: 'Aucun article trouvé', tryAnother: 'Essayez un autre terme', other: 'Autres', createAccount: 'Créer un compte', hoursBtn: 'Voir nos horaires', hoursTitle: 'Horaires d\'ouverture' },
-  de: { search: 'Im Menü suchen...', all: 'Alle', featured: 'Empfohlen', noItems: 'Keine Artikel gefunden', tryAnother: 'Versuche einen anderen Suchbegriff', other: 'Andere', createAccount: 'Konto erstellen', hoursBtn: 'Öffnungszeiten', hoursTitle: 'Öffnungszeiten' },
-  it: { search: 'Cerca nel menu...', all: 'Tutti', featured: 'In evidenza', noItems: 'Nessun elemento trovato', tryAnother: 'Prova un altro termine', other: 'Altro', createAccount: 'Crea account', hoursBtn: 'Vedi i nostri orari', hoursTitle: 'Orari di apertura' },
+const UI_COPY: Record<string, {
+  search: string; all: string; featured: string; noItems: string; tryAnother: string;
+  other: string; createAccount: string; hoursBtn: string; hoursTitle: string;
+  required: string; chooseUpTo: string; chooseAtLeast: string; chooseBetween: string;
+  firstHalf: string; secondHalf: string;
+}> = {
+  en: { search: 'Search the menu...', all: 'All', featured: 'Featured', noItems: 'No items found', tryAnother: 'Try a different search term', other: 'Other', createAccount: 'Create account', hoursBtn: 'See our hours', hoursTitle: 'Opening hours', required: 'Required', chooseUpTo: 'Choose up to {max}', chooseAtLeast: 'Choose at least {min}', chooseBetween: 'Choose {min}–{max}', firstHalf: '1st half', secondHalf: '2nd half' },
+  pt: { search: 'Buscar no cardápio...', all: 'Todos', featured: 'Destaques', noItems: 'Nenhum item encontrado', tryAnother: 'Tente outro termo de busca', other: 'Outros', createAccount: 'Criar conta', hoursBtn: 'Veja nossos horários', hoursTitle: 'Horários de funcionamento', required: 'Obrigatório', chooseUpTo: 'Escolha até {max}', chooseAtLeast: 'Escolha pelo menos {min}', chooseBetween: 'Escolha {min}–{max}', firstHalf: '1ª metade', secondHalf: '2ª metade' },
+  es: { search: 'Buscar en el menú...', all: 'Todos', featured: 'Destacados', noItems: 'No se encontraron items', tryAnother: 'Prueba otro término de búsqueda', other: 'Otros', createAccount: 'Crear cuenta', hoursBtn: 'Ver nuestros horarios', hoursTitle: 'Horarios de atención', required: 'Obligatorio', chooseUpTo: 'Elige hasta {max}', chooseAtLeast: 'Elige al menos {min}', chooseBetween: 'Elige {min}–{max}', firstHalf: '1ª mitad', secondHalf: '2ª mitad' },
+  fr: { search: 'Rechercher dans le menu...', all: 'Tous', featured: 'En vedette', noItems: 'Aucun article trouvé', tryAnother: 'Essayez un autre terme', other: 'Autres', createAccount: 'Créer un compte', hoursBtn: 'Voir nos horaires', hoursTitle: 'Horaires d\'ouverture', required: 'Obligatoire', chooseUpTo: 'Choisissez jusqu\'à {max}', chooseAtLeast: 'Choisissez au moins {min}', chooseBetween: 'Choisissez {min}–{max}', firstHalf: '1re moitié', secondHalf: '2e moitié' },
+  de: { search: 'Im Menü suchen...', all: 'Alle', featured: 'Empfohlen', noItems: 'Keine Artikel gefunden', tryAnother: 'Versuche einen anderen Suchbegriff', other: 'Andere', createAccount: 'Konto erstellen', hoursBtn: 'Öffnungszeiten', hoursTitle: 'Öffnungszeiten', required: 'Pflichtfeld', chooseUpTo: 'Wähle bis zu {max}', chooseAtLeast: 'Wähle mindestens {min}', chooseBetween: 'Wähle {min}–{max}', firstHalf: '1. Hälfte', secondHalf: '2. Hälfte' },
+  it: { search: 'Cerca nel menu...', all: 'Tutti', featured: 'In evidenza', noItems: 'Nessun elemento trovato', tryAnother: 'Prova un altro termine', other: 'Altro', createAccount: 'Crea account', hoursBtn: 'Vedi i nostri orari', hoursTitle: 'Orari di apertura', required: 'Obbligatorio', chooseUpTo: 'Scegli fino a {max}', chooseAtLeast: 'Scegli almeno {min}', chooseBetween: 'Scegli {min}–{max}', firstHalf: '1a metà', secondHalf: '2a metà' },
 }
 
 function getTranslatedMenuField(
@@ -570,7 +575,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           lang={selectedLanguage}
           onClose={() => setSelectedProduct(null)}
           onWhatsApp={() => openWhatsApp(selectedProduct)}
-          onAddToCart={directOrdersEnabled ? () => { addToCart(selectedProduct, {}, selectedProduct.price); setSelectedProduct(null) } : undefined}
+          onAddToCart={directOrdersEnabled ? (selectedOptions, unitPrice) => { addToCart(selectedProduct, selectedOptions, unitPrice); setSelectedProduct(null) } : undefined}
         />
       )}
 
@@ -707,8 +712,10 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
   )
 }
 
-function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart }: {
-  product: Product; accentColor: string; currency: string; whatsapp?: string | null; lang: string; onClose: () => void; onWhatsApp: () => void; onAddToCart?: () => void
+function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [] }: {
+  product: Product; accentColor: string; currency: string; whatsapp?: string | null;
+  lang: string; onClose: () => void; onWhatsApp: () => void; onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number) => void;
+  optionGroups?: GroupWithOptions[]
 }) {
   const images = getProductImages(product)
   const [imageIndex, setImageIndex] = useState(0)
@@ -721,6 +728,61 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
   useEffect(() => {
     setImageIndex(0)
   }, [product.id])
+
+  const [singleSelections, setSingleSelections] = useState<Record<string, string>>({})
+  const [halfSelections, setHalfSelections] = useState<Record<string, { half1: string | null; half2: string | null }>>({})
+  const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>({})
+
+  useEffect(() => {
+    setSingleSelections({})
+    setHalfSelections({})
+    setMultiSelections({})
+  }, [product.id])
+
+  const canAddToCart = optionGroups.every(group => {
+    if (!group.required) return true
+    if (group.type === 'single') return !!singleSelections[group.id]
+    if (group.type === 'half_and_half') {
+      const half = halfSelections[group.id]
+      return !!half?.half1 && !!half?.half2
+    }
+    if (group.type === 'multiple') {
+      const sel = multiSelections[group.id] ?? []
+      return sel.length >= group.min_selections
+    }
+    return true
+  })
+
+  const computedUnitPrice = (() => {
+    let price = product.price
+    for (const group of optionGroups) {
+      if (group.type === 'single') {
+        const optId = singleSelections[group.id]
+        if (optId) {
+          const opt = group.options.find(o => o.id === optId)
+          if (opt) {
+            if (opt.base_price !== null) price = opt.base_price
+            else price += opt.price_modifier
+          }
+        }
+      } else if (group.type === 'half_and_half') {
+        const half = halfSelections[group.id]
+        if (half?.half1 && half?.half2) {
+          const opt1 = group.options.find(o => o.id === half.half1)
+          const opt2 = group.options.find(o => o.id === half.half2)
+          // D-10: max of the two base_prices (not price_modifier)
+          price = Math.max(opt1?.base_price ?? 0, opt2?.base_price ?? 0)
+        }
+      } else if (group.type === 'multiple') {
+        const sel = multiSelections[group.id] ?? []
+        for (const optId of sel) {
+          const opt = group.options.find(o => o.id === optId)
+          if (opt) price += opt.price_modifier
+        }
+      }
+    }
+    return price
+  })()
 
   const prevImage = () => setImageIndex(i => (i - 1 + images.length) % images.length)
   const nextImage = () => setImageIndex(i => (i + 1) % images.length)
@@ -830,7 +892,7 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
                 </button>
               )}
               {onAddToCart && (
-                <button onClick={onAddToCart} className="w-full sm:w-auto bg-zinc-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors">
+                <button onClick={() => onAddToCart({}, computedUnitPrice)} className="w-full sm:w-auto bg-zinc-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-zinc-800 transition-colors">
                   Add to cart
                 </button>
               )}
