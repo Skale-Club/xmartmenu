@@ -70,7 +70,8 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ redirectTo: '/dashboard' })
-  } catch {
+  } catch (err) {
+    console.error('[resolve-redirect] failed', err)
     return NextResponse.json({ redirectTo: '/auth/login?error=auth_failed' }, { status: 500 })
   }
 }
