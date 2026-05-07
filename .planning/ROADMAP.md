@@ -54,7 +54,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 | # | Phase | Plans | Status |
 |---|---|---|---|
 | 12 | Core Landing Page | 3/3 | ✅ 2026-05-07 |
-| 13 | SEO & Metadata | 2/2 | ✅ 2026-05-07 |
+| 13 | SEO & Metadata | Complete    | 2026-05-07 |
 
 </details>
 
