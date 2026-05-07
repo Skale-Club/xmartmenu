@@ -104,5 +104,5 @@ Plans:
 | 7. Checkout | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
 | 9. Text Seeding | v1.2 | 3/3 | Complete   | 2026-05-06 |
-| 10. Image Seeding | v1.2 | 3/3 | Complete   | 2026-05-07 |
+| 10. Image Seeding | v1.2 | 3/3 | Complete    | 2026-05-07 |
 | 11. Menu Photo OCR | v1.2 | 0/? | Not started | - |
