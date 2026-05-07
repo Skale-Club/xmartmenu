@@ -28,6 +28,17 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
+## Current Milestone: v1.4 Performance
+
+**Goal:** Medir performance real do sistema e otimizar os gargalos encontrados — DB queries, bundle, Core Web Vitals e observabilidade em produção.
+
+**Target features:**
+- Instrumentação: analisar Vercel Speed Insights + query logging no Supabase
+- DB indices: EXPLAIN ANALYZE nas queries críticas (menu público, pedidos, tenant lookup) + índices onde necessário
+- Lighthouse audit: landing page + /{slug} público — metas definidas após medição
+- Bundle: tree-shaking, lazy loading, ISR tuning
+- RUM: dashboards de Core Web Vitals por rota
+
 ## Current State
 
 **v1.3 Landing Page shipped (2026-05-07)** — Static marketing page live at xmartmenu.skale.club.
@@ -101,7 +112,11 @@ SEO at `src/app/`:
 
 ### Active — v1.4
 
-(To be defined — run `/gsd:new-milestone`)
+- [ ] Instrumentação e coleta de dados de performance reais (Speed Insights, query logs)
+- [ ] DB indices nas queries críticas com base em EXPLAIN ANALYZE
+- [ ] Lighthouse 90+ na landing page e no menu público
+- [ ] Bundle otimizado (lazy loading, tree-shaking, ISR tuning)
+- [ ] RUM: Core Web Vitals por rota em produção
 
 ### Deferred (seeds)
 
@@ -150,4 +165,4 @@ SEO at `src/app/`:
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-07 — v1.3 Landing Page milestone complete*
+*Last updated: 2026-05-07 — v1.4 Performance milestone started*
