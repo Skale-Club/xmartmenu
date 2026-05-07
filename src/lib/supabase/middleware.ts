@@ -3,6 +3,11 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { normalizeRole } from '@/lib/auth/role-utils'
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  const MARKETING_PATHS = ['/', '/sitemap.xml', '/robots.txt']
+  const isMarketing = MARKETING_PATHS.includes(pathname) || pathname.startsWith('/opengraph-image')
+  if (isMarketing) return NextResponse.next({ request })
+
   let supabaseResponse = NextResponse.next({ request })
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -39,8 +44,6 @@ export async function updateSession(request: NextRequest) {
     // If Supabase is unreachable, allow the request to continue
     return supabaseResponse
   }
-
-  const pathname = request.nextUrl.pathname
 
   const isAdminRoute = pathname.startsWith('/dashboard') ||
     pathname.startsWith('/menu') ||
