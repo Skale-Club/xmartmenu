@@ -1,10 +1,10 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.3
-milestone_name: Landing Page
-status: roadmap_complete
-stopped_at: Roadmap created — ready for Phase 12 planning
-last_updated: "2026-05-07T00:00:00.000Z"
+milestone_name: Landing Page — Active
+status: planning
+stopped_at: Phase 12 UI-SPEC approved
+last_updated: "2026-05-07T17:49:18.836Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 2
@@ -141,6 +141,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07
-Stopped at: v1.3 roadmap created — Phase 12 and Phase 13 defined
-Resume file: None
+Last session: 2026-05-07T17:49:18.797Z
+Stopped at: Phase 12 UI-SPEC approved
+Resume file: .planning/phases/12-core-landing-page/12-UI-SPEC.md
