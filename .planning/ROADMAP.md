@@ -84,7 +84,11 @@ Plans:
   1. Superadmin uploads a menu photo from the tenant detail page; upload goes directly to Supabase Storage (bypasses Vercel 4.5 MB body limit)
   2. Extracted categories and products appear in the tenant's tables immediately; prices that fail parsing are saved as `0`
   3. Superadmin can verify and fix any extraction errors using the regular admin UI
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [x] 11-01-PLAN.md — OCR infrastructure: @ai-sdk/openai, OcrMenuSchema, GET ocr-upload-token route, Supabase Storage bucket
+- [x] 11-02-PLAN.md — OCR menu route + UI: POST ocr-menu (GPT-4.1-mini vision, DB write), OCR upload section in TenantDetailClient
+- [x] 11-03-PLAN.md — OCR UI close-out: wave 3 plan superseded by Wave 2 agent; documented as complete
 **UI hint**: yes
 
 ## Progress
@@ -101,4 +105,4 @@ Plans:
 | 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
 | 9. Text Seeding | v1.2 | 3/3 | Complete   | 2026-05-06 |
 | 10. Image Seeding | v1.2 | 0/? | Not started | - |
-| 11. Menu Photo OCR | v1.2 | 2/1 | Complete   | 2026-05-07 |
+| 11. Menu Photo OCR | v1.2 | 3/3 | Complete   | 2026-05-07 |
