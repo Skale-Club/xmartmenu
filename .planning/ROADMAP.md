@@ -113,5 +113,5 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Core Landing Page | 3/3 | Complete   | 2026-05-07 |
+| 12. Core Landing Page | 3/3 | Complete    | 2026-05-07 |
 | 13. SEO & Metadata | 0/? | Not started | - |
