@@ -34,7 +34,10 @@
       "Bash(git ls-tree:*)",
       "Bash(git:*)",
       "Bash(echo \"EXIT: $?\")",
-      "Bash(xargs -0 grep -h \"ADD COLUMN.*translations\\\\|CREATE TABLE\")"
+      "Bash(xargs -0 grep -h \"ADD COLUMN.*translations\\\\|CREATE TABLE\")",
+      "Bash(taskkill //F //PID 6024)",
+      "Bash(gh pr *)",
+      "Bash(grep -n \"revalidatePath\\(\\\\`/\\\\${tenantSlug}\\\\`\\)\" \"src/app/api/revalidate/route.ts\")"
     ]
   }
 }
