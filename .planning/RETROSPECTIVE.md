@@ -45,6 +45,49 @@
 
 ---
 
+## Milestone: v1.3 — Landing Page
+
+**Shipped:** 2026-05-07
+**Phases:** 2 | **Plans:** 5 | **Tasks:** 10
+
+### What Was Built
+
+- Phase 12: Full static marketing landing page — 7 sections (nav, hero, how-it-works, features, FAQ, CTA, footer), `force-static` Server Components, middleware bypass for `/`, reserved-paths guard, Vercel Analytics + Speed Insights.
+- Phase 13: SEO layer — `sitemap.ts` (MetadataRoute), `robots.ts` (correct Disallow rules), JSON-LD Organization + SoftwareApplication inline in page (not layouts), `opengraph-image.tsx` (32.6 KB PNG), `og:image` meta tag via explicit `openGraph.images` in root layout.
+
+### What Worked
+
+- **Wave-based parallel execution** — Phase 12 used 3 waves cleanly: infrastructure → landing page → OG image/legal. No merge conflicts.
+- **`force-static` decision up front** — Locking this in discuss-phase prevented any accidental Supabase calls from sneaking into the marketing route.
+- **Phase 13 was 2 plans, not 4** — Resisting the urge to over-plan SEO (sitemap + robots + JSON-LD all in one plan) kept execution tight.
+- **Bug caught during verification** — The `og:image` meta tag issue (file convention blocked by explicit `openGraph` override) was found and fixed during the checkpoint, before it could ship silently broken.
+
+### What Was Inefficient
+
+- **`opengraph-image.tsx` placement confusion** — The agent moved the file from `(marketing)/` to root `src/app/` expecting the file convention to inject the meta tag, but it still didn't work due to the explicit `openGraph` object in the layout. Required a second fix (adding `openGraph.images` explicitly). Could have been caught earlier with a quick `curl | grep og:image` during task execution.
+- **Server restart overhead** — Three build+restart cycles to confirm the og:image fix worked. A `next dev` preview with the actual metadata output would have been faster.
+
+### Patterns Established
+
+- **`opengraph-image.tsx` at root `src/app/`, not in route groups** — Route group placement serves the `/opengraph-image` route but Next.js does NOT inject `og:image` meta tag when a parent layout's explicit `openGraph` object overrides the file convention. Always add `openGraph.images` explicitly in root layout metadata.
+- **JSON-LD via inline `dangerouslySetInnerHTML`, never `next/script`** — `next/script` causes RSC hydration duplication in React 19. Server Component + `dangerouslySetInnerHTML` is the correct pattern.
+- **Reserved paths as a shared Set** — One `RESERVED_PATHS` constant used by both middleware and the onboarding API. Prevents tenant slug squatting on marketing paths without duplication.
+- **Middleware bypass for static marketing route** — Always bypass `getUser()` for `/` via `publicRoutes` list; cost is Supabase latency on every visitor to the marketing page.
+
+### Key Lessons
+
+- When Next.js layouts export explicit `openGraph` objects, the `opengraph-image.tsx` file convention is overridden — always add `openGraph.images` explicitly in the layout metadata.
+- After any build change affecting meta tags, run `curl http://localhost:3000/ | grep 'og:image'` before committing. Silent failures on OG tags are common and hard to catch later.
+- `next/script` and JSON-LD do not mix in React 19 App Router — use inline `<script dangerouslySetInnerHTML>` in a Server Component.
+
+### Cost Observations
+
+- Model mix: Sonnet 4.6 orchestration + Sonnet subagents (executor, verifier)
+- Sessions: 1 session
+- Notable: 2-phase milestone completed fast; most time was the human verification checkpoint (og:image debug)
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Phases | Plans | Key Pattern |
@@ -52,7 +95,10 @@
 | v1.0 Foundation | 3 | 6 | ISR, security, CI scaffolding |
 | v1.1 Orders | 5 | 11 | Option groups, cart, checkout |
 | v1.2 AI Onboarding | 3 | 8 | Multi-provider AI, additive seeding |
+| v1.3 Landing Page | 2 | 5 | Static marketing page, SEO, og:image |
 
-**Velocity trend:** Each milestone ships in a single session. Plan density has increased (2–3 tasks/plan), but execution time per plan has stayed roughly constant (~15–30 min).
+**Velocity trend:** Each milestone ships in a single session. v1.3 was the fastest (2 phases, 5 plans) — smaller, more focused scope. Plan density is consistent (~2 tasks/plan).
 
-**Architecture pattern:** New capabilities are consistently added as isolated API routes + `TenantDetailClient.tsx` section extensions. This pattern has scaled cleanly across v1.0→v1.2 without requiring layout redesigns.
+**Architecture pattern:** New capabilities are consistently added as isolated API routes + `TenantDetailClient.tsx` section extensions (v1.0–v1.2). v1.3 broke this pattern by introducing the `(marketing)` route group — the first milestone that is purely frontend/marketing, not adding admin capability.
+
+**Recurring failure mode:** One "silent failure" per milestone that is only caught at verification: v1.2 had merge conflict data loss; v1.3 had the `og:image` meta tag not being injected. Both were caught before shipping. Adding a "smoke test the key deliverable" step to verification plans would catch these earlier.
