@@ -38,6 +38,13 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 
 ## Current State
 
+**v1.2 Phase 10 complete (2026-05-07)** — AI image seeding operational in superadmin panel (programmatic verification; runtime UAT pending).
+- Gemini 3.1 flash-image-preview generates cover photo (16:9) + per-product images (1:1) via GitHub Actions
+- Pipeline: Vercel trigger route → GH Actions workflow_dispatch → `scripts/seed-images.ts` → base64 → Sharp WebP @ 85 → Supabase Storage `tenant-assets` → revalidatePath
+- `ai_jobs` table tracks job status (pending → running → complete | failed); UI polls every 3s, ~5 min timeout
+- "Seed all images" + per-product "Seed image" buttons in superadmin tenant detail
+- Requires: GH Actions secrets (5) + Vercel env vars (4: `GH_PAT`, `GITHUB_REPO_OWNER`, `GITHUB_REPO_NAME`, `VERCEL_REVALIDATE_SECRET`) + Supabase migration 023
+
 **v1.2 Phase 9 complete (2026-05-06)** — AI text seeding operational in superadmin panel.
 - Gemini 2.5 Flash generates English categories, products, restaurant copy, and translations
 - `sanitizeForPrompt()` guards all LLM inputs; `ai_usage` table tracks cost per tenant
@@ -127,4 +134,4 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-06 after Phase 9 (AI Text Seeding)*
+*Last updated: 2026-05-07 after Phase 10 (AI Image Seeding)*
