@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.3
-milestone_name: Landing Page — Complete
-status: completed
-stopped_at: 13-02 complete — v1.3 Landing Page milestone fully shipped
-last_updated: "2026-05-07T23:51:23.978Z"
+milestone: v1.4
+milestone_name: Performance
+status: active
+stopped_at: Defining requirements
+last_updated: "2026-05-07T23:58:00.000Z"
 last_activity: 2026-05-07
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 13 — seo-metadata
+**Current focus:** v1.4 Performance — defining requirements
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
-Status: Complete — v1.3 milestone shipped
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements — v1.4 Performance
 Last activity: 2026-05-07
 
-Progress: [##########] 100% (v1.3 — 2/2 phases)
+Progress: [          ] 0% (v1.4 — roadmap pending)
 
 ## Performance Metrics
 
