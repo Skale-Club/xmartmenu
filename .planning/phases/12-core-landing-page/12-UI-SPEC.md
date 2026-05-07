@@ -117,7 +117,7 @@ Exceptions:
 - Padding: `py-24 px-4` (96px vertical — approved spacing exception, see Spacing Scale)
 - Layout: centered single column, `max-w-2xl mx-auto text-center`
 - Headline: `text-4xl sm:text-5xl font-bold text-zinc-900 leading-tight` — "Your restaurant menu, online in minutes"
-- Subheadline: `text-lg text-zinc-600 mt-4 leading-relaxed` — see Copywriting Contract below
+- Subheadline: `text-xl text-zinc-600 mt-4 leading-relaxed` — see Copywriting Contract below
 - CTA button: `mt-8 inline-flex items-center justify-center bg-zinc-900 text-white px-8 py-3.5 rounded-xl text-base font-bold hover:bg-zinc-800 transition-colors min-h-[44px]`
 - Microcopy below button: `mt-3 text-sm text-zinc-500` — "No credit card required." (Small role, 14px)
 - Source: D-10, D-11, D-12
@@ -167,9 +167,9 @@ Exceptions:
 - Padding: `pt-0 pb-8 px-4` (no top padding — continues from CTA band)
 - Border top: `border-t border-zinc-800` separating from CTA band content
 - Layout: `max-w-5xl mx-auto` — logo+tagline left, Legal group right on desktop; stacked on mobile
-- Logo: `text-white font-bold text-lg`
+- Logo: `text-white font-bold text-base`
 - Tagline: `text-zinc-400 text-sm mt-1`
-- Link group heading: `text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3`
+- Link group heading: `text-sm font-bold text-zinc-400 uppercase tracking-wider mb-3`
 - Links: `text-sm text-zinc-400 hover:text-white transition-colors`
 - Social icons: `w-5 h-5 text-zinc-400 hover:text-white transition-colors` (Instagram, WhatsApp from lucide-react)
 - Copyright bar: `text-sm text-zinc-500 mt-8 text-center` — "© 2026 xmartmenu. All rights reserved." (Small role, 14px)
