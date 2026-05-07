@@ -70,6 +70,11 @@ export default function TenantDetailClient({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
   const [menuCategories, setMenuCategories] = useState<{ id: string; name: string }[]>([])
 
+  // OCR photo upload state — AI-10, AI-11
+  const [ocrFile, setOcrFile] = useState<File | null>(null)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrStatus, setOcrStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
   const base = `/api/superadmin/tenants/${tenant.id}/staff`
 
   async function handleInvite(e: React.FormEvent) {
@@ -218,6 +223,66 @@ export default function TenantDetailClient({
       setTimeout(() => setPerItemError(null), 5000)
     }
     setPerItemLoading(null)
+  }
+
+  async function handleOcrUpload() {
+    if (!ocrFile) {
+      setOcrStatus({ type: 'error', message: 'Select a menu photo first.' })
+      return
+    }
+    if (!selectedMenuId) {
+      setOcrStatus({ type: 'error', message: 'Select a menu before uploading.' })
+      return
+    }
+    setOcrLoading(true)
+    setOcrStatus(null)
+    try {
+      // Step 1: Get signed upload URL from ocr-upload-token route
+      const tokenRes = await fetch(
+        `/api/superadmin/tenants/${tenant.id}/ocr-upload-token?filename=${encodeURIComponent(ocrFile.name)}`
+      )
+      const tokenData = await tokenRes.json()
+      if (!tokenRes.ok) {
+        setOcrStatus({ type: 'error', message: tokenData.error ?? 'Failed to get upload URL.' })
+        setOcrLoading(false)
+        return
+      }
+      const { uploadUrl, storagePath } = tokenData as { uploadUrl: string; storagePath: string }
+
+      // Step 2: PUT file directly to Supabase Storage (bypasses Vercel 4.5 MB body limit)
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': ocrFile.type || 'image/jpeg' },
+        body: ocrFile,
+      })
+      if (!uploadRes.ok) {
+        setOcrStatus({ type: 'error', message: `Storage upload failed: ${uploadRes.status}` })
+        setOcrLoading(false)
+        return
+      }
+
+      // Step 3: Call ocr-menu route to extract and write to DB
+      const ocrRes = await fetch(`/api/superadmin/tenants/${tenant.id}/ocr-menu`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ storagePath, menuId: selectedMenuId }),
+      })
+      const ocrData = await ocrRes.json()
+      if (!ocrRes.ok) {
+        setOcrStatus({ type: 'error', message: ocrData.error ?? 'OCR extraction failed. Check server logs.' })
+      } else {
+        const cats = ocrData.categoriesCreated ?? 0
+        const prods = ocrData.productsCreated ?? 0
+        const msg = cats === 0 && prods === 0
+          ? 'No new items extracted — all detected items already exist.'
+          : `OCR complete. ${cats} ${cats === 1 ? 'category' : 'categories'} and ${prods} ${prods === 1 ? 'product' : 'products'} added.`
+        setOcrStatus({ type: 'success', message: msg })
+        setOcrFile(null)
+      }
+    } catch {
+      setOcrStatus({ type: 'error', message: 'OCR upload failed. Check the API logs and retry.' })
+    }
+    setOcrLoading(false)
   }
 
   const input = 'w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
@@ -566,6 +631,55 @@ export default function TenantDetailClient({
 
             {perItemError && (
               <p className="text-xs text-red-500 mt-2">{perItemError}</p>
+            )}
+          </div>
+        )}
+
+        {/* OCR photo upload section — AI-10, AI-11 */}
+        {menus.length > 0 && selectedMenuId && (
+          <div className="mt-5 pt-4 border-t border-zinc-100">
+            <p className="text-xs text-zinc-400 mb-3">Menu photo OCR</p>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                disabled={ocrLoading}
+                onChange={e => {
+                  setOcrFile(e.target.files?.[0] ?? null)
+                  setOcrStatus(null)
+                }}
+                className="text-xs text-zinc-600 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border file:border-zinc-200 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-50 disabled:opacity-50"
+              />
+              <button
+                onClick={() => void handleOcrUpload()}
+                disabled={ocrLoading || !ocrFile}
+                className="border border-zinc-200 text-zinc-700 bg-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+              >
+                {ocrLoading ? 'Extracting...' : 'Upload & Extract'}
+              </button>
+            </div>
+
+            {ocrLoading && (
+              <p className="text-xs text-zinc-400 mt-2 animate-pulse">
+                Extracting menu — this may take up to 30 seconds...
+              </p>
+            )}
+
+            {ocrStatus?.type === 'success' && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-3">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-green-800">{ocrStatus.message}</p>
+                  <button onClick={() => setOcrStatus(null)} className="text-green-500 hover:text-green-700 text-xl">✕</button>
+                </div>
+              </div>
+            )}
+
+            {ocrStatus?.type === 'error' && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mt-3 text-sm text-red-700 flex items-center justify-between">
+                {ocrStatus.message}
+                <button onClick={() => setOcrStatus(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
+              </div>
             )}
           </div>
         )}
