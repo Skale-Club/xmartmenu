@@ -92,7 +92,7 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 
 ### Active — v1.2
 
-- [ ] AI image seeding: cover photo via gpt-image-1-mini + Pexels/Unsplash per-product (Phase 10)
+- [ ] AI image seeding: cover photo + per-product photos via Nano Banana 2 (Gemini 3 Pro Image) (Phase 10)
 - [ ] Menu photo OCR: GPT-4.1-mini vision → categories/items/prices → direct DB write (Phase 11)
 
 ### Deferred (seeds)
