@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
 status: executing
-stopped_at: Phase 10 context gathered
-last_updated: "2026-05-07T09:23:21.470Z"
-last_activity: 2026-05-06
+stopped_at: Completed 10-image-seeding-10-01-PLAN.md
+last_updated: "2026-05-07T09:59:20.334Z"
+last_activity: 2026-05-07
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
   percent: 11
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 09 — text-seeding
+**Current focus:** Phase 10 — image-seeding
 
 ## Current Position
 
-Phase: 10
-Plan: Not started
-Status: Executing Phase 9
-Last activity: 2026-05-06
+Phase: 10 (image-seeding) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
+Last activity: 2026-05-07
 
 Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1.2)
 
@@ -63,6 +63,7 @@ Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1
 | Phase 09-text-seeding P01 | 15min | 2 tasks | 4 files |
 | Phase 09-text-seeding P09-02 | 25min | 2 tasks | 2 files |
 | Phase 09-text-seeding P09-03 | 20min | 2 tasks | 4 files |
+| Phase 10-image-seeding P10-01 | 148 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -106,6 +107,9 @@ Recent decisions affecting current work:
 - [Phase 09-text-seeding]: TranslationsSchema kept flat as z.record(z.string(), z.any()) to avoid Gemini structured output validation failures with deeply nested schemas (Pitfall 3)
 - [Phase 09-text-seeding]: categories-list endpoint created at /api/superadmin/tenants/[id]/menus/[menuId]/categories-list — no existing superadmin route covered per-menu category listing
 - [Phase 09-text-seeding]: AI Tools section placed outside tab system, always visible below Tabs block per UI-SPEC Layout Specification
+- [Phase 10-image-seeding]: Separate seed-image/route.ts from seed/route.ts — maxDuration is file-scoped, images need 300s vs text 60s
+- [Phase 10-image-seeding]: aspectRatio '4:1' for cover banner — '3:1' not supported by gemini-3.1-flash-image-preview (Nano Banana 2)
+- [Phase 10-image-seeding]: Write to products.image_url (singular) not image_urls (plural legacy array column)
 
 ### Pending Todos
 
@@ -119,6 +123,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T09:23:21.461Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-image-seeding/10-CONTEXT.md
+Last session: 2026-05-07T09:59:20.329Z
+Stopped at: Completed 10-image-seeding-10-01-PLAN.md
+Resume file: None
