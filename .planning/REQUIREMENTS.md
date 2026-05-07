@@ -57,4 +57,4 @@ Tenant public menus remain at `/{tenantSlug}/{menuSlug}` — no URL structure ch
 | SEO-01 | Phase 13 — SEO & Metadata | Complete |
 | SEO-02 | Phase 13 — SEO & Metadata | Complete |
 | SEO-03 | Phase 13 — SEO & Metadata | Complete |
-| SEO-04 | Phase 13 — SEO & Metadata | Pending |
+| SEO-04 | Phase 13 — SEO & Metadata | Complete |
