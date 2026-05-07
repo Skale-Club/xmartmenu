@@ -28,6 +28,22 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
+## Current Milestone: v1.3 Landing Page
+
+**Goal:** Criar a página de marketing de xmartmenu.skale.club — porta de entrada do produto para novos restaurantes, com copy em PT e EN, SEO completo, analytics, e Lighthouse 95+ mobile.
+
+**Target features:**
+- Hero com value prop + CTA → signup
+- Seções de feature (multi-idioma, QR code, AI seeding, pedidos)
+- Link para demo tenant ao vivo (`/demo`)
+- Pricing "Free durante beta"
+- FAQ + Footer (links legais placeholder)
+- i18n PT/EN (path-based: `/pt`, `/en`)
+- SEO: metadata API, OG tags, sitemap.xml, robots.txt, JSON-LD Organization + SoftwareApplication
+- Analytics: Vercel Analytics + Web Vitals
+- Mobile-first, WCAG AA, Lighthouse 95+ mobile
+- Tenant URLs permanecem `/{slug}`; middleware recebe lista de reserved paths
+
 ## Current State
 
 **v1.2 AI Onboarding shipped (2026-05-07)** — All 3 AI tools operational in superadmin panel.
@@ -80,11 +96,16 @@ Required env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENAI_API_KEY`
 - ✓ Menu photo OCR (superadmin): GPT-4.1-mini vision → structured DB writes via signed URL upload — Phase 11
 - ✓ All AI seeding is additive (never overwrites existing content) — Phases 9–11
 
+### Active — v1.3
+
+- [ ] Marketing landing page: hero, features, demo, pricing, FAQ, footer — Phase 12
+- [ ] i18n PT/EN + SEO + analytics: metadata, OG, sitemap, robots, JSON-LD, Vercel Analytics — Phase 13
+
 ### Deferred (seeds)
 
 - SEED-003 — Stripe Connect payments (tenant-owned accounts)
 - SEED-004 — Full performance milestone (DB indices, RUM, Lighthouse budget)
-- SEED-005 — Marketing landing page (xmartmenu.skale.club)
+- SEED-005 — ✅ Marketing landing page (in progress as v1.3)
 
 ### Out of Scope
 
@@ -120,4 +141,4 @@ Required env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENAI_API_KEY`
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-07 after v1.2 AI Onboarding milestone*
+*Last updated: 2026-05-07 — v1.3 Landing Page milestone started*
