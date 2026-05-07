@@ -2,6 +2,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { slugify } from '@/lib/utils'
 import { normalizeRole } from '@/lib/auth/role-utils'
+import { RESERVED_PATHS } from '@/lib/marketing/reserved-paths'
 
 const ALLOWED_MENU_PURPOSES = new Set(['restaurant', 'bar', 'cafe', 'hotel', 'salon', 'retail', 'other'])
 const MENU_PURPOSE_ALIASES: Record<string, string> = {
@@ -103,6 +104,16 @@ export async function POST(request: Request) {
     } else {
       // 1. Create tenant
       let slug = slugify(company_name)
+
+      // Reject slugs that collide with reserved marketing paths — dual enforcement
+      // (middleware blocks access; API blocks creation). D-07 from CONTEXT.md.
+      if (RESERVED_PATHS.has(slug)) {
+        return NextResponse.json(
+          { error: 'This name is reserved. Please choose a different restaurant name.' },
+          { status: 400 }
+        )
+      }
+
       const { data: existingTenant } = await service.from('tenants').select('id').eq('slug', slug).single()
       if (existingTenant) slug = `${slug}-${Date.now().toString(36)}`
 
