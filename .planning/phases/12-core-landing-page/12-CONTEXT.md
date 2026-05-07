@@ -86,6 +86,11 @@ Sections out of scope for this phase: Pricing, Social Proof, Demo link (deferred
 - **D-22:** Static `src/app/(marketing)/opengraph-image.png` — 1200×630 JPEG, ≤300 KB. Executor creates a simple programmatic image using `next/og` (`ImageResponse`) at build time, OR uses a solid-color background with white text as a static PNG placeholder. The Phase 13 plan will upgrade this with design assets.
 - **D-23:** `metadataBase` set to `new URL('https://xmartmenu.skale.club')` in `(marketing)/layout.tsx`.
 
+### Logged-in User Access
+- **D-24:** The middleware does NOT redirect authenticated users away from `/` — the current `isAdminRoute`/`isSuperadminRoute` guards only cover `/dashboard`, `/menu`, `/settings`, `/tenants`, `/overview`, `/users`. Replacing `page.tsx` with a real landing page is sufficient for logged-in users to see it normally. No additional middleware change needed for this.
+- **D-25:** Since `page.tsx` is `force-static`, it cannot detect server-side whether the visitor is logged in. The nav CTA always shows "Get started" — this is acceptable. Logged-in users visiting the marketing page can navigate to `/dashboard` directly. Do NOT add `'use client'` to the nav just to swap the CTA (kills Lighthouse TBT). If a client-side swap is desired later, it's a deferred enhancement.
+- **D-26:** The middleware bypass (D-04) uses `NextResponse.next()` unconditionally for `/` — both anonymous and authenticated visitors get the static page. No session refresh happens on the marketing page, which is intentional and correct for a static route.
+
 ### Claude's Discretion
 - Exact Tailwind class choices for all visual elements
 - Lucide icon selection per feature block
