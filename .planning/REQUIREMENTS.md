@@ -23,9 +23,9 @@ All AI generation writes directly to the database. There is no separate "review 
 
 ### Image Seeding (Phase 10)
 
-- [ ] **AI-07**: Superadmin can trigger image seeding for a tenant; system generates a restaurant cover/banner photo via `gpt-image-1-mini`, converts to WebP via the existing Sharp pipeline, and uploads to Supabase Storage as the tenant's cover
-- [ ] **AI-08**: For each product without an image, system fetches a stock photo from Pexels or Unsplash, converts to WebP, and uploads directly as the product's `image_url`
-- [ ] **AI-09**: Superadmin sees a "Seed image" button on each product row in the superadmin tenant view; clicking it generates an image for that single product
+- [x] **AI-07**: Superadmin can trigger image seeding for a tenant; system generates a restaurant cover/banner photo via **Nano Banana 2 (Gemini 3 Pro Image)**, converts to WebP via the existing Sharp pipeline, and uploads to Supabase Storage as the tenant's cover
+- [x] **AI-08**: For each product without an image, system generates a product photo via **Nano Banana 2 (Gemini 3 Pro Image)**, converts to WebP, and uploads directly as the product's `image_url`
+- [x] **AI-09**: Superadmin sees a per-product "Seed image" control in the superadmin tenant view; selecting a product generates an image for just that product (additive — never overwrites an existing `image_url`)
 
 ### Menu Photo OCR (Phase 11)
 
@@ -71,9 +71,9 @@ All AI generation writes directly to the database. There is no separate "review 
 | AI-04 | Phase 9 — Text Seeding | Complete |
 | AI-05 | Phase 9 — Text Seeding | Complete |
 | AI-06 | Phase 9 — Text Seeding | Complete |
-| AI-07 | Phase 10 — Image Seeding | Pending |
-| AI-08 | Phase 10 — Image Seeding | Pending |
-| AI-09 | Phase 10 — Image Seeding | Pending |
+| AI-07 | Phase 10 — Image Seeding | Complete |
+| AI-08 | Phase 10 — Image Seeding | Complete |
+| AI-09 | Phase 10 — Image Seeding | Complete |
 | AI-10 | Phase 11 — Menu Photo OCR | Complete |
 | AI-11 | Phase 11 — Menu Photo OCR | Complete |
 | AI-12 | Phase 11 — Menu Photo OCR | Complete |
