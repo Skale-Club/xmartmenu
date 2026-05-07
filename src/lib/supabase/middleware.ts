@@ -51,6 +51,9 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/users')
 
   const isOnboarding = pathname === '/onboarding'
+  const isPasswordPage = pathname.startsWith('/settings/password')
+  const isAuthPage = pathname.startsWith('/auth')
+  const isApi = pathname.startsWith('/api')
 
   if ((isAdminRoute || isSuperadminRoute) && !user) {
     const url = request.nextUrl.clone()
@@ -58,16 +61,24 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  if (user && (isAdminRoute || pathname.startsWith('/menus') || isOnboarding)) {
+  // Force password change for any authenticated navigation outside the
+  // password page itself, auth flows, and API routes (which guard themselves).
+  if (user && !isPasswordPage && !isAuthPage && !isApi) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('role, must_change_password')
       .eq('id', user.id)
       .single()
 
+    if (profile?.must_change_password === true) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/settings/password'
+      url.searchParams.set('forced', '1')
+      return NextResponse.redirect(url)
+    }
+
     const role = normalizeRole(profile?.role)
 
-    // Superadmin nunca precisa de onboarding nem deve acessar rotas admin sem preview
     if (role === 'superadmin') {
       if (isOnboarding) {
         const url = request.nextUrl.clone()
@@ -80,15 +91,6 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
       }
       return supabaseResponse
-    }
-
-    const mustChangePassword = profile?.must_change_password === true
-
-    if (mustChangePassword && !pathname.startsWith('/settings/password')) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/settings/password'
-      url.searchParams.set('forced', '1')
-      return NextResponse.redirect(url)
     }
 
     const staffBlockedRoutes = [

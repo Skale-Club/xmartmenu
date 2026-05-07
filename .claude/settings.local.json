@@ -37,7 +37,10 @@
       "Bash(xargs -0 grep -h \"ADD COLUMN.*translations\\\\|CREATE TABLE\")",
       "Bash(taskkill //F //PID 6024)",
       "Bash(gh pr *)",
-      "Bash(grep -n \"revalidatePath\\(\\\\`/\\\\${tenantSlug}\\\\`\\)\" \"src/app/api/revalidate/route.ts\")"
+      "Bash(grep -n \"revalidatePath\\(\\\\`/\\\\${tenantSlug}\\\\`\\)\" \"src/app/api/revalidate/route.ts\")",
+      "Skill(gsd-plan-phase)",
+      "Skill(gsd-plan-phase:*)",
+      "Bash(npx tsc *)"
     ]
   }
 }

@@ -43,20 +43,21 @@ export default function LoginPage() {
     }
 
     const from = new URLSearchParams(window.location.search).get('from') ?? '/'
-    const response = await fetch('/api/auth/resolve-redirect', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ next: from }),
-    })
-
-    if (!response.ok) {
-      setError('Unable to finish login right now. Please try again.')
-      setEmailLoading(false)
-      return
+    let redirectTo = '/dashboard'
+    try {
+      const response = await fetch('/api/auth/resolve-redirect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ next: from }),
+      })
+      if (response.ok) {
+        const payload = await response.json() as { redirectTo?: string }
+        if (payload.redirectTo) redirectTo = payload.redirectTo
+      }
+    } catch {
+      // Fall back to /dashboard — middleware will enforce password change / role routing.
     }
-
-    const payload = await response.json() as { redirectTo?: string }
-    router.replace(payload.redirectTo ?? '/dashboard')
+    router.replace(redirectTo)
   }
 
   return (
