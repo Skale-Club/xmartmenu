@@ -1,75 +1,266 @@
-# Stack Research
+# Stack Research — v1.3 Landing Page (NEW Capabilities Only)
 
-**Domain:** AI-powered tenant onboarding — LLM text seeding, AI image generation, menu photo OCR
-**Researched:** 2026-05-06
-**Confidence:** HIGH (npm versions verified via registry; pricing from official sources; Vercel constraints from official docs)
+**Researched:** 2026-05-07
+**Domain:** Marketing landing page — Vercel Analytics, JSON-LD, sitemap/robots, OG image, middleware reserved paths
+**Confidence:** HIGH (all versions verified from npm registry and official Vercel/Next.js docs as of 2026-05-07)
 
 ## Context
 
-This is a SUBSEQUENT MILESTONE on an existing Next.js 16.2 + Supabase + Vercel app. The existing stack (App Router, TypeScript, Tailwind CSS 4, Supabase RLS, Sharp) is validated and NOT reconsidered here. This document covers ONLY the new AI capabilities needed for v1.2.
+This is a SUBSEQUENT MILESTONE on an existing Next.js 16.2 + Supabase + Vercel app. The existing stack (App Router, TypeScript, Tailwind CSS 4, Supabase RLS, Sharp, ISR, metadata API) is validated and NOT reconsidered here. This document covers ONLY the new capabilities needed for v1.3.
+
+**No i18n packages are needed.** The landing page will be English-only. The PROJECT.md mentions PT/EN as a goal, but the milestone scope narrows this: copy will be written in English (and Portuguese inline in JSX if needed as static strings). No `next-intl` or path-based locale routing (`/pt`, `/en`) is in scope for this milestone.
 
 ---
 
-## Recommended Stack
+## New Packages to Add
 
-### Core AI Libraries
+### Core (runtime dependencies)
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| `ai` (Vercel AI SDK) | ^6.0.175 | Unified interface for LLM calls — `generateText` + `Output.object()` for structured extraction | First-party support from Next.js authors; runs cleanly in App Router Route Handlers; handles streaming, retries, type-safe schema output via Zod; no extra infra needed |
-| `@ai-sdk/anthropic` | ^3.0.75 | Anthropic provider adapter for the AI SDK | Needed to call Claude models through the AI SDK abstraction; keeps provider-switching cheap |
-| `@ai-sdk/openai` | ^3.0.62 | OpenAI provider adapter for the AI SDK | Needed for GPT-4.1-mini OCR (vision) and gpt-image-1-mini image generation through same AI SDK interface |
-| `zod` | ^4.4.3 | Runtime schema validation for structured LLM output | Required by AI SDK `Output.object()` for type-safe extraction; already common in Next.js projects; v4 is the current stable series |
+| Package | Version (verified) | Purpose | Why This, Not Alternative |
+|---------|-------------------|---------|--------------------------|
+| `@vercel/analytics` | `2.0.1` | Page view tracking + custom events | First-party, zero-config on Vercel; adds `<Analytics />` component to root layout; no GDPR consent gate needed for aggregate analytics (no PII stored) |
+| `@vercel/speed-insights` | `2.0.0` | Real-user Web Vitals (CLS, LCP, FID, INP) | Pairs with Analytics in same Vercel dashboard; `<SpeedInsights />` in root layout; needed for Lighthouse 95+ goal monitoring post-launch |
+| `schema-dts` | `2.0.0` | TypeScript types for schema.org JSON-LD | Dev-time type safety for `Organization` + `SoftwareApplication` objects; zero runtime footprint — types only, stripped at build |
 
-### Feature-Specific Notes
-
-**Text Seeding — Claude Haiku 4.5 via `@ai-sdk/anthropic`**
-
-Use `generateText` with `Output.object()` + Zod schema. Model: `claude-haiku-4-5` ($1.00 input / $5.00 output per 1M tokens). A complete seeding payload (business type → 5 categories × 3 items × description + copy) is ~2–3K input tokens, ~1K output tokens — roughly $0.004 per onboarding. Fast enough (< 5s) to fit Vercel's default 10s timeout on Pro with `maxDuration: 30` as safety margin.
-
-**OCR — `gpt-4.1-mini` via `@ai-sdk/openai` (vision)**
-
-Use `generateText` with `Output.object()` + Zod schema and pass the uploaded menu photo as a base64 data URL in the message content. GPT-4.1-mini handles vision + structured extraction well at lower cost than GPT-4.1. Never use Tesseract.js or pdf.js — they don't run on Vercel serverless and add 100+ MB to the bundle.
-
-**Image Generation — OpenAI `gpt-image-1-mini` via raw OpenAI SDK**
-
-The AI SDK does NOT yet have stable image generation support in v6 — call the `openai` SDK directly for `client.images.generate()`. Use `gpt-image-1-mini` at quality `low` or `standard` ($0.005–$0.011 per image). Download the generated image (base64 response), convert to WebP via the existing `validateAndConvertToWebP` helper in `src/lib/upload.ts`, then upload to Supabase Storage bucket `tenant-assets`. This reuses the pattern already established in the upload route.
-
-### Supporting Libraries
-
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| `openai` | ^6.36.0 | Direct OpenAI SDK — used only for image generation (`client.images.generate`) | Only needed because AI SDK v6 lacks stable image generation; if AI SDK adds it, migrate and drop this |
-| `zod` | ^4.4.3 | Schema definitions for structured LLM output and request body validation | All three AI route handlers — define once in `src/lib/ai/schemas.ts`, import where needed |
-
-### Development Tools
-
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| Environment variables | API key injection | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` — add to Vercel project settings + local `.env.local`; never commit |
-
----
-
-## Installation
+**Installation:**
 
 ```bash
-# Core AI packages
-npm install ai @ai-sdk/anthropic @ai-sdk/openai zod openai
+npm install @vercel/analytics @vercel/speed-insights
+npm install --save-dev schema-dts
 ```
 
-No dev-only AI packages needed — all are runtime dependencies.
+### No New Packages Needed For
+
+| Feature | Approach | Reason |
+|---------|----------|--------|
+| `sitemap.xml` | `app/sitemap.ts` (built-in Next.js convention) | No external package — Next.js generates sitemap natively from `MetadataRoute.Sitemap` |
+| `robots.txt` | `app/robots.ts` (built-in Next.js convention) | Same — native `MetadataRoute.Robots` type, no package |
+| OG image | Static file `app/opengraph-image.png` OR `app/opengraph-image.tsx` using `ImageResponse` from `next/og` | `next/og` is bundled with Next.js; no install needed |
+| JSON-LD | Inline `<script type="application/ld+json">` in server component | Official Next.js recommendation; no library needed |
+| Reserved paths middleware | Extend existing `src/middleware.ts` | Already has Supabase auth middleware; add slug blocklist check in same file |
+| Metadata (title, OG tags, Twitter) | Existing `metadata` export API | Already in use in `src/app/(public)/[slug]/page.tsx` and `src/app/layout.tsx` |
 
 ---
 
-## Alternatives Considered
+## Integration Patterns (App Router, Next.js 16.2)
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| `ai` (Vercel AI SDK v6) | `@anthropic-ai/sdk` directly | Use raw SDK only if you need fine-grained streaming control or experimental Anthropic features not exposed by the AI SDK adapter |
-| Claude Haiku 4.5 for text seeding | GPT-4.1-mini | GPT-4.1-mini is cheaper per token (faster at trivial tasks), but Haiku's instruction-following quality is better for Portuguese-language seeding contexts; switch if cost becomes critical |
-| GPT-4.1-mini for OCR | Claude Haiku 4.5 vision | Both support vision; GPT-4.1-mini has slightly better OCR accuracy on printed menus per benchmarks. If you want single-vendor billing, Haiku 4.5 can substitute. |
-| `gpt-image-1-mini` for image gen | Stable Diffusion via Replicate | Replicate adds cold-start latency (4–10s), a third service dependency, and per-second pricing; gpt-image-1-mini is simpler, billed per image, and already available through existing OpenAI credentials |
-| Supabase Storage for generated images | Cloudinary / imgix | Cloudinary adds DX complexity and a fourth external service. Supabase Storage already stores product images; AI-generated images should go there too for RLS consistency and zero new infra |
+### 1. Vercel Analytics + Speed Insights
+
+**Location:** `src/app/layout.tsx` (root layout, affects all pages)
+
+**Import paths (verified from official Vercel docs):**
+- Analytics: `import { Analytics } from '@vercel/analytics/next'`
+- Speed Insights: `import { SpeedInsights } from '@vercel/speed-insights/next'`
+
+**Pattern:**
+
+```tsx
+// src/app/layout.tsx
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" className="h-full antialiased">
+      <body className={`${inter.className} min-h-full`}>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
+  )
+}
+```
+
+**Prerequisites:**
+- Enable Web Analytics in Vercel dashboard (Analytics tab → Enable)
+- Enable Speed Insights in Vercel dashboard (Speed Insights tab → Enable)
+- Both add routes at `/_vercel/insights/*` after next deploy — no env vars needed
+
+**Important:** Use `/next` subpath imports, not `/react`. The `/next` entrypoint includes App Router route-change detection. Using the wrong subpath breaks page-view tracking on client-side navigation.
+
+---
+
+### 2. JSON-LD Structured Data
+
+**Official pattern (from nextjs.org/docs/app/guides/json-ld, verified 2026-05-07):**
+
+Use a native `<script>` tag — NOT `next/script`. `next/script` is for executable JS; JSON-LD is structured data.
+
+```tsx
+// src/app/page.tsx (landing page server component)
+import type { WithContext, Organization, SoftwareApplication } from 'schema-dts'
+
+export default function LandingPage() {
+  const organization: WithContext<Organization> = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'XmartMenu',
+    url: 'https://xmartmenu.skale.club',
+    description: 'Digital menu platform for restaurants via QR code',
+  }
+
+  const software: WithContext<SoftwareApplication> = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'XmartMenu',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'BRL',
+    },
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(organization).replace(/</g, '\\u003c'),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(software).replace(/</g, '\\u003c'),
+        }}
+      />
+      {/* page content */}
+    </>
+  )
+}
+```
+
+**Security note:** The `.replace(/</g, '\\u003c')` call is mandatory — `JSON.stringify` does not sanitize `<` characters, which enables XSS if any string field contains HTML. This is the pattern from the official Next.js guide.
+
+**Do NOT use** `next/script` for JSON-LD — it delays injection and can produce duplicates in RSC hydration.
+
+---
+
+### 3. sitemap.ts
+
+**Convention:** `src/app/sitemap.ts` — Next.js generates `/sitemap.xml` automatically.
+
+```typescript
+// src/app/sitemap.ts
+import type { MetadataRoute } from 'next'
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
+    {
+      url: 'https://xmartmenu.skale.club',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 1,
+    },
+    // Add /demo, /pricing anchor sections as separate entries if needed
+  ]
+}
+```
+
+**Key facts (verified from Next.js 16.2.5 docs):**
+- File is a special Route Handler, cached by default at build time
+- `MetadataRoute.Sitemap` type is imported from `'next'` — no external types needed
+- Tenant URLs (`/{slug}`) are NOT included — tenant menus are not landing page content
+- `generateSitemaps()` is available for large multi-sitemap scenarios — not needed here (single-page landing)
+
+---
+
+### 4. robots.ts
+
+**Convention:** `src/app/robots.ts` — Next.js generates `/robots.txt` automatically.
+
+```typescript
+// src/app/robots.ts
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: {
+      userAgent: '*',
+      allow: '/',
+      disallow: ['/api/', '/auth/', '/(admin)/', '/(superadmin)/'],
+    },
+    sitemap: 'https://xmartmenu.skale.club/sitemap.xml',
+  }
+}
+```
+
+**Key fact:** Cached at build time by default. No external package needed. `MetadataRoute.Robots` from `'next'`.
+
+---
+
+### 5. OG Image
+
+Two valid approaches — choose based on design complexity:
+
+**Option A — Static file (simplest, recommended for v1.3):**
+
+Place `src/app/opengraph-image.png` (1200×630px) directly in the app directory. Next.js auto-generates `og:image` tags.
+
+No code needed. No runtime cost. Fastest possible. Design the image in Figma/Canva, export as PNG, commit to repo.
+
+**Option B — Generated via `opengraph-image.tsx` (if branded text overlay is needed):**
+
+```tsx
+// src/app/opengraph-image.tsx
+import { ImageResponse } from 'next/og'
+
+export const alt = 'XmartMenu — Digital menus for restaurants'
+export const size = { width: 1200, height: 630 }
+export const contentType = 'image/png'
+
+export default function Image() {
+  return new ImageResponse(
+    <div style={{ background: '#0f172a', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <h1 style={{ color: 'white', fontSize: 64 }}>XmartMenu</h1>
+    </div>,
+    { ...size }
+  )
+}
+```
+
+`ImageResponse` is from `next/og` — bundled with Next.js, no install needed.
+
+**Recommendation:** Start with Option A (static PNG). Upgrade to Option B only if the static image needs to show dynamic data (it does not for a landing page).
+
+---
+
+### 6. Reserved Paths Middleware
+
+**Problem:** `src/app/(public)/[slug]/page.tsx` catches ALL top-level paths. Pages like `/about`, `/pricing` (if added as separate routes later), and internal paths like `/api`, `/auth` must not be intercepted by the tenant resolver.
+
+**Current App Router structure resolves this differently:** The `(public)` route group contains `[slug]` — but the landing page lives at `src/app/page.tsx` (root), not inside `(public)`. So the landing page at `/` does NOT conflict with `[slug]`.
+
+**What does need middleware protection:** Specific slugs that would shadow reserved marketing paths or system routes. Since all marketing content lives on `/` (single page, no sub-routes), the risk is limited.
+
+**Middleware pattern to add to `src/middleware.ts`:**
+
+```typescript
+// src/middleware.ts — extend updateSession call with blocklist
+const RESERVED_SLUGS = new Set([
+  'api', 'auth', 'onboarding', '_next', 'favicon.ico',
+  'sitemap.xml', 'robots.txt',
+  // Add 'demo' here if /demo is a dedicated page rather than a tenant slug
+])
+
+export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  const firstSegment = pathname.split('/')[1]
+
+  if (firstSegment && RESERVED_SLUGS.has(firstSegment)) {
+    // Let Next.js routing handle it — return early from Supabase session update
+    // OR redirect to 404 if a tenant registered a conflicting slug
+    return NextResponse.next()
+  }
+
+  return await updateSession(request)
+}
+```
+
+**Key constraint:** The RESERVED_SLUGS set must be maintained as the application grows. Tenant registration should validate the slug against this list at write time (API-layer guard, not just middleware).
 
 ---
 
@@ -77,103 +268,114 @@ No dev-only AI packages needed — all are runtime dependencies.
 
 | Avoid | Why | Use Instead |
 |-------|-----|-------------|
-| `tesseract.js` | 15+ MB WASM bundle; hits Vercel's 250 MB function limit fast; slow (5–30s) for real photos; no LLM reasoning | GPT-4.1-mini vision — single API call, returns structured JSON, handles messy handwritten menus |
-| `pdf-lib` / `pdfjs-dist` | Menu PDFs are rare; adds >40 MB to bundle; out of scope for photo-based flow | Restrict accepted inputs to JPEG/PNG/WebP photos only |
-| LangChain / LlamaIndex | Heavyweight orchestration framework (400+ KB); designed for multi-step agent pipelines, RAG, and embeddings; complete overkill for 3 isolated prompt calls | AI SDK `generateText` + `Output.object()` is all that's needed |
-| `@anthropic-ai/claude-agent-sdk` | Agent SDK is for autonomous multi-step agents — wrong abstraction for a deterministic seeding function | Direct AI SDK call |
-| Separate AI microservice / Lambda | Adds infra complexity, cold start, auth surface area | Vercel Route Handlers with `maxDuration: 60` are sufficient for all three AI paths |
-| Redis / `@upstash/ratelimit` for MVP | Adds an external service dependency, $12/mo minimum, and ops overhead | Use simple DB-level rate limiting: record `ai_seeding_used_at` on the tenant row; check before calling API; upgrade to Redis only if abuse is detected post-launch |
-| Streaming responses to the client | Adds complexity to the review UI; menu seeding payloads are small (<1K tokens out, <3s); streaming buys nothing | Single `generateText` call with `await`, return full JSON |
-
----
-
-## Vercel Serverless Constraints
-
-All three AI route handlers will operate within these limits:
-
-| Concern | Limit | Mitigation |
-|---------|-------|------------|
-| Function timeout (default) | 10s (Pro plan) | Set `export const maxDuration = 60` in each AI route handler — Vercel Pro supports up to 900s |
-| Request body size | 4.5 MB | Menu photo upload should be validated client-side to < 4 MB before POSTing; existing `MAX_FILE_SIZE = 5MB` in `src/lib/upload.ts` needs to be lowered to 4 MB for OCR route |
-| Bundle size | 250 MB unzipped | `ai` + `@ai-sdk/anthropic` + `@ai-sdk/openai` + `openai` + `zod` together are < 5 MB total; well within limits |
-| Cold start | 0.5–2s | Acceptable for async onboarding flows; not real-time |
-| Memory | 1 GB (Pro) | Image generation pipeline (fetch + base64 + Sharp convert + Supabase upload) peaks at ~50–100 MB; safe |
-
----
-
-## Cost Model Per Feature
-
-### Text Seeding (Claude Haiku 4.5)
-
-- Input: ~2,500 tokens (system prompt + business type context)
-- Output: ~800 tokens (categories + items + descriptions)
-- Cost: ~$0.002 input + $0.004 output = **~$0.006 per onboarding**
-- At 100 new tenants/month: **~$0.60/month**
-- Rate limit: 1 seeding call per tenant (gate by `onboarding_ai_text_used` flag on tenant row)
-
-### OCR (GPT-4.1-mini vision)
-
-- Input: ~1,000 tokens text + image token cost (~300 tokens for a 512×512 crop)
-- Output: ~500 tokens structured JSON
-- Cost: approximately **$0.003–$0.006 per scan**
-- User-initiated, not automatic — natural rate limiting
-- Rate limit: 3 OCR attempts per tenant per day (DB timestamp check)
-
-### Image Generation (gpt-image-1-mini, standard quality)
-
-- Cover photo: 1 image × $0.011 = **$0.011**
-- Per-item photos: opt-in, user selects which items; cap at 5 per session
-- Max per onboarding: 6 images × $0.011 = **$0.066**
-- At 100 tenants using image gen (50% adoption): **~$3.30/month**
-- Rate limit: `ai_images_generated_count` column on tenant row, hard cap at 10 lifetime free images
-
-### Total per fully-loaded onboarding (all 3 features)
-
-**~$0.07 per tenant** at current pricing. Add 30% margin for retries/failures: ~$0.09. Negligible until hundreds of daily sign-ups.
+| `next-intl` | No i18n in scope — English only; adding next-intl now would require restructuring the entire app route tree | Inline bilingual copy if needed, or a later dedicated i18n milestone |
+| `next-sitemap` (npm package) | External package; Next.js 13+ has native sitemap.ts — the package is for legacy Pages Router | Native `app/sitemap.ts` |
+| `react-schemaorg` / `@google/model-viewer` | Heavyweight; JSON-LD via `<script>` tag is the official recommendation | Native script tag with schema-dts types |
+| `next/script` for JSON-LD | Wrong abstraction — designed for executable scripts; causes RSC hydration issues with JSON-LD | Native `<script dangerouslySetInnerHTML>` |
+| Plausible Analytics / PostHog | Third-party services adding external dependency and cookie consent overhead; Vercel Analytics is already available, self-contained, and GDPR-aggregate-friendly | `@vercel/analytics` |
+| `web-vitals` npm package (manual) | `@vercel/speed-insights` wraps web-vitals automatically and reports to Vercel dashboard | `@vercel/speed-insights` |
+| `schema-dts` as a runtime dependency | Types only — zero runtime footprint needed | `npm install --save-dev schema-dts` |
 
 ---
 
 ## Integration Points with Existing Code
 
-| Existing File | How AI Features Attach |
-|---------------|------------------------|
-| `src/app/api/onboarding/route.ts` | Text seeding call added as opt-in step after tenant+menu creation; seeds categories/products in same transaction-like flow |
-| `src/lib/upload.ts` | `validateAndConvertToWebP()` reused as-is to convert AI-generated images before Supabase upload |
-| `src/app/api/superadmin/tenants/[id]/upload/route.ts` | Pattern reference for Supabase Storage upload; AI image upload will mirror this in a new `/api/onboarding/ai-images` route |
-| `src/lib/get-active-menu.ts` | Defines the menu data shape the text seeder must populate (categories, products, descriptions) |
-| Supabase `tenant-assets` bucket | AI-generated images stored here under `{tenantId}/ai-cover.webp` and `{tenantId}/products/{productId}.webp` |
+| Existing File | What Changes |
+|---------------|-------------|
+| `src/app/layout.tsx` | Add `<Analytics />` and `<SpeedInsights />` imports + components in body |
+| `src/app/page.tsx` | Replace `redirect('/auth/login')` with landing page server component + JSON-LD scripts + `export const metadata` |
+| `src/middleware.ts` | Extend with RESERVED_SLUGS blocklist check before calling `updateSession` |
+| `src/app/sitemap.ts` | **New file** — export `MetadataRoute.Sitemap` |
+| `src/app/robots.ts` | **New file** — export `MetadataRoute.Robots` |
+| `src/app/opengraph-image.png` OR `src/app/opengraph-image.tsx` | **New file** — static PNG or `ImageResponse` |
 
-New AI route handlers to create:
-
-- `src/app/api/onboarding/seed-text/route.ts` — accepts `{ business_type, tenant_id, menu_id }`, calls Claude, writes categories + products
-- `src/app/api/onboarding/seed-images/route.ts` — accepts `{ tenant_id, product_ids[], style_hint }`, calls gpt-image-1-mini, stores to Supabase
-- `src/app/api/onboarding/ocr/route.ts` — accepts `multipart/form-data` with photo, calls GPT-4.1-mini vision, returns structured item list for review UI
+**No changes to:**
+- Database schema
+- Supabase configuration
+- Tenant routes `(public)/[slug]` or `(public)/[slug]/[menuSlug]`
+- Admin or superadmin routes
+- AI tooling
+- Existing API routes
 
 ---
 
 ## Version Compatibility
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `ai@^6.0.175` | `next@16.2.2`, `react@19.2.4` | AI SDK v6 is built for Next.js App Router; fully compatible with React 19 |
-| `zod@^4.4.3` | `ai@^6.0.175` | AI SDK v6 uses Zod v4 internally; use v4, not v3 — the two coexist on npm but AI SDK v6 ships its own zod peer |
-| `@ai-sdk/anthropic@^3.0.75` | `ai@^6.0.175` | AI SDK provider packages are versioned independently; major version 3.x is the current generation for AI SDK v6 |
-| `openai@^6.36.0` | Node.js 18+ | Vercel runs Node.js 20 by default; fully compatible |
+| Package | Version | Compatible With | Notes |
+|---------|---------|-----------------|-------|
+| `@vercel/analytics` | `2.0.1` | Next.js 16.2.2, React 19 | Version 2.x is the current generation; import from `/next` subpath for App Router |
+| `@vercel/speed-insights` | `2.0.0` | Next.js 16.2.2, React 19 | Version 2.x is current; import from `/next` subpath |
+| `schema-dts` | `2.0.0` | TypeScript 5 | Dev-only types; no peer dependency conflicts |
+| `next/og` (`ImageResponse`) | Bundled with Next.js 16.2.2 | — | No install; already available |
+| `MetadataRoute` (`sitemap`, `robots`) | Bundled with Next.js 16.2.2 | — | No install; already available |
 
-**Note on Zod v3 vs v4:** The existing project does not currently use Zod. Adding `zod@^4.4.3` is a clean install with no conflict. If any future dependency pins Zod v3, use npm overrides to deduplicate.
+---
+
+## Vercel Dashboard Prerequisites
+
+The following must be enabled in the Vercel project dashboard before the analytics/insights data flows. These are not code changes — they are one-time dashboard actions.
+
+| Action | Location in Dashboard | When |
+|--------|-----------------------|------|
+| Enable Web Analytics | Project → Analytics tab → Enable | Before or after deploy; data flows on next deploy |
+| Enable Speed Insights | Project → Speed Insights tab → Enable | Same |
+
+Both features are available on Vercel's free Hobby tier (limited data retention) and full on Pro.
+
+---
+
+## Common Pitfalls
+
+### Pitfall 1: Wrong Import Subpath for Analytics/Speed Insights
+
+**What goes wrong:** Importing from `@vercel/analytics/react` instead of `@vercel/analytics/next` — route changes in the SPA client navigation are not tracked correctly.
+
+**How to avoid:** Always use the `/next` subpath for App Router projects.
+
+### Pitfall 2: Using `next/script` for JSON-LD
+
+**What goes wrong:** `next/script` defers script injection and can cause duplicate tags during RSC hydration in React 19. The JSON-LD appears twice in the DOM, which confuses schema validators.
+
+**How to avoid:** Use native `<script type="application/ld+json" dangerouslySetInnerHTML>` inside a server component.
+
+### Pitfall 3: Missing `<` Sanitization in JSON-LD
+
+**What goes wrong:** If any string in the JSON-LD payload contains `<`, it becomes an XSS vector. This can't be exploited in static data, but is a security hygiene issue if any field ever comes from user input (e.g., tenant name in page-level JSON-LD).
+
+**How to avoid:** Always use `.replace(/</g, '\\u003c')` on `JSON.stringify` output. The official Next.js guide requires this.
+
+### Pitfall 4: Tenant Slug Registering a Reserved Name
+
+**What goes wrong:** A restaurant owner registers a tenant with slug `sitemap` or `api` — then `/{slug}` routing serves the tenant menu instead of the system route.
+
+**How to avoid:** Validate slug against RESERVED_SLUGS at the API layer in `src/app/api/onboarding/route.ts` (tenant creation endpoint). Do not rely solely on middleware.
+
+### Pitfall 5: `sitemap.ts` Becoming Dynamically Rendered Accidentally
+
+**What goes wrong:** Adding any Request-time API call (cookies, headers, dynamic config) inside `sitemap.ts` removes the build-time cache, causing the sitemap to be regenerated on every crawler visit.
+
+**How to avoid:** Keep `sitemap.ts` purely static — hardcode URLs, do not call Supabase from it. Tenant URLs are not included in the marketing sitemap.
 
 ---
 
 ## Sources
 
-- npm registry — `ai@6.0.175`, `@ai-sdk/anthropic@3.0.75`, `@ai-sdk/openai@3.0.62`, `openai@6.36.0`, `zod@4.4.3` — versions verified via `npm view` (HIGH confidence)
-- [Vercel AI SDK Migration Guide 6.0](https://ai-sdk.dev/docs/migration-guides/migration-guide-6-0) — `generateObject` deprecated, replaced by `generateText` + `Output.object()` (MEDIUM confidence — from search results)
-- [Anthropic API Pricing 2026](https://platform.claude.com/docs/en/about-claude/pricing) — Haiku 4.5 $1/$5 per 1M tokens (MEDIUM confidence — from search results cross-referenced)
-- [OpenAI Image Pricing](https://openai.com/api/pricing/) — gpt-image-1-mini standard ~$0.011/image; DALL-E 3 deprecated May 12 2026 (MEDIUM confidence — from search results)
-- [Vercel Functions Limits](https://vercel.com/docs/functions/limitations) — 250 MB bundle, 4.5 MB body, 900s max duration on Pro (HIGH confidence — official docs)
-- [Vercel Serverless Function Timeout](https://vercel.com/docs/functions/configuring-functions/duration) — default 10s, configurable via `maxDuration` export (HIGH confidence — official docs)
+### Primary (HIGH confidence — official docs, versions from npm registry)
+
+- [Next.js sitemap.ts docs](https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap) — version 16.2.5, updated 2026-05-07
+- [Next.js robots.ts docs](https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots) — version 16.2.5, updated 2026-05-07
+- [Next.js opengraph-image docs](https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image) — version 16.2.5, updated 2026-05-07
+- [Next.js JSON-LD guide](https://nextjs.org/docs/app/guides/json-ld) — version 16.2.5, updated 2026-05-07
+- [Vercel Web Analytics quickstart](https://vercel.com/docs/analytics/quickstart) — updated 2026-03-11
+- [Vercel Speed Insights quickstart](https://vercel.com/docs/speed-insights/quickstart) — updated 2026-03-11
+- npm registry — `@vercel/analytics@2.0.1`, `@vercel/speed-insights@2.0.0`, `schema-dts@2.0.0` — verified via `npm view` 2026-05-07
+
+### Secondary (MEDIUM confidence — cross-referenced with official sources)
+
+- [Next.js JSON-LD discussion #56659](https://github.com/vercel/next.js/discussions/56659) — confirms `next/script` hydration issue with JSON-LD in App Router; aligns with official guide recommendation
 
 ---
 
-*Stack research for: AI-powered tenant onboarding (xmartmenu v1.2)*
-*Researched: 2026-05-06*
+*Stack research for: v1.3 Marketing Landing Page — xmartmenu.skale.club*
+*Researched: 2026-05-07*
+*Valid until: 2026-06-07 (stable packages; Next.js 16.x sitemap/robots API is stable)*
