@@ -1,17 +1,19 @@
-# Project Research Summary
+# Research Summary -- v1.3 Landing Page
 
-**Project:** xmartmenu v1.2 - AI-Powered Tenant Onboarding
-**Domain:** AI-assisted SaaS onboarding - restaurant/food-service digital menu platform
-**Researched:** 2026-05-06
+**Project:** XmartMenu -- xmartmenu.skale.club
+**Milestone:** v1.3 Marketing Landing Page
+**Domain:** SaaS marketing landing page integrated into existing Next.js 16.2 multi-tenant app
+**Researched:** 2026-05-07
 **Confidence:** HIGH
+---
 
 ## Executive Summary
 
-xmartmenu v1.2 adds three AI capabilities to an existing, production-hardened Next.js 16.2 + Supabase + Vercel stack: LLM text seeding (generating a starter menu from business type), AI image seeding (cover photo via gpt-image-1-mini, product photos via stock API), and menu photo OCR (extracting items from a photographed physical menu). Research confirms the Vercel AI SDK v6 + OpenAI is the clear choice, no new infrastructure is needed, and the full cost per onboarded tenant runs under $0.09. The existing Sharp/WebP pipeline and Supabase Storage bucket absorb image handling without modification.
+XmartMenu v1.3 adds a public marketing landing page at the root of an existing Next.js 16.2 App Router multi-tenant application. The product targets Brazilian restaurant owners who need a digital QR code menu without design or development skills. Every piece of research converges on the same recommendation: build a single-page, mobile-first, server-rendered static page using only what Next.js 16.2 ships natively. Two npm installs and one dev dependency cover all new package requirements. No infrastructure changes are needed.
 
-The recommended implementation strategy is three sequential phases: text seeding first (validates the LLM integration pattern), image seeding second (depends on product IDs from Phase 1), and OCR third (highest UX complexity, fully independent at the DB level). The review-before-commit pattern is non-negotiable across all three features - the most severe pitfalls (garbage OCR data auto-committed, wrong prices saved, tenant trust destroyed) all stem from skipping the human review gate.
+The most important design decision is the split into two phases. Phase 12 delivers the core marketing page, Vercel Analytics, the middleware reserved-path guard, and demo tenant provisioning. Phase 13 delivers SEO hardening: sitemap, robots.txt, JSON-LD structured data, and the final Lighthouse 95-plus gate. This ordering is driven by a concrete dependency chain: the middleware performance bypass and reserved-path guard must exist before the page ships, while structured data and sitemap work can be layered on safely.
 
-The primary risks are security and cost, not technical complexity. Prompt injection via business name (OWASP LLM Top 10 #1), per-tenant API cost runaway, and tenant data cross-contamination must be addressed in Phase 1 and carried forward. ISR cache staleness after seeding requires revalidatePath calls after every DB write. The Vercel 4.5 MB serverless body limit is a hard constraint that requires the OCR upload to use Supabase Storage direct upload.
+The highest-risk area is integration correctness, not copy or design. The existing middleware calls supabase.auth.getUser on every request including slash, which will kill Lighthouse scores without an explicit bypass. The [slug] dynamic route captures any first-segment path, so a tenant named pricing or faq would silently shadow marketing sections. Neither guard exists in the codebase today. Both are Phase 12 blockers with low recovery cost before launch and high cost after.
 
 ---
 
@@ -19,186 +21,197 @@ The primary risks are security and cost, not technical complexity. Prompt inject
 
 ### Recommended Stack
 
-The AI layer sits entirely on top of the existing stack with five new npm packages. The Vercel AI SDK v6 (ai, @ai-sdk/anthropic, @ai-sdk/openai) provides a unified interface for all LLM calls using generateText + Output.object() with Zod schema validation, replacing the now-deprecated generateObject. The raw openai SDK is needed only for image generation because AI SDK v6 lacks stable image gen support. Total bundle addition is under 5 MB.
+The existing stack (Next.js 16.2, TypeScript, Tailwind CSS 4, Supabase, Vercel, ISR, Sharp) requires no changes. All SEO infrastructure is built into Next.js 16.2 as file conventions -- no external sitemap, robots, or schema packages are needed.
 
-**Core technologies:**
-- ai@^6.0.175 (Vercel AI SDK): unified LLM interface - first-party Next.js App Router support, type-safe structured output via Zod, no extra infra
-- @ai-sdk/anthropic@^3.0.75: Claude Haiku 4.5 adapter - best instruction-following for Portuguese-language text seeding at ~$0.006/onboarding
-- @ai-sdk/openai@^3.0.62: GPT-4.1-mini adapter - vision-capable for OCR; same AI SDK interface
-- openai@^6.36.0: direct OpenAI SDK - only needed for client.images.generate() (gpt-image-1-mini)
-- zod@^4.4.3: schema validation - required by AI SDK v6; use v4 not v3; clean install, no existing conflict
+**New packages required:**
+- @vercel/analytics@2.0.1 -- first-party Vercel page-view tracking; must import from /next subpath for App Router route-change detection; Vercel dashboard toggle required before data flows
+- @vercel/speed-insights@2.0.0 -- real-user Web Vitals (LCP, CLS, INP); must import from /next subpath; same dashboard toggle requirement
+- schema-dts@2.0.0 (devDependency only) -- TypeScript types for Organization and SoftwareApplication JSON-LD schemas; zero runtime footprint, stripped at build
 
-**Critical version note:** AI SDK v6 uses Zod v4 internally. Do not mix Zod v3 and v4.
+**Built-in Next.js 16.2 capabilities (no install needed):**
+- app/sitemap.ts with MetadataRoute.Sitemap -- generates /sitemap.xml statically at build
+- app/robots.ts with MetadataRoute.Robots -- generates /robots.txt statically at build
+- app/opengraph-image.tsx with next/og ImageResponse -- generates OG image statically at build
+- Inline script tag with dangerouslySetInnerHTML in Server Component -- JSON-LD structured data
+- export const dynamic = force-static on page.tsx -- CDN-edge static generation for marketing page only
 
-**What not to add:** Tesseract.js (250 MB function buster), LangChain/LlamaIndex (overkill for 3 isolated prompt calls), Redis rate limiting (DB-level ai_usage table is sufficient for v1.2).
+**Explicitly avoided:** next-intl (English-only scope in v1.3), next-sitemap (legacy Pages Router package), next/script for JSON-LD (causes RSC hydration duplicates in React 19), Plausible/PostHog (Vercel Analytics covers the need at zero marginal cost).
 
-See .planning/research/STACK.md for full version compatibility matrix and cost model.
+**Critical import rule:** Analytics and Speed Insights must use the /next subpath, not /react. Using /react breaks route-change detection in App Router and silently under-counts page views.
 
 ---
 
 ### Expected Features
 
-**Must have (table stakes):**
-- Generate categories + product names/descriptions/prices from business_type + company_name
-- Progress/loading indicator for all AI operations (LLM calls take 2-20s; blank UI causes abandonment)
-- Review/edit screen before any DB write - mandatory for both text seeding and OCR
-- Error handling + retry on every AI route
-- Cover/banner image generation (gpt-image-1-mini) - TenantSettings.banner_url is empty by default
-- Per-item product photos from stock API (Unsplash/Pexels) - AI food photos are a trust risk; stock photos safer and better-looking
-- Photo upload + GPT-4.1-mini vision + structured extraction (menu OCR)
-- Mandatory OCR review/edit screen before commit
+**Must have (table stakes, shipping in v1.3):**
+- Hero: outcome-first headline under 8 words, subhead removing setup objection, primary CTA Get started free with no-credit-card microcopy, device mockup showing real menu
+- How It Works: 3-step flow with concrete time claims (10 minutes, 30 seconds), not vague claims
+- Live Demo: links to /demo provisioned tenant (real tenant, not a redirect); must exist before page ships
+- Feature blocks: 4 alternating blocks for QR code, ordering, multi-language, AI-assisted setup each mapped to customer benefit
+- Pricing: single Free during beta card; no fabricated anchor pricing; no Stripe integration referenced
+- FAQ: 8 questions as accordion; copy verified against actual product capability
+- Footer: logo, navigation, legal placeholders; legal docs are a hard launch dependency outside this milestone scope
+- Vercel Analytics and Speed Insights in root layout
+- SEO metadata: title template, description, OG and Twitter tags, metadataBase in root layout
+- sitemap.xml listing marketing URLs only (Phase 13)
+- robots.txt disallowing admin and API routes (Phase 13)
+- JSON-LD Organization + SoftwareApplication schemas validated in Google Rich Results Test (Phase 13)
+- OG image verified under 300 KB and confirmed rendering in WhatsApp on real device (Phase 13)
 
-**Should have (differentiators):**
-- Company name injected into generated copy (low effort, high perceived personalization)
-- Per-item image swap (try another) in image review grid
-- Opt-in toggle per AI feature
-- Multi-page OCR support
-- Image quality pre-check client-side before OCR upload
+**Defer to later:**
+- Social proof testimonials: no real quotes yet; fake testimonials are an FTC enforcement risk
+- Trust bar or logo strip: no customer logos available
+- PT/EN i18n path routing (/pt, /en): Phase 13 at earliest
+- Stripe billing integration
 
-**Defer (v2+):**
-- Per-item regeneration in text seeding (v1.3)
-- Token-by-token streaming for text seeding (deliver only if >4s UX complaint)
-- Save as draft for OCR review (state persistence complexity)
-- PDF OCR support (separate code path, scope creep)
-- AI usage dashboard for superadmin (v1.3)
-- Option group / variant seeding (LLM error rate too high)
-- Allergen/ingredient generation (legal risk)
-
-**Hard anti-features (never build):**
-- Auto-commit OCR or text seed results without review
-- Store raw external image URLs (always re-upload to Supabase Storage)
-- AI-generated per-item food photos (food accuracy risk; use stock photos)
-- Derive tenant_id from request body instead of auth session
-
-See .planning/research/FEATURES.md for full UX flow diagrams per feature.
+**Anti-patterns enforced as hard constraints:**
+- No fabricated testimonials or stock-photo personas next to invented quotes
+- No fake metrics such as trusted by 10000 restaurants when real number is near zero
+- No crossed-out anchor pricing not based on a real published price
+- No auto-playing video with sound (kills mobile UX in restaurant environments)
+- No feature-first headlines such as all-in-one QR menu platform
+- No overselling ordering as default-on (it is feature-flagged per tenant via orders_enabled)
+- No claiming AI OCR is self-serve for tenants (superadmin-only in v1.2; frame as onboarding service)
 
 ---
 
 ### Architecture Approach
 
-Three independent AI route handlers under src/app/api/ai/ are added as a new Step 5 to the existing 4-step onboarding wizard. The existing /api/onboarding route is left untouched except for one addition: return tenant_id and menu_id so Step 5 can call the AI routes. AI seeding is opt-in, decoupled from tenant creation, and runs only after the tenant scaffold exists.
+Replace src/app/page.tsx (currently a bare redirect to /auth/login) with a static Server Component exporting dynamic = force-static. This gives the marketing page CDN-edge delivery with zero server latency while leaving every other route untouched. The hybrid model is exactly what per-page force-static is designed for in Next.js App Router.
 
-**Major components:**
-1. POST /api/ai/seed-text - LLM generation via Claude Haiku 4.5, bulk insert categories + products, SSE streaming, maxDuration: 60
-2. POST /api/ai/seed-images - gpt-image-1-mini generation, Sharp WebP conversion, Supabase Storage upload, SSE per-image progress, maxDuration: 300
-3. POST /api/ai/ocr-menu - multipart photo upload, GPT-4.1-mini vision, structured draft returned (no DB write), maxDuration: 60
-4. POST /api/ai/ocr-commit - user-reviewed draft to bulk insert, no AI calls, maxDuration: 15
-5. AiSeedingPanel (client component) - Step 5 UI: toggles, progress states, review screens, commit triggers
-6. src/lib/ai/schemas.ts (new shared module) - Zod schemas for all structured LLM outputs
+**Files modified:**
+1. src/app/page.tsx -- replace redirect with full landing page component; add JSON-LD scripts in Phase 13
+2. src/app/layout.tsx -- add Analytics and SpeedInsights components; set metadataBase; add display: swap to Inter font config
+3. src/middleware.ts -- add reserved-path guard and marketing route bypass before updateSession
+4. src/lib/supabase/middleware.ts -- add public-path bypass at start of updateSession to skip Supabase auth for slash
+5. src/app/api/onboarding/route.ts -- add RESERVED_PATHS check before slug INSERT (defense in depth)
 
-**Key patterns:**
-- SSE streaming for text and image seeding (client sees live progress)
-- No DB writes from OCR API route - draft lives in React state until user confirms
-- All AI routes use Node.js runtime (not Edge) - Sharp requires Node.js native bindings
-- Rate limiting via ai_usage DB table checked before every AI call
-- revalidatePath() called after every successful DB write to bust ISR cache
-- tenant_id derived from Supabase auth session, never from request body
+**New files created:**
+1. src/lib/marketing/reserved-paths.ts -- exports RESERVED_PATHS Set shared by middleware and onboarding API
+2. src/app/opengraph-image.png -- static PNG Phase 12 fast path (1200x630px)
+3. src/app/sitemap.ts -- MetadataRoute.Sitemap listing marketing URLs only (Phase 13)
+4. src/app/robots.ts -- MetadataRoute.Robots disallowing admin and API routes (Phase 13)
+5. src/app/opengraph-image.tsx -- dynamic ImageResponse with branded CSS replacing static PNG (Phase 13)
 
-See .planning/research/ARCHITECTURE.md for full route schemas, SSE implementation pattern, and data flow diagrams.
+**Demo tenant:** The /demo path is a real provisioned DB tenant with slug equal to demo, not a route file. The existing (public)/[slug]/[menuSlug] route serves it automatically. No src/app/demo/ folder should ever be created -- that would shadow the tenant route handler.
+
+**i18n for Phase 13+:** The recommended approach is a (marketing)/[locale]/ route group scoped only to marketing pages, which avoids conflict with the existing (public)/[slug]/ dynamic route. No next-intl package needed for two-language path routing.
 
 ---
 
 ### Critical Pitfalls
 
-1. **Prompt injection via business name** - company_name is user-controlled input; never interpolate raw into system prompt. Inject only into delimited user-content section, enforce 100-char allowlist regex, use Zod schema enforcement. Address in Phase 1. (OWASP LLM Top 10 #1)
+**Phase 12 blockers (must fix before any public traffic):**
 
-2. **LLM cost runaway without per-tenant throttling** - No rate limit means a scripted attacker can exhaust the OpenAI budget overnight. Implement ai_usage table with daily limits checked before every AI call. Create in Phase 1, reuse for all three features.
+1. Middleware Supabase call on slash kills Lighthouse -- supabase.auth.getUser fires on every matched request including the landing page, adding 50-200ms TTFB. Add a public-path bypass at the start of updateSession in src/lib/supabase/middleware.ts that returns NextResponse.next without calling Supabase when pathname equals slash. Without this fix Lighthouse mobile drops from 95 to 85-88. Verified in live codebase: no bypass exists.
 
-3. **OCR auto-commit without review** - Price extraction errors are common (e.g. Brazilian format R$12,50 can be parsed as 1250). Two-route pattern (ocr-menu returns draft, ocr-commit writes only after user confirmation) is mandatory.
+2. Tenant slug namespace collision -- (public)/[slug]/page.tsx captures any first-segment path. The onboarding API deduplicates only against existing DB tenants, not a reserved word list. The slugify utility in src/lib/utils.ts has no reserved word filter. Add RESERVED_PATHS Set to both src/middleware.ts (blocks public access) and src/app/api/onboarding/route.ts (rejects registration). Dual enforcement is defense in depth. Verified in live codebase: no reserved path list exists anywhere.
 
-4. **Vercel 4.5 MB body limit breaks OCR upload** - A modern phone JPEG is 3-8 MB. OCR upload must use Supabase Storage direct upload (signed URL): client uploads file directly to Storage, sends only the storage path to the route handler.
+3. CTA flow broken before landing page ships -- demo tenant must be healthy (is_active: true, default menu, categories with products and images seeded via v1.2 AI tools) before Phase 12 ships. A See live demo link that 404s destroys trust. Full registration-to-dashboard flow must be walked in production. Recovery cost if shipped with broken CTA flow is HIGH (Supabase Auth email redirect debugging typically takes 2-4 hours).
 
-5. **ISR stale cache after seeding** - Call revalidatePath() server-side at the end of every successful AI seeding write. Must be in Phase 1, not added later.
+4. Missing metadataBase breaks OG image URLs on social crawlers -- src/app/layout.tsx currently has no metadataBase. Without it OG image URLs are relative paths that Facebook, Twitter/X, and LinkedIn crawlers reject, producing link previews with no image. Verified in live codebase: metadataBase is absent.
 
-6. **Wrong language generation** - Without explicit language constraint, LLMs default to English for a PT tenant. Read tenant_settings.preferred_language and inject the language requirement as the first system prompt line. Phase 1, affects every generated token.
+**Phase 13 critical items:**
 
-7. **Tenant data cross-contamination** - Module-level caches in Vercel serverless are shared across tenant requests. Never cache LLM responses in module-level variables. Always derive tenant_id from auth session.
+5. OG image exceeds WhatsApp 300 KB limit -- ImageResponse with background images generates PNG files often over 1 MB; WhatsApp silently drops images over 300 KB. Brazilian restaurateurs share links almost exclusively via WhatsApp so a broken social preview is a direct acquisition failure. Start with static JPEG/WebP under 100 KB in Phase 12. If using opengraph-image.tsx, use flat CSS colors and text only with no embedded images. Verify with curl -I and real WhatsApp device test before Phase 13 closes.
 
-See .planning/research/PITFALLS.md for full pitfall set (13 critical), technical debt patterns, security mistakes checklist, and recovery strategies.
+6. JSON-LD in layout.tsx leaks schema onto tenant pages -- JSON-LD must be in page.tsx only via inline script dangerouslySetInnerHTML, never in the root layout, never via next/script (next/script causes RSC hydration duplication in React 19).
+
+7. sitemap.ts querying all tenants leaks tenant roster -- the marketing sitemap lists only marketing URLs; never queries the tenants table.
+
+8. Inter font missing display: swap causes FOIT and CLS penalties -- src/app/layout.tsx uses Inter with no display option. Add display: swap and preload: true. Verified in live codebase: option is missing.
 
 ---
 
 ## Implications for Roadmap
 
-Based on combined research, three phases are strongly indicated. Ordering is driven by hard dependencies (image seeding needs product IDs from text seeding), risk (OCR has highest UX complexity), and shared infrastructure (ai_usage table and prompt injection mitigations built in Phase 1 are reused in Phases 2 and 3).
+Research strongly supports a two-phase structure with a clean dependency boundary.
 
-### Phase 1: LLM Text Seeding + Onboarding Step 5 Scaffold
+### Phase 12: Core Marketing Page
 
-**Rationale:** Lowest-risk path to validate the AI SDK integration and OpenAI connectivity. Establishes the SSE streaming pattern, ai_usage rate limiting table, prompt injection mitigations, and revalidatePath convention that all subsequent phases reuse. The review/edit UI built here is the template for OCR.
+**Rationale:** Blocking items (middleware bypass, reserved-path guard, demo tenant, CTA flow) must land together with the marketing page. Analytics belongs here because it touches the root layout. The static OG image PNG is the fast path for Phase 12.
 
 **Delivers:**
-- Step 5 AI panel in src/app/onboarding/page.tsx with feature toggle UI
-- POST /api/ai/seed-text with Claude Haiku 4.5 via AI SDK, SSE streaming
-- Bulk insert of AI-generated categories + products to existing DB tables
-- ai_usage Supabase table with RLS + per-tenant daily call limits
-- Prompt injection mitigations (length/allowlist validation on company_name)
-- Language-aware generation (preferred_language from tenant_settings)
-- revalidatePath after DB writes
-- Feature flag: NEXT_PUBLIC_AI_ONBOARDING_ENABLED
-- Minimal change to /api/onboarding: add tenant_id + menu_id to response
+- Landing page live at xmartmenu.skale.club accessible to real visitors
+- Vercel Analytics and Speed Insights collecting data from first deploy
+- Protected tenant namespace (no slug squatting on reserved marketing words)
+- Demo tenant provisioned and accessible at /demo with real content
+- CTA flow verified end-to-end in production
+- Preliminary Lighthouse mobile score 90 or higher
 
-**Avoids pitfalls:** Prompt injection, cost runaway, wrong language generation, ISR stale cache, tenant data cross-contamination
+**Features addressed:** Hero, How It Works, Live Demo, Feature Blocks, Pricing, FAQ, Footer, Social Proof placeholder shell, Analytics instrumentation
 
-**Research flag:** Standard patterns - no additional research-phase needed.
+**Files changed:** src/app/page.tsx, src/app/layout.tsx, src/middleware.ts, src/lib/supabase/middleware.ts, src/lib/marketing/reserved-paths.ts (new), src/app/api/onboarding/route.ts, src/app/opengraph-image.png (new)
+
+**Packages installed:** @vercel/analytics@2.0.1, @vercel/speed-insights@2.0.0
+
+**Avoids:** Middleware TTFB kill, slug namespace collision, CTA flow failure, demo tenant 404
+
+**Phase 12 gate criteria (all must pass before shipping):**
+- RESERVED_PATHS list exists in both middleware and onboarding API
+- Marketing route bypass implemented; Vercel function logs show no Supabase call for slash requests
+- demo tenant is_active: true with default menu, seeded categories and products with images
+- CTA flow end-to-end in production: / > /auth/register > email confirm > /onboarding > /dashboard
+- Hero is a Server Component; use client not present in any above-the-fold component
+- Inter font configured with display: swap
+- metadataBase set in root layout
+- Lighthouse mobile 90 or higher
 
 ---
 
-### Phase 2: AI Image Seeding
+### Phase 13: SEO and Analytics Hardening
 
-**Rationale:** Depends on product IDs from Phase 1. Introduces image generation pipeline, Sharp WebP conversion of AI output, and async SSE-per-image progress. Image costs are meaningful ($0.011/image) so rate limiting from Phase 1 must extend to images. Hybrid approach: gpt-image-1-mini for cover/banner, Pexels/Unsplash for per-item photos.
-
-**Delivers:**
-- POST /api/ai/seed-images with gpt-image-1-mini for cover + Pexels/Unsplash for per-item photos
-- Sharp WebP conversion of all AI-generated images before Supabase Storage write
-- SSE progress events per image
-- Rate limiting extended to cover images (ai_usage extension)
-- Image review grid UI: thumbnail + approve/swap/skip per item
-- Content moderation check (OpenAI Moderation API, free) before storage write
-- Food-photography prompt anchoring + negative prompt
-
-**Avoids pitfalls:** Synchronous image generation blocking UX, Sharp WebP pipeline bypass, inappropriate images, unlimited image generation cost
-
-**Research flag:** Confirm Pexels/Unsplash attribution requirements before shipping. Verify gpt-image-1-mini availability (DALL-E 3 deprecated May 12 2026).
-
----
-
-### Phase 3: Menu Photo OCR
-
-**Rationale:** Fully independent at the DB level but benefits from prompt engineering patterns and ai_usage infra from earlier phases. Highest UX complexity. The Vercel 4.5 MB limit mandates direct-to-Storage upload architecture from day one.
+**Rationale:** SEO files and JSON-LD have no user-facing UI and no dependency on Phase 12 content being finalized. The OG image upgrade and Lighthouse 95-plus final gate belong here.
 
 **Delivers:**
-- POST /api/ai/ocr-menu with GPT-4.1-mini vision, returns structured draft (no DB write)
-- POST /api/ai/ocr-commit for user-reviewed draft to bulk insert
-- Supabase Storage direct upload pattern (signed URL) to bypass 4.5 MB limit
-- Client-side image resize to max 2048px before upload
-- OcrReviewPanel component: editable table by category, inline editing, delete/add row
-- Locale-aware price parsing (Brazilian comma-decimal format normalized to period-decimal, validated against strict regex)
-- Low-quality photo detection with user warning
-- OCR confidence scoring; low-confidence items flagged in review UI
-- Entry point from both onboarding Step 5 and Admin panel
+- /sitemap.xml listing marketing URLs only, not tenant roster
+- /robots.txt disallowing admin, API, and SaaS-internal routes
+- JSON-LD Organization and SoftwareApplication schemas validated in Google Rich Results Test
+- OG image under 300 KB confirmed rendering in WhatsApp on real device
+- schema-dts devDependency for type-safe JSON-LD authoring
+- PT/EN i18n route structure using (marketing)/[locale]/ route group if scope expands to Phase 13
+- Final Lighthouse mobile 95 or higher
 
-**Avoids pitfalls:** OCR auto-commit without review (two-route separation is architectural), Vercel 4.5 MB limit, price misparse, low-quality photo silent failure
+**Files changed/created:** src/app/sitemap.ts (new), src/app/robots.ts (new), src/app/opengraph-image.tsx (replaces static PNG), src/app/page.tsx (add JSON-LD scripts)
 
-**Research flag:** Standard vision extraction patterns. Define price parsing test matrix during planning.
+**Packages installed:** schema-dts@2.0.0 (devDependency only)
+
+**Avoids:** WhatsApp OG image failure, JSON-LD leaking to tenant and auth pages, sitemap tenant data exposure, i18n route conflict with [slug]
+
+**Phase 13 gate criteria (all must pass before milestone complete):**
+- sitemap.xml contains only marketing URLs, verified by manual inspection
+- robots.txt disallows /dashboard, /settings, /tenants, /overview, /api/
+- OG image curl -I Content-Length below 300000 bytes
+- OG image confirmed rendering in WhatsApp on a real physical device, not simulator
+- JSON-LD Google Rich Results Test passes with no errors or warnings
+- JSON-LD does NOT appear in view-source of any /{tenantSlug} or /auth/* page
+- Vercel Analytics and Speed Insights active and reporting data in Vercel dashboard
+- Lighthouse mobile 95 or higher
 
 ---
 
 ### Phase Ordering Rationale
 
-- Phase 1 before Phase 2: Image seeding needs product IDs from text seeding; ai_usage table is prerequisite for image cost control
-- Phase 1 before Phase 3: Review screen UI pattern from Phase 1 is the template for OCR; ai_usage infra is reused
-- Phase 2 before Phase 3: Storage upload patterns from Phase 2 inform OCR upload architecture (soft dependency)
-- Phase 3 last: Highest complexity, most novel code path, independent at DB level
+- Middleware guard and performance bypass are prerequisites for any public traffic and land with Phase 12
+- Demo tenant must exist and be healthy before Phase 12 ships; a broken demo link is worse than no link
+- SEO files have no user-facing impact and no dependency on page content being final; they layer safely onto Phase 13
+- OG image WhatsApp verification requires real-device testing that cannot be skipped or simulated
+- i18n route restructure requires moving page.tsx into a [lang] subdirectory which can break routing if done mid-phase; Phase 13 is the earliest safe window
+
+---
 
 ### Research Flags
 
-Phases needing attention during planning:
-- **Phase 2:** Confirm Pexels/Unsplash attribution requirements. Verify gpt-image-1-mini availability and pricing.
-- **Phase 3:** Define price parsing test matrix for locale edge cases (Brazilian comma-decimal, European formats, integers, free items).
+**Needs deeper research during planning:**
+- Phase 13 i18n route structure: if PT/EN path routing is confirmed for Phase 13, verify (marketing)/[locale]/ interaction with (public)/[slug]/ against live routing resolution order before writing any code
+- Phase 13 OG image WhatsApp testing: manual QA step on real device with production URL required as gate criterion; not addressable in CI or with simulators
 
-Phases with standard patterns (no research-phase needed):
-- **Phase 1:** Vercel AI SDK + OpenAI Chat Completions + Structured Outputs is thoroughly documented.
-- **Phase 3 (upload):** Supabase Storage direct upload with signed URLs is officially documented.
+**Standard patterns (skip research-phase):**
+- Phase 12 Analytics integration: exact code in official Vercel docs with verified import paths and component placement
+- Phase 12 Reserved path guard: pattern derived from live codebase inspection and Next.js middleware docs; a Set lookup plus early return
+- Phase 12 Landing page sections: HIGH confidence from competitor SaaS page research; section order, CTA patterns, and copy anti-patterns well-documented
+- Phase 13 sitemap.ts and robots.ts: native Next.js file conventions with exact code in official 16.2.5 docs
+- Phase 13 JSON-LD: official Next.js guide has exact code pattern including XSS sanitization requirement
 
 ---
 
@@ -206,46 +219,55 @@ Phases with standard patterns (no research-phase needed):
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | npm versions verified via registry; Vercel constraints from official docs; AI SDK v6 compatibility confirmed |
-| Features (text seeding, OCR) | HIGH | Patterns verified with multiple production examples and official OpenAI docs |
-| Features (image seeding) | MEDIUM | Hybrid AI-cover + stock-products approach well-reasoned; Pexels/Unsplash attribution TBD |
-| Architecture | HIGH | Based on direct codebase inspection + official Vercel Fluid Compute docs (Feb 2026) |
-| Pitfalls | HIGH | OWASP LLM Top 10 sourced; Vercel limits from official docs; injection surface identified via codebase read |
+| Stack | HIGH | All package versions verified via npm view on 2026-05-07. Native Next.js capabilities confirmed in official 16.2.5 docs. No version conflicts with existing dependencies. |
+| Features | HIGH on structure; MEDIUM on conversion numbers | Section order and anti-patterns verified against multiple SaaS landing page analyses and competitor implementations. Specific lift percentages are directional only. |
+| Architecture | HIGH | File conventions verified in official Next.js 16.2.5 docs. Middleware patterns verified against live codebase inspection. Import paths verified from official Vercel docs. |
+| Pitfalls | HIGH | Six of eight pitfalls verified against live codebase: getUser call confirmed, no reserved path list confirmed, no metadataBase confirmed, Inter display option missing confirmed. WhatsApp 300 KB OG limit confirmed via GitHub Discussion 60366. |
 
-**Overall confidence:** HIGH
+**Overall confidence: HIGH**
 
 ### Gaps to Address
 
-- **Pexels/Unsplash attribution:** Both APIs are free and production-ready but attribution requirements for programmatic re-hosting need confirmation before Phase 2 ships.
-- **DALL-E 3 deprecation (May 12 2026):** STACK.md migrates to gpt-image-1-mini - confirm this model is available in the project OpenAI tier before Phase 2 begins.
-- **Streaming vs. single-call for text seeding:** Resolve during Phase 1 planning - single call first, upgrade to SSE if >4s becomes a UX complaint.
-- **ai_usage table schema:** Define (tenant_id, feature_key, date, call_count, token_count) during Phase 1 planning to cover all three features without a future migration.
-- **Vercel plan (free vs Pro):** Confirm the Vercel plan before committing to route timeout values and cold start mitigation strategy.
+- Data export FAQ answer: verify whether a tenant data export mechanism exists before finalizing FAQ question 6 copy. If no export exists, the answer must not imply one. Check src/app/api/ and admin panel for export endpoints.
+- Ordering feature-flag default state: confirm the default value of orders_enabled for a newly registered tenant before finalizing FAQ question 5 and Feature Block 2 copy.
+- Legal documents: Privacy Policy and Terms of Service are a hard launch blocker for the footer. Out of scope for v1.3 engineering but must be coordinated with the product owner before the page is publicly promoted.
+- OG image design asset: the Phase 12 static PNG fast path requires a 1200x630px image file. If no design asset exists at planning time, a placeholder must be created before Phase 12 build begins.
+- Marketing layout isolation: confirm at the start of Phase 12 whether to create a (marketing)/layout.tsx route group to prevent SaaS admin CSS from inflating the landing page Tailwind bundle.
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence)
-- npm registry - ai@6.0.175, @ai-sdk/anthropic@3.0.75, @ai-sdk/openai@3.0.62, openai@6.36.0, zod@4.4.3 verified via npm view
-- Vercel Functions Limits (official docs) - 250 MB bundle, 4.5 MB body, 900s max on Pro
-- Vercel Fluid Compute duration limits - verified 2026-02-27
-- Existing codebase - src/app/api/onboarding/route.ts, src/lib/upload.ts, src/app/api/superadmin/tenants/[id]/upload/route.ts
-- OWASP LLM Top 10 for 2025 - Prompt Injection: https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+### Primary (HIGH confidence -- official docs, verified 2026-05-07)
 
-### Secondary (MEDIUM confidence)
-- Vercel AI SDK Migration Guide 6.0 - generateObject deprecated, replaced by generateText + Output.object()
-- Anthropic API Pricing 2026 - Haiku 4.5: $1 input / $5 output per 1M tokens
-- OpenAI Image Pricing - gpt-image-1-mini standard approx $0.011/image; DALL-E 3 deprecated May 12 2026
-- Restaurant menu OCR pipeline (production) - https://medium.com/@zafarobad/from-fuzzy-photos-to-perfect-data-building-an-ai-powered-ocr-system-for-restaurant-menus-bb575b16db59
-- AI food photo generation risk (MenuCapture) - https://www.menucapture.com/ai-food-photography
-- OpenAI API Budget Limits Per-Tenant - https://runcycles.io/blog/openai-api-budget-limits-per-user-per-run-per-tenant
-- Multi-Tenant AI Leakage - https://layerxsecurity.com/generative-ai/multi-tenant-ai-leakage/
+- Next.js 16.2.5 sitemap file convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
+- Next.js 16.2.5 robots file convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
+- Next.js 16.2.5 opengraph-image convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image
+- Next.js 16.2.5 JSON-LD guide: https://nextjs.org/docs/app/guides/json-ld
+- Next.js 16.2.5 internationalization guide: https://nextjs.org/docs/app/guides/internationalization
+- Vercel Web Analytics quickstart: https://vercel.com/docs/analytics/quickstart (updated 2026-03-11)
+- Vercel Speed Insights quickstart: https://vercel.com/docs/speed-insights/quickstart (updated 2026-03-11)
+- npm registry: @vercel/analytics@2.0.1, @vercel/speed-insights@2.0.0, schema-dts@2.0.0 verified via npm view 2026-05-07
+- Live codebase inspection: src/middleware.ts, src/lib/supabase/middleware.ts, src/app/(public)/[slug]/page.tsx, src/app/api/onboarding/route.ts, src/lib/utils.ts, src/app/layout.tsx
 
-### Tertiary (LOW confidence)
-- Generate then review UX pattern as table stakes - standard SaaS AI pattern per research; no single authoritative UX study found
-- Image quality pre-check (canvas analysis) - described as best practice; no canonical implementation found; may be over-engineering for v1
+### Secondary (MEDIUM confidence -- cross-referenced with primary sources)
+
+- unbounce.com State of SaaS Landing Pages: section order, hero copy formula, CTA patterns
+- choiceqr.com: reference implementation, restaurant QR SaaS landing page structure
+- menutiger.com: reference implementation, restaurant QR SaaS competitor landing page
+- klientboost 51 SaaS Landing Pages: social proof lift statistics, CTA label frequency analysis
+- vercel/next.js discussion 60366: ImageResponse PNG too heavy for WhatsApp 300 KB limit confirmed
+- vercel/next.js discussion 80088: JSON-LD hydration duplication with next/script in App Router confirmed
+- supabase/discussions 20905: getUser in middleware causes latency
+- SaaS Hero B2B SaaS CTA Best Practices: CTA strategy, SMB vs enterprise patterns
+
+### Tertiary (LOW confidence -- directional only)
+
+- WebSearch aggregated findings on FTC fake testimonial enforcement 2025
+- WebSearch aggregated findings on WhatsApp OG image pitfalls with Next.js
+- WebSearch aggregated findings on free-during-beta pricing conversion rates
 
 ---
-*Research completed: 2026-05-06*
+*Research completed: 2026-05-07*
+*Milestone: v1.3 Landing Page -- xmartmenu.skale.club*
 *Ready for roadmap: yes*
