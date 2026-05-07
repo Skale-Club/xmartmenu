@@ -106,7 +106,7 @@ Plans:
   4. `curl -I https://xmartmenu.skale.club/opengraph-image` shows `Content-Length` below 300000 bytes, and the OG image renders correctly in WhatsApp on a real physical device
 **Plans**: 2 plans
 Plans:
-- [ ] 13-01-PLAN.md — sitemap.ts + robots.ts + JSON-LD in page.tsx + schema-dts install (SEO-01, SEO-02, SEO-03)
+- [x] 13-01-PLAN.md — sitemap.ts + robots.ts + JSON-LD in page.tsx + schema-dts install (SEO-01, SEO-02, SEO-03)
 - [ ] 13-02-PLAN.md — OG image size verification + human verification gate (SEO-04)
 **UI hint**: no
 
@@ -117,4 +117,4 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 12. Core Landing Page | 3/3 | Complete    | 2026-05-07 |
-| 13. SEO & Metadata | 0/2 | Not started | - |
+| 13. SEO & Metadata | 1/2 | In Progress|  |

@@ -22,9 +22,9 @@ Tenant public menus remain at `/{tenantSlug}/{menuSlug}` — no URL structure ch
 
 ### SEO & Metadata (SEO)
 
-- [ ] **SEO-01**: `/sitemap.xml` is served via `src/app/sitemap.ts` listing only marketing URLs (`/`) — no tenant slugs exposed
-- [ ] **SEO-02**: `/robots.txt` is served via `src/app/robots.ts` allowing `/` and disallowing `/api/`, `/admin/`, `/superadmin/`
-- [ ] **SEO-03**: JSON-LD structured data (`Organization` + `SoftwareApplication` schema.org types) is injected in `src/app/page.tsx` only (not `layout.tsx`) via a `<script type="application/ld+json" dangerouslySetInnerHTML>` block
+- [x] **SEO-01**: `/sitemap.xml` is served via `src/app/sitemap.ts` listing only marketing URLs (`/`) — no tenant slugs exposed
+- [x] **SEO-02**: `/robots.txt` is served via `src/app/robots.ts` allowing `/` and disallowing `/api/`, `/admin/`, `/superadmin/`
+- [x] **SEO-03**: JSON-LD structured data (`Organization` + `SoftwareApplication` schema.org types) is injected in `src/app/page.tsx` only (not `layout.tsx`) via a `<script type="application/ld+json" dangerouslySetInnerHTML>` block
 - [ ] **SEO-04**: A static OG image (JPEG, ≤ 300 KB) is served at `/opengraph-image`; `metadataBase` is set in `src/app/layout.tsx` so all OG/Twitter URLs are absolute and render correctly in WhatsApp and social crawlers
 
 ## Future Requirements (deferred from v1.3)
@@ -54,7 +54,7 @@ Tenant public menus remain at `/{tenantSlug}/{menuSlug}` — no URL structure ch
 | LP-03 | Phase 12 — Core Landing Page | Complete |
 | LP-04 | Phase 12 — Core Landing Page | Complete |
 | LP-05 | Phase 12 — Core Landing Page | Complete |
-| SEO-01 | Phase 13 — SEO & Metadata | Pending |
-| SEO-02 | Phase 13 — SEO & Metadata | Pending |
-| SEO-03 | Phase 13 — SEO & Metadata | Pending |
+| SEO-01 | Phase 13 — SEO & Metadata | Complete |
+| SEO-02 | Phase 13 — SEO & Metadata | Complete |
+| SEO-03 | Phase 13 — SEO & Metadata | Complete |
 | SEO-04 | Phase 13 — SEO & Metadata | Pending |
