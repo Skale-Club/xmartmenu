@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Landing Page — Active
-status: executing
-stopped_at: Completed 12-core-landing-page-12-02-PLAN.md
-last_updated: "2026-05-07T22:24:04.868Z"
+status: verifying
+stopped_at: Completed 12-core-landing-page-12-03-PLAN.md — Phase 12 complete
+last_updated: "2026-05-07T22:35:04.953Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 
 Phase: 12 (core-landing-page) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-07
 
 Progress: [__________] 0% (v1.3 — 0/2 phases)
@@ -68,6 +68,7 @@ Progress: [__________] 0% (v1.3 — 0/2 phases)
 | Phase 11-menu-photo-ocr P03 | 0min | 1 tasks | 0 files |
 | Phase 12-core-landing-page P12-01 | 4min | 3 tasks | 7 files |
 | Phase 12-core-landing-page P12-02 | 8min | 2 tasks | 3 files |
+| Phase 12-core-landing-page P12-03 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,8 @@ Recent decisions affecting current work:
 - [Phase 12-01]: Analytics components in root layout (not marketing layout) — broader coverage across all routes (D-03)
 - [Phase 12-core-landing-page]: Camera icon used as Instagram proxy in (marketing)/page.tsx — lucide-react@1.7.0 does not export Instagram; aria-label preserved
 - [Phase 12-core-landing-page]: Analytics/SpeedInsights not added to (marketing)/layout.tsx — already in root layout.tsx per D-03 to avoid script duplication
+- [Phase 12-core-landing-page]: OG image uses flat dark CSS ImageResponse with no fetch() — keeps PNG under 100 KB (WhatsApp 300 KB gate, Pitfall 3)
+- [Phase 12-core-landing-page]: Legal pages (/privacy, /terms) outside (marketing) route group as named routes — inherit root lang=pt-BR, acceptable for placeholders (D-21)
 
 ### Pending Todos
 
@@ -148,6 +151,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T22:24:04.863Z
-Stopped at: Completed 12-core-landing-page-12-02-PLAN.md
+Last session: 2026-05-07T22:35:04.932Z
+Stopped at: Completed 12-core-landing-page-12-03-PLAN.md — Phase 12 complete
 Resume file: None
