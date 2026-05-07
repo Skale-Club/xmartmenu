@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Landing Page — Active
 status: executing
-stopped_at: Completed 12-core-landing-page-12-01-PLAN.md
-last_updated: "2026-05-07T22:14:06.065Z"
+stopped_at: Completed 12-core-landing-page-12-02-PLAN.md
+last_updated: "2026-05-07T22:24:04.868Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 2
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 12 (core-landing-page) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-05-07
 
@@ -67,6 +67,7 @@ Progress: [__________] 0% (v1.3 — 0/2 phases)
 | Phase 11-menu-photo-ocr P11-02 | 386 | 2 tasks | 3 files |
 | Phase 11-menu-photo-ocr P03 | 0min | 1 tasks | 0 files |
 | Phase 12-core-landing-page P12-01 | 4min | 3 tasks | 7 files |
+| Phase 12-core-landing-page P12-02 | 8min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,8 @@ Recent decisions affecting current work:
 - [Phase 12-01]: BLOCKED_TENANT_SLUGS inline in middleware.ts (not imported from reserved-paths.ts) — Edge Runtime keeps imports minimal
 - [Phase 12-01]: Marketing bypass uses NextResponse.next() unconditionally for '/' — no session refresh on static marketing routes (D-26)
 - [Phase 12-01]: Analytics components in root layout (not marketing layout) — broader coverage across all routes (D-03)
+- [Phase 12-core-landing-page]: Camera icon used as Instagram proxy in (marketing)/page.tsx — lucide-react@1.7.0 does not export Instagram; aria-label preserved
+- [Phase 12-core-landing-page]: Analytics/SpeedInsights not added to (marketing)/layout.tsx — already in root layout.tsx per D-03 to avoid script duplication
 
 ### Pending Todos
 
@@ -145,6 +148,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T22:14:06.059Z
-Stopped at: Completed 12-core-landing-page-12-01-PLAN.md
+Last session: 2026-05-07T22:24:04.863Z
+Stopped at: Completed 12-core-landing-page-12-02-PLAN.md
 Resume file: None

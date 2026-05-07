@@ -14,10 +14,10 @@ Tenant public menus remain at `/{tenantSlug}/{menuSlug}` — no URL structure ch
 
 ### Landing Page — Content (LP)
 
-- [ ] **LP-01**: Visitor sees a hero section with a headline ≤ 8 words, a subheadline, a primary "Get started" CTA button linking to `/auth/register`, and "No credit card required" microcopy below the button
-- [ ] **LP-02**: Visitor sees a "How It Works" section with 3 visual steps: create account → configure menu → share QR code
-- [ ] **LP-03**: Visitor sees 4 feature blocks — Multi-language menus, QR Code generation, AI-powered seeding (superadmin tool), Online ordering (feature-flagged) — with honest copy that does not overclaim self-serve AI or default-on ordering
-- [ ] **LP-04**: Visitor sees a FAQ section with 6–8 questions covering billing, data ownership, multi-language support, QR codes, cancellation, and ordering
+- [x] **LP-01**: Visitor sees a hero section with a headline ≤ 8 words, a subheadline, a primary "Get started" CTA button linking to `/auth/register`, and "No credit card required" microcopy below the button
+- [x] **LP-02**: Visitor sees a "How It Works" section with 3 visual steps: create account → configure menu → share QR code
+- [x] **LP-03**: Visitor sees 4 feature blocks — Multi-language menus, QR Code generation, AI-powered seeding (superadmin tool), Online ordering (feature-flagged) — with honest copy that does not overclaim self-serve AI or default-on ordering
+- [x] **LP-04**: Visitor sees a FAQ section with 6–8 questions covering billing, data ownership, multi-language support, QR codes, cancellation, and ordering
 - [x] **LP-05**: Visitor sees a footer with internal navigation links, placeholder links for Privacy Policy and Terms of Service pages, and social media handles
 
 ### SEO & Metadata (SEO)
@@ -49,10 +49,10 @@ Tenant public menus remain at `/{tenantSlug}/{menuSlug}` — no URL structure ch
 
 | REQ-ID | Phase | Status |
 |--------|-------|--------|
-| LP-01 | Phase 12 — Core Landing Page | Pending |
-| LP-02 | Phase 12 — Core Landing Page | Pending |
-| LP-03 | Phase 12 — Core Landing Page | Pending |
-| LP-04 | Phase 12 — Core Landing Page | Pending |
+| LP-01 | Phase 12 — Core Landing Page | Complete |
+| LP-02 | Phase 12 — Core Landing Page | Complete |
+| LP-03 | Phase 12 — Core Landing Page | Complete |
+| LP-04 | Phase 12 — Core Landing Page | Complete |
 | LP-05 | Phase 12 — Core Landing Page | Complete |
 | SEO-01 | Phase 13 — SEO & Metadata | Pending |
 | SEO-02 | Phase 13 — SEO & Metadata | Pending |
