@@ -80,7 +80,11 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
   3. Visitor can click a "See live demo" link and reach a real provisioned tenant menu at `/demo` with seeded content (is_active: true, categories, products, images)
   4. Vercel Analytics dashboard shows page-view events firing on first deploy (no silent under-count from wrong import path)
   5. No Supabase `getUser()` call appears in Vercel function logs for requests to `/`; Lighthouse mobile scores 90 or higher
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 12-01-PLAN.md — Infrastructure: reserved-paths, middleware bypass, analytics install, root layout update, onboarding guard
+- [ ] 12-02-PLAN.md — Landing page: (marketing) route group layout + full page with all 7 sections
+- [ ] 12-03-PLAN.md — OG image, legal placeholder pages, human verification checkpoint
 **UI hint**: yes
 
 ### Phase 13: SEO & Metadata
@@ -109,5 +113,5 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Core Landing Page | 0/? | Not started | - |
+| 12. Core Landing Page | 0/3 | Not started | - |
 | 13. SEO & Metadata | 0/? | Not started | - |
