@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Landing Page — Active
-status: planning
-stopped_at: Phase 12 UI-SPEC approved
-last_updated: "2026-05-07T17:49:18.836Z"
+status: executing
+stopped_at: Completed 12-core-landing-page-12-01-PLAN.md
+last_updated: "2026-05-07T22:14:06.065Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 12 — Core Landing Page
+**Current focus:** Phase 12 — core-landing-page
 
 ## Current Position
 
-Phase: 12
-Plan: Not started
-Status: Roadmap complete — awaiting Phase 12 planning
+Phase: 12 (core-landing-page) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-05-07
 
 Progress: [__________] 0% (v1.3 — 0/2 phases)
@@ -66,6 +66,7 @@ Progress: [__________] 0% (v1.3 — 0/2 phases)
 | Phase 11-menu-photo-ocr P11-01 | 15min | 3 tasks | 5 files |
 | Phase 11-menu-photo-ocr P11-02 | 386 | 2 tasks | 3 files |
 | Phase 11-menu-photo-ocr P03 | 0min | 1 tasks | 0 files |
+| Phase 12-core-landing-page P12-01 | 4min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -126,6 +127,9 @@ Recent decisions affecting current work:
 - [v1.3 Roadmap]: Ordering copy must describe feature-flag behavior (not default-on); AI seeding copy must describe onboarding service (not self-serve tenant tool)
 - [v1.3 Roadmap]: demo tenant must exist with is_active: true, default menu, seeded categories/products/images before Phase 12 ships
 - [v1.3 Roadmap]: metadataBase absence in layout.tsx confirmed in live codebase — must be added in Phase 12
+- [Phase 12-01]: BLOCKED_TENANT_SLUGS inline in middleware.ts (not imported from reserved-paths.ts) — Edge Runtime keeps imports minimal
+- [Phase 12-01]: Marketing bypass uses NextResponse.next() unconditionally for '/' — no session refresh on static marketing routes (D-26)
+- [Phase 12-01]: Analytics components in root layout (not marketing layout) — broader coverage across all routes (D-03)
 
 ### Pending Todos
 
@@ -141,6 +145,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T17:49:18.797Z
-Stopped at: Phase 12 UI-SPEC approved
-Resume file: .planning/phases/12-core-landing-page/12-UI-SPEC.md
+Last session: 2026-05-07T22:14:06.059Z
+Stopped at: Completed 12-core-landing-page-12-01-PLAN.md
+Resume file: None
