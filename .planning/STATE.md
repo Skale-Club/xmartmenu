@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Landing Page — Active
-status: verifying
-stopped_at: Completed 12-core-landing-page-12-03-PLAN.md — Phase 12 complete
-last_updated: "2026-05-07T22:42:23.947Z"
+status: executing
+stopped_at: Completed 13-seo-metadata-13-01-PLAN.md
+last_updated: "2026-05-07T23:11:28.286Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 5
+  completed_plans: 4
   percent: 0
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 12 — core-landing-page
+**Current focus:** Phase 13 — seo-metadata
 
 ## Current Position
 
-Phase: 13
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 13 (seo-metadata) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-05-07
 
 Progress: [__________] 0% (v1.3 — 0/2 phases)
@@ -69,6 +69,7 @@ Progress: [__________] 0% (v1.3 — 0/2 phases)
 | Phase 12-core-landing-page P12-01 | 4min | 3 tasks | 7 files |
 | Phase 12-core-landing-page P12-02 | 8min | 2 tasks | 3 files |
 | Phase 12-core-landing-page P12-03 | 5min | 2 tasks | 3 files |
+| Phase 13-seo-metadata P13-01 | 204 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,9 @@ Recent decisions affecting current work:
 - [Phase 12-core-landing-page]: Analytics/SpeedInsights not added to (marketing)/layout.tsx — already in root layout.tsx per D-03 to avoid script duplication
 - [Phase 12-core-landing-page]: OG image uses flat dark CSS ImageResponse with no fetch() — keeps PNG under 100 KB (WhatsApp 300 KB gate, Pitfall 3)
 - [Phase 12-core-landing-page]: Legal pages (/privacy, /terms) outside (marketing) route group as named routes — inherit root lang=pt-BR, acceptable for placeholders (D-21)
+- [Phase 13-seo-metadata]: sitemap.ts lists only / — no DB queries to prevent tenant roster exposure as public XML
+- [Phase 13-seo-metadata]: JSON-LD injected via dangerouslySetInnerHTML in page.tsx only (not layout.tsx) — prevents leaking to tenant pages
+- [Phase 13-seo-metadata]: schema-dts installed as devDependency — zero runtime footprint, types stripped at build
 
 ### Pending Todos
 
@@ -151,6 +155,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T22:35:04.932Z
-Stopped at: Completed 12-core-landing-page-12-03-PLAN.md — Phase 12 complete
+Last session: 2026-05-07T23:11:28.274Z
+Stopped at: Completed 13-seo-metadata-13-01-PLAN.md
 Resume file: None
