@@ -42,8 +42,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 ## Phases
 
-- [x] **Phase 9: Text Seeding** — Superadmin can seed a tenant's categories, products, and restaurant copy via LLM from the superadmin panel; also adds per-item "Seed" buttons for individual categories/products (completed 2026-05-06)
-- [x] **Phase 10: Image Seeding** — Superadmin can generate a tenant cover photo and per-product stock photos; uploads go directly to Supabase Storage via the existing Sharp/WebP pipeline (completed 2026-05-07)
+- [x] **Phase 9: Text Seeding** — Superadmin can seed a tenant's categories, products, and restaurant copy via LLM from the superadmin panel; also adds per-item "Seed" buttons for individual categories/products (completed 2026-05-06)
+- [x] **Phase 10: Image Seeding** — Superadmin can generate a tenant cover photo and per-product stock photos; uploads go directly to Supabase Storage via the existing Sharp/WebP pipeline (completed 2026-05-07)
 - [ ] **Phase 11: Menu Photo OCR** — Superadmin can upload a photo of a tenant's physical menu; GPT-4.1-mini extracts categories, items, and prices and writes them directly to the tenant's tables
 
 ## Phase Details
@@ -87,7 +87,11 @@ Plans:
   1. Superadmin uploads a menu photo from the tenant detail page; upload goes directly to Supabase Storage (bypasses Vercel 4.5 MB body limit)
   2. Extracted categories and products appear in the tenant's tables immediately; prices that fail parsing are saved as `0`
   3. Superadmin can verify and fix any extraction errors using the regular admin UI
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 11-01-PLAN.md — Infrastructure: install @ai-sdk/openai, OcrMenuSchema, OPENAI_API_KEY env doc, ocr-upload-token route
+- [ ] 11-02-PLAN.md — OCR process route: Storage download + GPT-4.1-mini vision + additive DB writes + ai_usage + revalidatePath
+- [ ] 11-03-PLAN.md — UI: OCR sub-section in TenantDetailClient with three-step upload flow, loading/success/error states
 **UI hint**: yes
 
 ## Progress
@@ -104,4 +108,4 @@ Plans:
 | 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
 | 9. Text Seeding | v1.2 | 3/3 | Complete   | 2026-05-06 |
 | 10. Image Seeding | v1.2 | 2/2 | Complete    | 2026-05-07 |
-| 11. Menu Photo OCR | v1.2 | 0/? | Not started | - |
+| 11. Menu Photo OCR | v1.2 | 0/3 | Not started | - |
