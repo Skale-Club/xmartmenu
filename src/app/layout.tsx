@@ -22,6 +22,14 @@ export const metadata: Metadata = {
     locale: 'pt_BR',
     alternateLocale: 'en_US',
     siteName: 'XmartMenu',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'XmartMenu',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',

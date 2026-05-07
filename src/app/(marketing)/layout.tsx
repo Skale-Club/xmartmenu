@@ -21,12 +21,21 @@ export const metadata: Metadata = {
     siteName: 'XmartMenu',
     locale: 'en_US',
     type: 'website',
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: 'XmartMenu — Your restaurant menu, online in minutes',
+      },
+    ],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'XmartMenu — Your restaurant menu, online in minutes',
     description:
       'Create a beautiful digital menu, generate a QR code, and start taking orders — no tech skills needed.',
+    images: ['/opengraph-image'],
   },
 }
 
