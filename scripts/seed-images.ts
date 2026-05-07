@@ -79,7 +79,7 @@ async function generateAndUploadImage(
   storagePath: string,
   aspectRatio: '16:9' | '1:1',
 ): Promise<string> {
-  // Pitfall 4: imageSize is silently ignored — configure aspectRatio only.
+  // Pitfall 4 avoidance: configure aspectRatio only — the size config field is silently ignored by this preview model.
   const response = await ai.models.generateContent({
     model: MODEL_NAME,
     contents: prompt,
@@ -256,7 +256,7 @@ async function main(): Promise<void> {
   const products = (productsData ?? []) as ProductRow[]
   console.log(`[seed-images] Products to process: ${products.length}`)
 
-  // Sequential — NO Promise.all (Pitfall 5)
+  // Sequential generation only — bursting parallel requests trips Pitfall 5 (preview-model rate limits).
   for (let i = 0; i < products.length; i++) {
     const product = products[i]
 
