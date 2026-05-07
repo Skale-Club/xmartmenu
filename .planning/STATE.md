@@ -4,7 +4,7 @@ milestone: v1.3
 milestone_name: Landing Page — Complete
 status: completed
 stopped_at: 13-02 complete — v1.3 Landing Page milestone fully shipped
-last_updated: "2026-05-07T23:47:57.517Z"
+last_updated: "2026-05-07T23:51:23.978Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 2

@@ -28,35 +28,26 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v1.3 Landing Page
-
-**Goal:** Criar a página de marketing de xmartmenu.skale.club — porta de entrada do produto para novos restaurantes, com copy em PT e EN, SEO completo, analytics, e Lighthouse 95+ mobile.
-
-**Target features:**
-- Hero com value prop + CTA → signup
-- Seções de feature (multi-idioma, QR code, AI seeding, pedidos)
-- Link para demo tenant ao vivo (`/demo`)
-- Pricing "Free durante beta"
-- FAQ + Footer (links legais placeholder)
-- i18n PT/EN (path-based: `/pt`, `/en`)
-- SEO: metadata API, OG tags, sitemap.xml, robots.txt, JSON-LD Organization + SoftwareApplication
-- Analytics: Vercel Analytics + Web Vitals
-- Mobile-first, WCAG AA, Lighthouse 95+ mobile
-- Tenant URLs permanecem `/{slug}`; middleware recebe lista de reserved paths
-
 ## Current State
 
-**v1.2 AI Onboarding shipped (2026-05-07)** — All 3 AI tools operational in superadmin panel.
+**v1.3 Landing Page shipped (2026-05-07)** — Static marketing page live at xmartmenu.skale.club.
 
-AI Tools section in `/(superadmin)/tenants/[id]`:
-- **Text seeding** (Phase 9): Gemini 2.5 Flash → categories, products, copy, translations. Bulk + per-item buttons. `sanitizeForPrompt()` + `ai_usage` tracking.
-- **Image seeding** (Phase 10): Nano Banana 2 (`gemini-3.1-flash-image-preview`) → cover banner (4:1) + per-product photos (1:1). Sharp WebP conversion, Supabase Storage. Additive.
-- **Menu photo OCR** (Phase 11): GPT-4.1-mini vision → categories/items/prices/descriptions from a photo. Signed URL upload (bypasses Vercel 4.5 MB limit). Additive. `price=0` for unreadable prices.
+Landing page at `src/app/(marketing)/page.tsx` (`force-static`):
+- 7 sections: nav, hero, how-it-works, feature blocks, FAQ, CTA, footer
+- Middleware bypasses `getUser()` for `/` to eliminate Supabase latency on marketing route
+- Reserved paths (`RESERVED_PATHS` Set) shared between middleware and onboarding API
+- Vercel Analytics + Speed Insights installed
 
-Required env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENAI_API_KEY`
+SEO at `src/app/`:
+- `sitemap.ts` — MetadataRoute.Sitemap listing only `/` (no tenant roster leak)
+- `robots.ts` — MetadataRoute.Robots with Disallow for all private paths
+- `opengraph-image.tsx` — 32.6 KB PNG via ImageResponse (flat CSS, no fetch)
+- JSON-LD Organization + SoftwareApplication inline in page.tsx via `dangerouslySetInnerHTML`
+- `og:image` meta tag: explicit `openGraph.images` in root layout (file convention alone insufficient)
 
-*v1.1 Orders (2026-05-06)*: Cart, checkout, option groups, orders view — 8 phases, 11 plans.
-*v1.0 Foundation (2026-05-06)*: ISR caching, security, CI/CD — 3 phases, 6 plans.
+*v1.2 AI Onboarding (2026-05-07)*: Text seeding (Gemini 2.5 Flash), image seeding (Nano Banana 2), menu photo OCR (GPT-4.1-mini) — all superadmin-only, additive.
+*v1.1 Orders (2026-05-06)*: Cart, checkout, option groups, orders view.
+*v1.0 Foundation (2026-05-06)*: ISR caching, security, CI/CD.
 
 ## Requirements
 
@@ -96,16 +87,27 @@ Required env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENAI_API_KEY`
 - ✓ Menu photo OCR (superadmin): GPT-4.1-mini vision → structured DB writes via signed URL upload — Phase 11
 - ✓ All AI seeding is additive (never overwrites existing content) — Phases 9–11
 
-### Active — v1.3
+### Validated — v1.3
 
-- [ ] Marketing landing page: hero, features, demo, pricing, FAQ, footer — Phase 12
-- [ ] i18n PT/EN + SEO + analytics: metadata, OG, sitemap, robots, JSON-LD, Vercel Analytics — Phase 13
+- ✓ Static marketing landing page (7 sections, `force-static`, Server Components only) — Phase 12
+- ✓ Middleware bypass: no `getUser()` on `/` — Phase 12
+- ✓ Reserved paths guard shared by middleware + onboarding API — Phase 12
+- ✓ Vercel Analytics + Speed Insights — Phase 12
+- ✓ OG image (ImageResponse, 32.6 KB PNG, WhatsApp-safe) — Phase 12/13
+- ✓ sitemap.xml listing only `/` — Phase 13
+- ✓ robots.txt with correct Disallow rules — Phase 13
+- ✓ JSON-LD Organization + SoftwareApplication (page-scoped, not in layouts) — Phase 13
+- ✓ `og:image` meta tag with absolute URL via metadataBase — Phase 13
+
+### Active — v1.4
+
+(To be defined — run `/gsd:new-milestone`)
 
 ### Deferred (seeds)
 
 - SEED-003 — Stripe Connect payments (tenant-owned accounts)
 - SEED-004 — Full performance milestone (DB indices, RUM, Lighthouse budget)
-- SEED-005 — ✅ Marketing landing page (in progress as v1.3)
+- SEED-005 — ✅ Marketing landing page (shipped v1.3)
 
 ### Out of Scope
 
@@ -135,10 +137,17 @@ Required env vars: `GOOGLE_GENERATIVE_AI_API_KEY`, `OPENAI_API_KEY`
 | Supabase signed URL for OCR upload | Bypasses Vercel 4.5 MB body limit; no intermediate proxy needed | ✓ Shipped v1.2 |
 | price=0 as parse-failure signal | No extra DB column; superadmin sees $0 and corrects in admin UI | ✓ Shipped v1.2 |
 | Additive-only AI writes | Safe to re-run seeding without data loss; corrections via regular edit | ✓ Shipped v1.2 |
+| `force-static` for marketing page | Eliminates Supabase `getUser()` latency on `/`; Lighthouse-safe | ✓ Shipped v1.3 |
+| `(marketing)` route group | Isolates layout + metadata from tenant/admin routes | ✓ Shipped v1.3 |
+| Reserved paths as shared Set | Single source of truth for middleware + onboarding API guard | ✓ Shipped v1.3 |
+| `schema-dts` as devDependency | TypeScript types for JSON-LD; zero runtime footprint | ✓ Shipped v1.3 |
+| Inline `dangerouslySetInnerHTML` for JSON-LD | `next/script` causes RSC hydration duplication in React 19 | ✓ Shipped v1.3 |
+| `opengraph-image.tsx` at root `src/app/` | Route group placement serves route but doesn't inject `og:image` meta tag | ✓ Shipped v1.3 |
+| Explicit `openGraph.images` in root layout | File convention alone insufficient when layouts override `openGraph` object | ✓ Shipped v1.3 |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-07 — v1.3 Landing Page milestone started*
+*Last updated: 2026-05-07 — v1.3 Landing Page milestone complete*

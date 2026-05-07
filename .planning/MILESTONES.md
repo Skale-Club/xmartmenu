@@ -1,5 +1,19 @@
 # Milestones
 
+## v1.3 Landing Page (Shipped: 2026-05-07)
+
+**Phases completed:** 2 phases, 5 plans, 10 tasks
+
+**Key accomplishments:**
+
+- Reserved-path guard + middleware marketing bypass + Vercel Analytics + root layout SEO metadata — all Phase 12 prerequisites wired.
+- Full static marketing landing page with 7 sections (nav, hero, how-it-works, features, FAQ, footer CTA, footer) — Server Components only, force-static, zero client JS.
+- OG image (ImageResponse, flat CSS, WhatsApp-safe) + placeholder /privacy and /terms pages — Phase 12 complete.
+- One-liner:
+- OG image file moved to root app level — og:image meta tag correctly injected at 33.4 KB (32.6 KB), 9x under the 300 KB WhatsApp limit; all four SEO checks verified and human-approved.
+
+---
+
 ## v1.2 AI Onboarding (Shipped: 2026-05-07)
 
 **Phases completed:** 3 phases, 8 plans, 14 tasks
