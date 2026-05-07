@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
 status: executing
-stopped_at: Completed 11-menu-photo-ocr 11-01-PLAN.md
-last_updated: "2026-05-07T12:01:09.068Z"
+stopped_at: Completed 11-menu-photo-ocr 11-02-PLAN.md
+last_updated: "2026-05-07T12:14:29.559Z"
 last_activity: 2026-05-06
 progress:
   total_phases: 3
-  completed_phases: 1
-  total_plans: 3
-  completed_plans: 4
+  completed_phases: 2
+  total_plans: 4
+  completed_plans: 5
   percent: 11
 ---
 
@@ -64,6 +64,7 @@ Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1
 | Phase 09-text-seeding P09-02 | 25min | 2 tasks | 2 files |
 | Phase 09-text-seeding P09-03 | 20min | 2 tasks | 4 files |
 | Phase 11-menu-photo-ocr P11-01 | 15min | 3 tasks | 5 files |
+| Phase 11-menu-photo-ocr P11-02 | 386 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,8 @@ Recent decisions affecting current work:
 - [Phase 11-menu-photo-ocr]: @ai-sdk/openai@^3 installed at major 3 to match @ai-sdk/google and remain compatible with ai@6.x
 - [Phase 11-menu-photo-ocr]: OcrMenuSchema price: z.number() (not .positive()) — 0 valid for unreadable prices (D-12)
 - [Phase 11-menu-photo-ocr]: ocr-upload-token route accepts ?filename= query param for correct storage path extension (Pitfall 7)
+- [Phase 11-menu-photo-ocr]: generateObject with messages array (not prompt string) used for GPT-4.1-mini vision — image base64 data URL passed as content part
+- [Phase 11-menu-photo-ocr]: Image downloaded from Supabase Storage then converted to base64 — avoids passing raw storage URL to OpenAI (storage may not be publicly accessible)
 
 ### Pending Todos
 
@@ -123,6 +126,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T12:01:09.044Z
-Stopped at: Completed 11-menu-photo-ocr 11-01-PLAN.md
+Last session: 2026-05-07T12:14:29.537Z
+Stopped at: Completed 11-menu-photo-ocr 11-02-PLAN.md
 Resume file: None

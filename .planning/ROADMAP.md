@@ -44,7 +44,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for full details.
 
 - [x] **Phase 9: Text Seeding** — Superadmin can seed a tenant's categories, products, and restaurant copy via LLM from the superadmin panel; also adds per-item "Seed" buttons for individual categories/products (completed 2026-05-06)
 - [ ] **Phase 10: Image Seeding** — Superadmin can generate a tenant cover photo and per-product stock photos; uploads go directly to Supabase Storage via the existing Sharp/WebP pipeline
-- [ ] **Phase 11: Menu Photo OCR** — Superadmin can upload a photo of a tenant's physical menu; GPT-4.1-mini extracts categories, items, and prices and writes them directly to the tenant's tables
+- [x] **Phase 11: Menu Photo OCR** — Superadmin can upload a photo of a tenant's physical menu; GPT-4.1-mini extracts categories, items, and prices and writes them directly to the tenant's tables (completed 2026-05-07)
 
 ## Phase Details
 
@@ -101,4 +101,4 @@ Plans:
 | 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
 | 9. Text Seeding | v1.2 | 3/3 | Complete   | 2026-05-06 |
 | 10. Image Seeding | v1.2 | 0/? | Not started | - |
-| 11. Menu Photo OCR | v1.2 | 0/? | Not started | - |
+| 11. Menu Photo OCR | v1.2 | 2/1 | Complete   | 2026-05-07 |
