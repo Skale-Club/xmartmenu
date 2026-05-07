@@ -1,456 +1,843 @@
-# Architecture Patterns
+# Architecture Research: v1.3 Landing Page
 
-**Domain:** AI-powered tenant onboarding integration (xmartmenu v1.2)
-**Researched:** 2026-05-06
-**Confidence:** HIGH — based on direct codebase inspection + verified Vercel docs
-
----
-
-## Existing Architecture Baseline
-
-The system is a Next.js 16.2 App Router application with these boundaries already
-established:
-
-- `src/app/api/onboarding/route.ts` — single POST that creates tenant → settings →
-  profile → menu → category → product in one synchronous chain
-- `src/app/onboarding/page.tsx` — 4-step wizard (company name + business type,
-  contact info, menu name, first product), client component, posts to `/api/onboarding`
-- `src/lib/upload.ts` — Sharp WebP conversion utility (5 MB limit, validate → convert → return Buffer)
-- `src/app/api/superadmin/tenants/[id]/upload/route.ts` — multipart formData upload
-  to `tenant-assets` Supabase Storage bucket, returns publicUrl
-- DB tables that AI seeders must populate: `menus`, `categories`, `products`,
-  `tenant_settings` (banner_url column), `products.image_url` / `products.image_urls`
+**Researched:** 2026-05-07
+**Domain:** Next.js 16.2 App Router — marketing page integration, SEO metadata files, middleware reserved paths, analytics
+**Confidence:** HIGH — all findings sourced from official Next.js docs (version 16.2.5, last updated 2026-05-07) and official Vercel docs
 
 ---
 
-## Recommended Architecture
+## Summary
 
-Three independent AI paths, each as its own API route, all invoked from a new
-onboarding step (Step 5) that appears after the existing Step 4 completes and the
-tenant+menu exist.
+This document answers the four integration questions for the v1.3 milestone:
+where new files go, how the middleware reserved-path list works, the build
+strategy for a Lighthouse 95+ marketing page, and the exact integration points
+for sitemap/robots/OG/analytics.
+
+The core insight: **Next.js 16.2 App Router ships every required capability
+natively** — sitemap, robots, opengraph-image, and JSON-LD are all file
+conventions, not packages. No `next-sitemap`, no `react-helmet`, no external
+packages for SEO. Vercel Analytics and Speed Insights are two `npm install`s
+plus two component imports into the existing root layout.
+
+The landing page (`src/app/page.tsx`) can be a pure Server Component that
+exports `dynamic = 'force-static'`, giving it the same treatment as a
+statically generated page while the rest of the app remains SSR/ISR. This
+is the hybrid rendering model Next.js is designed for.
+
+**Primary recommendation:** Replace `src/app/page.tsx` with a static Server
+Component; add six new files (`sitemap.ts`, `robots.ts`,
+`opengraph-image.tsx`, and one layout metadata update); add two npm packages;
+guard reserved paths in the existing middleware with a Set lookup.
+
+---
+
+## Current Architecture Baseline
 
 ```
-src/app/onboarding/page.tsx
-  └── Step 1-4 (unchanged): creates tenant, menu, first category+product
-  └── Step 5 (new): AI seeding panel — three opt-in toggles
-        ├── Toggle A: Text seeding  →  POST /api/ai/seed-text
-        ├── Toggle B: Image seeding →  POST /api/ai/seed-images
-        └── Toggle C: OCR upload    →  multipart POST /api/ai/ocr-menu
-                                         └── review/edit UI before commit
-                                               └── POST /api/ai/ocr-commit
+src/
+├── app/
+│   ├── page.tsx                     ← MODIFY: was redirect('/auth/login')
+│   ├── layout.tsx                   ← MODIFY: add Analytics + SpeedInsights
+│   ├── globals.css
+│   ├── favicon.ico
+│   ├── (public)/
+│   │   ├── layout.tsx
+│   │   └── [slug]/
+│   │       └── [menuSlug]/
+│   │           └── page.tsx         ← UNCHANGED: tenant menu at /{slug}/{menuSlug}
+│   ├── (admin)/                     ← UNCHANGED
+│   ├── (superadmin)/                ← UNCHANGED
+│   ├── auth/                        ← UNCHANGED
+│   └── api/                         ← UNCHANGED
+├── middleware.ts                    ← MODIFY: add reserved path guard
+└── lib/
+    └── supabase/
+        └── middleware.ts            ← UNCHANGED (auth session logic lives here)
 ```
 
-### Why a separate Step 5 rather than modifying Step 4
+### The slug collision problem (existing)
 
-The existing `/api/onboarding` route is synchronous and already has complex
-fallback logic for schema version differences. AI calls are slow, expensive,
-and partially opt-in. Injecting them into the existing route risks timeouts on
-a path that must succeed for every tenant. Decoupling is safer.
+`src/app/(public)/[slug]/page.tsx` captures **any** first-path segment that
+is not already claimed by a named route group folder. The marketing page lives
+at `/` (the root), so it does NOT collide with `[slug]`. However, marketing
+section IDs like `/pricing`, `/faq`, `/about`, `/demo` WOULD be captured by
+`[slug]` if they were separate pages — they are NOT, because the marketing
+page is one SPA-style page at `/` with anchor links, not sub-routes.
 
-### Component Boundaries
-
-| Component | Responsibility | Communicates With |
-|-----------|---------------|-------------------|
-| `src/app/onboarding/page.tsx` | Wizard state, navigation, calls all AI routes | All 4 API routes below |
-| `POST /api/onboarding` | Unchanged — creates tenant scaffold | Supabase service client |
-| `POST /api/ai/seed-text` | LLM text generation, bulk insert categories + products | OpenAI, Supabase service client |
-| `POST /api/ai/seed-images` | DALL-E image generation, upload to Storage, update products | OpenAI, Supabase Storage, Supabase service client |
-| `POST /api/ai/ocr-menu` | Receive photo, call GPT-4o vision, return structured draft | OpenAI, no DB write |
-| `POST /api/ai/ocr-commit` | Receive user-reviewed draft, bulk insert to DB | Supabase service client |
-| `AiSeedingPanel` (client component) | Render toggles, stream progress, review UI | `/api/ai/*` routes |
+The collision risk is specifically that a **tenant** could register a slug
+identical to a marketing concept (e.g., slug `"pricing"`), then
+`/pricing` would show that tenant's page, not the marketing section. Since
+marketing sections are not separate routes this is not currently a rendering
+issue, but it IS a UX and SEO issue. The middleware reserved-path guard
+prevents those slugs from ever being provisioned.
 
 ---
 
-## API Routes: New vs Modified
+## New vs Modified Files
 
-### New routes (all under `src/app/api/ai/`)
+### New files to create
 
-**`POST /api/ai/seed-text`**
+| File path | What it does | Rendered |
+|-----------|-------------|---------|
+| `src/app/sitemap.ts` | Generates `/sitemap.xml` via MetadataRoute | Static at build |
+| `src/app/robots.ts` | Generates `/robots.txt` via MetadataRoute | Static at build |
+| `src/app/opengraph-image.tsx` | OG image for `/` via ImageResponse | Static at build |
+| `src/lib/marketing/reserved-paths.ts` | Exports the RESERVED_PATHS Set (shared between middleware and tenant creation API) | N/A |
 
-Request:
+### Modified files
+
+| File path | Change | Why |
+|-----------|--------|-----|
+| `src/app/page.tsx` | Replace `redirect('/auth/login')` with the landing page component | This IS the marketing page |
+| `src/app/layout.tsx` | Add `<Analytics />` + `<SpeedInsights />` + update root metadata | Global analytics coverage |
+| `src/middleware.ts` | Add reserved-path check before passing to `updateSession` | Block tenant slug collisions |
+| `src/lib/supabase/middleware.ts` | No change required — auth routing logic unchanged | — |
+
+### Optional files (i18n — Phase 13)
+
+If path-based i18n (`/pt`, `/en`) is implemented:
+
+| File path | What it does |
+|-----------|-------------|
+| `src/app/[lang]/page.tsx` | Language-specific landing page variant |
+| `src/app/[lang]/layout.tsx` | Sets `<html lang="">` per locale |
+
+This requires a restructure of the root segment. See "i18n Architecture
+Consideration" section below.
+
+---
+
+## Middleware: Reserved Path Pattern
+
+### Current middleware.ts
+
 ```typescript
-{
-  tenant_id: string      // already created by /api/onboarding
-  menu_id: string
-  business_type: string  // 'restaurant' | 'bar' | 'cafe' | 'other'
-  company_name: string   // context for the prompt
-  language: string       // from menu.language ('en' | 'pt' | etc.)
+// src/middleware.ts — CURRENT (7 lines)
+import { type NextRequest } from 'next/server'
+import { updateSession } from './lib/supabase/middleware'
+
+export async function middleware(request: NextRequest) {
+  return await updateSession(request)
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
 ```
 
-Response (streamed Server-Sent Events while generating, then final JSON):
+### How updateSession works (relevant lines)
+
+The auth logic in `src/lib/supabase/middleware.ts` checks named route
+prefixes (`/dashboard`, `/menu`, `/settings`, `/tenants`, `/overview`,
+`/users`, `/onboarding`). It does NOT check or block generic slug paths.
+The `[slug]` route group in `(public)` is purely a file-system route —
+middleware has no special awareness of it.
+
+### Reserved path guard — where to add it
+
+The guard belongs in `src/middleware.ts`, BEFORE calling `updateSession`,
+because:
+1. It is not auth-related — it's a routing concern
+2. It should short-circuit with a 404 before any Supabase session work
+3. The auth middleware already handles admin/superadmin route protection
+
+### Recommended implementation
+
 ```typescript
-{
-  categories: Array<{ name: string; description: string; products: Array<{ name: string; description: string; price: number }> }>
-}
+// src/lib/marketing/reserved-paths.ts
+export const RESERVED_PATHS = new Set([
+  'demo',        // live demo tenant — a real provisioned tenant, not a block
+  'pricing',
+  'faq',
+  'about',
+  'features',
+  'contact',
+  'privacy',
+  'terms',
+  'blog',
+  'docs',
+  'help',
+  'support',
+  'status',
+  'api',
+  'auth',
+  'dashboard',
+  'settings',
+  'menu',
+  'menus',
+  'tenants',
+  'overview',
+  'users',
+  'onboarding',
+  'sitemap',
+  'robots',
+  '_next',
+])
 ```
 
-Server behavior:
-1. Assert authenticated user owns `tenant_id` (check profile)
-2. Call `openai.chat.completions.create({ model: 'gpt-4o-mini', stream: true, response_format: { type: 'json_object' }, ... })`
-3. Stream SSE tokens back to the client so the UI can show live output
-4. On stream end, bulk insert categories then products using service client
-5. Return `{ categories_created, products_created }`
-
-Set `export const maxDuration = 60` — text generation for 5-8 categories with
-3-5 products each takes 10-20s but 60s gives headroom for slow completions.
-
----
-
-**`POST /api/ai/seed-images`**
-
-Request:
 ```typescript
-{
-  tenant_id: string
-  product_ids: string[]   // up to 8; caller decides which products to illustrate
-  generate_banner: boolean
-}
-```
+// src/middleware.ts — MODIFIED
+import { type NextRequest, NextResponse } from 'next/server'
+import { updateSession } from './lib/supabase/middleware'
+import { RESERVED_PATHS } from './lib/marketing/reserved-paths'
 
-Response (streaming progress via SSE):
-```typescript
-{ done: true; banner_url?: string; product_image_urls: Record<string, string> }
-```
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  // Extract first path segment: "/demo/menu-1" -> "demo"
+  const firstSegment = pathname.split('/')[1]
 
-Server behavior:
-1. Assert auth
-2. Rate-limit guard: check `tenant_settings.ai_image_credits_used < LIMIT` (new column, or deny if already generated today)
-3. For banner: call `openai.images.generate({ model: 'dall-e-3', size: '1792x1024', ... })`, fetch the returned URL as ArrayBuffer, convert to WebP with existing `validateAndConvertToWebP`, upload to `tenant-assets/{tenant_id}/banner.webp`, update `tenant_settings.banner_url`
-4. For each product: call DALL-E 3 (`size: '1024x1024'`), fetch → WebP → upload to `tenant-assets/{tenant_id}/products/{product_id}.webp`, update `products.image_url` + append to `products.image_urls`
-5. SSE event per image as it completes
-
-Set `export const maxDuration = 300` — DALL-E 3 is 5-15s per image; 8 products +
-1 banner = 9 sequential calls = up to 135s. With Fluid Compute (enabled by default
-on all plans as of April 2025) the Hobby cap is 300s, so this fits.
-
-Important: DALL-E 3 only supports `n=1` per call. Calls must be sequential or
-you spawn parallel fetch chains — keep sequential for simplicity and predictable
-cost, use SSE to keep the UI responsive.
-
----
-
-**`POST /api/ai/ocr-menu`** (multipart form)
-
-Request: `FormData` with `file: File` (photo of physical menu) + `tenant_id: string`
-
-Response: structured draft (no DB write yet)
-```typescript
-{
-  draft: {
-    categories: Array<{
-      name: string
-      products: Array<{ name: string; description: string; price: number | null }>
-    }>
+  // If the segment is reserved but the path is NOT served by a named
+  // App Router file, return 404 immediately. Named routes (auth/, api/,
+  // dashboard/, etc.) are already handled by file-system routing and
+  // never reach this check as tenant slugs.
+  //
+  // "demo" is ALLOWED through — it is a real provisioned tenant.
+  // The block only applies to slugs that have NO corresponding named
+  // route AND are not the demo tenant.
+  if (
+    firstSegment &&
+    RESERVED_PATHS.has(firstSegment) &&
+    firstSegment !== 'demo' &&
+    !firstSegment.startsWith('_') &&
+    // Only block if the path would resolve to (public)/[slug] —
+    // named routes (auth, api, dashboard, etc.) self-resolve via
+    // file system and never reach the tenant slug handler
+    !pathname.startsWith('/auth') &&
+    !pathname.startsWith('/api') &&
+    !pathname.startsWith('/dashboard') &&
+    !pathname.startsWith('/menu') &&
+    !pathname.startsWith('/settings') &&
+    !pathname.startsWith('/tenants') &&
+    !pathname.startsWith('/overview') &&
+    !pathname.startsWith('/users') &&
+    !pathname.startsWith('/onboarding')
+  ) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
-  raw_text: string  // full OCR extraction, for debug
+
+  return await updateSession(request)
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 }
 ```
 
-Server behavior:
-1. Assert auth
-2. Accept multipart `formData()` — same pattern as existing upload route
-3. Validate file (reuse `validateAndConvertToWebP` for size guard; for OCR, keep as JPEG/PNG — do NOT convert to WebP, OpenAI vision needs JPEG/PNG)
-4. Convert File to base64 data URL
-5. Call `openai.chat.completions.create({ model: 'gpt-4o', messages: [{ role: 'user', content: [{ type: 'image_url', image_url: { url: dataUrl } }, { type: 'text', text: MENU_OCR_PROMPT }] }], response_format: { type: 'json_schema', json_schema: MENU_DRAFT_SCHEMA } })`
-6. Parse and return draft — no DB write at this stage
-7. Optionally upload the raw photo to `tenant-assets/{tenant_id}/ocr-source.jpg` for audit
+**Simpler alternative — the lookup-only guard:**
 
-Set `export const maxDuration = 60` — vision call with a full-page menu image
-typically takes 10-25s.
+Because App Router's file-system routing already resolves named routes
+(`/auth`, `/api`, etc.) before they can be captured by `[slug]`, the
+middleware only needs to block slugs that WOULD otherwise reach
+`(public)/[slug]` but are conceptually reserved. A cleaner guard:
 
----
-
-**`POST /api/ai/ocr-commit`**
-
-Request:
 ```typescript
-{
-  tenant_id: string
-  menu_id: string
-  draft: { categories: Array<{ name: string; products: Array<{ name: string; description: string; price: number | null }> }> }
+// In middleware, after extracting firstSegment:
+const BLOCKED_TENANT_SLUGS = new Set([
+  'pricing', 'faq', 'about', 'features',
+  'contact', 'privacy', 'terms', 'blog',
+  'docs', 'help', 'support', 'status', 'sitemap', 'robots',
+])
+
+if (firstSegment && BLOCKED_TENANT_SLUGS.has(firstSegment)) {
+  return NextResponse.json({ error: 'Not found' }, { status: 404 })
 }
 ```
 
-Response:
-```typescript
-{ categories_created: number; products_created: number }
-```
+This is simpler because named App Router routes never reach `[slug]` —
+they are resolved first by the file system. The guard only needs to cover
+paths that have no named file but are conceptually marketing-reserved.
 
-Server behavior: identical shape to what `/api/onboarding` does for category+product
-creation, but loops over the full draft. Uses service client. No AI calls.
-
-Set `export const maxDuration = 15` — pure DB inserts, no AI.
-
----
-
-### Modified routes
-
-**`POST /api/onboarding`** — no change to existing logic. The route stays exactly
-as-is. The only addition: it now returns `tenant_id` and `menu_id` in the response
-body alongside `tenant_slug` and `menu_slug`, because Step 5 needs those IDs to
-call the AI routes. Current response only returns slugs.
-
-Change: add `tenant_id: tenant.id, menu_id: menu.id` to the final
-`NextResponse.json(...)` call.
-
----
-
-## Data Flow to Existing DB Tables
-
-### Text seeding (`/api/ai/seed-text`)
-
-```
-OpenAI response JSON
-  → categories[]
-      → INSERT INTO categories (tenant_id, menu_id, name, description, position, is_active)
-      → for each category:
-          → products[]
-              → INSERT INTO products (tenant_id, menu_id, category_id, name, description, price, is_available, position)
-```
-
-No new columns needed. All fields map directly to existing schema.
-
-### Image seeding (`/api/ai/seed-images`)
-
-```
-DALL-E 3 response (URL)
-  → fetch(url) → ArrayBuffer → Buffer
-  → sharp().webp({ quality: 85 }).toBuffer()
-  → supabase.storage.from('tenant-assets').upload(path, buffer, { contentType: 'image/webp', upsert: true })
-  → getPublicUrl(path)
-
-Banner:
-  → UPDATE tenant_settings SET banner_url = publicUrl WHERE tenant_id = ?
-
-Per product:
-  → UPDATE products SET image_url = publicUrl, image_urls = array_append(image_urls, publicUrl) WHERE id = ?
-```
-
-The `tenant-assets` bucket already exists (used by the superadmin upload route).
-Storage paths follow the existing convention `{tenant_id}/{type}.{ext}`.
-
-### OCR commit (`/api/ai/ocr-commit`)
-
-Same insert pattern as text seeding. Draft reviewed by user first, then committed.
-Prices from OCR may be null — insert as `0` with a note, user edits later.
-
----
-
-## Vercel Timeout Constraints and Strategy
-
-Vercel Fluid Compute is enabled by default for all plans as of April 2025.
-Hobby plan: 300s maximum duration (confirmed from official Vercel docs, February 2026).
-
-| Route | Strategy | maxDuration |
-|-------|----------|-------------|
-| `/api/ai/seed-text` | Server-Sent Events streaming — first token arrives in 1-2s, UI shows live output | 60s |
-| `/api/ai/seed-images` | SSE progress events per image — UI shows each image as it completes | 300s |
-| `/api/ai/ocr-menu` | Single blocking call — GPT-4o vision, 10-25s typical | 60s |
-| `/api/ai/ocr-commit` | Pure DB inserts, no AI | 15s |
-
-### SSE Pattern for Next.js App Router
+**ALSO add to tenant slug creation validation:**
 
 ```typescript
-// app/api/ai/seed-text/route.ts
-export const maxDuration = 60
+// src/app/api/onboarding/route.ts — add before INSERT
+import { RESERVED_PATHS } from '@/lib/marketing/reserved-paths'
 
-export async function POST(request: Request) {
-  const encoder = new TextEncoder()
-  const stream = new TransformStream()
-  const writer = stream.writable.getWriter()
+if (RESERVED_PATHS.has(slug)) {
+  return NextResponse.json(
+    { error: 'This URL is reserved. Please choose a different name.' },
+    { status: 400 }
+  )
+}
+```
 
-  void (async () => {
-    const completion = await openai.chat.completions.create({ stream: true, ... })
-    for await (const chunk of completion) {
-      const token = chunk.choices[0]?.delta?.content ?? ''
-      await writer.write(encoder.encode(`data: ${JSON.stringify({ token })}\n\n`))
-    }
-    await writer.write(encoder.encode(`data: [DONE]\n\n`))
-    await writer.close()
-  })()
+This dual enforcement (middleware blocks public access + API rejects
+creation) is the correct defense-in-depth pattern.
 
-  return new Response(stream.readable, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+---
+
+## Build Strategy: Static Marketing Page + SSR App
+
+### The hybrid model
+
+Next.js 16.2 App Router renders each page segment independently. The
+marketing page at `src/app/page.tsx` can be statically generated at build
+time while all other routes remain SSR or ISR. No global config change
+needed.
+
+### Landing page rendering strategy
+
+```typescript
+// src/app/page.tsx
+export const dynamic = 'force-static'
+// This tells Next.js: always generate this page statically at build time.
+// No cookies, no request-time data, no Supabase calls.
+// Result: HTML is pre-rendered and served from CDN edge with zero server cost.
+
+export default function LandingPage() {
+  // Pure static content — sections, copy, CTAs
+  // All data is hardcoded or imported from local constants
+  return <main>...</main>
+}
+```
+
+`force-static` is the correct directive for a marketing page. It:
+- Eliminates all server latency for `/`
+- Enables full CDN caching on Vercel Edge Network
+- Does not affect other routes (each segment is independent)
+- Satisfies Lighthouse performance: no server round-trip = fast TTFB
+
+### Why NOT `export const output = 'export'` (full static export)
+
+Full static export (`next.config.ts: { output: 'export' }`) would convert
+the ENTIRE app to static HTML — breaking the SSR/ISR routes
+(`/[slug]/[menuSlug]`, admin panel, API routes). Do NOT use it. Use
+per-page `force-static` instead.
+
+### Lighthouse 95+ strategy
+
+| Factor | Implementation |
+|--------|---------------|
+| TTFB | `force-static` page served from CDN edge — ~10ms |
+| LCP | Hero image: static PNG in `public/`, `<Image priority>` with `sizes` |
+| CLS | Explicit width/height on all images; no layout shifts from dynamic data |
+| TBT/INP | Minimal JS: no client state, no useEffect on landing page; analytics scripts are deferred |
+| Fonts | Inter already loaded via `next/font/google` in root layout — preloaded, no FOUT |
+
+The analytics components (`<Analytics />`, `<SpeedInsights />`) inject
+deferred scripts — they do NOT block rendering or add to TBT.
+
+---
+
+## Sitemap: Exact Implementation
+
+**File:** `src/app/sitemap.ts`
+**Served at:** `/sitemap.xml` (automatic, no config needed)
+**Cached:** at build time by default (static route handler)
+
+```typescript
+// src/app/sitemap.ts
+import type { MetadataRoute } from 'next'
+
+const BASE_URL = 'https://xmartmenu.skale.club'
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  return [
+    {
+      url: BASE_URL,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 1,
     },
-  })
+    {
+      url: `${BASE_URL}/demo`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    // When i18n is added (Phase 13):
+    // {
+    //   url: `${BASE_URL}/pt`,
+    //   alternates: { languages: { en: `${BASE_URL}/en`, pt: `${BASE_URL}/pt` } },
+    //   changeFrequency: 'monthly',
+    //   priority: 0.9,
+    // },
+  ]
 }
 ```
 
-### Why not Edge Functions for AI routes
-
-Edge functions have a 25 MB memory limit and no Node.js APIs. Sharp (used for
-WebP conversion) requires Node.js. The image seeding route needs Sharp.
-Use Node.js runtime (default) for all AI routes.
-
-### Why not background jobs (QStash, Inngest) for this milestone
-
-Background jobs solve the problem of "fire and forget then poll for results."
-For onboarding, the user is watching a progress screen — they need real-time
-feedback. SSE achieves this without introducing a new service dependency. At the
-scale of new tenant onboarding (not a high-throughput path), background jobs
-add complexity with no benefit.
+Do NOT use `next-sitemap` package — Next.js 16.2 has this built in.
 
 ---
 
-## Review / Edit UI Architecture (OCR path)
+## Robots.txt: Exact Implementation
 
-The OCR flow requires a user review screen before committing because extraction
-quality varies: prices may be wrong, items may be merged, categories may be
-mis-inferred.
+**File:** `src/app/robots.ts`
+**Served at:** `/robots.txt` (automatic)
+**Cached:** at build time by default
 
-### State machine in `page.tsx`
+```typescript
+// src/app/robots.ts
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [
+      {
+        userAgent: '*',
+        allow: '/',
+        disallow: [
+          '/dashboard',
+          '/settings',
+          '/menu',
+          '/menus',
+          '/tenants',
+          '/overview',
+          '/users',
+          '/onboarding',
+          '/auth',
+          '/api',
+        ],
+      },
+    ],
+    sitemap: 'https://xmartmenu.skale.club/sitemap.xml',
+  }
+}
+```
+
+---
+
+## OG Image: Exact Implementation
+
+**Recommended approach:** `src/app/opengraph-image.tsx` (dynamic via
+ImageResponse, statically optimized at build because no request-time APIs)
+
+**Served at:** metadata auto-injects `<meta property="og:image">` for `/`
+
+```typescript
+// src/app/opengraph-image.tsx
+import { ImageResponse } from 'next/og'
+
+export const alt = 'XmartMenu — Cardápio digital para restaurantes'
+export const size = { width: 1200, height: 630 }
+export const contentType = 'image/png'
+
+export default function Image() {
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontFamily: 'sans-serif',
+          color: 'white',
+        }}
+      >
+        <div style={{ fontSize: 72, fontWeight: 'bold' }}>XmartMenu</div>
+        <div style={{ fontSize: 32, marginTop: 24, opacity: 0.8 }}>
+          Cardápio digital via QR Code
+        </div>
+      </div>
+    ),
+    { ...size }
+  )
+}
+```
+
+**Alternative (simpler):** Place a static PNG at
+`src/app/opengraph-image.png`. Next.js picks it up automatically with no
+code needed. Tradeoff: cannot be customized programmatically, and must be
+a PNG file ≤ 8MB.
+
+**Recommendation:** Start with static PNG in Phase 12 (fastest to ship),
+migrate to `opengraph-image.tsx` with branding if needed in Phase 13.
+
+---
+
+## JSON-LD Structured Data: Exact Implementation
+
+No package needed. Inline `<script>` tag in the Server Component.
+Source: official Next.js docs (nextjs.org/docs/app/guides/json-ld).
+
+```typescript
+// Inside src/app/page.tsx (the landing page component)
+export default function LandingPage() {
+  const organizationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'XmartMenu',
+    url: 'https://xmartmenu.skale.club',
+    description: 'Cardápio digital via QR Code para restaurantes',
+    sameAs: [],
+  }
+
+  const softwareSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'XmartMenu',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'BRL',
+      description: 'Grátis durante o beta',
+    },
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(organizationSchema).replace(/</g, '\\u003c'),
+        }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(softwareSchema).replace(/</g, '\\u003c'),
+        }}
+      />
+      <main>...</main>
+    </>
+  )
+}
+```
+
+The `.replace(/</g, '\\u003c')` is XSS prevention per the official Next.js
+docs. Do not use `next/script` for JSON-LD — it's structured data, not
+executable JS.
+
+---
+
+## Metadata API: Root Layout Update
+
+```typescript
+// src/app/layout.tsx — full updated version
+import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
+import './globals.css'
+
+const inter = Inter({ subsets: ['latin'] })
+
+export const metadata: Metadata = {
+  title: {
+    template: '%s | XmartMenu',
+    default: 'XmartMenu — Cardápio digital para restaurantes',
+  },
+  description: 'Crie seu cardápio digital via QR Code em minutos. Sem design, sem desenvolvedor.',
+  metadataBase: new URL('https://xmartmenu.skale.club'),
+  openGraph: {
+    type: 'website',
+    locale: 'pt_BR',
+    alternateLocale: 'en_US',
+    siteName: 'XmartMenu',
+  },
+  twitter: {
+    card: 'summary_large_image',
+  },
+}
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="pt-BR" className="h-full antialiased">
+      <body className={`${inter.className} min-h-full`}>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
+  )
+}
+```
+
+`metadataBase` is required for OG image URLs to be absolute. Without it,
+Next.js will warn and may generate relative URLs that social crawlers reject.
+
+---
+
+## Vercel Analytics + Speed Insights: Integration
+
+### Installation
+
+```bash
+npm install @vercel/analytics@2.0.1 @vercel/speed-insights@2.0.0
+```
+
+Versions verified against npm registry (2026-05-07).
+
+### Import paths (critical — must use `/next` subpath)
+
+```typescript
+import { Analytics } from '@vercel/analytics/next'      // NOT '/react'
+import { SpeedInsights } from '@vercel/speed-insights/next'  // NOT '/react'
+```
+
+The `/next` subpath is the App Router integration — it handles route change
+detection correctly for Next.js App Router's navigation model.
+
+### Placement
+
+Both components go in `src/app/layout.tsx` **inside `<body>`**, after
+`{children}`. This ensures:
+- They render on ALL pages (marketing, admin, public menu)
+- They are server-rendered as part of the layout
+- Scripts are injected with `defer` — no render blocking
+
+### Dashboard activation
+
+After deploying, enable both in the Vercel project dashboard:
+- Analytics tab → Enable
+- Speed Insights tab → Enable
+
+The packages work without enabling (they silently no-op), but data only
+flows after the dashboard toggle is on.
+
+---
+
+## Demo Tenant at /demo
+
+The `/demo` path is a **real provisioned tenant**, not a redirect or special
+route. Required steps:
+
+1. Create a tenant in the database with `slug = 'demo'`
+2. Seed it with appealing sample content (AI seeding tools from v1.2 are perfect)
+3. Do NOT add a `src/app/demo/` folder — it would shadow `(public)/[slug]`
+4. The `/demo/[menuSlug]` URL works automatically through the existing
+   `(public)/[slug]/[menuSlug]` route
+5. Keep `'demo'` in `RESERVED_PATHS` for the API guard (prevent another
+   tenant from claiming this slug), but NOT in the middleware block
+   (legitimate traffic must reach the tenant page)
+
+**Landing page link:** `<a href="/demo">Ver demo ao vivo</a>` — static link,
+no client routing logic needed.
+
+---
+
+## i18n Architecture Consideration (Phase 13)
+
+The project specifies path-based i18n (`/pt`, `/en`). Two implementation
+paths in Next.js App Router:
+
+### Option A: `[lang]` dynamic segment at root (recommended)
 
 ```
-Step 4 complete
-  → Step 5: AI panel (toggles)
-    → OCR upload selected
-      → loading state (waiting for /api/ai/ocr-menu)
-      → review state (draft displayed as editable form)
-        → user edits name / description / price / deletes items
-        → "Save Menu" → POST /api/ai/ocr-commit
-          → Step 6: success (same as current Step 5)
+src/app/
+├── [lang]/
+│   ├── layout.tsx      ← sets <html lang={lang}>
+│   └── page.tsx        ← language-specific landing page
+├── layout.tsx           ← root layout (Analytics, SpeedInsights, fonts)
+├── sitemap.ts           ← includes alternates.languages
+├── robots.ts
+└── opengraph-image.tsx
 ```
 
-### Review component structure
+The current `page.tsx` (marketing) moves to `[lang]/page.tsx`. The `[lang]`
+segment must be narrowed to only `['pt', 'en']` using `generateStaticParams`.
 
-`OcrReviewPanel` (client component, inline in onboarding page or separate file):
+**Middleware impact:** The `[lang]` route is a named dynamic segment in the
+file system, so it will shadow `(public)/[slug]` for paths like `/pt` and
+`/en`. No middleware change needed for this.
 
-- Renders `draft.categories` as an accordion or flat list
-- Each category name: editable `<input>`
-- Each product row: editable name, description, price fields; delete button
-- "Add item" button per category
-- "Add category" button at bottom
-- "Save Menu" calls `handleOcrCommit(reviewedDraft)`
+### Option B: `next-intl` library
 
-This keeps all state in React (`useState` on `reviewedDraft`). No server round-trips
-during editing. The single commit call at the end is atomic.
+Not needed for two-language path routing without complex ICU message
+formatting. The simple object-dictionary approach (constants file per
+language) is sufficient for a marketing page.
 
-### No optimistic DB writes during review
-
-Do not persist the OCR draft to the DB while the user edits it. Storing a
-"pending_draft" in a new table adds migration complexity with minimal benefit.
-Keep it in client state. If the user refreshes, they re-upload — this is
-acceptable for an onboarding wizard that users complete in one sitting.
+**Phase 13 recommendation:** Option A with a `translations/` constants
+file, no external i18n library.
 
 ---
 
-## Suggested Build Order Across Phases
+## Suggested Phase Build Order
 
-Dependencies drive the order. Text seeding is the foundation (no binary assets,
-pure DB inserts, lowest risk). Image seeding depends on Storage patterns proven
-in text seeding phase. OCR has a review UI dependency — it's the most complex UX
-piece and benefits from the prompt engineering patterns established in text seeding.
+Dependencies drive order. Analytics can be added early (zero risk).
+The landing page content is independent of middleware and SEO files.
 
-### Phase 1: Text seeding + onboarding Step 5 scaffold
+### Phase 12: Core marketing page
 
-Deliverables:
-- Step 5 AI panel in `page.tsx` with toggle UI
-- `/api/ai/seed-text` with OpenAI integration + SSE streaming
-- Bulk insert of LLM-generated categories and products
-- Modify `/api/onboarding` to return `tenant_id` + `menu_id`
-- Feature flag: env var `NEXT_PUBLIC_AI_ONBOARDING_ENABLED` — if false, Step 5 is skipped
+**Deliverables:**
+1. `src/app/page.tsx` — landing page component (`force-static`, all sections)
+2. `src/app/layout.tsx` — add Analytics + SpeedInsights + metadataBase
+3. `src/app/opengraph-image.png` — static PNG (fast path, no code)
+4. `src/lib/marketing/reserved-paths.ts` — RESERVED_PATHS Set
+5. `src/middleware.ts` — add reserved-path guard
+6. API guard in `src/app/api/onboarding/route.ts`
+7. Demo tenant provisioned in DB (superadmin AI seeding)
+8. `npm install @vercel/analytics @vercel/speed-insights`
 
-Why first: validates the OpenAI integration, prompt design, and SSE pattern
-with the lowest-risk path (text is free to regenerate, no storage costs).
+**Why analytics first:** Zero risk, immediate value, and they belong in the
+root layout which is also being modified for metadata.
 
-### Phase 2: Image seeding
+**Why middleware guard with landing page:** The guard must exist before the
+landing page ships publicly, to prevent tenant slug squatting on reserved
+words from day one.
 
-Deliverables:
-- `/api/ai/seed-images` with DALL-E 3 + Sharp + Supabase Storage upload
-- SSE per-image progress events
-- Rate limiting guard (simple: check if images already generated for this tenant today)
-- UI in Step 5 toggle panel showing generated images with accept/skip per item
+### Phase 13: SEO + i18n
 
-Why second: depends on Storage upload patterns from Phase 1 feedback, and the
-product IDs created by text seeding are the natural input for image seeding.
+**Deliverables:**
+1. `src/app/sitemap.ts` — MetadataRoute.Sitemap with PT/EN alternates
+2. `src/app/robots.ts` — MetadataRoute.Robots
+3. `src/app/opengraph-image.tsx` — dynamic ImageResponse (replace static PNG)
+4. JSON-LD schemas inside `page.tsx`
+5. `generateMetadata` export on `page.tsx` with full OG/Twitter metadata
+6. `[lang]` route segment for PT/EN path-based i18n
+7. Language switcher UI in landing page
 
-### Phase 3: OCR menu photo
-
-Deliverables:
-- `/api/ai/ocr-menu` with GPT-4o vision + structured output schema
-- `OcrReviewPanel` component (full edit UI)
-- `/api/ai/ocr-commit` for reviewed draft persistence
-- File upload handling (multipart formData, validation, base64 conversion)
-
-Why third: highest UX complexity (review/edit screen), benefits from prompt
-engineering experience gained in Phase 1. Also independent of Phases 1-2 at
-the DB level — can be enabled separately with its own feature flag.
+**Why i18n in Phase 13:** The i18n restructure (`page.tsx` → `[lang]/page.tsx`)
+can cause routing conflicts if attempted mid-phase. Build Phase 12 with
+a single-language page, then restructure cleanly in Phase 13.
 
 ---
 
-## Architecture Anti-Patterns to Avoid
+## Don't Hand-Roll
 
-### Anti-Pattern 1: Injecting AI calls into `/api/onboarding`
-
-**What goes wrong:** The existing route is a synchronous fallback chain with 5
-payload candidates for schema version differences. Adding 30s+ AI calls to it
-makes every tenant creation slow and risks timeouts on the critical path.
-
-**Instead:** Keep `/api/onboarding` as a fast, deterministic scaffold. AI seeding
-is a separate, opt-in step that runs after the tenant exists.
-
-### Anti-Pattern 2: Streaming the full categories+products JSON as a single blob
-
-**What goes wrong:** If the LLM generates 8 categories × 5 products, the full
-JSON is 3-5 KB. Sending it as one response means the user waits 15-20s with no
-feedback. Risk of timeout on slow networks.
-
-**Instead:** Use SSE to stream tokens. The client accumulates the JSON and shows
-partial content. When `[DONE]` arrives, the client triggers the commit.
-
-### Anti-Pattern 3: Using edge runtime for image routes
-
-**What goes wrong:** Edge runtime lacks Node.js APIs. Sharp, which is already
-used in `src/lib/upload.ts`, requires Node.js native bindings.
-
-**Instead:** All AI routes use Node.js runtime (default). No `export const runtime = 'edge'` on AI routes.
-
-### Anti-Pattern 4: Auto-committing OCR results without review
-
-**What goes wrong:** GPT-4o vision extracts menu content accurately at the
-category/item name level but prices are often wrong (handwriting, unclear
-formatting, decimals). Auto-committing means the restaurant owner's menu has
-wrong prices on day one.
-
-**Instead:** Always route OCR output through the review/edit screen. The UI must
-be the commit gate.
-
-### Anti-Pattern 5: Generating images for all products unconditionally
-
-**What goes wrong:** DALL-E 3 costs ~$0.04/image at standard quality. A seeded
-menu with 40 products = $1.60 per onboarding. At scale this is a meaningful cost
-and could be abused.
-
-**Instead:** Image seeding is opt-in per toggle AND rate-limited per tenant (e.g.,
-max 8 images per onboarding run, one banner). Implement the guard before the DALL-E
-call.
+| Problem | Don't Build | Use Instead |
+|---------|------------|-------------|
+| sitemap.xml generation | Custom XML template / next-sitemap package | `src/app/sitemap.ts` with MetadataRoute |
+| robots.txt generation | Static file in `/public` / next-sitemap | `src/app/robots.ts` with MetadataRoute |
+| OG image generation | Canvas / puppeteer / cloudinary | `next/og` ImageResponse (ships with Next.js) |
+| Analytics script injection | Custom script tag | `@vercel/analytics/next` component |
+| Web Vitals tracking | Custom PerformanceObserver | `@vercel/speed-insights/next` component |
+| JSON-LD injection | `next/script` with JSON | Native `<script type="application/ld+json">` in Server Component |
+| i18n routing | next-intl for two languages | `[lang]` segment + constants file |
 
 ---
 
-## Scalability Considerations
+## Common Pitfalls
 
-| Concern | At 10 tenants/day | At 100 tenants/day |
-|---------|------------------|--------------------|
-| OpenAI API costs (text) | Negligible | ~$2-5/day (gpt-4o-mini) |
-| OpenAI API costs (images) | ~$3/day (8 img × $0.04) | ~$30/day — needs credit system |
-| Supabase Storage | Negligible | Negligible |
-| Vercel function concurrency | No issue | No issue (onboarding is low-frequency) |
-| OpenAI rate limits | No issue | Monitor — gpt-4o-mini has generous limits |
+### Pitfall 1: Missing `metadataBase`
 
-At 100 tenants/day with all features opted in, image generation cost becomes
-meaningful. The rate-limit guard (Phase 2) is sufficient for v1.2. A credit
-balance system can be added in a future seed.
+**What goes wrong:** OG images and canonical URLs generate as relative paths.
+Social crawlers (Facebook, Twitter/X, LinkedIn) reject relative `og:image`
+URLs — the social preview card shows no image.
+
+**How to avoid:** Set `metadataBase: new URL('https://xmartmenu.skale.club')`
+in the root layout's `metadata` export. This is required even if all
+metadata is defined in individual pages.
+
+**Warning sign:** Next.js build logs `metadataBase not set` warning.
+
+---
+
+### Pitfall 2: Using `/react` analytics import instead of `/next`
+
+**What goes wrong:** `@vercel/analytics/react` and `@vercel/speed-insights/react`
+do not handle Next.js App Router route changes correctly — page view events
+fire once on hard load, not on client-side navigation between pages.
+
+**How to avoid:** Always import from the `/next` subpath:
+```typescript
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
+```
+
+---
+
+### Pitfall 3: Adding `src/app/demo/page.tsx`
+
+**What goes wrong:** A file at `src/app/demo/` creates a named route that
+shadows `(public)/[slug]` for the `/demo` path. The demo tenant's menu
+at `/demo/[menuSlug]` would 404 because `src/app/demo/` has no
+`[menuSlug]` sub-route.
+
+**How to avoid:** The demo tenant is a real DB tenant. Its URL works
+automatically through `(public)/[slug]/[menuSlug]`. Never create a
+`src/app/demo/` folder.
+
+---
+
+### Pitfall 4: `force-static` on a page that needs cookies
+
+**What goes wrong:** If the landing page later adds personalization (e.g.,
+"Welcome back!" for logged-in users) and reads from cookies, `force-static`
+will throw a build error: "Page used cookies() which is not allowed in
+static rendering."
+
+**How to avoid:** Keep the landing page completely static — no auth check,
+no Supabase calls. Personalization for logged-in users should be client-side
+only (a `useEffect` that checks a cookie, not a server-side read).
+
+---
+
+### Pitfall 5: Reserved path guard blocking named App Router routes
+
+**What goes wrong:** If the RESERVED_PATHS Set contains `'auth'` and the
+middleware returns 404 for `/auth/login`, the login page breaks.
+
+**How to avoid:** Named routes in the file system (`src/app/auth/`,
+`src/app/api/`) are NOT served through `(public)/[slug]` — the file system
+resolves them first. The middleware guard is redundant for those but harmless
+if written correctly. The simpler guard that only blocks paths with NO
+corresponding named file (the `BLOCKED_TENANT_SLUGS` set approach) is
+cleaner and avoids this entirely.
+
+---
+
+### Pitfall 6: `next-sitemap` conflicts with native sitemap route
+
+**What goes wrong:** If `next-sitemap` is installed, it generates a
+`sitemap.xml` in the `public/` folder at build time. The native
+`src/app/sitemap.ts` also generates `/sitemap.xml`. The file in `public/`
+wins, serving stale content.
+
+**How to avoid:** Do not install `next-sitemap`. Use `src/app/sitemap.ts`
+exclusively.
+
+---
+
+## Environment Availability
+
+Step 2.6: SKIPPED — Phase 12 is code/config changes only. No new external
+services or CLI tools are required. Vercel Analytics and Speed Insights are
+client-side packages that only activate after a Vercel deployment.
+
+---
+
+## Integration Points Summary (for Roadmapper)
+
+| Capability | File | New/Modified | Notes |
+|-----------|------|-------------|-------|
+| Marketing page | `src/app/page.tsx` | MODIFY | Replace redirect with static Server Component |
+| Root metadata + analytics | `src/app/layout.tsx` | MODIFY | Add Analytics, SpeedInsights, metadataBase |
+| Sitemap | `src/app/sitemap.ts` | NEW | Native MetadataRoute, no package |
+| Robots | `src/app/robots.ts` | NEW | Native MetadataRoute, no package |
+| OG image | `src/app/opengraph-image.png` or `.tsx` | NEW | Static PNG in Phase 12, dynamic in Phase 13 |
+| JSON-LD | Inside `src/app/page.tsx` | Part of MODIFY | Inline script tag, no package |
+| Reserved paths | `src/lib/marketing/reserved-paths.ts` | NEW | Shared Set, imported by middleware + API |
+| Middleware guard | `src/middleware.ts` | MODIFY | Add firstSegment check before updateSession |
+| Tenant creation guard | `src/app/api/onboarding/route.ts` | MODIFY | Check RESERVED_PATHS before INSERT |
+| Vercel Analytics | `src/app/layout.tsx` | MODIFY | Import from @vercel/analytics/next |
+| Vercel Speed Insights | `src/app/layout.tsx` | MODIFY | Import from @vercel/speed-insights/next |
 
 ---
 
 ## Sources
 
-- Vercel Fluid Compute duration limits: https://vercel.com/docs/functions/configuring-functions/duration (verified 2026-02-27)
-- OpenAI structured outputs + vision compatibility: https://platform.openai.com/docs/guides/structured-outputs
-- DALL-E 3 API specifications (n=1 only, sizes): https://developers.openai.com/api/docs/models/dall-e-3
-- Existing codebase: `src/app/api/onboarding/route.ts`, `src/lib/upload.ts`, `src/app/api/superadmin/tenants/[id]/upload/route.ts`, `src/types/database.ts`
-- Vercel AI SDK streaming pattern: https://ai-sdk.dev/docs/getting-started/nextjs-app-router
+### Primary (HIGH confidence — official docs, dated 2026-05-07)
+
+- Next.js 16.2.5 sitemap file convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
+- Next.js 16.2.5 robots file convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
+- Next.js 16.2.5 opengraph-image convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image
+- Next.js 16.2.5 JSON-LD guide: https://nextjs.org/docs/app/guides/json-ld
+- Vercel Web Analytics quickstart: https://vercel.com/docs/analytics/quickstart (last updated 2026-03-11)
+- Vercel Speed Insights quickstart: https://vercel.com/docs/speed-insights/quickstart (last updated 2026-03-11)
+
+### Secondary (MEDIUM confidence — verified against primary sources)
+
+- `@vercel/analytics@2.0.1` and `@vercel/speed-insights@2.0.0` — versions verified via `npm view` (2026-05-07)
+- `force-static` rendering directive for per-page static generation in App Router — confirmed in Next.js docs
+
+### Metadata
+
+**Confidence breakdown:**
+- File conventions (sitemap, robots, OG): HIGH — from official Next.js 16.2.5 docs dated today
+- Analytics integration: HIGH — from official Vercel docs with exact import paths
+- Middleware reserved path pattern: HIGH — derived from direct codebase inspection + Next.js routing docs
+- Lighthouse 95+ strategy: MEDIUM — general Next.js performance principles; no tool-based measurement yet
+
+**Research date:** 2026-05-07
+**Valid until:** 2026-08-07 (stable APIs; Next.js metadata conventions have not changed since v13.3.0)
