@@ -54,7 +54,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 ### Phases
 
-- [x] **Phase 12: Core Landing Page** — Replace root redirect with static marketing page; hero, how-it-works, feature blocks, FAQ, footer, middleware guard, analytics (completed 2026-05-07)
+- [x] **Phase 12: Core Landing Page** — Replace root redirect with static marketing page; hero, how-it-works, feature blocks, FAQ, footer, middleware guard, analytics (completed 2026-05-07)
 - [ ] **Phase 13: SEO & Metadata** — sitemap.xml, robots.txt, JSON-LD structured data, OG image under 300 KB, Lighthouse 95+ gate
 
 ---
@@ -94,9 +94,9 @@ Plans:
 **Implementation notes**:
 - `src/app/sitemap.ts` uses `MetadataRoute.Sitemap` listing only `/` — never queries the tenants table
 - `src/app/robots.ts` uses `MetadataRoute.Robots` disallowing `/api/`, `/admin/`, `/superadmin/`
-- JSON-LD (`Organization` + `SoftwareApplication`) lives in `src/app/page.tsx` only via `<script type="application/ld+json" dangerouslySetInnerHTML>` — never in `layout.tsx`, never via `next/script` (causes RSC hydration duplicates in React 19)
-- OG image must be JPEG ≤ 300 KB (WhatsApp silently drops images over 300 KB; Brazilian users share via WhatsApp)
-- `metadataBase` set in `src/app/layout.tsx` (may already be set from Phase 12 — verify before re-adding)
+- JSON-LD (`Organization` + `SoftwareApplication`) lives in `src/app/(marketing)/page.tsx` only via `<script type="application/ld+json" dangerouslySetInnerHTML>` — never in `layout.tsx`, never via `next/script` (causes RSC hydration duplicates in React 19)
+- OG image must be under 300 KB (WhatsApp silently drops images over 300 KB; Brazilian users share via WhatsApp)
+- `metadataBase` already set in `src/app/layout.tsx` from Phase 12 — verify before re-adding
 - Install: `schema-dts@2.0.0` (devDependency only — zero runtime footprint)
 - Anti-pattern: do not use `next/script` for JSON-LD; use inline `dangerouslySetInnerHTML` in a Server Component
 **Success Criteria** (what must be TRUE):
@@ -104,7 +104,10 @@ Plans:
   2. `curl https://xmartmenu.skale.club/robots.txt` shows `Disallow: /api/` and `Disallow: /admin/` and `Disallow: /superadmin/`
   3. Google Rich Results Test passes for the landing page URL with no errors or warnings on `Organization` and `SoftwareApplication` schemas; JSON-LD is absent from `view-source` of any `/{tenantSlug}` or `/auth/*` page
   4. `curl -I https://xmartmenu.skale.club/opengraph-image` shows `Content-Length` below 300000 bytes, and the OG image renders correctly in WhatsApp on a real physical device
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 13-01-PLAN.md — sitemap.ts + robots.ts + JSON-LD in page.tsx + schema-dts install (SEO-01, SEO-02, SEO-03)
+- [ ] 13-02-PLAN.md — OG image size verification + human verification gate (SEO-04)
 **UI hint**: no
 
 ---
@@ -114,4 +117,4 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 12. Core Landing Page | 3/3 | Complete    | 2026-05-07 |
-| 13. SEO & Metadata | 0/? | Not started | - |
+| 13. SEO & Metadata | 0/2 | Not started | - |
