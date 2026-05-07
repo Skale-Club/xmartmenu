@@ -47,3 +47,19 @@ export type MenuSeedResult = z.infer<typeof MenuSeedSchema>
 export type CopySeedResult = z.infer<typeof CopySeedSchema>
 export type SingleCategorySeedResult = z.infer<typeof SingleCategorySeedSchema>
 export type SingleProductSeedResult = z.infer<typeof SingleProductSeedSchema>
+
+// For menu photo OCR — Phase 11 (AI-10, AI-11, AI-12)
+// price: z.number() — 0 is valid (D-12: failed parsing saved as 0, not rejected)
+// description: nullable + optional — GPT must not hallucinate when text not visible (D-06)
+export const OcrMenuSchema = z.object({
+  categories: z.array(z.object({
+    name: z.string(),
+    products: z.array(z.object({
+      name: z.string(),
+      price: z.number(),                            // 0 = unreadable price (D-12)
+      description: z.string().nullable().optional(), // null when not visible on menu (D-06)
+    })),
+  })),
+})
+
+export type OcrMenuResult = z.infer<typeof OcrMenuSchema>
