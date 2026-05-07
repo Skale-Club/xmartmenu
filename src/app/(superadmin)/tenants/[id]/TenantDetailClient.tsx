@@ -70,6 +70,13 @@ export default function TenantDetailClient({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
   const [menuCategories, setMenuCategories] = useState<{ id: string; name: string }[]>([])
 
+  // Image seeding state — Phase 10 (AI-07, AI-08, AI-09)
+  const [menuProducts, setMenuProducts] = useState<{ id: string; name: string; image_url: string | null; category_id: string | null }[]>([])
+  const [imageSeedJobId, setImageSeedJobId] = useState<string | null>(null)
+  const [imageSeedPolling, setImageSeedPolling] = useState(false)
+  const [imageSeedStatus, setImageSeedStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [imageSeedProductLoading, setImageSeedProductLoading] = useState<string | null>(null)
+
   const base = `/api/superadmin/tenants/${tenant.id}/staff`
 
   async function handleInvite(e: React.FormEvent) {
@@ -132,6 +139,15 @@ export default function TenantDetailClient({
       .then(d => setMenuCategories(d.categories ?? []))
       .catch(() => setMenuCategories([]))
     setSelectedCategoryId('')
+  }, [selectedMenuId, tenant.id])
+
+  // Fetch products for selected menu (AI-09 per-product image seed)
+  useEffect(() => {
+    if (!selectedMenuId) { setMenuProducts([]); return }
+    fetch(`/api/superadmin/tenants/${tenant.id}/products-list?menuId=${selectedMenuId}`)
+      .then(r => r.json())
+      .then(d => setMenuProducts(d.products ?? []))
+      .catch(() => setMenuProducts([]))
   }, [selectedMenuId, tenant.id])
 
   function buildSuccessMessage(type: string, data: { categoriesCreated?: number; productsCreated?: number }): string {
@@ -218,6 +234,80 @@ export default function TenantDetailClient({
       setTimeout(() => setPerItemError(null), 5000)
     }
     setPerItemLoading(null)
+  }
+
+  // Image seeding — Phase 10 (AI-07, AI-08, AI-09)
+  // Triggers GH Actions workflow_dispatch via /seed-images, then polls /seed-status every 3s.
+  async function handleSeedImages(productId?: string) {
+    setImageSeedStatus(null)
+    setImageSeedPolling(true)
+    if (productId) setImageSeedProductLoading(productId)
+
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/seed-images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId: productId ?? '' }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setImageSeedStatus({ type: 'error', message: data.error ?? 'Failed to start image seeding.' })
+        setImageSeedPolling(false)
+        if (productId) setImageSeedProductLoading(null)
+        return
+      }
+
+      const { jobId } = data as { jobId: string }
+      setImageSeedJobId(jobId)
+
+      // Poll every 3s (D-08) until complete or failed (max ~5 min = 100 polls)
+      let polls = 0
+      const intervalId = setInterval(async () => {
+        polls++
+        if (polls > 100) {
+          clearInterval(intervalId)
+          setImageSeedPolling(false)
+          setImageSeedJobId(null)
+          if (productId) setImageSeedProductLoading(null)
+          setImageSeedStatus({ type: 'error', message: 'Image seeding timed out. Check GH Actions logs.' })
+          return
+        }
+
+        try {
+          const statusRes = await fetch(
+            `/api/superadmin/tenants/${tenant.id}/seed-status?jobId=${jobId}`
+          )
+          const statusData = (await statusRes.json()) as { status: string; errorMessage: string | null }
+
+          if (statusData.status === 'complete') {
+            clearInterval(intervalId)
+            setImageSeedPolling(false)
+            setImageSeedJobId(null)
+            if (productId) setImageSeedProductLoading(null)
+            setImageSeedStatus({
+              type: 'success',
+              message: productId ? 'Product image generated.' : 'Images seeded. Refresh to see them.',
+            })
+          } else if (statusData.status === 'failed') {
+            clearInterval(intervalId)
+            setImageSeedPolling(false)
+            setImageSeedJobId(null)
+            if (productId) setImageSeedProductLoading(null)
+            setImageSeedStatus({
+              type: 'error',
+              message: statusData.errorMessage ?? 'Image seeding failed. Check GH Actions logs.',
+            })
+          }
+          // 'pending' or 'running' — continue polling
+        } catch {
+          // Network error mid-poll — continue polling
+        }
+      }, 3000)
+    } catch {
+      setImageSeedStatus({ type: 'error', message: 'Failed to start image seeding.' })
+      setImageSeedPolling(false)
+      if (productId) setImageSeedProductLoading(null)
+    }
   }
 
   const input = 'w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
@@ -569,6 +659,73 @@ export default function TenantDetailClient({
             )}
           </div>
         )}
+
+        {/* Image seeding — Phase 10 — AI-07, AI-08, AI-09 */}
+        <div className="mt-5 pt-4 border-t border-zinc-100">
+          <p className="text-xs text-zinc-400 mb-3">Image seeding</p>
+
+          <div className="flex flex-wrap gap-2">
+            {/* AI-07: Bulk cover + products */}
+            <button
+              onClick={() => void handleSeedImages()}
+              disabled={imageSeedPolling}
+              className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+            >
+              {imageSeedPolling && !imageSeedProductLoading ? 'Seeding images...' : 'Seed all images'}
+            </button>
+          </div>
+
+          {/* Polling status indicator */}
+          {imageSeedPolling && (
+            <p className="text-xs text-zinc-400 mt-3 animate-pulse">
+              Generating images via GH Actions — this may take several minutes...
+              {imageSeedJobId && <span className="ml-1 text-zinc-300">(job {imageSeedJobId.slice(0, 8)})</span>}
+            </p>
+          )}
+
+          {/* Image seed success banner */}
+          {imageSeedStatus?.type === 'success' && (
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium text-green-800">{imageSeedStatus.message}</p>
+                <button onClick={() => setImageSeedStatus(null)} className="text-green-500 hover:text-green-700 text-xl">✕</button>
+              </div>
+            </div>
+          )}
+
+          {/* Image seed error banner */}
+          {imageSeedStatus?.type === 'error' && (
+            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mt-4 text-sm text-red-700 flex items-center justify-between">
+              {imageSeedStatus.message}
+              <button onClick={() => setImageSeedStatus(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
+            </div>
+          )}
+
+          {/* AI-09: Per-product "Seed image" buttons */}
+          {menuProducts.length > 0 && (
+            <div className="mt-4">
+              <p className="text-xs text-zinc-400 mb-2">Per-product image seeding</p>
+              <div className="space-y-1 max-h-48 overflow-y-auto">
+                {menuProducts.map(product => (
+                  <div key={product.id} className="flex items-center gap-2 py-1">
+                    <span className="text-xs text-zinc-700 flex-1 truncate">{product.name}</span>
+                    {product.image_url ? (
+                      <span className="text-xs text-zinc-400">has image</span>
+                    ) : (
+                      <button
+                        onClick={() => void handleSeedImages(product.id)}
+                        disabled={imageSeedPolling}
+                        className="text-xs px-2 py-1 border border-zinc-200 text-zinc-700 rounded-lg hover:bg-zinc-50 disabled:opacity-50 transition-colors whitespace-nowrap"
+                      >
+                        {imageSeedProductLoading === product.id ? 'Seeding...' : 'Seed image'}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

@@ -1,0 +1,42 @@
+name: Image Seeding
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: 'ai_jobs row ID'
+        required: true
+      tenant_id:
+        description: 'Tenant UUID'
+        required: true
+      product_id:
+        description: 'Single product UUID (empty string = bulk seed all products)'
+        required: false
+        default: ''
+
+jobs:
+  seed-images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run image seeding script
+        run: npx tsx scripts/seed-images.ts
+        env:
+          JOB_ID: ${{ inputs.job_id }}
+          TENANT_ID: ${{ inputs.tenant_id }}
+          PRODUCT_ID: ${{ inputs.product_id }}
+          GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERCEL_REVALIDATE_URL: ${{ secrets.VERCEL_REVALIDATE_URL }}
+          VERCEL_REVALIDATE_SECRET: ${{ secrets.VERCEL_REVALIDATE_SECRET }}
