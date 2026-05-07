@@ -18,7 +18,7 @@ Tenant public menus remain at `/{tenantSlug}/{menuSlug}` — no URL structure ch
 - [ ] **LP-02**: Visitor sees a "How It Works" section with 3 visual steps: create account → configure menu → share QR code
 - [ ] **LP-03**: Visitor sees 4 feature blocks — Multi-language menus, QR Code generation, AI-powered seeding (superadmin tool), Online ordering (feature-flagged) — with honest copy that does not overclaim self-serve AI or default-on ordering
 - [ ] **LP-04**: Visitor sees a FAQ section with 6–8 questions covering billing, data ownership, multi-language support, QR codes, cancellation, and ordering
-- [ ] **LP-05**: Visitor sees a footer with internal navigation links, placeholder links for Privacy Policy and Terms of Service pages, and social media handles
+- [x] **LP-05**: Visitor sees a footer with internal navigation links, placeholder links for Privacy Policy and Terms of Service pages, and social media handles
 
 ### SEO & Metadata (SEO)
 
@@ -53,7 +53,7 @@ Tenant public menus remain at `/{tenantSlug}/{menuSlug}` — no URL structure ch
 | LP-02 | Phase 12 — Core Landing Page | Pending |
 | LP-03 | Phase 12 — Core Landing Page | Pending |
 | LP-04 | Phase 12 — Core Landing Page | Pending |
-| LP-05 | Phase 12 — Core Landing Page | Pending |
+| LP-05 | Phase 12 — Core Landing Page | Complete |
 | SEO-01 | Phase 13 — SEO & Metadata | Pending |
 | SEO-02 | Phase 13 — SEO & Metadata | Pending |
 | SEO-03 | Phase 13 — SEO & Metadata | Pending |
