@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Landing Page — Active
 status: executing
-stopped_at: Completed 13-seo-metadata-13-01-PLAN.md
-last_updated: "2026-05-07T23:11:28.286Z"
+stopped_at: 13-02 Task 1 complete — awaiting Task 2 human-verify checkpoint
+last_updated: "2026-05-07T23:35:00.000Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 2
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 13 (seo-metadata) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
+Plan: 2 of 2 (Task 1 complete — awaiting checkpoint on Task 2)
+Status: Awaiting human-verify checkpoint
 Last activity: 2026-05-07
 
 Progress: [__________] 0% (v1.3 — 0/2 phases)
@@ -70,6 +70,7 @@ Progress: [__________] 0% (v1.3 — 0/2 phases)
 | Phase 12-core-landing-page P12-02 | 8min | 2 tasks | 3 files |
 | Phase 12-core-landing-page P12-03 | 5min | 2 tasks | 3 files |
 | Phase 13-seo-metadata P13-01 | 204 | 2 tasks | 4 files |
+| Phase 13-seo-metadata P13-02 | ~15min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -140,6 +141,8 @@ Recent decisions affecting current work:
 - [Phase 13-seo-metadata]: sitemap.ts lists only / — no DB queries to prevent tenant roster exposure as public XML
 - [Phase 13-seo-metadata]: JSON-LD injected via dangerouslySetInnerHTML in page.tsx only (not layout.tsx) — prevents leaking to tenant pages
 - [Phase 13-seo-metadata]: schema-dts installed as devDependency — zero runtime footprint, types stripped at build
+- [Phase 13-02]: opengraph-image.tsx must be in src/app/ root, not route-group subdirectory — file convention only injects og:image meta when co-located with the route segment it applies to
+- [Phase 13-02]: OG image measured at 33421 bytes (32.6 KB) — 9x under 300 KB WhatsApp limit
 
 ### Pending Todos
 
@@ -155,6 +158,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T23:11:28.274Z
-Stopped at: Completed 13-seo-metadata-13-01-PLAN.md
-Resume file: None
+Last session: 2026-05-07T23:35:00Z
+Stopped at: 13-02 Task 1 complete — awaiting Task 2 human-verify checkpoint
+Resume file: .planning/phases/13-seo-metadata/13-02-SUMMARY.md
