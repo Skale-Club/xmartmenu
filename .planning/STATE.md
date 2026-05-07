@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
-status: executing
-stopped_at: Completed 10-image-seeding-10-01-PLAN.md
-last_updated: "2026-05-07T09:59:20.334Z"
+status: verifying
+stopped_at: Completed 10-image-seeding-10-02-PLAN.md
+last_updated: "2026-05-07T10:13:08.016Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 11
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-05-06)
 
 Phase: 10 (image-seeding) — EXECUTING
 Plan: 2 of 2
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-05-07
 
 Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1.2)
@@ -64,6 +64,7 @@ Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1
 | Phase 09-text-seeding P09-02 | 25min | 2 tasks | 2 files |
 | Phase 09-text-seeding P09-03 | 20min | 2 tasks | 4 files |
 | Phase 10-image-seeding P10-01 | 148 | 2 tasks | 2 files |
+| Phase 10-image-seeding P10-02 | 5 | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -110,6 +111,9 @@ Recent decisions affecting current work:
 - [Phase 10-image-seeding]: Separate seed-image/route.ts from seed/route.ts — maxDuration is file-scoped, images need 300s vs text 60s
 - [Phase 10-image-seeding]: aspectRatio '4:1' for cover banner — '3:1' not supported by gemini-3.1-flash-image-preview (Nano Banana 2)
 - [Phase 10-image-seeding]: Write to products.image_url (singular) not image_urls (plural legacy array column)
+- [Phase 10-image-seeding]: Reuse selectedCategoryId for product selector cascade — avoids adding a /products-list API route in plan 10-02
+- [Phase 10-image-seeding]: imageSeedLoading typed as string | null (not boolean) — enables per-button loading text differentiation in image seeding UI
+- [Phase 10-image-seeding]: Image seed buttons disabled while seedLoading is true and vice versa — prevents concurrent text+image seeding for same tenant
 
 ### Pending Todos
 
@@ -123,6 +127,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T09:59:20.329Z
-Stopped at: Completed 10-image-seeding-10-01-PLAN.md
+Last session: 2026-05-07T10:13:08.002Z
+Stopped at: Completed 10-image-seeding-10-02-PLAN.md
 Resume file: None
