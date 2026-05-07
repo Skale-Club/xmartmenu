@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
 status: executing
-stopped_at: Phase 11 context gathered
-last_updated: "2026-05-07T11:51:51.087Z"
-last_activity: 2026-05-07 -- Phase 11 execution started
+stopped_at: Completed 11-menu-photo-ocr 11-01-PLAN.md
+last_updated: "2026-05-07T12:01:09.068Z"
+last_activity: 2026-05-06
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 5
+  completed_phases: 1
+  total_plans: 3
+  completed_plans: 4
   percent: 11
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 11 — menu-photo-ocr
+**Current focus:** Phase 09 — text-seeding
 
 ## Current Position
 
-Phase: 11 (menu-photo-ocr) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 11
-Last activity: 2026-05-07 -- Phase 11 execution started
+Phase: 10
+Plan: Not started
+Status: Executing Phase 9
+Last activity: 2026-05-06
 
 Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1.2)
 
@@ -63,8 +63,7 @@ Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1
 | Phase 09-text-seeding P01 | 15min | 2 tasks | 4 files |
 | Phase 09-text-seeding P09-02 | 25min | 2 tasks | 2 files |
 | Phase 09-text-seeding P09-03 | 20min | 2 tasks | 4 files |
-| Phase 10-image-seeding P10-01 | 148 | 2 tasks | 2 files |
-| Phase 10-image-seeding P10-02 | 5 | 1 tasks | 1 files |
+| Phase 11-menu-photo-ocr P11-01 | 15min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -108,12 +107,9 @@ Recent decisions affecting current work:
 - [Phase 09-text-seeding]: TranslationsSchema kept flat as z.record(z.string(), z.any()) to avoid Gemini structured output validation failures with deeply nested schemas (Pitfall 3)
 - [Phase 09-text-seeding]: categories-list endpoint created at /api/superadmin/tenants/[id]/menus/[menuId]/categories-list — no existing superadmin route covered per-menu category listing
 - [Phase 09-text-seeding]: AI Tools section placed outside tab system, always visible below Tabs block per UI-SPEC Layout Specification
-- [Phase 10-image-seeding]: Separate seed-image/route.ts from seed/route.ts — maxDuration is file-scoped, images need 300s vs text 60s
-- [Phase 10-image-seeding]: aspectRatio '4:1' for cover banner — '3:1' not supported by gemini-3.1-flash-image-preview (Nano Banana 2)
-- [Phase 10-image-seeding]: Write to products.image_url (singular) not image_urls (plural legacy array column)
-- [Phase 10-image-seeding]: Reuse selectedCategoryId for product selector cascade — avoids adding a /products-list API route in plan 10-02
-- [Phase 10-image-seeding]: imageSeedLoading typed as string | null (not boolean) — enables per-button loading text differentiation in image seeding UI
-- [Phase 10-image-seeding]: Image seed buttons disabled while seedLoading is true and vice versa — prevents concurrent text+image seeding for same tenant
+- [Phase 11-menu-photo-ocr]: @ai-sdk/openai@^3 installed at major 3 to match @ai-sdk/google and remain compatible with ai@6.x
+- [Phase 11-menu-photo-ocr]: OcrMenuSchema price: z.number() (not .positive()) — 0 valid for unreadable prices (D-12)
+- [Phase 11-menu-photo-ocr]: ocr-upload-token route accepts ?filename= query param for correct storage path extension (Pitfall 7)
 
 ### Pending Todos
 
@@ -127,6 +123,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T11:18:54.957Z
-Stopped at: Phase 11 context gathered
-Resume file: .planning/phases/11-menu-photo-ocr/11-CONTEXT.md
+Last session: 2026-05-07T12:01:09.044Z
+Stopped at: Completed 11-menu-photo-ocr 11-01-PLAN.md
+Resume file: None
