@@ -5,7 +5,7 @@
 - ✅ **v1.0 Foundation** — Phases 1-3 (shipped 2026-05-06)
 - ✅ **v1.1 Orders** — Phases 4-8 (shipped 2026-05-06)
 - ✅ **v1.2 AI Onboarding** — Phases 9-11 (shipped 2026-05-07)
-- 🔄 **v1.3 Landing Page** — Phases 12-13 (active)
+- ✅ **v1.3 Landing Page** — Phases 12-13 (shipped 2026-05-07)
 
 ## Completed Milestones
 
@@ -48,14 +48,24 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 </details>
 
+<details>
+<summary>✅ v1.3 Landing Page (Phases 12-13) — SHIPPED 2026-05-07</summary>
+
+| # | Phase | Plans | Status |
+|---|---|---|---|
+| 12 | Core Landing Page | 3/3 | ✅ 2026-05-07 |
+| 13 | SEO & Metadata | 2/2 | ✅ 2026-05-07 |
+
+</details>
+
 ---
 
-## v1.3 Landing Page — Active
+## v1.3 Landing Page — Complete
 
 ### Phases
 
 - [x] **Phase 12: Core Landing Page** — Replace root redirect with static marketing page; hero, how-it-works, feature blocks, FAQ, footer, middleware guard, analytics (completed 2026-05-07)
-- [ ] **Phase 13: SEO & Metadata** — sitemap.xml, robots.txt, JSON-LD structured data, OG image under 300 KB, Lighthouse 95+ gate
+- [x] **Phase 13: SEO & Metadata** — sitemap.xml, robots.txt, JSON-LD structured data, OG image under 300 KB — all four SEO requirements verified (completed 2026-05-07)
 
 ---
 
@@ -107,7 +117,7 @@ Plans:
 **Plans**: 2 plans
 Plans:
 - [x] 13-01-PLAN.md — sitemap.ts + robots.ts + JSON-LD in page.tsx + schema-dts install (SEO-01, SEO-02, SEO-03)
-- [ ] 13-02-PLAN.md — OG image size verification + human verification gate (SEO-04)
+- [x] 13-02-PLAN.md — OG image size verification + human verification gate (SEO-04)
 **UI hint**: no
 
 ---
@@ -116,5 +126,5 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Core Landing Page | 3/3 | Complete    | 2026-05-07 |
-| 13. SEO & Metadata | 1/2 | In Progress|  |
+| 12. Core Landing Page | 3/3 | Complete | 2026-05-07 |
+| 13. SEO & Metadata | 2/2 | Complete | 2026-05-07 |

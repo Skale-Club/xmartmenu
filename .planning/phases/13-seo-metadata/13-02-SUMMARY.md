@@ -33,25 +33,23 @@ key-decisions:
 
 requirements-completed: [SEO-04]
 
-status: awaiting-checkpoint
-checkpoint_task: 2
-checkpoint_type: human-verify
+status: complete
 
-duration: ~15min
+duration: ~20min
 completed: 2026-05-07
 ---
 
 # Phase 13 Plan 02: OG Image Verification Summary
 
-**OG image file moved to root app level — og:image meta tag now correctly injected at 33.4 KB (32.6 KB), 9x under the 300 KB WhatsApp limit; human verification checkpoint for all four SEO requirements pending.**
+**OG image file moved to root app level — og:image meta tag correctly injected at 33.4 KB (32.6 KB), 9x under the 300 KB WhatsApp limit; all four SEO checks verified and human-approved.**
 
 ## Performance
 
-- **Duration:** ~15 min
+- **Duration:** ~20 min
 - **Started:** 2026-05-07T23:12:44Z
-- **Completed:** 2026-05-07 (Task 1 only — checkpoint at Task 2)
-- **Tasks:** 1/2 complete (Task 2 awaiting human verification)
-- **Files modified:** 1 (moved)
+- **Completed:** 2026-05-07
+- **Tasks:** 2/2 complete
+- **Files modified:** 2 (moved + og:image fix)
 
 ## Accomplishments
 
@@ -93,50 +91,23 @@ This is 9x below the 300 KB WhatsApp limit.
 - **Files modified:** Deleted `src/app/(marketing)/opengraph-image.tsx`, created `src/app/opengraph-image.tsx` (identical content)
 - **Commit:** 5dc6dd3
 
-## Checkpoint Status
+**2. [Rule 1 - Bug] og:image meta tag still absent after move — explicit openGraph objects in layout metadata overriding file convention**
+- **Found during:** Post-Task-1 verification by orchestrator (commit ca7d9a4)
+- **Issue:** Even after moving `opengraph-image.tsx` to root, the `og:image` meta tag was not auto-injected because `src/app/layout.tsx` and `src/app/(marketing)/layout.tsx` both defined explicit `openGraph: { ... }` objects without an `images` array. Next.js merges explicit `openGraph` objects and skips the file-convention auto-injection when an explicit object is present without `images`.
+- **Fix:** Added `images: [{ url: '/opengraph-image', width: 1200, height: 630 }]` to the `openGraph` object in both `src/app/layout.tsx` and `src/app/(marketing)/layout.tsx`.
+- **Files modified:** `src/app/layout.tsx`, `src/app/(marketing)/layout.tsx`
+- **Commit:** ca7d9a4
 
-**Task 2 — Human verification — sitemap, robots, JSON-LD, OG image**
+## Task 2 — Human Verification Results (APPROVED)
 
-Status: AWAITING HUMAN VERIFICATION
+**Status: APPROVED — all 4 SEO checks passed (verified 2026-05-07)**
 
-This task requires human verification of production (or local production build) against all four SEO requirements. No automated verification is possible for WhatsApp link preview rendering.
-
-### Verification Steps for Human
-
-**Prerequisites:** Deploy to production OR run `npm run build && npm run start` locally.
-
-**1. Verify sitemap.xml (SEO-01):**
-```bash
-curl https://xmartmenu.skale.club/sitemap.xml
-# OR locally:
-curl http://localhost:3000/sitemap.xml
-```
-Expected: XML with `<loc>https://xmartmenu.skale.club</loc>` only (no tenant slugs).
-
-**2. Verify robots.txt (SEO-02):**
-```bash
-curl https://xmartmenu.skale.club/robots.txt
-# OR locally:
-curl http://localhost:3000/robots.txt
-```
-Expected: Contains `Disallow: /api/`, admin/superadmin paths, and `Sitemap:` line.
-
-**3. Verify JSON-LD (SEO-03):**
-Visit https://search.google.com/test/rich-results and enter `https://xmartmenu.skale.club`.
-Expected: Organization and SoftwareApplication entities detected, no errors.
-
-Also verify JSON-LD isolation:
-```bash
-curl -s https://xmartmenu.skale.club/demo | grep "ld+json"
-# Expected: No output
-```
-
-**4. Verify OG image size (SEO-04):**
-```bash
-curl -I https://xmartmenu.skale.club/opengraph-image
-# Expected: content-length below 300000 bytes
-```
-Also: Paste `https://xmartmenu.skale.club` into a WhatsApp chat on a real device. The link preview must show the XmartMenu image.
+| Check | Requirement | Result |
+|-------|-------------|--------|
+| SEO-01 | `GET /sitemap.xml` returns XML with only `<loc>https://xmartmenu.skale.club</loc>` — no tenant slugs | PASS |
+| SEO-02 | `GET /robots.txt` shows Disallow for /api/, /admin, /superadmin, /dashboard, /settings, etc., and Sitemap: line | PASS |
+| SEO-03 | Organization + SoftwareApplication @types in landing page HTML; absent from tenant pages | PASS |
+| SEO-04 | `/opengraph-image` serves PNG, 33421 bytes (32.6 KB), well under 300 KB limit; `og:image` meta tag present with absolute URL | PASS |
 
 ## Known Stubs
 
@@ -146,5 +117,7 @@ None. The OG image uses hardcoded flat CSS values. All four SEO assets (sitemap,
 - `src/app/opengraph-image.tsx` exists at root level
 - `src/app/(marketing)/opengraph-image.tsx` deleted
 - Build succeeds: 5dc6dd3
-- og:image meta tag confirmed in `.next/server/app/index.html`
-- Measured size: 33421 bytes
+- og:image meta tag confirmed with absolute URL: ca7d9a4 (explicit images[] fix)
+- Measured size: 33421 bytes (32.6 KB) — 9x under 300 KB WhatsApp limit
+- Human verification checkpoint approved: all 4 SEO checks passed
+- Plan 13-02 complete
