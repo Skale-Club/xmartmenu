@@ -75,7 +75,7 @@ Plans:
   3. Superadmin can click a "Seed image" button on a specific product row to generate just that product's image
 **Plans**: 3 plans
 Plans:
-- [ ] 10-01-PLAN.md — Infrastructure: migration 023 (ai_jobs table), @google/genai install, AiJob TypeScript type, /api/revalidate endpoint
+- [x] 10-01-PLAN.md — Infrastructure: migration 023 (ai_jobs table), @google/genai install, AiJob TypeScript type, /api/revalidate endpoint
 - [ ] 10-02-PLAN.md — GH Actions: image-seeding.yml workflow + scripts/seed-images.ts generation script
 - [ ] 10-03-PLAN.md — Vercel routes + UI: seed-images trigger route, seed-status polling route, TenantDetailClient image seeding section
 **UI hint**: yes
@@ -104,5 +104,5 @@ Plans:
 | 7. Checkout | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
 | 9. Text Seeding | v1.2 | 3/3 | Complete   | 2026-05-06 |
-| 10. Image Seeding | v1.2 | 0/3 | Not started | - |
+| 10. Image Seeding | v1.2 | 1/3 | In Progress|  |
 | 11. Menu Photo OCR | v1.2 | 0/? | Not started | - |
