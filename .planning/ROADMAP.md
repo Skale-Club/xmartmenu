@@ -75,7 +75,7 @@ Plans:
   3. Superadmin can target a single product via the AI Tools selector and seed just that product's image
 **Plans**: 2 plans
 Plans:
-- [ ] 10-01-PLAN.md — Image seed backend: convertBufferToWebP utility + seed-image route (cover, bulk products, single product)
+- [x] 10-01-PLAN.md — Image seed backend: convertBufferToWebP utility + seed-image route (cover, bulk products, single product)
 - [ ] 10-02-PLAN.md — Image seed UI: Seed cover, Seed product images, and Seed image controls in AI Tools section
 **UI hint**: yes
 
@@ -103,5 +103,5 @@ Plans:
 | 7. Checkout | v1.1 | 2/2 | Complete | 2026-05-06 |
 | 8. Tenant Orders View | v1.1 | 1/1 | Complete | 2026-05-06 |
 | 9. Text Seeding | v1.2 | 3/3 | Complete   | 2026-05-06 |
-| 10. Image Seeding | v1.2 | 0/2 | In progress | - |
+| 10. Image Seeding | v1.2 | 1/2 | In Progress|  |
 | 11. Menu Photo OCR | v1.2 | 0/? | Not started | - |
