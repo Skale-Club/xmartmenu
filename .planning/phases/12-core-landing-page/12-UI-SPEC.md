@@ -43,11 +43,11 @@ Declared values (multiples of 4):
 | xl | 32px | `p-8` / `gap-8` | Layout gaps, nav horizontal padding |
 | 2xl | 48px | `py-12` / `gap-12` | Section vertical padding (mobile) |
 | 3xl | 64px | `py-16` / `gap-16` | Section vertical padding (desktop) |
-| 4xl | 96px | `py-24` | Hero top/bottom padding |
 
 Exceptions:
 - Touch targets: minimum 44px height for all interactive elements on mobile (CTA button, nav button, FAQ accordion triggers). Use `min-h-[44px]` where needed.
 - Max-width container: `max-w-5xl` (896px) for content columns, `max-w-2xl` (672px) for FAQ and narrow centered content. Apply `mx-auto px-4 sm:px-6` for responsive gutters.
+- Hero vertical padding: 96px (py-24) — exceeds standard scale ceiling of 64px to achieve sufficient above-the-fold breathing room on a marketing hero section. Approved exception.
 
 ---
 
@@ -114,7 +114,7 @@ Exceptions:
 
 ### Hero Section
 - Background: `bg-zinc-50` — subtle off-white tint, no image, no gradient (Lighthouse gate, Pitfall 4)
-- Padding: `py-24 px-4` (96px vertical)
+- Padding: `py-24 px-4` (96px vertical — approved spacing exception, see Spacing Scale)
 - Layout: centered single column, `max-w-2xl mx-auto text-center`
 - Headline: `text-4xl sm:text-5xl font-bold text-zinc-900 leading-tight` — "Your restaurant menu, online in minutes"
 - Subheadline: `text-lg text-zinc-600 mt-4 leading-relaxed` — see Copywriting Contract below
@@ -172,7 +172,7 @@ Exceptions:
 - Link group heading: `text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3`
 - Links: `text-sm text-zinc-400 hover:text-white transition-colors`
 - Social icons: `w-5 h-5 text-zinc-400 hover:text-white transition-colors` (Instagram, WhatsApp from lucide-react)
-- Copyright bar: `text-xs text-zinc-500 mt-8 text-center` — "© 2026 xmartmenu. All rights reserved." (Small role, 14px collapsed to `text-xs` here — within the Small role's intent of sub-body text)
+- Copyright bar: `text-sm text-zinc-500 mt-8 text-center` — "© 2026 xmartmenu. All rights reserved." (Small role, 14px)
 - Source: D-19, D-20, D-21
 
 ---
