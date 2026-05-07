@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: AI Onboarding
-status: executing
-stopped_at: Completed 11-menu-photo-ocr 11-03-PLAN.md
-last_updated: "2026-05-07T12:49:47.130Z"
+milestone: v1.3
+milestone_name: Landing Page
+status: planning
+stopped_at: Defining requirements
+last_updated: "2026-05-07T00:00:00.000Z"
 last_activity: 2026-05-07
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
-  percent: 100
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
