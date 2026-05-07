@@ -70,11 +70,10 @@ export default function TenantDetailClient({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
   const [menuCategories, setMenuCategories] = useState<{ id: string; name: string }[]>([])
 
-  // Image seeding state — Phase 10
-  const [imageSeedLoading, setImageSeedLoading] = useState<string | null>(null)  // stores the active type string or null
-  const [imageSeedStatus, setImageSeedStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
-  const [selectedProductId, setSelectedProductId] = useState<string>('')
-  const [menuProducts, setMenuProducts] = useState<{ id: string; name: string }[]>([])
+  // OCR photo upload state — AI-10, AI-11
+  const [ocrFile, setOcrFile] = useState<File | null>(null)
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrStatus, setOcrStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const base = `/api/superadmin/tenants/${tenant.id}/staff`
 
@@ -139,18 +138,6 @@ export default function TenantDetailClient({
       .catch(() => setMenuCategories([]))
     setSelectedCategoryId('')
   }, [selectedMenuId, tenant.id])
-
-  // Fetch products for selected category — for single-product image seed (AI-09)
-  useEffect(() => {
-    if (!selectedMenuId || !selectedCategoryId) { setMenuProducts([]); setSelectedProductId(''); return }
-    fetch(`/api/superadmin/tenants/${tenant.id}/menus/${selectedMenuId}/products-list?categoryId=${selectedCategoryId}`)
-      .then(r => r.json())
-      .then((d: { products?: { id: string; name: string }[] }) => {
-        setMenuProducts(d.products ?? [])
-      })
-      .catch(() => setMenuProducts([]))
-    setSelectedProductId('')
-  }, [selectedMenuId, selectedCategoryId, tenant.id])
 
   function buildSuccessMessage(type: string, data: { categoriesCreated?: number; productsCreated?: number }): string {
     const cats = data.categoriesCreated ?? 0
@@ -238,59 +225,64 @@ export default function TenantDetailClient({
     setPerItemLoading(null)
   }
 
-  async function handleSeedImage(type: 'image_cover' | 'image_products' | 'image_single_product') {
+  async function handleOcrUpload() {
+    if (!ocrFile) {
+      setOcrStatus({ type: 'error', message: 'Select a menu photo first.' })
+      return
+    }
     if (!selectedMenuId) {
-      setImageSeedStatus({ type: 'error', message: 'Select a menu before seeding images.' })
+      setOcrStatus({ type: 'error', message: 'Select a menu before uploading.' })
       return
     }
-    const effectiveBusinessType = businessTypeInput.trim() || businessType || ''
-
-    if (type === 'image_single_product' && !selectedProductId) {
-      setImageSeedStatus({ type: 'error', message: 'Select a product to seed an image for.' })
-      return
-    }
-
-    setImageSeedLoading(type)
-    setImageSeedStatus(null)
-
+    setOcrLoading(true)
+    setOcrStatus(null)
     try {
-      const body: Record<string, string> = {
-        type,
-        menuId: selectedMenuId,
-        businessType: effectiveBusinessType,
-        companyName: tenant.name,
+      // Step 1: Get signed upload URL from ocr-upload-token route
+      const tokenRes = await fetch(
+        `/api/superadmin/tenants/${tenant.id}/ocr-upload-token?filename=${encodeURIComponent(ocrFile.name)}`
+      )
+      const tokenData = await tokenRes.json()
+      if (!tokenRes.ok) {
+        setOcrStatus({ type: 'error', message: tokenData.error ?? 'Failed to get upload URL.' })
+        setOcrLoading(false)
+        return
       }
-      if (type === 'image_single_product' && selectedProductId) {
-        body.productId = selectedProductId
+      const { uploadUrl, storagePath } = tokenData as { uploadUrl: string; storagePath: string }
+
+      // Step 2: PUT file directly to Supabase Storage (bypasses Vercel 4.5 MB body limit)
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': ocrFile.type || 'image/jpeg' },
+        body: ocrFile,
+      })
+      if (!uploadRes.ok) {
+        setOcrStatus({ type: 'error', message: `Storage upload failed: ${uploadRes.status}` })
+        setOcrLoading(false)
+        return
       }
 
-      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/seed-image`, {
+      // Step 3: Call ocr-menu route to extract and write to DB
+      const ocrRes = await fetch(`/api/superadmin/tenants/${tenant.id}/ocr-menu`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ storagePath, menuId: selectedMenuId }),
       })
-      const data = await res.json() as {
-        success?: boolean
-        error?: string
-        message?: string
-        imagesCreated?: number
-        skipped?: boolean
-        partial?: boolean
-      }
-
-      if (!res.ok) {
-        const errMsg = data.partial
-          ? `Partial success: ${data.imagesCreated ?? 0} images created. Error: ${data.error ?? 'Unknown'}`
-          : (data.error ?? 'Image seeding failed. Check API logs.')
-        setImageSeedStatus({ type: 'error', message: errMsg })
+      const ocrData = await ocrRes.json()
+      if (!ocrRes.ok) {
+        setOcrStatus({ type: 'error', message: ocrData.error ?? 'OCR extraction failed. Check server logs.' })
       } else {
-        setImageSeedStatus({ type: 'success', message: data.message ?? 'Done.' })
+        const cats = ocrData.categoriesCreated ?? 0
+        const prods = ocrData.productsCreated ?? 0
+        const msg = cats === 0 && prods === 0
+          ? 'No new items extracted — all detected items already exist.'
+          : `OCR complete. ${cats} ${cats === 1 ? 'category' : 'categories'} and ${prods} ${prods === 1 ? 'product' : 'products'} added.`
+        setOcrStatus({ type: 'success', message: msg })
+        setOcrFile(null)
       }
     } catch {
-      setImageSeedStatus({ type: 'error', message: 'Image seeding failed. Check API logs.' })
+      setOcrStatus({ type: 'error', message: 'OCR upload failed. Check the API logs and retry.' })
     }
-
-    setImageSeedLoading(null)
+    setOcrLoading(false)
   }
 
   const input = 'w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
@@ -519,7 +511,7 @@ export default function TenantDetailClient({
             value={selectedMenuId}
             onChange={e => setSelectedMenuId(e.target.value)}
             className="px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 mb-4 block"
-            disabled={seedLoading || !!imageSeedLoading}
+            disabled={seedLoading}
           >
             <option value="">Select menu to seed...</option>
             {menus.map(m => (
@@ -538,28 +530,28 @@ export default function TenantDetailClient({
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => void handleSeed('menu')}
-              disabled={seedLoading || !selectedMenuId || !!imageSeedLoading}
+              disabled={seedLoading || !selectedMenuId}
               className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
             >
               {seedLoading ? 'Seeding...' : 'Seed menu'}
             </button>
             <button
               onClick={() => void handleSeed('categories')}
-              disabled={seedLoading || !selectedMenuId || !!imageSeedLoading}
+              disabled={seedLoading || !selectedMenuId}
               className="border border-zinc-200 text-zinc-700 bg-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
             >
               Seed categories
             </button>
             <button
               onClick={() => void handleSeed('products')}
-              disabled={seedLoading || !selectedMenuId || !!imageSeedLoading}
+              disabled={seedLoading || !selectedMenuId}
               className="border border-zinc-200 text-zinc-700 bg-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
             >
               Seed products
             </button>
             <button
               onClick={() => void handleSeed('copy')}
-              disabled={seedLoading || !selectedMenuId || !!imageSeedLoading}
+              disabled={seedLoading || !selectedMenuId}
               className="border border-zinc-200 text-zinc-700 bg-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
             >
               Seed copy
@@ -601,7 +593,7 @@ export default function TenantDetailClient({
             <div className="flex items-center gap-2 mb-3">
               <button
                 onClick={() => void handleSeedSingle('single_category')}
-                disabled={!!perItemLoading || seedLoading || !!imageSeedLoading}
+                disabled={!!perItemLoading || seedLoading}
                 className="border border-zinc-200 text-zinc-700 bg-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
               >
                 {perItemLoading === 'cat' ? 'Seeding...' : 'Seed category'}
@@ -613,7 +605,7 @@ export default function TenantDetailClient({
               <select
                 value={selectedCategoryId}
                 onChange={e => setSelectedCategoryId(e.target.value)}
-                disabled={!!perItemLoading || seedLoading || !!imageSeedLoading}
+                disabled={!!perItemLoading || seedLoading}
                 className="px-3 py-1 border border-zinc-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:opacity-50"
               >
                 <option value="">Select category...</option>
@@ -630,7 +622,7 @@ export default function TenantDetailClient({
                   }
                   void handleSeedSingle('single_product', selectedCategoryId)
                 }}
-                disabled={!!perItemLoading || seedLoading || !selectedCategoryId || !!imageSeedLoading}
+                disabled={!!perItemLoading || seedLoading || !selectedCategoryId}
                 className="border border-zinc-200 text-zinc-700 bg-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
               >
                 {perItemLoading === selectedCategoryId ? 'Seeding...' : 'Seed product'}
@@ -643,80 +635,50 @@ export default function TenantDetailClient({
           </div>
         )}
 
-        {/* Image Seeding — Phase 10: AI-07, AI-08, AI-09 */}
+        {/* OCR photo upload section — AI-10, AI-11 */}
         {menus.length > 0 && selectedMenuId && (
           <div className="mt-5 pt-4 border-t border-zinc-100">
-            <p className="text-xs text-zinc-400 mb-3">Image seeding</p>
+            <p className="text-xs text-zinc-400 mb-3">Menu photo OCR</p>
 
-            {/* Bulk image controls */}
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                disabled={ocrLoading}
+                onChange={e => {
+                  setOcrFile(e.target.files?.[0] ?? null)
+                  setOcrStatus(null)
+                }}
+                className="text-xs text-zinc-600 file:mr-2 file:py-1 file:px-3 file:rounded-lg file:border file:border-zinc-200 file:text-xs file:font-medium file:bg-white file:text-zinc-700 hover:file:bg-zinc-50 disabled:opacity-50"
+              />
               <button
-                onClick={() => void handleSeedImage('image_cover')}
-                disabled={!!imageSeedLoading || seedLoading}
-                className="border border-zinc-200 text-zinc-700 bg-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
-              >
-                {imageSeedLoading === 'image_cover' ? 'Generating cover...' : 'Seed cover'}
-              </button>
-              <button
-                onClick={() => void handleSeedImage('image_products')}
-                disabled={!!imageSeedLoading || seedLoading}
-                className="border border-zinc-200 text-zinc-700 bg-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
-              >
-                {imageSeedLoading === 'image_products' ? 'Seeding images...' : 'Seed product images'}
-              </button>
-            </div>
-
-            {/* Slow operation warning — shown only while bulk product seeding is active (Pitfall 6) */}
-            {imageSeedLoading === 'image_products' && (
-              <p className="text-xs text-zinc-400 mb-3 animate-pulse">
-                Generating images — this may take several minutes. Keep this tab open.
-              </p>
-            )}
-            {imageSeedLoading === 'image_cover' && (
-              <p className="text-xs text-zinc-400 mb-3 animate-pulse">
-                Generating cover photo — this may take up to 30 seconds...
-              </p>
-            )}
-
-            {/* Single-product image seed — category then product selector */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <select
-                value={selectedProductId}
-                onChange={e => setSelectedProductId(e.target.value)}
-                disabled={!!imageSeedLoading || seedLoading || menuProducts.length === 0}
-                className="px-3 py-1 border border-zinc-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:opacity-50"
-              >
-                <option value="">
-                  {menuProducts.length === 0
-                    ? (selectedCategoryId ? 'No products in this category' : 'Select a category above first')
-                    : 'Select product...'}
-                </option>
-                {menuProducts.map(p => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
-              <button
-                onClick={() => void handleSeedImage('image_single_product')}
-                disabled={!!imageSeedLoading || seedLoading || !selectedProductId}
+                onClick={() => void handleOcrUpload()}
+                disabled={ocrLoading || !ocrFile}
                 className="border border-zinc-200 text-zinc-700 bg-white px-3 py-1 rounded-lg text-xs font-medium hover:bg-zinc-50 disabled:opacity-50 transition-colors"
               >
-                {imageSeedLoading === 'image_single_product' ? 'Generating...' : 'Seed image'}
+                {ocrLoading ? 'Extracting...' : 'Upload & Extract'}
               </button>
             </div>
 
-            {/* Image seed status banners */}
-            {imageSeedStatus?.type === 'success' && (
-              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-4">
+            {ocrLoading && (
+              <p className="text-xs text-zinc-400 mt-2 animate-pulse">
+                Extracting menu — this may take up to 30 seconds...
+              </p>
+            )}
+
+            {ocrStatus?.type === 'success' && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4 mt-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-green-800">{imageSeedStatus.message}</p>
-                  <button onClick={() => setImageSeedStatus(null)} className="text-green-500 hover:text-green-700 text-xl">&#x2715;</button>
+                  <p className="text-sm font-medium text-green-800">{ocrStatus.message}</p>
+                  <button onClick={() => setOcrStatus(null)} className="text-green-500 hover:text-green-700 text-xl">✕</button>
                 </div>
               </div>
             )}
-            {imageSeedStatus?.type === 'error' && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mt-4 text-sm text-red-700 flex items-center justify-between">
-                {imageSeedStatus.message}
-                <button onClick={() => setImageSeedStatus(null)} className="ml-4 text-red-400 hover:text-red-600">&#x2715;</button>
+
+            {ocrStatus?.type === 'error' && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mt-3 text-sm text-red-700 flex items-center justify-between">
+                {ocrStatus.message}
+                <button onClick={() => setOcrStatus(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
               </div>
             )}
           </div>

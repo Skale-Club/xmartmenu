@@ -30,8 +30,8 @@ All AI generation writes directly to the database. There is no separate "review 
 ### Menu Photo OCR (Phase 11)
 
 - [x] **AI-10**: Superadmin can upload a menu photo from the superadmin tenant view; upload goes directly to Supabase Storage (bypasses Vercel 4.5 MB request body limit)
-- [ ] **AI-11**: System extracts categories, item names, and prices from the photo via GPT-4.1-mini vision, then writes them directly to the tenant's `categories` and `products` tables
-- [ ] **AI-12**: OCR-extracted prices that fail parsing (unrecognized format, missing currency) are saved as `0` with a flag the superadmin can fix in the regular admin UI
+- [x] **AI-11**: System extracts categories, item names, and prices from the photo via GPT-4.1-mini vision, then writes them directly to the tenant's `categories` and `products` tables
+- [x] **AI-12**: OCR-extracted prices that fail parsing (unrecognized format, missing currency) are saved as `0` with a flag the superadmin can fix in the regular admin UI
 
 ### Infrastructure & Safety (cross-cutting, scaffolded in Phase 9)
 
@@ -75,8 +75,8 @@ All AI generation writes directly to the database. There is no separate "review 
 | AI-08 | Phase 10 — Image Seeding | Pending |
 | AI-09 | Phase 10 — Image Seeding | Pending |
 | AI-10 | Phase 11 — Menu Photo OCR | Complete |
-| AI-11 | Phase 11 — Menu Photo OCR | Pending |
-| AI-12 | Phase 11 — Menu Photo OCR | Pending |
+| AI-11 | Phase 11 — Menu Photo OCR | Complete |
+| AI-12 | Phase 11 — Menu Photo OCR | Complete |
 | AI-13 | Phase 9 — Text Seeding (infra scaffold) | ✅ Complete (09-01) |
 | AI-14 | Phase 9 — Text Seeding (infra scaffold) | Complete |
 | AI-15 | Phase 9 — Text Seeding (infra scaffold) | ✅ Complete (09-01) |
