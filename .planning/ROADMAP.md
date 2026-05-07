@@ -54,7 +54,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 
 ### Phases
 
-- [ ] **Phase 12: Core Landing Page** — Replace root redirect with static marketing page; hero, how-it-works, feature blocks, FAQ, footer, middleware guard, analytics
+- [x] **Phase 12: Core Landing Page** — Replace root redirect with static marketing page; hero, how-it-works, feature blocks, FAQ, footer, middleware guard, analytics (completed 2026-05-07)
 - [ ] **Phase 13: SEO & Metadata** — sitemap.xml, robots.txt, JSON-LD structured data, OG image under 300 KB, Lighthouse 95+ gate
 
 ---
@@ -84,7 +84,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 Plans:
 - [x] 12-01-PLAN.md — Infrastructure: reserved-paths, middleware bypass, analytics install, root layout update, onboarding guard
 - [x] 12-02-PLAN.md — Landing page: (marketing) route group layout + full page with all 7 sections
-- [ ] 12-03-PLAN.md — OG image, legal placeholder pages, human verification checkpoint
+- [x] 12-03-PLAN.md — OG image, legal placeholder pages, human verification checkpoint
 **UI hint**: yes
 
 ### Phase 13: SEO & Metadata
@@ -113,5 +113,5 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Core Landing Page | 2/3 | In Progress|  |
+| 12. Core Landing Page | 3/3 | Complete   | 2026-05-07 |
 | 13. SEO & Metadata | 0/? | Not started | - |
