@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: AI Onboarding
-status: verifying
+status: executing
 stopped_at: Phase 11 context gathered
-last_updated: "2026-05-07T11:18:54.963Z"
-last_activity: 2026-05-07
+last_updated: "2026-05-07T11:51:51.087Z"
+last_activity: 2026-05-07 -- Phase 11 execution started
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 5
+  total_plans: 8
   completed_plans: 5
   percent: 11
 ---
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-06)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 10 — image-seeding
+**Current focus:** Phase 11 — menu-photo-ocr
 
 ## Current Position
 
-Phase: 11
-Plan: Not started
-Status: Phase complete — ready for verification
-Last activity: 2026-05-07
+Phase: 11 (menu-photo-ocr) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 11
+Last activity: 2026-05-07 -- Phase 11 execution started
 
 Progress: [██░░░░░░░░░░░░░░░░░░] 11% (v1.2)
 
