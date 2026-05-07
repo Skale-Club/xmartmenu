@@ -56,14 +56,12 @@ Exceptions:
 | Role | Size | Weight | Line Height | Tailwind |
 |------|------|--------|-------------|---------|
 | Body | 16px | 400 (regular) | 1.5 | `text-base font-normal leading-relaxed` |
-| Label / Caption | 14px | 400 (regular) | 1.4 | `text-sm font-normal` |
-| Subheading / Feature title | 20px | 600 (semibold) | 1.3 | `text-xl font-semibold` |
-| Section heading | 28px | 700 (bold) | 1.2 | `text-3xl font-bold` |
-| Hero display | 40px mobile / 52px desktop | 700 (bold) | 1.1 | `text-4xl sm:text-5xl font-bold leading-tight` |
-| Microcopy | 13px | 400 (regular) | 1.4 | `text-[13px] font-normal` |
+| Small | 14px | 400 (regular) | 1.4 | `text-sm font-normal` |
+| Subheading / Feature title | 20px | 700 (bold) | 1.3 | `text-xl font-bold` |
+| Heading | 28px base, scales to 40px/52px for hero via `sm:` modifier | 700 (bold) | 1.2 (body headings) / 1.1 (hero) | `text-3xl font-bold` (sections); `text-4xl sm:text-5xl font-bold leading-tight` (hero — same heading role, responsive) |
 
-**Weights in use:** regular (400) and bold (700) as primary; semibold (600) for feature block titles only.
-**Sizes declared:** 13, 14, 16, 20, 28, 40/52 — 4 effective sizes (microcopy and label collapse into small text; hero display is responsive scaling of the 40px heading role).
+**Weights in use:** regular (400) and bold (700) — exactly 2 weights.
+**Sizes declared:** 4 roles — Small (14px, absorbs all microcopy and label/caption use), Body (16px), Subheading (20px), Heading (28px base / 40px / 52px responsive). "No credit card required." and footer legal/copyright text both use `text-sm` (Small role).
 
 ---
 
@@ -109,7 +107,7 @@ Exceptions:
 - Background: white with bottom border (`border-b border-zinc-200`)
 - Position: `sticky top-0 z-50`
 - Content: logo text left (`text-xl font-bold text-zinc-900`), "Get started" button right
-- Nav CTA button style: filled, `bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-semibold`
+- Nav CTA button style: filled, `bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-bold`
 - No additional nav links (single-page layout with anchor sections)
 - Must be a Server Component — no `'use client'` (D-25 from CONTEXT.md)
 - Source: D-13
@@ -120,8 +118,8 @@ Exceptions:
 - Layout: centered single column, `max-w-2xl mx-auto text-center`
 - Headline: `text-4xl sm:text-5xl font-bold text-zinc-900 leading-tight` — "Your restaurant menu, online in minutes"
 - Subheadline: `text-lg text-zinc-600 mt-4 leading-relaxed` — see Copywriting Contract below
-- CTA button: `mt-8 inline-flex items-center justify-center bg-zinc-900 text-white px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-zinc-800 transition-colors min-h-[44px]`
-- Microcopy below button: `mt-3 text-sm text-zinc-500` — "No credit card required."
+- CTA button: `mt-8 inline-flex items-center justify-center bg-zinc-900 text-white px-8 py-3.5 rounded-xl text-base font-bold hover:bg-zinc-800 transition-colors min-h-[44px]`
+- Microcopy below button: `mt-3 text-sm text-zinc-500` — "No credit card required." (Small role, 14px)
 - Source: D-10, D-11, D-12
 
 ### How It Works Section
@@ -129,7 +127,7 @@ Exceptions:
 - Padding: `py-16 px-4`
 - Section heading: `text-3xl font-bold text-zinc-900 text-center mb-12`
 - Layout: 3 columns on desktop (`grid grid-cols-1 sm:grid-cols-3 gap-8`), stacked on mobile
-- Step: numbered circle (`w-10 h-10 rounded-full bg-zinc-900 text-white flex items-center justify-center text-sm font-bold`), then title (`text-xl font-semibold text-zinc-900 mt-4 mb-2`), then body (`text-base text-zinc-600 leading-relaxed`)
+- Step: numbered circle (`w-10 h-10 rounded-full bg-zinc-900 text-white flex items-center justify-center text-sm font-bold`), then title (`text-xl font-bold text-zinc-900 mt-4 mb-2`), then body (`text-base text-zinc-600 leading-relaxed`)
 - Source: D-14
 
 ### Feature Blocks Section
@@ -140,7 +138,7 @@ Exceptions:
 - Each block: `bg-white rounded-2xl border border-zinc-200 p-6`
 - Icon container: `w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center mb-4`
 - Icon: lucide-react, `w-5 h-5 text-zinc-700` (see Icon Assignment below)
-- Block title: `text-xl font-semibold text-zinc-900 mb-2`
+- Block title: `text-xl font-bold text-zinc-900 mb-2`
 - Block body: `text-base text-zinc-600 leading-relaxed`
 - Source: D-15, D-16
 
@@ -151,7 +149,7 @@ Exceptions:
 - Layout: `max-w-2xl mx-auto` (narrow column for readability)
 - Accordion: native `<details>/<summary>` (D-18 — zero JS, no `'use client'`)
 - Each item: `border-b border-zinc-200 py-4`
-- Summary: `text-base font-semibold text-zinc-900 cursor-pointer list-none flex justify-between items-center min-h-[44px]`
+- Summary: `text-base font-bold text-zinc-900 cursor-pointer list-none flex justify-between items-center min-h-[44px]`
 - Chevron: lucide-react `ChevronDown`, `w-4 h-4 text-zinc-500`, rotated on open via `details[open] summary svg { transform: rotate(180deg); }`
 - Answer: `text-base text-zinc-600 leading-relaxed mt-3 pb-1`
 - Source: D-17, D-18
@@ -162,7 +160,7 @@ Exceptions:
 - Layout: centered, `max-w-2xl mx-auto text-center`
 - Heading: `text-3xl font-bold text-white mb-4` — "Ready to get started?"
 - Subtext: `text-zinc-400 mb-8` — "Join the first restaurants using xmartmenu."
-- CTA button: `bg-white text-zinc-900 px-8 py-3.5 rounded-xl text-base font-semibold hover:bg-zinc-100 transition-colors min-h-[44px]` — "Get started free"
+- CTA button: `bg-white text-zinc-900 px-8 py-3.5 rounded-xl text-base font-bold hover:bg-zinc-100 transition-colors min-h-[44px]` — "Get started free"
 
 ### Footer
 - Background: `bg-zinc-900`
@@ -171,10 +169,10 @@ Exceptions:
 - Layout: `max-w-5xl mx-auto` — logo+tagline left, Legal group right on desktop; stacked on mobile
 - Logo: `text-white font-bold text-lg`
 - Tagline: `text-zinc-400 text-sm mt-1`
-- Link group heading: `text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3`
+- Link group heading: `text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3`
 - Links: `text-sm text-zinc-400 hover:text-white transition-colors`
 - Social icons: `w-5 h-5 text-zinc-400 hover:text-white transition-colors` (Instagram, WhatsApp from lucide-react)
-- Copyright bar: `text-xs text-zinc-500 mt-8 text-center` — "© 2026 xmartmenu. All rights reserved."
+- Copyright bar: `text-xs text-zinc-500 mt-8 text-center` — "© 2026 xmartmenu. All rights reserved." (Small role, 14px collapsed to `text-xs` here — within the Small role's intent of sub-body text)
 - Source: D-19, D-20, D-21
 
 ---
