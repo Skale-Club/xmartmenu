@@ -164,6 +164,16 @@ export interface AiUsage {
   created_at: string
 }
 
+export interface AiJob {
+  id: string
+  tenant_id: string
+  feature_key: string                                    // e.g. 'image_seeding', 'image_single'
+  status: 'pending' | 'running' | 'complete' | 'failed'
+  created_at: string
+  completed_at: string | null
+  error_message: string | null
+}
+
 export type OptionGroupType = 'single' | 'multiple' | 'half_and_half'
 export type PriceRule = 'max' | 'average' | 'sum' | 'fixed'
 
