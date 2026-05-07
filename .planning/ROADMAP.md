@@ -83,7 +83,7 @@ See `.planning/milestones/v1.2-ROADMAP.md` for full details.
 **Plans**: 3 plans
 Plans:
 - [x] 12-01-PLAN.md — Infrastructure: reserved-paths, middleware bypass, analytics install, root layout update, onboarding guard
-- [ ] 12-02-PLAN.md — Landing page: (marketing) route group layout + full page with all 7 sections
+- [x] 12-02-PLAN.md — Landing page: (marketing) route group layout + full page with all 7 sections
 - [ ] 12-03-PLAN.md — OG image, legal placeholder pages, human verification checkpoint
 **UI hint**: yes
 
@@ -113,5 +113,5 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 12. Core Landing Page | 1/3 | In Progress|  |
+| 12. Core Landing Page | 2/3 | In Progress|  |
 | 13. SEO & Metadata | 0/? | Not started | - |
