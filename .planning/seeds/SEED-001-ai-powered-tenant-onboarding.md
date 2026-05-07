@@ -1,6 +1,8 @@
 ---
 id: SEED-001
-status: dormant
+status: completed
+completed: 2026-05-07
+completed_in: v1.2 (AI Onboarding milestone — phases 09-11)
 planted: 2026-05-05
 planted_during: pre-GSD (no .planning/STATE.md yet)
 trigger_when: tenant onboarding flow is stable and we want to reduce friction for new restaurants
