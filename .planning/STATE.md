@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.3
 milestone_name: Landing Page
-status: planning
-stopped_at: Defining requirements
+status: roadmap_complete
+stopped_at: Roadmap created — ready for Phase 12 planning
 last_updated: "2026-05-07T00:00:00.000Z"
 last_activity: 2026-05-07
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,19 +18,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-06)
+See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 09 — text-seeding
+**Current focus:** Phase 12 — Core Landing Page
 
 ## Current Position
 
-Phase: 11
+Phase: 12
 Plan: Not started
-Status: Executing Phase 9
+Status: Roadmap complete — awaiting Phase 12 planning
 Last activity: 2026-05-07
 
-Progress: [██████████] 100% (v1.2)
+Progress: [__________] 0% (v1.3 — 0/2 phases)
 
 ## Performance Metrics
 
@@ -40,7 +40,7 @@ Progress: [██████████] 100% (v1.2)
 - Average duration: ~25 min
 - Total execution time: ~2.5 hours
 
-**By Phase (v1.0):**
+**By Phase (previous milestones):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
@@ -115,12 +115,25 @@ Recent decisions affecting current work:
 - [Phase 11-menu-photo-ocr]: generateObject with messages array (not prompt string) used for GPT-4.1-mini vision — image base64 data URL passed as content part
 - [Phase 11-menu-photo-ocr]: Image downloaded from Supabase Storage then converted to base64 — avoids passing raw storage URL to OpenAI (storage may not be publicly accessible)
 - [Phase 11-menu-photo-ocr]: Wave 2 agent pre-completed 11-03 scope during 11-02 execution — OCR UI shipped in commit 58869bd alongside the ocr-menu route
+- [v1.3 Roadmap]: page.tsx must export `dynamic = 'force-static'` — CDN-edge delivery, replaces redirect entirely
+- [v1.3 Roadmap]: Supabase getUser() bypass in middleware.ts required for `/` — without it Lighthouse mobile drops to 85-88
+- [v1.3 Roadmap]: RESERVED_PATHS Set must be enforced in both middleware (blocks access) and onboarding API (blocks registration) — dual enforcement is defense in depth
+- [v1.3 Roadmap]: JSON-LD must use inline dangerouslySetInnerHTML in page.tsx only — next/script causes RSC hydration duplicates in React 19
+- [v1.3 Roadmap]: sitemap.ts lists only `/` — never queries tenants table (prevents tenant roster exposure)
+- [v1.3 Roadmap]: OG image must be JPEG ≤ 300 KB — WhatsApp silently drops images over 300 KB; Brazilian restaurateurs share via WhatsApp
+- [v1.3 Roadmap]: Analytics/SpeedInsights must import from /next subpath — /react breaks route-change detection in App Router
+- [v1.3 Roadmap]: No fake testimonials, fake metrics, or crossed-out anchor pricing — FTC enforcement risk and anti-pattern
+- [v1.3 Roadmap]: Ordering copy must describe feature-flag behavior (not default-on); AI seeding copy must describe onboarding service (not self-serve tenant tool)
+- [v1.3 Roadmap]: demo tenant must exist with is_active: true, default menu, seeded categories/products/images before Phase 12 ships
+- [v1.3 Roadmap]: metadataBase absence in layout.tsx confirmed in live codebase — must be added in Phase 12
 
 ### Pending Todos
 
-- Confirm Pexels/Unsplash attribution requirements before Phase 10 ships
-- Verify gpt-image-1-mini availability on project's OpenAI tier before Phase 10 begins (DALL-E 3 deprecated May 12 2026)
-- Define price parsing test matrix for locale edge cases (Brazilian comma-decimal, integers, free items) during Phase 11 planning
+- Provision demo tenant (slug=demo, is_active: true, default menu, v1.2 AI-seeded content) before Phase 12 ships
+- Obtain or create 1200x630 JPEG OG image asset ≤ 300 KB before Phase 12 build begins
+- Confirm ordering feature-flag default state (orders_enabled default) before finalizing Feature Block 2 and FAQ copy
+- Confirm whether tenant data export exists before finalizing FAQ question on data ownership
+- Coordinate Privacy Policy and Terms of Service documents (Termly/iubenda) — hard launch prerequisite, out of engineering scope
 
 ### Blockers/Concerns
 
@@ -128,6 +141,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T12:20:03.599Z
-Stopped at: Completed 11-menu-photo-ocr 11-03-PLAN.md
+Last session: 2026-05-07
+Stopped at: v1.3 roadmap created — Phase 12 and Phase 13 defined
 Resume file: None
