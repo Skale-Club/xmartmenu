@@ -380,6 +380,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                 <div className="mt-3">
                 <button
                   onClick={() => setShowHoursModal(true)}
+                  aria-label={ui.hoursBtn}
                   className="inline-flex items-center justify-center gap-1 text-sm opacity-75 hover:opacity-100 transition-opacity px-3 py-1 rounded-full border border-white/40 bg-white/10 hover:bg-white/20"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
@@ -421,11 +422,12 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             <div ref={categoryFilterRef} className="flex gap-2 justify-center items-center overflow-x-auto py-3 scrollbar-hide">
               <button
                 onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
+                aria-label={showSearch ? 'Close search' : 'Open search'}
                 className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors"
               >
                 {showSearch
-                  ? <span className="text-xs font-medium leading-none">✕</span>
-                  : <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                  ? <span aria-hidden="true" className="text-xs font-medium leading-none">✕</span>
+                  : <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
                 }
               </button>
               {showSearch ? (
@@ -471,7 +473,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         />
       )}
 
-      <div
+      <main
         className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6 sm:py-8 lg:py-10 space-y-8 sm:space-y-10"
         style={hasFixedFooter ? { paddingBottom: `${footerHeight + 24}px` } : undefined}
       >
@@ -488,9 +490,9 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                 {[...featuredBase, ...featuredBase].map((p, idx) => (
                   <button key={`${p.id}-${idx}`} onClick={() => setSelectedProduct(p)}
                     className="flex-shrink-0 w-40 sm:w-48 lg:w-56 bg-white rounded-xl border border-zinc-200 overflow-hidden text-left hover:shadow-md active:scale-[0.97] transition-all duration-200 ease-out">
-                    <div className="w-full aspect-video bg-zinc-100 overflow-hidden">
+                    <div className="relative w-full aspect-video bg-zinc-100 overflow-hidden">
                       {getProductImages(p)[0]
-                        ? <img src={getProductImages(p)[0]} alt={p.name} className="w-full h-full object-cover" />
+                        ? <Image src={getProductImages(p)[0]} alt={p.name} fill className="object-cover" sizes="(max-width: 640px) 160px, (max-width: 1024px) 192px, 224px" />
                         : <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>}
                     </div>
                     <div className="p-2">
@@ -538,7 +540,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           </section>
         )}
 
-      </div>
+      </main>
 
       {hasFixedFooter && (
         <footer ref={footerRef} className={`fixed bottom-0 inset-x-0 z-40 border-t border-zinc-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 transition-all duration-300 ${showFooterAtEnd ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
@@ -717,9 +719,9 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
   return (
     <button onClick={onClick}
       className="w-full bg-white rounded-xl border border-zinc-200 overflow-hidden text-left hover:shadow-md hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 ease-out">
-      <div className="w-full aspect-video bg-zinc-100 overflow-hidden">
+      <div className="relative w-full aspect-video bg-zinc-100 overflow-hidden">
         {images[0]
-          ? <img src={images[0]} alt={product.name} className="w-full h-full object-cover block" />
+          ? <Image src={images[0]} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
           : <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>}
       </div>
       <div className="p-2">
@@ -861,11 +863,13 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchEnd}
           >
-            <img
+            <Image
               src={images[imageIndex]}
               alt={`${product.name} ${imageIndex + 1}`}
-              className={`w-full h-full object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
+              fill
+              className={`object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
               style={{ transform: `translateX(${touchOffsetX}px)` }}
+              sizes="(max-width: 768px) 100vw, 448px"
             />
             {hasManyImages && (
               <>
