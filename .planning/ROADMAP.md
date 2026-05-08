@@ -51,4 +51,13 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 See `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 </details>
-- [x] **Phase 20: Storage Abstraction** — `IStorageClient` interface + `SupabaseStorageClient` + `S3StorageClient` stub + factory `getStorageClient()`. Migração para Hetzner/R2/AWS vira troca de env var. (completed 2026-05-08)
+## v1.5 Image Optimization (Phases 18-20) — SHIPPED 2026-05-08
+
+| # | Phase | Plans | Status |
+|---|---|---|---|
+| 18 | WebP Upload Pipeline | 3/3 | ✅ 2026-05-08 |
+| 19 | Admin next/image Migration | 2/2 | ✅ 2026-05-08 |
+| 20 | Storage Abstraction | 1/1 | ✅ 2026-05-08 |
+
+**DB Migration 024** — 4 performance indices applied to production 2026-05-08:
+`idx_menus_tenant`, `idx_menus_slug`, `idx_categories_menu`, `idx_products_menu`

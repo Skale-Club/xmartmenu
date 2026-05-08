@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: executing
-stopped_at: Completed 19-02-PLAN.md — ProductsClient img to next/image migration
-last_updated: "2026-05-08T10:45:19.690Z"
+milestone: v1.5
+milestone_name: Image Optimization
+status: idle
+stopped_at: v1.5 SHIPPED — all phases complete, migration 024 applied to production
+last_updated: "2026-05-08T11:30:00.000Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 18
-  completed_phases: 15
-  total_plans: 38
-  completed_plans: 38
-  percent: 67
+  total_phases: 20
+  completed_phases: 20
+  total_plans: 41
+  completed_plans: 41
+  percent: 100
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 20 — storage-abstraction
+**Current focus:** v1.5 SHIPPED — idle, awaiting next milestone
 
 ## Current Position
 
-Phase: 20
-Plan: Not started
-Status: Executing Phase 20
+Phase: 20 (complete)
+Plan: All complete
+Status: Idle — v1.5 milestone shipped
 Last activity: 2026-05-08
 
-Progress: [██████    ] 67% (v1.4 — 3/3 plans complete, migration pending)
+Progress: [██████████] 100% (v1.5 — all phases complete)
 
 ## Milestone Overview
 
