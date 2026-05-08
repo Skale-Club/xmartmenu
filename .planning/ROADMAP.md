@@ -44,8 +44,11 @@ Plans:
   3. Admin can drag-to-reorder ingredients in the catalog; position persists across page reload
   4. Opening the product editor at `/admin/menu/products/[id]` shows an "Ingredientes" tab when the flag is enabled; the tab contains a multi-select picker listing all tenant ingredients
   5. Selecting ingredients on the product tab persists the association; each associated ingredient shows `is_default` toggle and optional price override fields; empty overrides fall back to catalog defaults
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 24-01-PLAN.md — Ingredients catalog page (server + client CRUD + reorder), layout.tsx flag query, AdminSidebar nav item
+- [ ] 24-02-PLAN.md — Product editor tab bar (Detalhes/Opções/Ingredientes) + Ingredientes tab multi-select picker + per-product overrides
 
 ### Phase 25: Customer + Kitchen
 **Goal**: Customers can customize ingredient composition of a product and see a live price update; modifications are stored on the order and displayed visually in both the KDS card and the admin orders modal
@@ -65,7 +68,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 23. Ingredient Schema | 0/1 | Complete    | 2026-05-08 |
-| 24. Admin Catalog | 0/? | Not started | - |
+| 24. Admin Catalog | 0/2 | Not started | - |
 | 25. Customer + Kitchen | 0/? | Not started | - |
 
 ## Completed Milestones
