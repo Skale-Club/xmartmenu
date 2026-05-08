@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface Tenant {
@@ -369,7 +370,7 @@ export default function TenantDetailClient({
         <div className="w-px h-4 bg-zinc-200" />
         <div className="flex items-center gap-3">
           {tenant.logo_url
-            ? <img src={tenant.logo_url} alt={tenant.name} className="w-10 h-10 rounded-lg object-contain border border-zinc-100" />
+            ? <Image src={tenant.logo_url} alt={tenant.name} width={40} height={40} className="rounded-lg object-contain border border-zinc-100" />
             : <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center text-lg">🏪</div>}
           <div>
             <h1 className="text-xl font-bold text-zinc-900">{tenant.name}</h1>
