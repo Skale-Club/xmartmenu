@@ -40,6 +40,8 @@ const KDS_VIEW_KEY = (tenantId: string) => `kds_view_${tenantId}`
 interface OrdersClientProps {
   initialOrders: OrderWithItems[]
   tenantId: string
+  amberThreshold: number
+  redThreshold: number
 }
 
 function OrderCard({
@@ -47,13 +49,17 @@ function OrderCard({
   loadingId,
   onAdvance,
   onCancel,
+  amberMinutes,
+  redMinutes,
 }: {
   order: OrderWithItems
   loadingId: string | null
   onAdvance: (id: string, status: string) => void
   onCancel: (id: string) => void
+  amberMinutes: number
+  redMinutes: number
 }) {
-  const { minutes, chipClass } = useElapsedTime(order.created_at)
+  const { minutes, chipClass } = useElapsedTime(order.created_at, amberMinutes, redMinutes)
   const colors = STATUS_COLORS[order.status] ?? STATUS_COLORS['pending']
   const nextStatus = NEXT_STATUS[order.status]
   const isLoading = loadingId === order.id
@@ -145,7 +151,7 @@ function OrderCard({
   )
 }
 
-export default function OrdersClient({ initialOrders, tenantId }: OrdersClientProps) {
+export default function OrdersClient({ initialOrders, tenantId, amberThreshold, redThreshold }: OrdersClientProps) {
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -266,6 +272,8 @@ export default function OrdersClient({ initialOrders, tenantId }: OrdersClientPr
               loadingId={loadingId}
               onAdvance={(id, status) => updateStatus(id, status)}
               onCancel={(id) => updateStatus(id, 'cancelled')}
+              amberMinutes={amberThreshold}
+              redMinutes={redThreshold}
             />
           ))}
         </div>

@@ -50,6 +50,8 @@ export default function StoreClient({ settings, tenantId }: Props) {
     address: settings?.address ?? '',
     phone: settings?.phone ?? '',
     item_notes_enabled: settings?.item_notes_enabled ?? false,  // NOTE-01
+    amber_threshold_minutes: settings?.amber_threshold_minutes ?? 10,  // KDS-07
+    red_threshold_minutes: settings?.red_threshold_minutes ?? 20,      // KDS-07
   })
   const [businessHours, setBusinessHours] = useState<Record<string, string>>(
     Object.fromEntries(DAYS.map(d => [d.key, hours[d.key] ?? '']))
@@ -64,6 +66,17 @@ export default function StoreClient({ settings, tenantId }: Props) {
     e.preventDefault()
     setLoading(true)
     setError(null)
+
+    if (form.amber_threshold_minutes <= 0 || form.red_threshold_minutes <= 0) {
+      setError('Os limites devem ser maiores que zero')
+      setLoading(false)
+      return
+    }
+    if (form.amber_threshold_minutes >= form.red_threshold_minutes) {
+      setError('O limite âmbar deve ser menor que o limite vermelho')
+      setLoading(false)
+      return
+    }
 
     const filteredHours = Object.fromEntries(
       Object.entries(businessHours).filter(([, v]) => v.trim() !== '')
@@ -189,6 +202,36 @@ export default function StoreClient({ settings, tenantId }: Props) {
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.item_notes_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
+          </div>
+        </div>
+
+        {/* KDS — Alertas de tempo */}
+        <div className={section}>
+          <h2 className="text-sm font-semibold text-zinc-900 pb-2 border-b border-zinc-100">KDS — Alertas de tempo</h2>
+          <p className="text-xs text-zinc-400 mb-2">Tempo de espera para mudar a cor do card no painel da cozinha</p>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={label}>Limite âmbar (min)</label>
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={form.amber_threshold_minutes}
+                onChange={e => setForm(f => ({ ...f, amber_threshold_minutes: Number(e.target.value) }))}
+                className={input}
+              />
+            </div>
+            <div>
+              <label className={label}>Limite vermelho (min)</label>
+              <input
+                type="number"
+                min={1}
+                max={120}
+                value={form.red_threshold_minutes}
+                onChange={e => setForm(f => ({ ...f, red_threshold_minutes: Number(e.target.value) }))}
+                className={input}
+              />
+            </div>
           </div>
         </div>
 
