@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 status: "Roadmap defined — ready for /gsd:plan-phase 23"
 stopped_at: Completed 24-02-PLAN.md — product editor tab bar + Ingredientes tab (INGR-06)
-last_updated: "2026-05-08T14:57:55.485Z"
+last_updated: "2026-05-08T15:04:24.260Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 3
@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: 24
+Phase: 25
 Plan: Not started
 Status: Roadmap defined — ready for /gsd:plan-phase 23
 Last activity: 2026-05-08

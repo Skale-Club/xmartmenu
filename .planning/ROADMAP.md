@@ -68,7 +68,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 23. Ingredient Schema | 0/1 | Complete    | 2026-05-08 |
-| 24. Admin Catalog | 2/2 | Complete   | 2026-05-08 |
+| 24. Admin Catalog | 2/2 | Complete    | 2026-05-08 |
 | 25. Customer + Kitchen | 0/? | Not started | - |
 
 ## Completed Milestones
