@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: "Roadmap defined — ready for /gsd:plan-phase 23"
-stopped_at: Completed 24-01-PLAN.md — ingredients catalog CRUD page + AdminSidebar flag-gated nav item
-last_updated: "2026-05-08T14:48:11.812Z"
+stopped_at: Completed 24-02-PLAN.md — product editor tab bar + Ingredientes tab (INGR-06)
+last_updated: "2026-05-08T14:57:55.485Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -86,6 +86,7 @@ Last activity: 2026-05-08
 | Phase 22 P01 | 5min | 2 tasks | 3 files |
 | Phase 23 P01 | 98s | 2 tasks | 2 files |
 | Phase 24 P01 | 7min | 2 tasks | 4 files |
+| Phase 24 P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -198,6 +199,9 @@ Recent decisions affecting current work:
 - [Phase 23]: IngredientModifications.added reuses IngredientExtra type — additions and extras carry identical payload (qty + unit_price)
 - [Phase 24]: ingredientCustomizationEnabled prop added to AdminSidebar with default false — backward compatible with all existing callers
 - [Phase 24]: Phase 24 UI gated by ingredientCustomizationEnabled prop threading layout.tsx -> AdminSidebar -> conditional nav item render
+- [Phase 24]: Tab bar pattern with activeTab state drives conditional card rendering (details/options/ingredients) — zero complexity, clean separation
+- [Phase 24]: defaultValue + onBlur on price override inputs avoids React controlled/uncontrolled conflict on independent per-row updates
+- [Phase 24]: empty string maps to null (val !== '' ? parseFloat(val) : null) — explicit contract for catalog default_extra_price fallback
 
 ### Pending Todos
 
@@ -213,5 +217,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T14:48:11.778Z
-Stopped at: Completed 24-01-PLAN.md — ingredients catalog CRUD page + AdminSidebar flag-gated nav item
+Last session: 2026-05-08T14:57:55.462Z
+Stopped at: Completed 24-02-PLAN.md — product editor tab bar + Ingredientes tab (INGR-06)
