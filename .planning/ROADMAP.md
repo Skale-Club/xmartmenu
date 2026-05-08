@@ -69,7 +69,7 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 ### Phases
 
-- [ ] **Phase 14: Instrumentacao** — Establish real production baselines before any optimization
+- [x] **Phase 14: Instrumentacao** — Establish real production baselines before any optimization (completed 2026-05-08)
 - [ ] **Phase 15: Database Indices** — EXPLAIN ANALYZE on critical queries and add indices where needed
 - [ ] **Phase 16: Frontend Performance** — Lighthouse scores, bundle optimization, and ISR cache tuning
 - [ ] **Phase 17: CI Gate** — Lock Lighthouse regressions out of the main branch via GitHub Actions
@@ -129,7 +129,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 14. Instrumentacao | 1/3 | In progress | - |
+| 14. Instrumentacao | 1/3 | Complete    | 2026-05-08 |
 | 15. Database Indices | 0/? | Not started | - |
 | 16. Frontend Performance | 0/? | Not started | - |
 | 17. CI Gate | 0/? | Not started | - |
