@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Performance
 status: active
-stopped_at: Defining requirements
+stopped_at: Roadmap created — ready for Phase 14 planning
 last_updated: "2026-05-07T23:58:00.000Z"
 last_activity: 2026-05-07
 progress:
-  total_phases: 0
+  total_phases: 4
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,16 +21,25 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.4 Performance — defining requirements
+**Current focus:** v1.4 Performance — Phase 14: Instrumentacao (next)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 14 — Instrumentacao (not started)
 Plan: —
-Status: Defining requirements — v1.4 Performance
+Status: Roadmap complete — ready to plan Phase 14
 Last activity: 2026-05-07
 
-Progress: [          ] 0% (v1.4 — roadmap pending)
+Progress: [          ] 0% (v1.4 — 0/4 phases, roadmap ready)
+
+## Milestone Overview
+
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 14 | Instrumentacao | PERF-01, PERF-02, FE-03 | Not started |
+| 15 | Database Indices | DB-01, DB-02, DB-03 | Not started |
+| 16 | Frontend Performance | FE-01, FE-02, FE-04 | Not started |
+| 17 | CI Gate | PERF-03 | Not started |
 
 ## Performance Metrics
 
@@ -143,11 +152,15 @@ Recent decisions affecting current work:
 - [Phase 13-seo-metadata]: schema-dts installed as devDependency — zero runtime footprint, types stripped at build
 - [Phase 13-02]: opengraph-image.tsx must be in src/app/ root, not route-group subdirectory — file convention only injects og:image meta when co-located with the route segment it applies to
 - [Phase 13-02]: OG image measured at 33421 bytes (32.6 KB) — 9x under 300 KB WhatsApp limit
+- [v1.4 Roadmap]: Phase 14 (Instrumentacao) is a hard prerequisite gate — no optimization work starts before baselines are recorded
+- [v1.4 Roadmap]: Vercel Speed Insights already installed (v1.3); Phase 14 is about reading/interpreting data, not installing tooling
+- [v1.4 Roadmap]: All DB analysis runs via Supabase SQL editor — no local Docker available
+- [v1.4 Roadmap]: Phase 17 CI Gate depends on Phase 16 achieving >= 90 so threshold is meaningful, not aspirational
 
 ### Pending Todos
 
 - Provision demo tenant (slug=demo, is_active: true, default menu, v1.2 AI-seeded content) before Phase 12 ships
-- Obtain or create 1200x630 JPEG OG image asset ≤ 300 KB before Phase 12 build begins
+- Obtain or create 1200x630 JPEG OG image asset <= 300 KB before Phase 12 build begins
 - Confirm ordering feature-flag default state (orders_enabled default) before finalizing Feature Block 2 and FAQ copy
 - Confirm whether tenant data export exists before finalizing FAQ question on data ownership
 - Coordinate Privacy Policy and Terms of Service documents (Termly/iubenda) — hard launch prerequisite, out of engineering scope
@@ -158,5 +171,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-07T23:55:00Z
-Stopped at: 13-02 complete — v1.3 Landing Page milestone fully shipped
+Last session: 2026-05-07T23:58:00Z
+Stopped at: v1.4 roadmap created — Phase 14 Instrumentacao is next

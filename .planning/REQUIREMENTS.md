@@ -35,13 +35,13 @@
 
 | Req ID | Phase | Status |
 |--------|-------|--------|
-| PERF-01 | TBD | Pending |
-| PERF-02 | TBD | Pending |
-| PERF-03 | TBD | Pending |
-| DB-01 | TBD | Pending |
-| DB-02 | TBD | Pending |
-| DB-03 | TBD | Pending |
-| FE-01 | TBD | Pending |
-| FE-02 | TBD | Pending |
-| FE-03 | TBD | Pending |
-| FE-04 | TBD | Pending |
+| PERF-01 | Phase 14 | Pending |
+| PERF-02 | Phase 14 | Pending |
+| FE-03 | Phase 14 | Pending |
+| DB-01 | Phase 15 | Pending |
+| DB-02 | Phase 15 | Pending |
+| DB-03 | Phase 15 | Pending |
+| FE-01 | Phase 16 | Pending |
+| FE-02 | Phase 16 | Pending |
+| FE-04 | Phase 16 | Pending |
+| PERF-03 | Phase 17 | Pending |
