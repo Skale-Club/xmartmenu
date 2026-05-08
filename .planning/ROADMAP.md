@@ -99,5 +99,5 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 21. KDS Dashboard | 2/2 | Complete   | 2026-05-08 |
+| 21. KDS Dashboard | 2/2 | Complete    | 2026-05-08 |
 | 22. Realtime + Per-Item Notes | 0/? | Not started | - |
