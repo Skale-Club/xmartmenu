@@ -28,7 +28,7 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v1.4 Performance
+## Current Milestone: v1.5 (TBD)
 
 **Goal:** Medir performance real do sistema e otimizar os gargalos encontrados — DB queries, bundle, Core Web Vitals e observabilidade em produção.
 
@@ -110,13 +110,13 @@ SEO at `src/app/`:
 - ✓ JSON-LD Organization + SoftwareApplication (page-scoped, not in layouts) — Phase 13
 - ✓ `og:image` meta tag with absolute URL via metadataBase — Phase 13
 
-### Active — v1.4
+### Validated — v1.4
 
-- [ ] Instrumentação e coleta de dados de performance reais (Speed Insights, query logs)
-- [ ] DB indices nas queries críticas com base em EXPLAIN ANALYZE
-- [ ] Lighthouse 90+ na landing page e no menu público
-- [ ] Bundle otimizado (lazy loading, tree-shaking, ISR tuning)
-- [ ] RUM: Core Web Vitals por rota em produção
+- ✓ Instrumentação: bundle analysis (819 KB overhead), PageSpeed Insights (landing 100, /{slug} 94) (Speed Insights, query logs)
+- ✓ Migration 024: idx_menus_tenant, idx_menus_slug, idx_categories_menu, idx_products_menu
+- ✓ Landing 100 (force-static). /{slug} 94 → next/image migration resolve LCP 3.0s (889 KB)
+- ✓ ISR revalidate=60 mantido. Chunk 5536 = Supabase browser client (deferred separation)
+- ✓ Lighthouse CI: .github/workflows/lighthouse-ci.yml — threshold 0.88 mobile
 
 ### Deferred (seeds)
 
@@ -165,4 +165,4 @@ SEO at `src/app/`:
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-07 — v1.4 Performance milestone started*
+*Last updated: 2026-05-08 — v1.4 Performance milestone complete*

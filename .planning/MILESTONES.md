@@ -1,5 +1,19 @@
 # Milestones
 
+## v1.4 Performance (Shipped: 2026-05-08)
+
+**Phases completed:** 4 phases, 9 plans, 15 tasks
+
+**Key accomplishments:**
+
+- Webpack bundle analysis run against production build — top 5 client chunks identified with lazy-load candidacy for 14-BASELINE.md
+- One-liner:
+- Migration audit confirmed 4 missing indices on the public menu query path: menus(tenant_id), menus(slug), categories(menu_id), products(menu_id) — all causing Seq Scans on every public page load.
+- 4 missing PostgreSQL indices written to migration 024 eliminating Seq Scans on menus(tenant_id), menus(slug), categories(menu_id), and products(menu_id) on every public menu page load
+- Chunk 5536 composition identified as @supabase/ssr browser client in AdminSidebar; ISR revalidate = 60 retained on all public menu routes; FE-04 satisfied
+
+---
+
 ## v1.3 Landing Page (Shipped: 2026-05-07)
 
 **Phases completed:** 2 phases, 5 plans, 10 tasks
