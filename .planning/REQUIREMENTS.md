@@ -7,14 +7,14 @@
 - [x] **KDS-03**: Timer de tempo decorrido atualiza a cada ~30s; chip fica âmbar >10min, vermelho >20min
 - [x] **KDS-04**: Admin avança status do pedido diretamente no card (Pendente → Em preparo → Pronto → Concluído / Cancelado)
 - [x] **KDS-05**: Toggle grid/lista — grid = tablet de cozinha (cards grandes), lista = tabela atual mantida; preferência persiste em localStorage por tenant
-- [ ] **KDS-06**: Novos pedidos aparecem sem reload manual — Supabase Realtime subscription ou polling 15s como fallback
+- [x] **KDS-06**: Novos pedidos aparecem sem reload manual — Supabase Realtime subscription ou polling 15s como fallback
 
 ## Per-Item Notes
 
 - [ ] **NOTE-01**: Tenant habilita notas por item via `item_notes_enabled` boolean (no mesmo padrão de `direct_orders_enabled`)
 - [ ] **NOTE-02**: Cliente vê textarea "Observações" no modal de produto, limitado a 140 chars com contador, quando flag ativada
 - [ ] **NOTE-03**: Nota salva em `order_items.notes TEXT` — validada e truncada server-side; strip de control chars
-- [ ] **NOTE-04**: KDS card e tabela admin orders renderizam nota por item de forma visualmente destacada (ícone, itálico ou cor distinta)
+- [x] **NOTE-04**: KDS card e tabela admin orders renderizam nota por item de forma visualmente destacada (ícone, itálico ou cor distinta)
 
 ## Out of Scope
 
@@ -34,8 +34,8 @@
 | KDS-03 | Phase 21 | Done (21-01) |
 | KDS-04 | Phase 21 | Complete |
 | KDS-05 | Phase 21 | Complete |
-| KDS-06 | Phase 22 | Pending |
+| KDS-06 | Phase 22 | Complete |
 | NOTE-01 | Phase 22 | Pending |
 | NOTE-02 | Phase 22 | Pending |
 | NOTE-03 | Phase 22 | Pending |
-| NOTE-04 | Phase 22 | Pending |
+| NOTE-04 | Phase 22 | Complete |

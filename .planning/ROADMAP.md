@@ -95,7 +95,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 22-01-PLAN.md — DB migration 025 + TenantSettings type + Realtime subscription + 15s polling + notes display on KDS and admin modal
+- [x] 22-01-PLAN.md — DB migration 025 + TenantSettings type + Realtime subscription + 15s polling + notes display on KDS and admin modal
 - [ ] 22-02-PLAN.md — item_notes_enabled Store Settings toggle + customer textarea in ProductModal + sanitizeNote API validation
 
 **UI hint**: yes
@@ -105,4 +105,4 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 21. KDS Dashboard | 2/2 | Complete    | 2026-05-08 |
-| 22. Realtime + Per-Item Notes | 0/2 | Not started | - |
+| 22. Realtime + Per-Item Notes | 1/2 | In Progress|  |
