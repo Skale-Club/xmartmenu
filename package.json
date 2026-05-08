@@ -13,6 +13,8 @@
   "dependencies": {
     "@ai-sdk/google": "^3.0.67",
     "@ai-sdk/openai": "^3.0.62",
+    "@aws-sdk/client-s3": "^3.1045.0",
+    "@aws-sdk/s3-request-presigner": "^3.1045.0",
     "@supabase/ssr": "^0.10.0",
     "@supabase/supabase-js": "^2.101.1",
     "@types/qrcode": "^1.5.6",

@@ -1,6 +1,6 @@
-import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { validateAndConvertToWebP } from '@/lib/upload'
+import { getStorageClient } from '@/lib/storage'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
@@ -21,15 +21,17 @@ export async function POST(request: Request) {
   // After error check, buffer is guaranteed present by the discriminated union
   const webpBuffer = conversion.buffer as Buffer
   const filename = `${effective.tenantId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`
-  const blob = new Blob([new Uint8Array(webpBuffer)], { type: 'image/webp' })
 
-  const service = await createServiceClient()
-  const { data, error } = await service.storage
-    .from('product-images')
-    .upload(filename, blob, { upsert: true, contentType: 'image/webp' })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  const { data: { publicUrl } } = service.storage.from('product-images').getPublicUrl(data.path)
-  return NextResponse.json({ url: publicUrl })
+  try {
+    const publicUrl = await getStorageClient().upload('product-images', filename, webpBuffer, {
+      contentType: 'image/webp',
+      upsert: true,
+    })
+    return NextResponse.json({ url: publicUrl })
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Upload failed' },
+      { status: 500 }
+    )
+  }
 }

@@ -36,6 +36,8 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
     const ext = file.name.split('.').pop()
     const filename = `${tenantId}/${type}.${ext}`
 
+    // NOTE: Direct Supabase Storage upload. When migrating to S3,
+    // replace with POST to /api/admin/branding/upload (see src/lib/storage/index.ts).
     const { data, error } = await supabase.storage
       .from('tenant-assets')
       .upload(filename, file, { upsert: true })

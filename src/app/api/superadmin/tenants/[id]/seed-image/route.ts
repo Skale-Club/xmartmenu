@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { sanitizeForPrompt } from '@/lib/ai/sanitize'
 import { convertBufferToWebP } from '@/lib/upload'
+import { getStorageClient } from '@/lib/storage'
 
 // Node.js runtime required — Sharp uses native bindings (cannot run on Edge)
 export const runtime = 'nodejs'
@@ -98,18 +99,10 @@ export async function POST(
 
       // D-15: Storage path for cover = {tenant_id}/banner.webp
       const storagePath = `${tenantId}/banner.webp`
-      const { data: uploadData, error: uploadErr } = await service.storage
-        .from('tenant-assets')
-        .upload(storagePath, webpBuffer, {
-          contentType: 'image/webp',  // Pitfall 5: always set explicitly
-          upsert: true,
-        })
-
-      if (uploadErr) throw new Error(`Storage upload failed: ${uploadErr.message}`)
-
-      const { data: { publicUrl } } = service.storage
-        .from('tenant-assets')
-        .getPublicUrl(uploadData.path)
+      const publicUrl = await getStorageClient().upload('tenant-assets', storagePath, webpBuffer, {
+        contentType: 'image/webp',  // Pitfall 5: always set explicitly
+        upsert: true,
+      })
 
       // Write banner_url to tenant_settings
       const { error: settingsErr } = await service
@@ -188,21 +181,10 @@ export async function POST(
 
         // D-15: Storage path = {tenant_id}/products/{product_id}.webp
         const storagePath = `${tenantId}/products/${product.id}.webp`
-        const { data: uploadData, error: uploadErr } = await service.storage
-          .from('tenant-assets')
-          .upload(storagePath, webpBuffer, {
-            contentType: 'image/webp',
-            upsert: true,
-          })
-
-        if (uploadErr) {
-          // D-07: First hard error halts loop and reports partial success
-          throw new Error(`Image upload failed for product ${product.id}: ${uploadErr.message}`)
-        }
-
-        const { data: { publicUrl } } = service.storage
-          .from('tenant-assets')
-          .getPublicUrl(uploadData.path)
+        const publicUrl = await getStorageClient().upload('tenant-assets', storagePath, webpBuffer, {
+          contentType: 'image/webp',
+          upsert: true,
+        })
 
         // Pitfall 7: Write to image_url (singular), NOT image_urls (plural legacy column)
         const { error: updateErr } = await service
@@ -293,18 +275,10 @@ export async function POST(
       const webpBuffer = await convertBufferToWebP(rawBuffer)
 
       const storagePath = `${tenantId}/products/${product.id}.webp`
-      const { data: uploadData, error: uploadErr } = await service.storage
-        .from('tenant-assets')
-        .upload(storagePath, webpBuffer, {
-          contentType: 'image/webp',
-          upsert: true,
-        })
-
-      if (uploadErr) throw new Error(`Storage upload failed: ${uploadErr.message}`)
-
-      const { data: { publicUrl } } = service.storage
-        .from('tenant-assets')
-        .getPublicUrl(uploadData.path)
+      const publicUrl = await getStorageClient().upload('tenant-assets', storagePath, webpBuffer, {
+        contentType: 'image/webp',
+        upsert: true,
+      })
 
       const { error: updateErr } = await service
         .from('products')
