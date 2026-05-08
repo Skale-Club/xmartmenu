@@ -103,7 +103,10 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full details.
   2. `EXPLAIN ANALYZE` on a `profiles` query filtered by `role` shows an index scan
   3. Both `tenant-assets` and `product-images` Storage buckets respond with `Cache-Control: public, max-age=31536000, immutable` on image URLs
   4. No regression on any existing RLS policy (all protected routes still require authenticated session)
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 28-01-PLAN.md — Migration 028 (3 profiles indices) + CDN cache headers on both Storage buckets
 
 ### Phase 29: MenuPage Decomposition
 **Goal**: `MenuPage.tsx` is split into focused components with lazy-loaded modals, reducing initial JS payload for the public menu
