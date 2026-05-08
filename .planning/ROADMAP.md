@@ -14,7 +14,7 @@
 
 ## Phases
 
-- [ ] **Phase 26: Schema + Settings** - Threshold columns in DB, Store Settings UI, useElapsedTime hook decoupled from hardcoded constants
+- [x] **Phase 26: Schema + Settings** - Threshold columns in DB, Store Settings UI, useElapsedTime hook decoupled from hardcoded constants
 - [ ] **Phase 27: Filter Chips + Sound** - KDS status filter chips, mute button, and Web Audio API beep on new orders
 
 ## Phase Details
@@ -30,7 +30,7 @@
   4. New tenants get sensible defaults (amber=10, red=20) from the migration — KDS works before an admin ever touches Settings
 **Plans**: 1 plan
 Plans:
-- [ ] 26-01-PLAN.md — Migration 027 + TypeScript types + useElapsedTime refactor + OrdersClient prop threading + StoreClient KDS section
+- [x] 26-01-PLAN.md — Migration 027 + TypeScript types + useElapsedTime refactor + OrdersClient prop threading + StoreClient KDS section
 **UI hint**: yes
 
 ### Phase 27: Filter Chips + Sound
@@ -49,7 +49,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 26. Schema + Settings | 0/1 | Not started | - |
+| 26. Schema + Settings | 1/1 | Complete | 2026-05-08 |
 | 27. Filter Chips + Sound | 0/? | Not started | - |
 
 ## Completed Milestones
