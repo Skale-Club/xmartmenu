@@ -76,7 +76,12 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full details.
   2. Each card displays an elapsed-time chip that turns amber after 10 minutes and red after 20 minutes, ticking every ~30 seconds without page reload
   3. Admin can advance an order through Pendente → Em preparo → Pronto → Concluído (or Cancelado) via a button on the card — the card updates immediately
   4. Admin can toggle between grid view (large cards, tablet-friendly) and the existing list/table view; the preference persists across sessions per tenant via localStorage
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 21-01-PLAN.md — Foundation: useElapsedTime hook + STATUS_COLORS + OrderCard component + grid layout + tenantId prop
+- [ ] 21-02-PLAN.md — Actions: view toggle with localStorage persistence + optimistic status PATCH wiring
+
 **UI hint**: yes
 
 ### Phase 22: Realtime + Per-Item Notes
@@ -94,5 +99,5 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full details.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 21. KDS Dashboard | 0/? | Not started | - |
+| 21. KDS Dashboard | 0/2 | Not started | - |
 | 22. Realtime + Per-Item Notes | 0/? | Not started | - |
