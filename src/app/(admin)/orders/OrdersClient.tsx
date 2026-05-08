@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderItem } from '@/types/database'
 import { useElapsedTime } from './useElapsedTime'
+import { LayoutGrid, List } from 'lucide-react'
 
 type OrderWithItems = Order & { order_items: OrderItem[] }
 
@@ -33,6 +34,8 @@ const ADVANCE_LABEL: Record<string, string> = {
   preparing: 'Marcar pronto',
   ready:     'Concluir',
 }
+
+const KDS_VIEW_KEY = (tenantId: string) => `kds_view_${tenantId}`
 
 interface OrdersClientProps {
   initialOrders: OrderWithItems[]
@@ -113,9 +116,20 @@ export default function OrdersClient({ initialOrders, tenantId }: OrdersClientPr
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
-  // view toggle state — Plan 02 adds localStorage persistence
+  // view toggle state — persisted to localStorage per tenant
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const supabase = createClient()
+
+  // SSR-safe: read saved view preference on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(KDS_VIEW_KEY(tenantId))
+    if (saved === 'grid' || saved === 'list') setView(saved)
+  }, [tenantId])
+
+  function toggleView(next: 'grid' | 'list') {
+    setView(next)
+    localStorage.setItem(KDS_VIEW_KEY(tenantId), next)
+  }
 
   async function updateStatus(orderId: string, status: string) {
     setLoadingId(orderId)
@@ -140,12 +154,30 @@ export default function OrdersClient({ initialOrders, tenantId }: OrdersClientPr
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-zinc-900">Pedidos</h1>
-        <p className="text-sm text-zinc-500">{orders.length} pedido(s)</p>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-zinc-500">{orders.length} pedido(s)</p>
+          <div className="flex items-center gap-1 rounded-lg border border-zinc-200 p-0.5">
+            <button
+              onClick={() => toggleView('grid')}
+              className={`p-1.5 rounded ${view === 'grid' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'}`}
+              aria-label="Visualização em grade"
+            >
+              <LayoutGrid size={16} />
+            </button>
+            <button
+              onClick={() => toggleView('list')}
+              className={`p-1.5 rounded ${view === 'list' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'}`}
+              aria-label="Visualização em lista"
+            >
+              <List size={16} />
+            </button>
+          </div>
+        </div>
       </div>
 
       {orders.length === 0 ? (
         <div className="text-center py-12 text-zinc-500">Nenhum pedido ainda</div>
-      ) : (
+      ) : view === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {orders.map((order) => (
             <OrderCard
@@ -156,6 +188,49 @@ export default function OrdersClient({ initialOrders, tenantId }: OrdersClientPr
               onCancel={(id) => updateStatus(id, 'cancelled')}
             />
           ))}
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-zinc-50 border-b border-zinc-200">
+              <tr>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">ID</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Cliente</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Telefone</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Itens</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Total</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Data</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200">
+              {orders.map((order) => (
+                <tr
+                  key={order.id}
+                  className="hover:bg-zinc-50 cursor-pointer"
+                  onClick={() => setSelectedOrder(order)}
+                >
+                  <td className="px-4 py-3 text-xs text-zinc-500 font-mono">{order.id.slice(0, 8)}</td>
+                  <td className="px-4 py-3 text-sm text-zinc-900">{order.customer_name}</td>
+                  <td className="px-4 py-3 text-sm text-zinc-600">{order.customer_phone}</td>
+                  <td className="px-4 py-3 text-sm text-zinc-600">
+                    {(order.order_items?.length ?? 0) === 1
+                      ? '1 item'
+                      : `${order.order_items?.length ?? 0} itens`}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-zinc-900 font-medium">R$ {order.total.toFixed(2)}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[order.status]?.badge}`}>
+                      {STATUS_COLORS[order.status]?.label}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-zinc-500">
+                    {new Date(order.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
