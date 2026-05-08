@@ -4,7 +4,7 @@ milestone: v1.4
 milestone_name: Performance — Active
 status: executing
 stopped_at: Completed 16-02-PLAN.md — bundle analysis and ISR review
-last_updated: "2026-05-08T02:55:20.521Z"
+last_updated: "2026-05-08T03:00:53.727Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 4
