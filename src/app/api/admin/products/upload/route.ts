@@ -18,8 +18,10 @@ export async function POST(request: Request) {
   const conversion = await validateAndConvertToWebP(file)
   if (conversion.error) return NextResponse.json({ error: conversion.error }, { status: 400 })
 
+  // After error check, buffer is guaranteed present by the discriminated union
+  const webpBuffer = conversion.buffer as Buffer
   const filename = `${effective.tenantId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`
-  const blob = new Blob([conversion.buffer], { type: 'image/webp' })
+  const blob = new Blob([new Uint8Array(webpBuffer)], { type: 'image/webp' })
 
   const service = await createServiceClient()
   const { data, error } = await service.storage
