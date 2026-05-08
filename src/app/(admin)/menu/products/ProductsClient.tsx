@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 import type { Product, Category } from '@/types/database'
+import Image from 'next/image'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface ProductWithCategory extends Product {
@@ -433,7 +434,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 <div className="flex gap-2 overflow-x-auto pb-1">
                   {form.image_urls.map((url, idx) => (
                     <div key={`${url}-${idx}`} className="relative flex-shrink-0">
-                      <img src={url} alt={`Image ${idx + 1}`} className="w-16 h-16 rounded-lg object-cover border border-zinc-200" />
+                      <Image src={url} alt={`Image ${idx + 1}`} width={64} height={64} className="rounded-lg object-cover border border-zinc-200" />
                       <button
                         type="button"
                         onClick={() => removeImageAt(idx)}
@@ -508,10 +509,12 @@ export default function ProductsClient({ products: initial, categories, tenantId
           {filtered.map((product) => (
             <div key={product.id} className="bg-white border border-zinc-200 rounded-xl p-4 flex items-center gap-4">
               {getProductImages(product)[0] ? (
-                <img
-                  src={getProductImages(product)[0]}
+                <Image
+                  src={getProductImages(product)[0]!}
                   alt={product.name}
-                  className="w-14 h-14 rounded-lg object-cover flex-shrink-0"
+                  width={56}
+                  height={56}
+                  className="rounded-lg object-cover flex-shrink-0"
                 />
               ) : (
                 <div className="w-14 h-14 rounded-lg bg-zinc-100 flex items-center justify-center text-2xl flex-shrink-0">
