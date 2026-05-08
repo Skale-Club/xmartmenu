@@ -49,6 +49,7 @@ export default function StoreClient({ settings, tenantId }: Props) {
     language: settings?.language ?? 'en',
     address: settings?.address ?? '',
     phone: settings?.phone ?? '',
+    item_notes_enabled: settings?.item_notes_enabled ?? false,  // NOTE-01
   })
   const [businessHours, setBusinessHours] = useState<Record<string, string>>(
     Object.fromEntries(DAYS.map(d => [d.key, hours[d.key] ?? '']))
@@ -169,6 +170,25 @@ export default function StoreClient({ settings, tenantId }: Props) {
                 />
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Ordering */}
+        <div className={section}>
+          <h2 className="text-sm font-semibold text-zinc-900 pb-2 border-b border-zinc-100">Ordering</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-zinc-700">Observações por item</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Permite que o cliente adicione uma nota a cada item do pedido</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, item_notes_enabled: !f.item_notes_enabled }))}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${form.item_notes_enabled ? 'bg-zinc-900' : 'bg-zinc-200'}`}
+              aria-label="Ativar observações por item"
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.item_notes_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
           </div>
         </div>
 
