@@ -90,7 +90,7 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full details.
 | # | Phase | Plans | Requirements | Status |
 |---|---|---|---|---|
 | 28 | DB + CDN | 1/1 | Complete    | 2026-05-08 |
-| 29 | MenuPage Decomposition | 1/1 | PERF-05, PERF-06 | ⏳ Pending |
+| 29 | MenuPage Decomposition | 1/1 | Complete    | 2026-05-08 |
 
 ## Phase Details
 
