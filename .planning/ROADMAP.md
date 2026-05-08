@@ -42,7 +42,9 @@ Plans:
   2. The active filter chip survives a page reload (persisted per tenant in localStorage)
   3. A new order arriving via Realtime INSERT produces an audible beep automatically; the beep does not play for status-only updates
   4. Mute/unmute button in the KDS header silences/restores the beep; the muted state survives a page reload (persisted per tenant in localStorage)
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 27-01-PLAN.md — Filter chips (KDS-10/11) + playBeep on Realtime INSERT (KDS-12) + Bell/BellOff mute toggle (KDS-13)
 **UI hint**: yes
 
 ## Progress Table
@@ -50,7 +52,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 26. Schema + Settings | 1/1 | Complete    | 2026-05-08 |
-| 27. Filter Chips + Sound | 0/? | Not started | - |
+| 27. Filter Chips + Sound | 0/1 | Not started | - |
 
 ## Completed Milestones
 
