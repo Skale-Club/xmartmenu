@@ -118,5 +118,7 @@ Plans:
   3. Both components are imported in `MenuPage.tsx` via `next/dynamic` with `ssr: false` — they are absent from the initial server-rendered HTML
   4. `tsc --noEmit` passes with zero new type errors after the extraction
   5. Public menu page loads and functions end-to-end: product modal opens on tap, cart accumulates items, order submits successfully
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 1 plan
+
+Plans:
+- [ ] 29-01-PLAN.md — Create menu-utils.ts + extract ProductModal.tsx + CartModal.tsx + slim MenuPage.tsx with dynamic imports
