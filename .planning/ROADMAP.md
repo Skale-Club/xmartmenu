@@ -7,6 +7,7 @@
 - ✅ **v1.2 AI Onboarding** — Phases 9-11 (shipped 2026-05-07)
 - ✅ **v1.3 Landing Page** — Phases 12-13 (shipped 2026-05-07)
 - ✅ **v1.4 Performance** — Phases 14-17 (shipped 2026-05-08)
+- ✅ **v1.5 Image Optimization** — Phases 18-20 (shipped 2026-05-08)
 
 ## Completed Milestones
 
@@ -41,23 +42,19 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 <details>
 <summary>✅ v1.4 Performance (Phases 14-17) — SHIPPED 2026-05-08</summary>
 
-| # | Phase | Plans | Status |
-|---|---|---|---|
-| 14 | Instrumentação | 3/3 | ✅ 2026-05-08 |
-| 15 | Database Indices | 3/3 | ✅ 2026-05-08 |
-| 16 | Frontend Performance | 2/2 | ✅ 2026-05-08 |
-| 17 | CI Gate | 1/1 | ✅ 2026-05-08 |
-
 See `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 </details>
-## v1.5 Image Optimization (Phases 18-20) — SHIPPED 2026-05-08
+
+<details>
+<summary>✅ v1.5 Image Optimization (Phases 18-20) — SHIPPED 2026-05-08</summary>
 
 | # | Phase | Plans | Status |
 |---|---|---|---|
 | 18 | WebP Upload Pipeline | 3/3 | ✅ 2026-05-08 |
-| 19 | Admin next/image Migration | 2/2 | ✅ 2026-05-08 |
+| 19 | Admin next/image Migration | 3/3 | ✅ 2026-05-08 |
 | 20 | Storage Abstraction | 1/1 | ✅ 2026-05-08 |
 
-**DB Migration 024** — 4 performance indices applied to production 2026-05-08:
-`idx_menus_tenant`, `idx_menus_slug`, `idx_categories_menu`, `idx_products_menu`
+See `.planning/milestones/v1.5-ROADMAP.md` for full details.
+
+</details>

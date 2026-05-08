@@ -28,35 +28,21 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v1.5 (TBD)
-
-**Goal:** Medir performance real do sistema e otimizar os gargalos encontrados — DB queries, bundle, Core Web Vitals e observabilidade em produção.
-
-**Target features:**
-- Instrumentação: analisar Vercel Speed Insights + query logging no Supabase
-- DB indices: EXPLAIN ANALYZE nas queries críticas (menu público, pedidos, tenant lookup) + índices onde necessário
-- Lighthouse audit: landing page + /{slug} público — metas definidas após medição
-- Bundle: tree-shaking, lazy loading, ISR tuning
-- RUM: dashboards de Core Web Vitals por rota
-
 ## Current State
 
-**v1.3 Landing Page shipped (2026-05-07)** — Static marketing page live at xmartmenu.skale.club.
+**v1.5 Image Optimization shipped (2026-05-08)** — All image paths enforce WebP, admin migrated to `next/image`, storage is provider-abstracted.
 
-Landing page at `src/app/(marketing)/page.tsx` (`force-static`):
-- 7 sections: nav, hero, how-it-works, feature blocks, FAQ, CTA, footer
-- Middleware bypasses `getUser()` for `/` to eliminate Supabase latency on marketing route
-- Reserved paths (`RESERVED_PATHS` Set) shared between middleware and onboarding API
-- Vercel Analytics + Speed Insights installed
+Key changes in v1.5:
+- New server-side upload route `/api/admin/products/upload` — `sharp` runs server-side, WebP enforced for all product images
+- Superadmin `upload/route.ts` and `seed-image/route.ts` also convert via `convertBufferToWebP`
+- `next.config.ts`: `formats: ['image/webp']`, `deviceSizes: [640, 750, 828, 1080, 1200, 1920]`
+- `BrandingClient.tsx`, `ProductsClient.tsx`, `TenantsClient.tsx`, `TenantDetailClient.tsx` — all raw `<img>` → `next/image`
+- `src/lib/storage/index.ts`: `IStorageClient` + `SupabaseStorageClient` (default) + `S3StorageClient`; migrate to Hetzner by setting `STORAGE_PROVIDER=s3` + 3 S3 env vars
+- DB migration 024 applied: 4 indices eliminate sequential scans on every public menu page load
 
-SEO at `src/app/`:
-- `sitemap.ts` — MetadataRoute.Sitemap listing only `/` (no tenant roster leak)
-- `robots.ts` — MetadataRoute.Robots with Disallow for all private paths
-- `opengraph-image.tsx` — 32.6 KB PNG via ImageResponse (flat CSS, no fetch)
-- JSON-LD Organization + SoftwareApplication inline in page.tsx via `dangerouslySetInnerHTML`
-- `og:image` meta tag: explicit `openGraph.images` in root layout (file convention alone insufficient)
-
-*v1.2 AI Onboarding (2026-05-07)*: Text seeding (Gemini 2.5 Flash), image seeding (Nano Banana 2), menu photo OCR (GPT-4.1-mini) — all superadmin-only, additive.
+*v1.4 Performance (2026-05-08)*: Bundle analysis, DB indices, next/image on public menu, Lighthouse CI gate (0.88 mobile).
+*v1.3 Landing Page (2026-05-07)*: Static marketing page, OG image, SEO metadata, JSON-LD.
+*v1.2 AI Onboarding (2026-05-07)*: Text seeding, image seeding, menu photo OCR — all superadmin-only.
 *v1.1 Orders (2026-05-06)*: Cart, checkout, option groups, orders view.
 *v1.0 Foundation (2026-05-06)*: ISR caching, security, CI/CD.
 
@@ -112,11 +98,21 @@ SEO at `src/app/`:
 
 ### Validated — v1.4
 
-- ✓ Instrumentação: bundle analysis (819 KB overhead), PageSpeed Insights (landing 100, /{slug} 94) (Speed Insights, query logs)
-- ✓ Migration 024: idx_menus_tenant, idx_menus_slug, idx_categories_menu, idx_products_menu
-- ✓ Landing 100 (force-static). /{slug} 94 → next/image migration resolve LCP 3.0s (889 KB)
-- ✓ ISR revalidate=60 mantido. Chunk 5536 = Supabase browser client (deferred separation)
+- ✓ Instrumentação: bundle analysis (819 KB overhead), PageSpeed Insights (landing 100, /{slug} 94)
+- ✓ ISR revalidate=60 kept. Chunk 5536 = Supabase browser client (deferred separation)
 - ✓ Lighthouse CI: .github/workflows/lighthouse-ci.yml — threshold 0.88 mobile
+- ✓ next/image migration for public MenuPage.tsx (banner, logo, product cards, modal)
+
+### Validated — v1.5
+
+- ✓ WebP enforced on all upload paths (admin product upload via server route, superadmin upload/seed routes) — Phase 18
+- ✓ `next.config.ts`: `formats: ['image/webp']`, `deviceSizes` configured — Phase 18
+- ✓ `BrandingClient.tsx` logo + banner → `next/image` with correct sizing — Phase 19
+- ✓ `ProductsClient.tsx` admin grid + upload preview → `next/image` — Phase 19
+- ✓ `TenantsClient.tsx` + `TenantDetailClient.tsx` tenant logos → `next/image` — Phase 19
+- ✓ `IStorageClient` abstraction: swap Supabase→Hetzner/R2/AWS via `STORAGE_PROVIDER=s3` env var — Phase 20
+- ✓ 5 server-side routes migrated to `getStorageClient()` (zero direct SDK calls in route handlers) — Phase 20
+- ✓ Migration 024 applied: 4 indices eliminate sequential scans on public menu path — Phase 15/20
 
 ### Deferred (seeds)
 
@@ -159,10 +155,14 @@ SEO at `src/app/`:
 | Inline `dangerouslySetInnerHTML` for JSON-LD | `next/script` causes RSC hydration duplication in React 19 | ✓ Shipped v1.3 |
 | `opengraph-image.tsx` at root `src/app/` | Route group placement serves route but doesn't inject `og:image` meta tag | ✓ Shipped v1.3 |
 | Explicit `openGraph.images` in root layout | File convention alone insufficient when layouts override `openGraph` object | ✓ Shipped v1.3 |
+| sharp behind server API route | sharp = native Node.js — cannot run in client components | ✓ Shipped v1.5 |
+| `IStorageClient` factory pattern | Swap storage provider via env var; zero code changes required | ✓ Shipped v1.5 |
+| Lazy `@aws-sdk` imports in S3StorageClient | Prevents SDK from entering client bundle when `STORAGE_PROVIDER=supabase` | ✓ Shipped v1.5 |
+| Separate single-column indices on menus | UNIQUE(tenant_id,slug) composite doesn't serve single-column filters | ✓ Applied v1.5 |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-08 — v1.4 Performance milestone complete*
+*Last updated: 2026-05-08 — v1.5 Image Optimization milestone complete*
