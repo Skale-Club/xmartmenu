@@ -51,4 +51,4 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 See `.planning/milestones/v1.4-ROADMAP.md` for full details.
 
 </details>
-- [ ] **Phase 20: Storage Abstraction** — `IStorageClient` interface + `SupabaseStorageClient` + `S3StorageClient` stub + factory `getStorageClient()`. Migração para Hetzner/R2/AWS vira troca de env var.
+- [x] **Phase 20: Storage Abstraction** — `IStorageClient` interface + `SupabaseStorageClient` + `S3StorageClient` stub + factory `getStorageClient()`. Migração para Hetzner/R2/AWS vira troca de env var. (completed 2026-05-08)
