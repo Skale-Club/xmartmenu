@@ -1,0 +1,26 @@
+{
+  "ci": {
+    "collect": {
+      "url": [
+        "https://xmartmenu.skale.club/",
+        "https://xmartmenu.skale.club/restaurante-teste"
+      ],
+      "numberOfRuns": 1
+    },
+    "assert": {
+      "preset": "lighthouse:no-pwa",
+      "assertions": {
+        "categories:performance": [
+          "error",
+          {
+            "minScore": 0.88,
+            "aggregationMethod": "pessimistic"
+          }
+        ]
+      }
+    },
+    "upload": {
+      "target": "temporary-public-storage"
+    }
+  }
+}
