@@ -28,18 +28,19 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v1.8 KDS+
-
-**Goal:** Completar SEED-007 Phase B — KDS com thresholds configuráveis por tenant, filter chips de status e alerta sonoro para novos pedidos.
-
-**Target features:**
-- `amber_threshold_minutes` e `red_threshold_minutes` em `tenant_settings`; admin configura no Store Settings
-- Filter chips no KDS: Pendentes / Em preparo / Prontos / Todos — padrão oculta done/cancelled
-- Alerta sonoro via Web Audio API quando chega novo pedido; botão mute com persistência em localStorage
-
 ## Current State
 
-**v1.7 Customization shipped (2026-05-08)** — Full McDonald's-style ingredient customization: catalog, admin panel, customer stepper UI, and kitchen display.
+**v1.8 KDS+ shipped (2026-05-08)** — SEED-007 fully complete: configurable time thresholds, filter chips, Web Audio beep alert.
+
+Key changes in v1.8:
+- Migration 027: `amber_threshold_minutes` (default 10) + `red_threshold_minutes` (default 20) on `tenant_settings`
+- `useElapsedTime(createdAt, amberMinutes, redMinutes)` — parameterized, no hardcoded constants
+- Store Settings: "KDS — Alertas de tempo" section with validated numeric inputs (amber < red, both > 0)
+- Filter chips: Ativos (pending+preparing, default)/Pendentes/Em preparo/Prontos/Todos — persisted in localStorage
+- `playBeep()` via Web Audio API on Realtime INSERT only; Bell/BellOff mute button persisted in localStorage
+
+*v1.7 Customization (2026-05-08)*: Ingredient catalog, admin CRUD, customer stepper panel, kitchen display.
+*v1.6 Operations (2026-05-08)*: KDS dashboard, Supabase Realtime, per-item notes.
 
 Key changes in v1.7:
 - Migration 026: `ingredients` + `product_ingredients` tables with RLS + `ingredient_customization_enabled` flag + `ingredient_modifications JSONB` on `order_items`
@@ -158,12 +159,20 @@ Key changes in v1.5:
 - ✓ `buildIngredientModifications` → null when empty → JSONB persisted in `order_items` — Phase 25
 - ✓ KDS card + admin orders modal render SEM/extras/additions with color-coded text — Phase 25
 
+### Validated — v1.8
+
+- ✓ Migration 027: `amber_threshold_minutes` + `red_threshold_minutes` with defaults 10/20 — Phase 26
+- ✓ `useElapsedTime` parameterized (no hardcoded constants); Store Settings KDS section with validation — Phase 26
+- ✓ Filter chips (Ativos/Pendentes/Em preparo/Prontos/Todos) with localStorage persistence — Phase 27
+- ✓ Web Audio API beep on Realtime INSERT only, guarded by muted state — Phase 27
+- ✓ Bell/BellOff mute button with `kds_mute_{tenantId}` localStorage persistence — Phase 27
+
 ### Deferred (seeds)
 
 - SEED-003 — Stripe Connect payments (tenant-owned accounts)
 - SEED-004 — Full performance milestone (DB indices, RUM, Lighthouse budget)
 - SEED-005 — ✅ Marketing landing page (shipped v1.3)
-- SEED-007 Phase B — KDS configurable time thresholds + sound alerts
+- SEED-007 — ✅ KDS dashboard + Phase B (shipped v1.6 + v1.8)
 - SEED-008 Phase D — ✅ per-item notes (shipped v1.6)
 
 ### Out of Scope
@@ -219,4 +228,4 @@ Key changes in v1.5:
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-08 — v1.8 KDS+ milestone started*
+*Last updated: 2026-05-08 — v1.8 KDS+ milestone complete*

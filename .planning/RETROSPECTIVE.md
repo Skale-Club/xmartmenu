@@ -237,3 +237,46 @@
 - **`buildXxx()` returns null when empty** — established for `buildIngredientModifications`. Apply this pattern to any future JSONB builder.
 - **`defaultValue + onBlur` for override inputs** — avoids per-keystroke DB writes; null = use catalog default. Reuse for any optional override UI.
 - **Catalog + join + panel** — the ingredient system's three-layer design (catalog, product association, customer panel) is a reusable pattern for future customization features (allergens, nutrition, add-ons).
+
+## Milestone: v1.8 — KDS+
+
+**Shipped:** 2026-05-08
+**Phases:** 2 (26-27) | **Plans:** 2
+
+### What Was Built
+
+- Phase 26: Migration 027 (amber/red thresholds, defaults 10/20); `useElapsedTime` parameterized; Store Settings KDS section with validated inputs; `orders/page.tsx` fetches settings in parallel
+- Phase 27: Filter chips (Ativos = default, pending+preparing); `kds_filter_{tenantId}` localStorage; `playBeep()` Web Audio API on Realtime INSERT only, guarded by `mutedRef`; Bell/BellOff mute button with `kds_mute_{tenantId}` localStorage
+
+### What Worked
+
+- **Smallest milestone yet** — 2 phases, 2 plans, purely additive. Well-defined seed with clear Phase B scope kept execution clean.
+- **`mutedRef` pattern** — syncing `muted` state to a ref prevents stale closure in the Realtime subscription without re-subscribing. Correct solution, captured for future use.
+
+### What Was Inefficient
+
+- **Filter default deviation** — executor implemented `'pending'`-only default instead of `'active'` (pending+preparing). Verifier caught it; required an inline fix commit. Root cause: planner specified `useState<FilterValue>('active')` but executor applied `DEFAULT_FILTER = 'pending'`. Suggests the constant name should match the type value more explicitly.
+
+### Patterns Established
+
+- **`mutedRef` for Realtime callbacks** — when a Realtime subscription handler needs to read state, sync state to a `useRef` via `useEffect([state])` to avoid stale closures without re-subscribing.
+- **Web Audio API `try/catch`** — browser autoplay policy may block `AudioContext`; always wrap in try/catch for graceful degradation.
+- **`'active'` as combined filter value** — represents "pending+preparing" as a single filterValue; cleaner than multi-select arrays for a mutually-exclusive chip UI.
+
+## Cross-Milestone Trends (updated)
+
+| Milestone | Phases | Plans | Key Pattern |
+|-----------|--------|-------|-------------|
+| v1.0 Foundation | 3 | 6 | ISR, security, CI scaffolding |
+| v1.1 Orders | 5 | 11 | Option groups, cart, checkout |
+| v1.2 AI Onboarding | 3 | 8 | Multi-provider AI, additive seeding |
+| v1.3 Landing Page | 2 | 5 | Static marketing page, SEO, og:image |
+| v1.4 Performance | 4 | 9 | Baselines, DB indices, next/image, Lighthouse CI |
+| v1.5 Image Optimization | 3 | 7 | WebP pipeline, admin next/image, storage abstraction |
+| v1.6 Operations | 2 | 4 | KDS dashboard, Supabase Realtime, per-item notes |
+| v1.7 Customization | 3 | 5 | Ingredient catalog, admin UI, customer stepper panel, kitchen display |
+| v1.8 KDS+ | 2 | 2 | Configurable thresholds, filter chips, Web Audio alert |
+
+**Velocity trend:** v1.8 is the smallest milestone (2 phases, 2 plans). Tight seed scope + no new DB tables = fastest execution. The codebase is mature enough that new features are increasingly additive.
+
+**Architecture pattern:** All 9 milestones shipped same-day. The project has accumulated: menus, orders, AI seeding, marketing, performance, image optimization, real-time KDS, ingredient customization, and operational refinements — from zero to production-ready SaaS in a single session sequence.
