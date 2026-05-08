@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Performance — Active
 status: executing
-stopped_at: Phase 14 context gathered
-last_updated: "2026-05-08T01:06:56.572Z"
+stopped_at: Completed 15-01-PLAN.md — explain-results.md and SUMMARY.md created
+last_updated: "2026-05-08T01:30:46.634Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 4
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 6
+  completed_plans: 4
   percent: 33
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 14 — instrumentacao
+**Current focus:** Phase 15 — database-indices
 
 ## Current Position
 
-Phase: 15
-Plan: Not started
-Status: Executing Phase 14
+Phase: 15 (database-indices) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
 Last activity: 2026-05-08
 
 Progress: [█         ] 33% (v1.4 — 1/3 plans complete)
@@ -80,6 +80,7 @@ Progress: [█         ] 33% (v1.4 — 1/3 plans complete)
 | Phase 12-core-landing-page P12-03 | 5min | 2 tasks | 3 files |
 | Phase 13-seo-metadata P13-01 | 204 | 2 tasks | 4 files |
 | Phase 13-seo-metadata P13-02 | ~15min | 1 tasks | 1 files |
+| Phase 15 P01 | 15min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -159,6 +160,8 @@ Recent decisions affecting current work:
 - [Phase 14-01]: Turbopack incompatible with @next/bundle-analyzer — must use ANALYZE=true npm run build --webpack
 - [Phase 14-01]: Bundle analyzer generates client.html, edge.html, nodejs.html (not server.html as originally documented)
 - [Phase 14-01]: Top 5 client chunks: 3794 (216KB, App Router runtime), 4bd1b696 (195KB, react-dom), framework (185KB, React+scheduler), 5536 (170KB, unnamed shared — lazy candidate), main (128KB, hydration bootstrap); total non-deferrable baseline ~819KB
+- [Phase 15]: EXPLAIN ANALYZE deferred by user — migration audit used as deterministic substitute (index presence in migration = index exists in DB)
+- [Phase 15]: menus(tenant_id), menus(slug), categories(menu_id), products(menu_id) confirmed missing — all causing Seq Scans on every public menu page load
 
 ### Pending Todos
 
@@ -174,5 +177,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T00:08:39.042Z
-Stopped at: Phase 14 context gathered
+Last session: 2026-05-08T01:30:46.629Z
+Stopped at: Completed 15-01-PLAN.md — explain-results.md and SUMMARY.md created

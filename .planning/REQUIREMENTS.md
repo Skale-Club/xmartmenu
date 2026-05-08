@@ -8,7 +8,7 @@
 
 ## Database Performance
 
-- [ ] **DB-01**: Queries do menu público (`/{slug}`) têm EXPLAIN ANALYZE executado e índices adicionados onde o query planner usa Seq Scan desnecessário
+- [x] **DB-01**: Queries do menu público (`/{slug}`) têm EXPLAIN ANALYZE executado e índices adicionados onde o query planner usa Seq Scan desnecessário
 - [ ] **DB-02**: Queries de pedidos (INSERT em orders/order_items, SELECT na orders view do admin) têm EXPLAIN ANALYZE executado e índices adicionados onde necessário
 - [ ] **DB-03**: Queries de tenant lookup e auth middleware têm EXPLAIN ANALYZE executado e índices adicionados onde necessário
 
@@ -38,7 +38,7 @@
 | PERF-01 | Phase 14 | Complete (PSI synthetic — Speed Insights pending real traffic) |
 | PERF-02 | Phase 14 | Partial (probes deployed/removed; values deferred to Vercel log review) |
 | FE-03 | Phase 14 | Complete |
-| DB-01 | Phase 15 | Pending |
+| DB-01 | Phase 15 | Complete |
 | DB-02 | Phase 15 | Pending |
 | DB-03 | Phase 15 | Pending |
 | FE-01 | Phase 16 | Pending |
