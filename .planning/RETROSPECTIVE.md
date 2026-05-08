@@ -157,6 +157,40 @@
 
 ---
 
+## Milestone: v1.6 — Operations
+
+**Shipped:** 2026-05-08
+**Phases:** 2 (21-22) | **Plans:** 4
+
+### What Was Built
+
+- Phase 21: KDS card grid — `useElapsedTime` hook, corrected `STATUS_COLORS`, `OrderCard` with elapsed-time chip, grid/list toggle with localStorage per tenant, optimistic status PATCH with `loadingId` per card
+- Phase 22: Supabase Realtime subscription + 15s polling, migration 025 (`order_items.notes` + `item_notes_enabled` + Realtime publication), customer textarea with live counter, `sanitizeNote` server-side
+
+### What Worked
+
+- **Tight, well-defined scope** — 2 phases, 4 plans, shipped same day. SEED-007 was well-documented enough to go from seed → requirements → roadmap → execution without any surprises.
+- **Research catching real bugs** — Researcher found the existing `statusColors` had `pending` and `preparing` swapped, and that Realtime INSERT events don't include `order_items` join. Both would have been silent bugs in production.
+- **DB connection via pg client** — By v1.6 this was the established pattern (no CLI attempts), applied immediately for migration 025.
+
+### What Was Inefficient
+
+- **Cherry-pick conflict on planning files** — `STATE.md` and `REQUIREMENTS.md` conflicted on Wave 2 cherry-pick because the worktree branched before Wave 1 docs landed on main. Resolved with `git checkout --ours .planning/` as before, but the pattern is consistent overhead.
+- **Worktree branched before Plan 01 landed** — Plan 02 executor added `item_notes_enabled` to `database.ts` because the worktree couldn't see Plan 01's changes. Created a harmless duplicate that resolved cleanly, but adds noise.
+
+### Patterns Established
+
+- **Realtime + polling simultaneously** — Not fallback-only. Realtime for instant appearance, polling replaces full state every 15s. Simple, no reconnect logic.
+- **Realtime INSERT follow-up query** — Always do `.select('*, order_items(*)')` after an INSERT event; the payload only carries the parent row.
+- **`loadingId: string | null` instead of `loading: boolean`** — Per-card loading state; only the in-flight card's button is disabled. Better UX pattern for any list with individual actions.
+
+### Key Lessons
+
+- Research phase is worth it for features touching multiple integration points (Realtime subscription, cart → order → DB → display round-trip). Catches pitfalls that would only surface in production.
+- When cherry-picking between worktrees, always `--ours` for `.planning/` files immediately — no need to look at the conflict.
+
+---
+
 ## Cross-Milestone Trends
 
 | Milestone | Phases | Plans | Key Pattern |
@@ -167,9 +201,10 @@
 | v1.3 Landing Page | 2 | 5 | Static marketing page, SEO, og:image |
 | v1.4 Performance | 4 | 9 | Baselines, DB indices, next/image, Lighthouse CI |
 | v1.5 Image Optimization | 3 | 7 | WebP pipeline, admin next/image, storage abstraction |
+| v1.6 Operations | 2 | 4 | KDS dashboard, Supabase Realtime, per-item notes |
 
-**Velocity trend:** Each milestone ships in 1-2 sessions. v1.4 + v1.5 shipped on the same day — both were infrastructure-heavy with tight, well-defined scope. Plan density is consistent (~2 tasks/plan).
+**Velocity trend:** v1.6 was the fastest milestone yet — 2 phases, 4 plans, shipped same day. Smallest scope, clearest seed documentation. Tight scope = fast execution.
 
-**Architecture pattern:** Storage abstraction in v1.5 is the first milestone that proactively decouples from a vendor dependency (Supabase → any S3-compatible storage). Previous milestones added features; v1.5 added portability infrastructure.
+**Architecture pattern:** v1.6 introduced the first real-time feature (Supabase Realtime). The dual Realtime+polling pattern establishes the project's approach to live data: Realtime for UX, polling as safety net.
 
-**Recurring failure mode:** Tool/environment friction appears at least once per milestone: v1.2 merge conflicts, v1.3 og:image placement, v1.4 Supabase CLI failures, v1.5 formatter hook reverting edits. Pattern: when the environment fights back twice in a row on the same action, switch strategies immediately.
+**Recurring failure mode:** Cherry-pick conflicts on `.planning/` files remain consistent per milestone. Now an established pattern: always `--ours` for planning files, `--theirs` for new source files. Not a problem, just a process step.
