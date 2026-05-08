@@ -131,7 +131,10 @@ Plans:
   1. A Lighthouse CI workflow file exists in `.github/workflows/` and runs on every PR targeting main
   2. The workflow fails (blocking merge) when Lighthouse mobile Performance score drops below the configured threshold
   3. The threshold is documented in the workflow file as a comment referencing the Phase 16 baseline scores
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 17-01-PLAN.md — Write .lighthouserc.json + .github/workflows/lighthouse-ci.yml (PERF-03)
 
 ### Progress Table
 
@@ -140,4 +143,4 @@ Plans:
 | 14. Instrumentacao | 1/3 | Complete    | 2026-05-08 |
 | 15. Database Indices | 1/3 | Complete    | 2026-05-08 |
 | 16. Frontend Performance | 0/2 | Not started | - |
-| 17. CI Gate | 0/? | Not started | - |
+| 17. CI Gate | 0/1 | Not started | - |
