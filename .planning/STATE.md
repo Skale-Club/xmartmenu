@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Performance — Active
-status: executing
-stopped_at: Completed 15-03-PLAN.md — migration 024 written, verify-results pending application
-last_updated: "2026-05-08T01:42:00Z"
+status: Migration written — pending Supabase application
+stopped_at: Completed 15-03-PLAN.md — migration 024 written, apply to Supabase when ready
+last_updated: "2026-05-08T01:44:37.523Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
   completed_plans: 6
   percent: 67
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 
 ## Current Position
 
-Phase: 15 (database-indices) — COMPLETE
-Plan: 3 of 3
+Phase: 16
+Plan: Not started
 Status: Migration written — pending Supabase application
 Last activity: 2026-05-08
 
