@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.8
-milestone_name: KDS+
-status: in progress
-stopped_at: "Completed 26-schema-settings/26-01-PLAN.md"
-last_updated: "2026-05-08T18:03:00.000Z"
+milestone: v1.0
+milestone_name: milestone
+status: completed
+stopped_at: Completed 26-schema-settings/26-01-PLAN.md — migration 027, useElapsedTime parameterised, StoreClient KDS section
+last_updated: "2026-05-08T17:48:21.656Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 1
   completed_plans: 1
-  percent: 50
 ---
 
 # Project State
@@ -25,10 +24,10 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: Phase 26 (in progress)
-Plan: 26-01 complete, next: Phase 27
+Phase: 27
+Plan: Not started
 Status: Plan 26-01 complete — KDS threshold schema + settings UI shipped
-Last activity: 2026-05-08 — Plan 26-01 executed (migration 027, useElapsedTime parameterised, StoreClient KDS section)
+Last activity: 2026-05-08
 
 ## Milestone Overview
 
