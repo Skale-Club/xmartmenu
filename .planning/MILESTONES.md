@@ -1,5 +1,16 @@
 # Milestones
 
+## v1.6 Operations (Shipped: 2026-05-08)
+
+**Phases completed:** 2 phases, 4 plans, 8 tasks
+
+**Key accomplishments:**
+
+- KDS card grid with useElapsedTime hook, corrected STATUS_COLORS (pending=blue, preparing=yellow), OrderCard component, and responsive 1/2/3-column layout replacing the orders table
+- Supabase Realtime postgres_changes subscription + 15s polling fallback wired into OrdersClient, with migration 025 adding order_items.notes and item_notes_enabled flag, and per-item notes rendered with MessageSquare icon and italic styling in both KDS card and admin modal
+
+---
+
 ## v1.5 Image Optimization (Shipped: 2026-05-08)
 
 **Phases completed:** 18 phases, 38 plans, 47 tasks

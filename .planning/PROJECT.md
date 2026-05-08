@@ -28,17 +28,18 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v1.6 Operations
-
-**Goal:** Transformar o admin de pedidos numa superfície operacional real — KDS-style dashboard para a cozinha + notas por item no pedido.
-
-**Target features:**
-- KDS dashboard — grid de cards com status colorido, timer de tempo decorrido (>20min = vermelho), toggle grid/lista, Supabase Realtime ou polling 15s
-- Per-item notes — `order_items.notes TEXT`, flag `item_notes_enabled` por tenant, textarea no modal de produto, render no KDS e na tabela admin orders
-
 ## Current State
 
-**v1.5 Image Optimization shipped (2026-05-08)** — All image paths enforce WebP, admin migrated to `next/image`, storage is provider-abstracted.
+**v1.6 Operations shipped (2026-05-08)** — Admin orders transformed into a real-time KDS; customers can attach per-item notes.
+
+Key changes in v1.6:
+- `useElapsedTime` hook (30s tick) + corrected `STATUS_COLORS` (pending=blue) + `OrderCard` grid — KDS card view for kitchen tablet
+- Grid/list toggle persisted per-tenant in `localStorage`; status advance buttons with optimistic PATCH
+- Supabase Realtime subscription on `orders` table (with follow-up `order_items` query) + 15s polling fallback
+- `item_notes_enabled` flag on `tenant_settings`; textarea "Observações" (max 140 chars) on product modal; `sanitizeNote` server-side
+- Migration 025 applied: `order_items.notes TEXT`, `tenant_settings.item_notes_enabled`, `ALTER PUBLICATION supabase_realtime ADD TABLE orders`
+
+*v1.5 Image Optimization (2026-05-08)*: WebP upload enforcement, admin next/image migration, IStorageClient abstraction, migration 024 DB indices.
 
 Key changes in v1.5:
 - New server-side upload route `/api/admin/products/upload` — `sharp` runs server-side, WebP enforced for all product images
@@ -122,11 +123,22 @@ Key changes in v1.5:
 - ✓ 5 server-side routes migrated to `getStorageClient()` (zero direct SDK calls in route handlers) — Phase 20
 - ✓ Migration 024 applied: 4 indices eliminate sequential scans on public menu path — Phase 15/20
 
+### Validated — v1.6
+
+- ✓ KDS card grid: `useElapsedTime` hook, corrected `STATUS_COLORS`, `OrderCard`, responsive 1/2/3-col layout — Phase 21
+- ✓ Grid/list toggle persisted per-tenant in `localStorage`; optimistic status PATCH — Phase 21
+- ✓ Supabase Realtime subscription with follow-up `order_items` query + 15s polling fallback — Phase 22
+- ✓ `item_notes_enabled` flag on `tenant_settings`; customer textarea 140-char with live counter — Phase 22
+- ✓ `sanitizeNote` server-side (strip control chars, trim, cap 140) on orders POST — Phase 22
+- ✓ Migration 025 applied: `order_items.notes`, `tenant_settings.item_notes_enabled`, Realtime publication — Phase 22
+
 ### Deferred (seeds)
 
 - SEED-003 — Stripe Connect payments (tenant-owned accounts)
 - SEED-004 — Full performance milestone (DB indices, RUM, Lighthouse budget)
 - SEED-005 — ✅ Marketing landing page (shipped v1.3)
+- SEED-007 Phase B — KDS configurable time thresholds + sound alerts
+- SEED-008 — Ingredient catalog + McDonald's-style customization (Phases A-C)
 
 ### Out of Scope
 
@@ -167,10 +179,14 @@ Key changes in v1.5:
 | `IStorageClient` factory pattern | Swap storage provider via env var; zero code changes required | ✓ Shipped v1.5 |
 | Lazy `@aws-sdk` imports in S3StorageClient | Prevents SDK from entering client bundle when `STORAGE_PROVIDER=supabase` | ✓ Shipped v1.5 |
 | Separate single-column indices on menus | UNIQUE(tenant_id,slug) composite doesn't serve single-column filters | ✓ Applied v1.5 |
+| Realtime + polling simultaneously | Realtime for instant new-order appearance; polling replaces full state every 15s as safety net | ✓ Shipped v1.6 |
+| Follow-up query after Realtime INSERT | INSERT payload carries only `orders` row — must re-fetch with `order_items(*)` join | ✓ Shipped v1.6 |
+| `item_notes_enabled` on `tenant_settings` | Same pattern as `direct_orders_enabled`; opt-in per tenant | ✓ Shipped v1.6 |
+| `CartItem.note` excluded from `buildCartKey` | Same product+options merges; re-adding replaces note (not creates duplicate slot) | ✓ Shipped v1.6 |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-08 — v1.6 Operations milestone started*
+*Last updated: 2026-05-08 — v1.6 Operations milestone complete*

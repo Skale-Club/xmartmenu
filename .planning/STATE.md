@@ -4,7 +4,7 @@ milestone: v1.6
 milestone_name: Operations
 status: executing
 stopped_at: Completed 22-01-PLAN.md — Realtime subscription + 15s polling + per-item notes display (KDS-06, NOTE-04 satisfied)
-last_updated: "2026-05-08T12:59:49.487Z"
+last_updated: "2026-05-08T13:02:40.076Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 2
