@@ -1,16 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.6
-milestone_name: Operations
-status: executing
-stopped_at: Completed 22-01-PLAN.md — Realtime subscription + 15s polling + per-item notes display (KDS-06, NOTE-04 satisfied)
-last_updated: "2026-05-08T13:02:40.076Z"
+milestone: v1.7
+milestone_name: Customization
+status: defining requirements
+stopped_at: Milestone v1.7 started — defining requirements
+last_updated: "2026-05-08T14:00:00.000Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-08)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 22 — Realtime + Per-Item Notes
+**Current focus:** v1.7 Customization — catálogo de ingredientes + painel McDonald's-style
 
 ## Current Position
 
-Phase: 22
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-08
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-08 — Milestone v1.7 started
 
 ## Milestone Overview
 
