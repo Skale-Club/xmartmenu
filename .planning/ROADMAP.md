@@ -28,7 +28,9 @@
   2. Validation rejects amber >= red or either value <= 0 with a clear error message — value is not saved
   3. KDS order cards reflect the saved thresholds: a card turns amber after `amber_threshold_minutes` and red after `red_threshold_minutes` (no page reload needed)
   4. New tenants get sensible defaults (amber=10, red=20) from the migration — KDS works before an admin ever touches Settings
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 26-01-PLAN.md — Migration 027 + TypeScript types + useElapsedTime refactor + OrdersClient prop threading + StoreClient KDS section
 **UI hint**: yes
 
 ### Phase 27: Filter Chips + Sound
@@ -47,7 +49,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 26. Schema + Settings | 0/? | Not started | - |
+| 26. Schema + Settings | 0/1 | Not started | - |
 | 27. Filter Chips + Sound | 0/? | Not started | - |
 
 ## Completed Milestones
