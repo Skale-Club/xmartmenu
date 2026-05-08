@@ -17,7 +17,7 @@
 - [ ] **FE-01**: Lighthouse audit na landing page (`/`) com score ≥ 90 mobile (meta definida após primeiro audit baseline)
 - [ ] **FE-02**: Lighthouse audit no menu público (`/{slug}`) com score ≥ 90 mobile (meta definida após primeiro audit baseline)
 - [x] **FE-03**: Bundle analysis com `@next/bundle-analyzer` identifica os maiores chunks e oportunidades de lazy loading
-- [ ] **FE-04**: ISR e cache headers revisados — `revalidate` ajustado por rota com base nos padrões de acesso reais
+- [x] **FE-04**: ISR e cache headers revisados — `revalidate` ajustado por rota com base nos padrões de acesso reais
 
 ## Future Requirements (deferred)
 
@@ -43,5 +43,5 @@
 | DB-03 | Phase 15 | Complete (no missing indices on orders/auth path confirmed by migration analysis) |
 | FE-01 | Phase 16 | Pending |
 | FE-02 | Phase 16 | Pending |
-| FE-04 | Phase 16 | Pending |
+| FE-04 | Phase 16 | Complete |
 | PERF-03 | Phase 17 | Pending |
