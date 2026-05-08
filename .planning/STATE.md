@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Operations
-status: executing
-stopped_at: Completed 21-01-PLAN.md — KDS foundation (useElapsedTime hook, STATUS_COLORS, OrderCard, grid layout)
-last_updated: "2026-05-08T12:11:29Z"
-last_activity: 2026-05-08 -- Phase 21 Plan 01 complete
+status: verifying
+stopped_at: Completed 21-02-PLAN.md — KDS view toggle + localStorage persistence (KDS-04, KDS-05 satisfied)
+last_updated: "2026-05-08T12:19:44.779Z"
+last_activity: 2026-05-08
 progress:
   total_phases: 2
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -26,8 +26,8 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 Phase: 21 (KDS Dashboard) — EXECUTING
 Plan: 2 of 2
-Status: Plan 01 complete — Plan 02 (list/grid toggle, status filter, localStorage) ready to execute
-Last activity: 2026-05-08 -- Phase 21 Plan 01 complete (useElapsedTime, STATUS_COLORS, OrderCard, grid layout)
+Status: Phase complete — ready for verification
+Last activity: 2026-05-08
 
 ## Milestone Overview
 
@@ -81,6 +81,7 @@ Last activity: 2026-05-08 -- Phase 21 Plan 01 complete (useElapsedTime, STATUS_C
 | Phase 16-frontend-performance P02 | 35 | 2 tasks | 1 files |
 | Phase 19-admin-next-image P02 | 8min | 1 tasks | 1 files |
 | Phase 21-kds-dashboard P01 | 3min | 2 tasks | 3 files |
+| Phase 21 P02 | 10 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -176,6 +177,8 @@ Recent decisions affecting current work:
 - [Phase 21-01]: loadingId: string | null replaces loading: boolean — per-card disabled state without blocking all cards simultaneously
 - [Phase 21-01]: view state and supabase client scaffolded in Plan 01; wired in Plan 02 (toggle) and Phase 22 (realtime)
 - [Phase 21-01]: useRef for intervalRef avoids spurious renders when storing the 30s timer ID
+- [Phase 21]: localStorage read in useEffect only (SSR-safe) — never in useState initializer or render body
+- [Phase 21]: List view reuses existing table + modal pattern (setSelectedOrder on row click) — no new modal needed
 
 ### Pending Todos
 
@@ -191,5 +194,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T12:11:29Z
-Stopped at: Completed 21-01-PLAN.md — useElapsedTime hook + STATUS_COLORS + OrderCard + card grid
+Last session: 2026-05-08T12:19:44.773Z
+Stopped at: Completed 21-02-PLAN.md — KDS view toggle + localStorage persistence (KDS-04, KDS-05 satisfied)

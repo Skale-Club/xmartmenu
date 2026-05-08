@@ -5,8 +5,8 @@
 - [x] **KDS-01**: Admin vê pedidos em grid de cards — uma card por pedido com status colorido (pending=azul, preparing=amarelo, ready=verde, done=cinza, cancelled=vermelho)
 - [x] **KDS-02**: Cada card exibe: número do pedido, lista resumida de itens, total, tempo decorrido desde `created_at`
 - [x] **KDS-03**: Timer de tempo decorrido atualiza a cada ~30s; chip fica âmbar >10min, vermelho >20min
-- [ ] **KDS-04**: Admin avança status do pedido diretamente no card (Pendente → Em preparo → Pronto → Concluído / Cancelado)
-- [ ] **KDS-05**: Toggle grid/lista — grid = tablet de cozinha (cards grandes), lista = tabela atual mantida; preferência persiste em localStorage por tenant
+- [x] **KDS-04**: Admin avança status do pedido diretamente no card (Pendente → Em preparo → Pronto → Concluído / Cancelado)
+- [x] **KDS-05**: Toggle grid/lista — grid = tablet de cozinha (cards grandes), lista = tabela atual mantida; preferência persiste em localStorage por tenant
 - [ ] **KDS-06**: Novos pedidos aparecem sem reload manual — Supabase Realtime subscription ou polling 15s como fallback
 
 ## Per-Item Notes
@@ -32,8 +32,8 @@
 | KDS-01 | Phase 21 | Done (21-01) |
 | KDS-02 | Phase 21 | Done (21-01) |
 | KDS-03 | Phase 21 | Done (21-01) |
-| KDS-04 | Phase 21 | Pending |
-| KDS-05 | Phase 21 | Pending |
+| KDS-04 | Phase 21 | Complete |
+| KDS-05 | Phase 21 | Complete |
 | KDS-06 | Phase 22 | Pending |
 | NOTE-01 | Phase 22 | Pending |
 | NOTE-02 | Phase 22 | Pending |
