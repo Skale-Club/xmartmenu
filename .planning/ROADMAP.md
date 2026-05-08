@@ -88,7 +88,7 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 14-01-PLAN.md — Run bundle analyzer, extract top 5 chunks with lazy-load assessment (FE-03)
+- [x] 14-01-PLAN.md — Run bundle analyzer, extract top 5 chunks with lazy-load assessment (FE-03) — DONE 2026-05-08
 - [ ] 14-02-PLAN.md — Add timing probes to 3 routes, measure from Vercel logs, remove probes (PERF-02)
 - [ ] 14-03-PLAN.md — PageSpeed Insights audit + write 14-BASELINE.md (PERF-01, FE-03, PERF-02)
 
@@ -129,7 +129,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 14. Instrumentacao | 0/3 | Not started | - |
+| 14. Instrumentacao | 1/3 | In progress | - |
 | 15. Database Indices | 0/? | Not started | - |
 | 16. Frontend Performance | 0/? | Not started | - |
 | 17. CI Gate | 0/? | Not started | - |
