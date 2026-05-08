@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import type { TenantSettings } from '@/types/database'
 
@@ -111,7 +112,7 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
           <h2 className="text-sm font-semibold text-zinc-900 mb-4">Logo</h2>
           <div className="flex items-center gap-5">
             <div className="w-20 h-20 rounded-xl border border-zinc-200 bg-zinc-50 flex items-center justify-center overflow-hidden flex-shrink-0">
-              {logoUrl ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" /> : <span className="text-3xl">🏪</span>}
+              {logoUrl ? <Image src={logoUrl} alt="Logo" width={80} height={80} className="object-contain" /> : <span className="text-3xl">🏪</span>}
             </div>
             <div>
               <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo')}
@@ -129,8 +130,8 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
           <h2 className="text-sm font-semibold text-zinc-900 mb-4">Menu banner</h2>
           {bannerUrl && (
-            <div className="w-full h-28 rounded-xl border border-zinc-200 overflow-hidden mb-3">
-              <img src={bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+            <div className="relative w-full h-28 rounded-xl border border-zinc-200 overflow-hidden mb-3">
+              <Image src={bannerUrl} alt="Banner" fill sizes="100vw" className="object-cover" />
             </div>
           )}
           <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'banner')}
