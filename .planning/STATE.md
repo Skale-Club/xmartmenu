@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: KDS+
-status: defining requirements
-stopped_at: Milestone v1.8 started — defining requirements
-last_updated: "2026-05-08T17:00:00.000Z"
+status: roadmap ready
+stopped_at: Roadmap created — Phase 26 and 27 defined, ready for plan-phase
+last_updated: "2026-05-08T17:30:00.000Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -25,18 +25,17 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Phase 26 (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-08 — Milestone v1.8 started
+Status: Roadmap ready — awaiting plan-phase
+Last activity: 2026-05-08 — Roadmap created for v1.8 KDS+
 
 ## Milestone Overview
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 23 | Ingredient Schema | INGR-01, INGR-02, INGR-03, INGR-04 | Complete |
-| 24 | Admin Catalog | INGR-05, INGR-06 | Complete |
-| 25 | Customer + Kitchen | INGR-07, INGR-08, INGR-09, INGR-10 | Complete |
+| 26 | Schema + Settings | KDS-07, KDS-08, KDS-09 | Not started |
+| 27 | Filter Chips + Sound | KDS-10, KDS-11, KDS-12, KDS-13 | Not started |
 
 ## Performance Metrics
 
@@ -210,6 +209,11 @@ Recent decisions affecting current work:
 - [Phase 25]: ingredientDelta IIFE placed after computedUnitPrice IIFE — finalUnitPrice = computedUnitPrice + ingredientDelta
 - [Phase 25]: Inline expandable picker (not a new modal) for Adicionar ingrediente — avoids z-index stacking in fixed overlay modal
 - [Phase 25]: Both public server pages fetch product_ingredients for parity — [slug]/page.tsx passes no optionGroupsByProductId but still fetches ingredients when flag is on
+- [v1.8 Roadmap]: amber_threshold_minutes and red_threshold_minutes added to tenant_settings via migration 027 with IF NOT EXISTS guard — defaults 10/20 keep existing KDS behaviour unchanged
+- [v1.8 Roadmap]: useElapsedTime props replace hardcoded AMBER_MINUTES/RED_MINUTES constants — OrdersClient reads from tenant settings and passes down
+- [v1.8 Roadmap]: Filter chips are mutually exclusive (not multi-select); default active set is [pending, preparing] — done/cancelled hidden by default
+- [v1.8 Roadmap]: Web Audio API beep fires only on Realtime INSERT events, not on status-update payloads; AudioContext created lazily on first user interaction to satisfy browser autoplay policy
+- [v1.8 Roadmap]: kds_filter_{tenantId} and kds_mute_{tenantId} are the localStorage keys — consistent with existing kds_view_{tenantId} pattern
 
 ### Pending Todos
 
@@ -225,5 +229,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T15:58:55.000Z
-Stopped at: Completed 25-02-PLAN.md — KDS OrderCard + admin orders modal ingredient_modifications rendering (INGR-10)
+Last session: 2026-05-08T17:30:00.000Z
+Stopped at: Roadmap created for v1.8 KDS+ — Phase 26 (Schema + Settings) and Phase 27 (Filter Chips + Sound) defined
