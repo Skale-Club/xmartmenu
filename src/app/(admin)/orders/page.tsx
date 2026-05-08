@@ -11,5 +11,5 @@ export default async function OrdersPage() {
     .select('*, order_items(*)')
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false })
-  return <OrdersClient initialOrders={orders ?? []} />
+  return <OrdersClient initialOrders={orders ?? []} tenantId={tenantId} />
 }
