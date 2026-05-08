@@ -42,11 +42,14 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   const { slug } = await params
   const { lang } = await searchParams
 
+  console.time('perf:menu-tenant:lookup') // PERF-PROBE
   const tenant = await getTenantBySlug(slug)
+  console.timeEnd('perf:menu-tenant:lookup') // PERF-PROBE
   if (!tenant) notFound()
 
   const supabase = createServiceClient()
 
+  console.time('perf:menu-tenant:default-menu') // PERF-PROBE
   const { data: menu } = await supabase
     .from('menus')
     .select('*')
@@ -54,6 +57,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     .eq('is_active', true)
     .eq('is_default', true)
     .maybeSingle()
+  console.timeEnd('perf:menu-tenant:default-menu') // PERF-PROBE
 
   const resolvedMenu = menu ?? (await supabase
     .from('menus')
