@@ -39,22 +39,18 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const { lang } = await searchParams
   const supabase = createServiceClient()
 
-  console.time('perf:menu-slug:tenant-lookup') // PERF-PROBE
   const [tenant, { data: menuCandidate }] = await Promise.all([
     getTenantBySlug(slug),
     supabase.from('menus').select('*').eq('slug', menuSlug).eq('is_active', true).single(),
   ])
-  console.timeEnd('perf:menu-slug:tenant-lookup') // PERF-PROBE
 
   if (!tenant || !menuCandidate || menuCandidate.tenant_id !== tenant.id) notFound()
   const menu = menuCandidate
 
-  console.time('perf:menu-slug:categories-products') // PERF-PROBE
   const [{ data: categories }, { data: products }] = await Promise.all([
     supabase.from('categories').select('*').eq('menu_id', menu.id).eq('is_active', true).order('position'),
     supabase.from('products').select('*').eq('menu_id', menu.id).eq('is_available', true).order('position'),
   ])
-  console.timeEnd('perf:menu-slug:categories-products') // PERF-PROBE
 
   const directOrdersEnabled = tenant.tenant_settings?.direct_orders_enabled ?? false
   const productIds = (products ?? []).map(p => p.id)
