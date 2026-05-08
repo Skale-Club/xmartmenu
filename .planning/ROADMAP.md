@@ -72,7 +72,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 23. Ingredient Schema | 1/1 | Complete    | 2026-05-08 |
 | 24. Admin Catalog | 2/2 | Complete    | 2026-05-08 |
-| 25. Customer + Kitchen | 2/2 | Complete | 2026-05-08 |
+| 25. Customer + Kitchen | 2/2 | Complete    | 2026-05-08 |
 
 ## Completed Milestones
 
