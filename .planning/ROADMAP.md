@@ -62,7 +62,7 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full details.
 
 ## 🚧 v1.6 Operations (In Progress)
 
-- [x] **Phase 21: KDS Dashboard** — Grid/list toggle, order cards with status colors, elapsed-time chip, item summary, action button for status transitions (completed 2026-05-08)
+- [x] **Phase 21: KDS Dashboard** — Grid/list toggle, order cards with status colors, elapsed-time chip, item summary, action button for status transitions (completed 2026-05-08)
 - [ ] **Phase 22: Realtime + Per-Item Notes** — Supabase Realtime subscription (polling fallback), per-item notes schema, customer textarea, KDS and admin render of notes
 
 ## Phase Details
@@ -92,7 +92,12 @@ Plans:
   1. A new order placed by a customer appears on the KDS within 15 seconds without the kitchen staff refreshing the page (Supabase Realtime or polling fallback)
   2. When item_notes_enabled is on for a tenant, a customer sees a "Observações" textarea (max 140 chars with live counter) on the product modal and the note is saved with the order item
   3. Notes entered by the customer are visible on the KDS card and in the admin orders table, visually distinct from the item name (icon, italic, or distinct color)
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 22-01-PLAN.md — DB migration 025 + TenantSettings type + Realtime subscription + 15s polling + notes display on KDS and admin modal
+- [ ] 22-02-PLAN.md — item_notes_enabled Store Settings toggle + customer textarea in ProductModal + sanitizeNote API validation
+
 **UI hint**: yes
 
 ## Progress Table
@@ -100,4 +105,4 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 21. KDS Dashboard | 2/2 | Complete    | 2026-05-08 |
-| 22. Realtime + Per-Item Notes | 0/? | Not started | - |
+| 22. Realtime + Per-Item Notes | 0/2 | Not started | - |
