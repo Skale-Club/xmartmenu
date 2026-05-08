@@ -35,8 +35,8 @@
 
 | Req ID | Phase | Status |
 |--------|-------|--------|
-| PERF-01 | Phase 14 | Pending |
-| PERF-02 | Phase 14 | Pending |
+| PERF-01 | Phase 14 | Complete (PSI synthetic — Speed Insights pending real traffic) |
+| PERF-02 | Phase 14 | Partial (probes deployed/removed; values deferred to Vercel log review) |
 | FE-03 | Phase 14 | Complete |
 | DB-01 | Phase 15 | Pending |
 | DB-02 | Phase 15 | Pending |
