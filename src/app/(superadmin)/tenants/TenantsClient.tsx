@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { slugify } from '@/lib/utils'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
@@ -397,7 +398,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
               <div className="px-5 py-4 flex items-center gap-3 flex-wrap">
                 <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                   {client.logo_url
-                    ? <img src={client.logo_url} alt={client.name!} className="w-full h-full object-contain" />
+                    ? <Image src={client.logo_url} alt={client.name!} width={40} height={40} className="object-contain" />
                     : <span className="text-lg">🏪</span>}
                 </div>
                 <div className="flex-1 min-w-0">
