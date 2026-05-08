@@ -70,7 +70,7 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 ### Phases
 
 - [x] **Phase 14: Instrumentacao** — Establish real production baselines before any optimization (completed 2026-05-08)
-- [x] **Phase 15: Database Indices** — EXPLAIN ANALYZE on critical queries and add indices where needed (completed 2026-05-08)
+- [x] **Phase 15: Database Indices** — EXPLAIN ANALYZE on critical queries and add indices where needed (completed 2026-05-08)
 - [ ] **Phase 16: Frontend Performance** — Lighthouse scores, bundle optimization, and ISR cache tuning
 - [ ] **Phase 17: CI Gate** — Lock Lighthouse regressions out of the main branch via GitHub Actions
 
@@ -117,8 +117,11 @@ Plans:
   2. Lighthouse mobile audit on a live `/{slug}` public menu page returns a Performance score >= 90
   3. ISR `revalidate` values are reviewed per route — landing page confirmed `force-static`, public menu revalidate value adjusted if access patterns justify a change from the current 60 s
   4. At least one actionable bundle optimization from Phase 14 analysis is applied (lazy import, dynamic() boundary, or tree-shaking fix) and bundle report confirms chunk size reduction
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 16-01-PLAN.md — Replace all img tags in MenuPage.tsx with next/image; add main landmark and aria-labels (FE-02, FE-01)
+- [ ] 16-02-PLAN.md — Bundle chunk 5536 investigation + ISR revalidate review and documentation (FE-04)
 
 #### Phase 17: CI Gate
 **Goal**: No PR can regress Lighthouse scores below the targets established in Phase 16
@@ -136,5 +139,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 14. Instrumentacao | 1/3 | Complete    | 2026-05-08 |
 | 15. Database Indices | 1/3 | Complete    | 2026-05-08 |
-| 16. Frontend Performance | 0/? | Not started | - |
+| 16. Frontend Performance | 0/2 | Not started | - |
 | 17. CI Gate | 0/? | Not started | - |
