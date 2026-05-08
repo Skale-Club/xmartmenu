@@ -2,16 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Operations
-status: roadmap defined
-stopped_at: Roadmap created — Phase 21 and 22 defined
-last_updated: "2026-05-08T12:30:00.000Z"
-last_activity: 2026-05-08
+status: executing
+stopped_at: Completed 21-01-PLAN.md — KDS foundation (useElapsedTime hook, STATUS_COLORS, OrderCard, grid layout)
+last_updated: "2026-05-08T12:11:29Z"
+last_activity: 2026-05-08 -- Phase 21 Plan 01 complete
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 2
+  completed_plans: 1
 ---
 
 # Project State
@@ -21,20 +20,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-08)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.6 Operations — KDS dashboard + per-item notes
+**Current focus:** Phase 21 — KDS Dashboard
 
 ## Current Position
 
-Phase: 21 — KDS Dashboard (not started)
-Plan: —
-Status: Roadmap defined, ready for plan-phase 21
-Last activity: 2026-05-08 — v1.6 roadmap created (Phases 21-22)
+Phase: 21 (KDS Dashboard) — EXECUTING
+Plan: 2 of 2
+Status: Plan 01 complete — Plan 02 (list/grid toggle, status filter, localStorage) ready to execute
+Last activity: 2026-05-08 -- Phase 21 Plan 01 complete (useElapsedTime, STATUS_COLORS, OrderCard, grid layout)
 
 ## Milestone Overview
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 21 | KDS Dashboard | KDS-01, KDS-02, KDS-03, KDS-04, KDS-05 | Not started |
+| 21 | KDS Dashboard | KDS-01, KDS-02, KDS-03, KDS-04, KDS-05 | In progress (Plan 01/02 done) |
 | 22 | Realtime + Per-Item Notes | KDS-06, NOTE-01, NOTE-02, NOTE-03, NOTE-04 | Not started |
 
 ## Performance Metrics
@@ -81,6 +80,7 @@ Last activity: 2026-05-08 — v1.6 roadmap created (Phases 21-22)
 | Phase 15 P03 | 5min | 2 tasks | 2 files |
 | Phase 16-frontend-performance P02 | 35 | 2 tasks | 1 files |
 | Phase 19-admin-next-image P02 | 8min | 1 tasks | 1 files |
+| Phase 21-kds-dashboard P01 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -172,6 +172,10 @@ Recent decisions affecting current work:
 - [v1.6 Roadmap]: Supabase Realtime filtered by tenant_id on orders table; polling at 15s interval as fallback — decision on primary vs fallback made in Phase 22
 - [v1.6 Roadmap]: item_notes_enabled flag follows same pattern as direct_orders_enabled on tenants/store_settings table
 - [v1.6 Roadmap]: order_items.notes TEXT — validated server-side (truncate at 140 chars, strip control chars); client textarea is UX-only guard
+- [Phase 21-01]: STATUS_COLORS.pending=blue, preparing=yellow — corrects inverted color mapping from original statusColors dict
+- [Phase 21-01]: loadingId: string | null replaces loading: boolean — per-card disabled state without blocking all cards simultaneously
+- [Phase 21-01]: view state and supabase client scaffolded in Plan 01; wired in Plan 02 (toggle) and Phase 22 (realtime)
+- [Phase 21-01]: useRef for intervalRef avoids spurious renders when storing the 30s timer ID
 
 ### Pending Todos
 
@@ -187,5 +191,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T12:30:00.000Z
-Stopped at: v1.6 roadmap defined — Phase 21 (KDS Dashboard) and Phase 22 (Realtime + Per-Item Notes) created
+Last session: 2026-05-08T12:11:29Z
+Stopped at: Completed 21-01-PLAN.md — useElapsedTime hook + STATUS_COLORS + OrderCard + card grid

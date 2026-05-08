@@ -79,7 +79,7 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full details.
 **Plans**: 2 plans
 
 Plans:
-- [ ] 21-01-PLAN.md — Foundation: useElapsedTime hook + STATUS_COLORS + OrderCard component + grid layout + tenantId prop
+- [x] 21-01-PLAN.md — Foundation: useElapsedTime hook + STATUS_COLORS + OrderCard component + grid layout + tenantId prop
 - [ ] 21-02-PLAN.md — Actions: view toggle with localStorage persistence + optimistic status PATCH wiring
 
 **UI hint**: yes
@@ -99,5 +99,5 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 21. KDS Dashboard | 0/2 | Not started | - |
+| 21. KDS Dashboard | 1/2 | In progress | - |
 | 22. Realtime + Per-Item Notes | 0/? | Not started | - |
