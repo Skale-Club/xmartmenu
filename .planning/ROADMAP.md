@@ -11,6 +11,7 @@
 - ✅ **v1.6 Operations** — Phases 21-22 (shipped 2026-05-08)
 - ✅ **v1.7 Customization** — Phases 23-25 (shipped 2026-05-08)
 - ✅ **v1.8 KDS+** — Phases 26-27 (shipped 2026-05-08)
+- ⏳ **v1.9 Performance Gaps** — Phases 28-29 (in progress)
 
 ## Completed Milestones
 
@@ -81,3 +82,38 @@ See `.planning/milestones/v1.7-ROADMAP.md` for full details.
 See `.planning/milestones/v1.8-ROADMAP.md` for full details.
 
 </details>
+
+## v1.9 Performance Gaps — Phases 28-29
+
+**Goal:** Fechar gaps restantes do SEED-004 — índices RLS em `profiles`, CDN headers imutáveis nas imagens, decomposição do `MenuPage.tsx`.
+
+| # | Phase | Plans | Requirements | Status |
+|---|---|---|---|---|
+| 28 | DB + CDN | 1/1 | PERF-01, PERF-02, PERF-03, PERF-04 | ⏳ Pending |
+| 29 | MenuPage Decomposition | 1/1 | PERF-05, PERF-06 | ⏳ Pending |
+
+## Phase Details
+
+### Phase 28: DB + CDN
+**Goal**: DB indices on `profiles` are live and Storage buckets serve images with long-lived immutable cache headers
+**Depends on**: Nothing (first phase of v1.9)
+**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04
+**Success Criteria** (what must be TRUE):
+  1. Migration 028 is applied — `EXPLAIN ANALYZE` on a `profiles` query filtered by `tenant_id` shows an index scan, not a sequential scan
+  2. `EXPLAIN ANALYZE` on a `profiles` query filtered by `role` shows an index scan
+  3. Both `tenant-assets` and `product-images` Storage buckets respond with `Cache-Control: public, max-age=31536000, immutable` on image URLs
+  4. No regression on any existing RLS policy (all protected routes still require authenticated session)
+**Plans**: TBD
+
+### Phase 29: MenuPage Decomposition
+**Goal**: `MenuPage.tsx` is split into focused components with lazy-loaded modals, reducing initial JS payload for the public menu
+**Depends on**: Phase 28
+**Requirements**: PERF-05, PERF-06
+**Success Criteria** (what must be TRUE):
+  1. `src/components/menu/ProductModal.tsx` exists as a self-contained component with explicit props — no implicit shared state with `MenuPage`
+  2. `src/components/menu/CartModal.tsx` exists as a self-contained component with explicit props covering cart items, order form, and submission
+  3. Both components are imported in `MenuPage.tsx` via `next/dynamic` with `ssr: false` — they are absent from the initial server-rendered HTML
+  4. `tsc --noEmit` passes with zero new type errors after the extraction
+  5. Public menu page loads and functions end-to-end: product modal opens on tap, cart accumulates items, order submits successfully
+**Plans**: TBD
+**UI hint**: yes

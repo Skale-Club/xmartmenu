@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Performance Gaps
-status: defining requirements
-stopped_at: Milestone v1.9 started — defining requirements
-last_updated: "2026-05-08T19:00:00.000Z"
+status: planning
+stopped_at: Roadmap approved — Phase 28 ready to plan
+last_updated: "2026-05-08T19:15:00.000Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
-  total_plans: 0
+  total_plans: 2
   completed_plans: 0
   percent: 0
 ---
@@ -34,8 +34,8 @@ Last activity: 2026-05-08 — Milestone v1.9 started
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 26 | Schema + Settings | KDS-07, KDS-08, KDS-09 | Plan 01 complete |
-| 27 | Filter Chips + Sound | KDS-10, KDS-11, KDS-12, KDS-13 | Plan 01 complete |
+| 28 | DB + CDN | PERF-01, PERF-02, PERF-03, PERF-04 | ⏳ Pending |
+| 29 | MenuPage Decomposition | PERF-05, PERF-06 | ⏳ Pending |
 
 ## Performance Metrics
 
