@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { notFound } from 'next/navigation'
-import type { ProductOptionGroup, ProductOption } from '@/types/database'
+import type { ProductOptionGroup, ProductOption, Ingredient, ProductIngredient } from '@/types/database'
 import ProductDetailClient from './ProductDetailClient'
 
 export interface GroupWithOptions extends ProductOptionGroup {
@@ -23,7 +23,7 @@ export default async function ProductDetailPage({
   const tenantId = effective.tenantId
   const canManage = effective.role !== 'store-staff'
 
-  const [{ data: product }, { data: groups }, { data: settings }] = await Promise.all([
+  const [{ data: product }, { data: groups }, { data: settings }, { data: ingredients }, { data: productIngredients }] = await Promise.all([
     supabase
       .from('products')
       .select('*, category:categories(id, name)')
@@ -38,9 +38,19 @@ export default async function ProductDetailPage({
       .order('position', { referencedTable: 'product_options' }),
     supabase
       .from('tenant_settings')
-      .select('custom_tags, currency')
+      .select('custom_tags, currency, ingredient_customization_enabled')
       .eq('tenant_id', tenantId)
       .single(),
+    supabase
+      .from('ingredients')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('position'),
+    supabase
+      .from('product_ingredients')
+      .select('*')
+      .eq('product_id', id)
+      .eq('tenant_id', tenantId),
   ])
 
   if (!product) notFound()
@@ -52,6 +62,9 @@ export default async function ProductDetailPage({
       tenantId={tenantId}
       currency={settings?.currency ?? 'BRL'}
       canManage={canManage}
+      ingredientCustomizationEnabled={settings?.ingredient_customization_enabled ?? false}
+      allIngredients={(ingredients ?? []) as Ingredient[]}
+      initialProductIngredients={(productIngredients ?? []) as ProductIngredient[]}
     />
   )
 }
