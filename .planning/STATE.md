@@ -3,25 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-<<<<<<< HEAD
-stopped_at: Completed 16-02-PLAN.md — bundle analysis and ISR review
-last_updated: "2026-05-08T10:15:30.141Z"
-last_activity: 2026-05-08
-progress:
-  total_phases: 17
-  completed_phases: 14
-  total_plans: 38
-  completed_plans: 34
-=======
 stopped_at: Completed 19-02-PLAN.md — ProductsClient img to next/image migration
-last_updated: "2026-05-08T10:25:15.783Z"
-last_activity: 2026-05-08
+last_updated: "2026-05-08T10:29:33.266Z"
+last_activity: 2026-05-08 -- Phase 20 execution started
 progress:
-  total_phases: 16
-  completed_phases: 14
-  total_plans: 34
-  completed_plans: 35
->>>>>>> 7c95ab3 (docs(19-02): complete ProductsClient img to next/image migration — IMG-05 satisfied)
+  total_phases: 18
+  completed_phases: 15
+  total_plans: 38
+  completed_plans: 37
   percent: 67
 ---
 
@@ -32,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 16 — frontend-performance
+**Current focus:** Phase 20 — storage-abstraction
 
 ## Current Position
 
-Phase: 19
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-05-08
+Phase: 20 (storage-abstraction) — EXECUTING
+Plan: 1 of 1
+Status: Executing Phase 20
+Last activity: 2026-05-08 -- Phase 20 execution started
 
 Progress: [██████    ] 67% (v1.4 — 3/3 plans complete, migration pending)
 
