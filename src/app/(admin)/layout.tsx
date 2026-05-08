@@ -47,13 +47,18 @@ export default async function AdminLayout({
 
     if (!tenant) redirect('/tenants')
 
-    const [{ data: menus }, activeMenu] = await Promise.all([
+    const [{ data: menus }, activeMenu, { data: tenantSettings }] = await Promise.all([
       supabase
         .from('menus')
         .select('id, name, slug, is_active, is_default')
         .eq('tenant_id', tenant.id)
         .order('position'),
       getActiveMenuForTenant(tenant.id),
+      supabase
+        .from('tenant_settings')
+        .select('ingredient_customization_enabled')
+        .eq('tenant_id', tenant.id)
+        .single(),
     ])
 
     return (
@@ -71,6 +76,7 @@ export default async function AdminLayout({
               appName={appName}
               menus={menus ?? []}
               activeMenuId={activeMenu?.id ?? null}
+              ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
             />
           </div>
         </div>
@@ -80,13 +86,18 @@ export default async function AdminLayout({
   }
 
   const tenantId = profile.tenant_id as string
-  const [{ data: menus }, activeMenu] = await Promise.all([
+  const [{ data: menus }, activeMenu, { data: tenantSettings }] = await Promise.all([
     supabase
       .from('menus')
       .select('id, name, slug, is_active, is_default')
       .eq('tenant_id', tenantId)
       .order('position'),
     getActiveMenuForTenant(tenantId),
+    supabase
+      .from('tenant_settings')
+      .select('ingredient_customization_enabled')
+      .eq('tenant_id', tenantId)
+      .single(),
   ])
 
   return (
@@ -98,6 +109,7 @@ export default async function AdminLayout({
         appName={appName}
         menus={menus ?? []}
         activeMenuId={activeMenu?.id ?? null}
+        ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
       />
       <main className="flex-1 overflow-y-auto">
         {children}

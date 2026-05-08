@@ -33,6 +33,7 @@ export default function AdminSidebar({
   appName = 'XmartMenu',
   menus = [],
   activeMenuId = null,
+  ingredientCustomizationEnabled = false,
 }: {
   tenantName: string
   tenantSlug?: string
@@ -40,6 +41,7 @@ export default function AdminSidebar({
   appName?: string
   menus?: SidebarMenu[]
   activeMenuId?: string | null
+  ingredientCustomizationEnabled?: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -49,9 +51,12 @@ export default function AdminSidebar({
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(activeMenuId)
   const [menuLoading, setMenuLoading] = useState(false)
   const isStaff = role === 'store-staff'
-  const visibleMainItems = isStaff
-    ? mainItems.filter((item) => item.href !== '/menus')
-    : mainItems
+
+  const ingredienteItem = { href: '/menu/ingredients', label: 'Ingredientes', icon: '🥗' }
+  const visibleMainItems = [
+    ...mainItems,
+    ...(ingredientCustomizationEnabled ? [ingredienteItem] : []),
+  ].filter(item => isStaff ? item.href !== '/menus' : true)
   const visibleAdminPanelItems = isStaff
     ? adminPanelItems.filter((item) => item.href === '/settings/qrcode' || item.href === '/settings/password')
     : adminPanelItems
