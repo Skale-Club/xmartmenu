@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
+import { validateAndConvertToWebP } from '@/lib/upload'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -15,14 +16,17 @@ export async function POST(
 
   if (!file || !type) return NextResponse.json({ error: 'Arquivo ou tipo inválido' }, { status: 400 })
 
-  const ext = file.name.split('.').pop()
-  const bucket = type === 'logo' ? 'tenant-assets' : 'tenant-assets'
-  const filename = `${id}/${type}.${ext}`
+  const conversion = await validateAndConvertToWebP(file)
+  if (conversion.error) return NextResponse.json({ error: conversion.error }, { status: 400 })
+
+  const bucket = 'tenant-assets'
+  const filename = `${id}/${type}.webp`
+  const blob = new Blob([conversion.buffer], { type: 'image/webp' })
 
   const service = await createServiceClient()
   const { data, error } = await service.storage
     .from(bucket)
-    .upload(filename, file, { upsert: true })
+    .upload(filename, blob, { upsert: true, contentType: 'image/webp' })
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
