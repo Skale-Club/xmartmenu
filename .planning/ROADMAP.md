@@ -47,7 +47,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 24-01-PLAN.md — Ingredients catalog page (server + client CRUD + reorder), layout.tsx flag query, AdminSidebar nav item
+- [x] 24-01-PLAN.md — Ingredients catalog page (server + client CRUD + reorder), layout.tsx flag query, AdminSidebar nav item
 - [ ] 24-02-PLAN.md — Product editor tab bar (Detalhes/Opções/Ingredientes) + Ingredientes tab multi-select picker + per-product overrides
 
 ### Phase 25: Customer + Kitchen
@@ -68,7 +68,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 23. Ingredient Schema | 0/1 | Complete    | 2026-05-08 |
-| 24. Admin Catalog | 0/2 | Not started | - |
+| 24. Admin Catalog | 1/2 | In Progress|  |
 | 25. Customer + Kitchen | 0/? | Not started | - |
 
 ## Completed Milestones

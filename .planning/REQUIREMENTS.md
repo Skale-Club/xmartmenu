@@ -9,7 +9,7 @@
 
 ## Admin Catalog
 
-- [ ] **INGR-05**: Página `/admin/menu/ingredients` com CRUD completo — criar/editar/excluir ingrediente (name, default_extra_price, default_add_price, availability toggle, drag-to-reorder), visível apenas quando `ingredient_customization_enabled` está ativa
+- [x] **INGR-05**: Página `/admin/menu/ingredients` com CRUD completo — criar/editar/excluir ingrediente (name, default_extra_price, default_add_price, availability toggle, drag-to-reorder), visível apenas quando `ingredient_customization_enabled` está ativa
 - [ ] **INGR-06**: Tab "Ingredientes" no editor de produto (`/admin/menu/products/[id]`) — multi-select picker do catálogo de ingredientes; para cada ingrediente selecionado: toggle `is_default` e campos de override de preço por produto (fallback para preços do catálogo quando vazios)
 
 ## Customer UI
@@ -39,7 +39,7 @@
 | INGR-02 | Phase 23 | Complete |
 | INGR-03 | Phase 23 | Complete |
 | INGR-04 | Phase 23 | Complete |
-| INGR-05 | Phase 24 | Pending |
+| INGR-05 | Phase 24 | Complete |
 | INGR-06 | Phase 24 | Pending |
 | INGR-07 | Phase 25 | Pending |
 | INGR-08 | Phase 25 | Pending |
