@@ -89,7 +89,7 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full details.
 
 | # | Phase | Plans | Requirements | Status |
 |---|---|---|---|---|
-| 28 | DB + CDN | 1/1 | PERF-01, PERF-02, PERF-03, PERF-04 | ⏳ Pending |
+| 28 | DB + CDN | 1/1 | PERF-01, PERF-02, PERF-03, PERF-04 | ✅ 2026-05-08 |
 | 29 | MenuPage Decomposition | 1/1 | PERF-05, PERF-06 | ⏳ Pending |
 
 ## Phase Details
@@ -106,7 +106,7 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full details.
 **Plans**: 1 plan
 
 Plans:
-- [ ] 28-01-PLAN.md — Migration 028 (3 profiles indices) + CDN cache headers on both Storage buckets
+- [x] 28-01-PLAN.md — Migration 028 (3 profiles indices) + CDN cache headers on both Storage buckets
 
 ### Phase 29: MenuPage Decomposition
 **Goal**: `MenuPage.tsx` is split into focused components with lazy-loaded modals, reducing initial JS payload for the public menu
