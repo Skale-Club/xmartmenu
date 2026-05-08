@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { formatPrice } from '@/lib/utils'
 import type { Category, Product, TenantWithSettings } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
@@ -321,7 +322,14 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         {/* Banner as background when set */}
         {settings?.banner_url && (
           <>
-            <img src={settings.banner_url} alt="Banner" className="absolute inset-0 w-full h-full object-cover" />
+            <Image
+              src={settings.banner_url}
+              alt="Banner"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+            />
             <div className="absolute inset-0" style={{ backgroundColor: primaryColor, opacity: 0.65 }} />
           </>
         )}
@@ -329,7 +337,14 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         <div className="relative z-10">
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-5 sm:py-6 flex flex-col items-center gap-3">
             {settings?.logo_url ? (
-              <img src={settings.logo_url} alt={tenant.name} className="w-20 h-20 rounded-xl object-cover bg-white/10 p-1" />
+              <Image
+                src={settings.logo_url}
+                alt={tenant.name}
+                width={80}
+                height={80}
+                priority
+                className="rounded-xl object-cover bg-white/10 p-1"
+              />
             ) : (
               <div className="w-20 h-20 rounded-xl bg-white/20 flex items-center justify-center text-4xl">🏪</div>
             )}
