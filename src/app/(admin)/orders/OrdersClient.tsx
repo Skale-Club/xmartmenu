@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderItem } from '@/types/database'
 import { useElapsedTime } from './useElapsedTime'
-import { LayoutGrid, List, MessageSquare } from 'lucide-react'
+import { Bell, BellOff, LayoutGrid, List, MessageSquare } from 'lucide-react'
 
 type OrderWithItems = Order & { order_items: OrderItem[] }
 
@@ -35,7 +35,20 @@ const ADVANCE_LABEL: Record<string, string> = {
   ready:     'Concluir',
 }
 
-const KDS_VIEW_KEY = (tenantId: string) => `kds_view_${tenantId}`
+const KDS_VIEW_KEY    = (tenantId: string) => `kds_view_${tenantId}`
+const KDS_FILTER_KEY  = (tenantId: string) => `kds_filter_${tenantId}`
+const KDS_MUTE_KEY    = (tenantId: string) => `kds_mute_${tenantId}`
+
+type FilterValue = 'pending' | 'preparing' | 'ready' | 'all'
+
+const FILTER_CHIPS: { value: FilterValue; label: string }[] = [
+  { value: 'pending',   label: 'Pendentes' },
+  { value: 'preparing', label: 'Em preparo' },
+  { value: 'ready',     label: 'Prontos' },
+  { value: 'all',       label: 'Todos' },
+]
+
+const DEFAULT_FILTER: FilterValue = 'pending'
 
 interface OrdersClientProps {
   initialOrders: OrderWithItems[]
@@ -157,6 +170,14 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
   const [loadingId, setLoadingId] = useState<string | null>(null)
   // view toggle state — persisted to localStorage per tenant
   const [view, setView] = useState<'grid' | 'list'>('grid')
+  // filter chips — default shows pending + preparing (one active chip, mutually exclusive)
+  const [activeFilter, setActiveFilter] = useState<FilterValue>(DEFAULT_FILTER)
+  // mute state — persisted to localStorage per tenant
+  const [muted, setMuted] = useState(false)
+  // lazy AudioContext ref — created on first user interaction to satisfy browser autoplay policy
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  // mutedRef mirrors muted state so Realtime closure reads current value without re-subscribing
+  const mutedRef = useRef(false)
   const supabase = createClient()
 
   // SSR-safe: read saved view preference on mount
@@ -165,7 +186,49 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     if (saved === 'grid' || saved === 'list') setView(saved)
   }, [tenantId])
 
+  // SSR-safe: restore active filter from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(KDS_FILTER_KEY(tenantId))
+    if (saved === 'pending' || saved === 'preparing' || saved === 'ready' || saved === 'all') {
+      setActiveFilter(saved)
+    }
+  }, [tenantId])
+
+  // SSR-safe: restore muted state from localStorage on mount
+  useEffect(() => {
+    const saved = localStorage.getItem(KDS_MUTE_KEY(tenantId))
+    if (saved === 'true') setMuted(true)
+  }, [tenantId])
+
+  // Keep mutedRef in sync with muted state so Realtime closure reads current value
+  useEffect(() => {
+    mutedRef.current = muted
+  }, [muted])
+
+  // Beep via Web Audio API — oscillator at 880Hz for 0.1s
+  function playBeep() {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext()
+      }
+      const ctx = audioCtxRef.current
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = 880
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
+      osc.start(ctx.currentTime)
+      osc.stop(ctx.currentTime + 0.1)
+    } catch {
+      // AudioContext creation may fail in non-interactive contexts — ignore silently
+    }
+  }
+
   // Realtime subscription — primary path for KDS-06
+  // KDS-12: beep fires only on INSERT of pending orders (not status updates)
   useEffect(() => {
     const channel = supabase
       .channel(`orders-realtime-${tenantId}`)
@@ -190,6 +253,11 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
               if (prev.some((o) => o.id === fullOrder.id)) return prev
               return [fullOrder as OrderWithItems, ...prev]
             })
+            // KDS-12: beep only for new pending orders; check muted via ref to avoid stale closure
+            const newOrder = fullOrder as OrderWithItems
+            if (newOrder.status === 'pending' && !mutedRef.current) {
+              playBeep()
+            }
           }
         }
       )
@@ -217,6 +285,22 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     localStorage.setItem(KDS_VIEW_KEY(tenantId), next)
   }
 
+  function selectFilter(next: FilterValue) {
+    setActiveFilter(next)
+    localStorage.setItem(KDS_FILTER_KEY(tenantId), next)
+  }
+
+  function toggleMute() {
+    const next = !muted
+    setMuted(next)
+    localStorage.setItem(KDS_MUTE_KEY(tenantId), String(next))
+  }
+
+  // KDS-10: filter applied locally over loaded orders; done/cancelled hidden by default
+  const filteredOrders = activeFilter === 'all'
+    ? orders
+    : orders.filter((o) => o.status === activeFilter)
+
   async function updateStatus(orderId: string, status: string) {
     setLoadingId(orderId)
     const res = await fetch(`/api/orders/${orderId}`, {
@@ -238,10 +322,23 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
 
   return (
     <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <h1 className="text-2xl font-bold text-zinc-900">Pedidos</h1>
         <div className="flex items-center gap-3">
-          <p className="text-sm text-zinc-500">{orders.length} pedido(s)</p>
+          <p className="text-sm text-zinc-500">
+            {filteredOrders.length !== orders.length
+              ? `${filteredOrders.length} / ${orders.length} pedido(s)`
+              : `${orders.length} pedido(s)`}
+          </p>
+          {/* KDS-13: mute/unmute button */}
+          <button
+            onClick={toggleMute}
+            className={`p-1.5 rounded-lg border border-zinc-200 ${muted ? 'text-zinc-400 hover:text-zinc-600' : 'text-zinc-700 hover:text-zinc-900'}`}
+            aria-label={muted ? 'Ativar som' : 'Silenciar som'}
+            title={muted ? 'Som silenciado — clique para ativar' : 'Som ativo — clique para silenciar'}
+          >
+            {muted ? <BellOff size={16} /> : <Bell size={16} />}
+          </button>
           <div className="flex items-center gap-1 rounded-lg border border-zinc-200 p-0.5">
             <button
               onClick={() => toggleView('grid')}
@@ -261,11 +358,30 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
         </div>
       </div>
 
-      {orders.length === 0 ? (
-        <div className="text-center py-12 text-zinc-500">Nenhum pedido ainda</div>
+      {/* KDS-10: filter chips — mutually exclusive, default pending */}
+      <div className="flex items-center gap-2 mb-6">
+        {FILTER_CHIPS.map((chip) => (
+          <button
+            key={chip.value}
+            onClick={() => selectFilter(chip.value)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+              activeFilter === chip.value
+                ? 'bg-zinc-900 text-white border-zinc-900'
+                : 'bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500 hover:text-zinc-900'
+            }`}
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+
+      {filteredOrders.length === 0 ? (
+        <div className="text-center py-12 text-zinc-500">
+          {orders.length === 0 ? 'Nenhum pedido ainda' : 'Nenhum pedido com este filtro'}
+        </div>
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {orders.map((order) => (
+          {filteredOrders.map((order) => (
             <OrderCard
               key={order.id}
               order={order}
@@ -292,7 +408,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
-              {orders.map((order) => (
+              {filteredOrders.map((order) => (
                 <tr
                   key={order.id}
                   className="hover:bg-zinc-50 cursor-pointer"
