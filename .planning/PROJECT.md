@@ -28,18 +28,16 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v1.9 Performance Gaps
-
-**Goal:** Fechar os gaps restantes do SEED-004 — índices em `profiles`, CDN headers nas imagens, decomposição do `MenuPage.tsx`.
-
-**Target features:**
-- Migration 028: índices em `profiles(tenant_id)`, `profiles(role)`, `profiles(tenant_id, role)` — eliminam scan em RLS helpers `auth_tenant_id()` e `is_superadmin()` em toda query
-- CDN `Cache-Control: public, max-age=31536000, immutable` nas imagens do Supabase Storage
-- `MenuPage.tsx` decomposição: extrair `ProductModal`, `CartModal`, `OrderForm` como componentes separados
-
 ## Current State
 
-**v1.8 KDS+ shipped (2026-05-08)** — SEED-007 fully complete: configurable time thresholds, filter chips, Web Audio beep alert.
+**v1.9 Performance Gaps shipped (2026-05-08)** — SEED-004 gaps closed: profiles RLS indices, CDN cache headers, MenuPage decomposed.
+
+Key changes in v1.9:
+- Migration 028: `idx_profiles_tenant`, `idx_profiles_role`, `idx_profiles_tenant_role` — eliminam Seq Scan nos helpers RLS em toda query autenticada
+- CDN `Cache-Control: public, max-age=31536000, immutable` via `updateBucket()` nos buckets `tenant-assets` e `product-images`
+- `MenuPage.tsx` 1522 → 726 linhas (−52%): `ProductModal.tsx` + `CartModal.tsx` extraídos com `next/dynamic ssr:false`; `menu-utils.ts` com tipos/consts compartilhados
+
+*v1.8 KDS+ (2026-05-08)*: configurable thresholds, filter chips, Web Audio beep.
 
 Key changes in v1.8:
 - Migration 027: `amber_threshold_minutes` (default 10) + `red_threshold_minutes` (default 20) on `tenant_settings`
@@ -176,10 +174,18 @@ Key changes in v1.5:
 - ✓ Web Audio API beep on Realtime INSERT only, guarded by muted state — Phase 27
 - ✓ Bell/BellOff mute button with `kds_mute_{tenantId}` localStorage persistence — Phase 27
 
+### Validated — v1.9
+
+- ✓ Migration 028: `idx_profiles_tenant`, `idx_profiles_role`, `idx_profiles_tenant_role` on `profiles` — eliminates Seq Scans in `auth_tenant_id()` + `is_superadmin()` RLS helpers — Phase 28
+- ✓ CDN `Cache-Control: public, max-age=31536000, immutable` on `tenant-assets` + `product-images` Storage buckets — Phase 28
+- ✓ `ProductModal.tsx` extracted from `MenuPage.tsx` with `next/dynamic ssr:false` — Phase 29
+- ✓ `CartModal.tsx` extracted from `MenuPage.tsx` with `next/dynamic ssr:false` — Phase 29
+- ✓ `MenuPage.tsx` reduced 1522→726 lines (−52%); `menu-utils.ts` as shared types/constants module — Phase 29
+
 ### Deferred (seeds)
 
 - SEED-003 — Stripe Connect payments (tenant-owned accounts)
-- SEED-004 — Full performance milestone (DB indices, RUM, Lighthouse budget)
+- SEED-004 — ✅ Performance gaps (shipped v1.9: profiles indices + CDN + MenuPage decomposition)
 - SEED-005 — ✅ Marketing landing page (shipped v1.3)
 - SEED-007 — ✅ KDS dashboard + Phase B (shipped v1.6 + v1.8)
 - SEED-008 Phase D — ✅ per-item notes (shipped v1.6)
@@ -231,10 +237,13 @@ Key changes in v1.5:
 | `buildIngredientModifications` returns `null` when all arrays empty | Store null, not `{}` — DB cleaner, display guard simpler (`hasAny`) | ✓ Shipped v1.7 |
 | "Adicionar ingrediente" as inline expandable (not modal) | Avoids z-index conflicts inside the existing product overlay | ✓ Shipped v1.7 |
 | Price override `defaultValue + onBlur` (not controlled) | Avoids per-keystroke DB writes; empty field → `null` → catalog default | ✓ Shipped v1.7 |
+| 3 separate indices on profiles vs single composite | `auth_tenant_id()` filters by `user_id`→`tenant_id`, `is_superadmin()` by `role` alone — neither benefits from composite as secondary column | ✓ Shipped v1.9 |
+| `UICopyEntry` explicit type alias in menu-utils.ts | `typeof UI_COPY[string]` doesn't cross module boundaries cleanly in tsc — explicit alias avoids inference issues | ✓ Shipped v1.9 |
+| `next/dynamic ssr:false` for ProductModal + CartModal | Modal overlays are client-only; lazy-loading eliminates them from initial SSR HTML and first JS bundle | ✓ Shipped v1.9 |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-08 — v1.8 KDS+ milestone complete*
+*Last updated: 2026-05-08 — v1.9 Performance Gaps milestone complete*

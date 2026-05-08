@@ -4,7 +4,7 @@ milestone: v1.9
 milestone_name: Performance Gaps — Phases 28-29
 status: completed
 stopped_at: Completed 28-db-cdn/28-01-PLAN.md — profiles indices (PERF-01/02/03) + CDN cache headers (PERF-04)
-last_updated: "2026-05-08T19:25:04.404Z"
+last_updated: "2026-05-08T19:26:03.130Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 2
