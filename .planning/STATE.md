@@ -3,6 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
+<<<<<<< HEAD
 stopped_at: Completed 16-02-PLAN.md — bundle analysis and ISR review
 last_updated: "2026-05-08T10:15:30.141Z"
 last_activity: 2026-05-08
@@ -11,6 +12,16 @@ progress:
   completed_phases: 14
   total_plans: 38
   completed_plans: 34
+=======
+stopped_at: Completed 19-02-PLAN.md — ProductsClient img to next/image migration
+last_updated: "2026-05-08T10:25:15.783Z"
+last_activity: 2026-05-08
+progress:
+  total_phases: 16
+  completed_phases: 14
+  total_plans: 34
+  completed_plans: 35
+>>>>>>> 7c95ab3 (docs(19-02): complete ProductsClient img to next/image migration — IMG-05 satisfied)
   percent: 67
 ---
 
@@ -84,6 +95,7 @@ Progress: [██████    ] 67% (v1.4 — 3/3 plans complete, migration p
 | Phase 15 P02 | ~15min | 1 tasks | 2 files |
 | Phase 15 P03 | 5min | 2 tasks | 2 files |
 | Phase 16-frontend-performance P02 | 35 | 2 tasks | 1 files |
+| Phase 19-admin-next-image P02 | 8min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -168,6 +180,7 @@ Recent decisions affecting current work:
 - [Phase 15-03]: Migration 024 written with 4 IF NOT EXISTS indices — pending Supabase SQL Editor application; orders/auth path has zero missing indices
 - [Phase 15-03]: UNIQUE(tenant_id, slug) composite on menus does not serve tenant_id-only or slug-only filters — both required separate single-column indices
 - [Phase 16-frontend-performance]: Retain revalidate=60 on public menu routes — appropriate for 0-10 daily menu changes; defers chunk 5346 Supabase browser client fix to Phase 17 (architectural change >2 files)
+- [Phase 19-admin-next-image]: Remove Tailwind w-14 h-14 / w-16 h-16 from className when next/image takes over sizing — avoids conflicting dimension hints
 
 ### Pending Todos
 
@@ -183,5 +196,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T02:22:01.595Z
-Stopped at: Completed 16-02-PLAN.md — bundle analysis and ISR review
+Last session: 2026-05-08T10:25:15.751Z
+Stopped at: Completed 19-02-PLAN.md — ProductsClient img to next/image migration
