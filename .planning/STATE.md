@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Performance — Active
-status: Migration written — pending Supabase application
-stopped_at: Completed 15-03-PLAN.md — migration 024 written, apply to Supabase when ready
-last_updated: "2026-05-08T01:44:37.523Z"
+status: executing
+stopped_at: Completed 16-02-PLAN.md — bundle analysis and ISR review
+last_updated: "2026-05-08T02:22:01.636Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 9
+  completed_plans: 7
   percent: 67
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 15 — database-indices
+**Current focus:** Phase 16 — frontend-performance
 
 ## Current Position
 
-Phase: 16
-Plan: Not started
-Status: Migration written — pending Supabase application
+Phase: 16 (frontend-performance) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-05-08
 
 Progress: [██████    ] 67% (v1.4 — 3/3 plans complete, migration pending)
@@ -83,6 +83,7 @@ Progress: [██████    ] 67% (v1.4 — 3/3 plans complete, migration p
 | Phase 15 P01 | 15min | 2 tasks | 3 files |
 | Phase 15 P02 | ~15min | 1 tasks | 2 files |
 | Phase 15 P03 | 5min | 2 tasks | 2 files |
+| Phase 16-frontend-performance P02 | 35 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -166,6 +167,7 @@ Recent decisions affecting current work:
 - [Phase 15]: menus(tenant_id), menus(slug), categories(menu_id), products(menu_id) confirmed missing — all causing Seq Scans on every public menu page load
 - [Phase 15-03]: Migration 024 written with 4 IF NOT EXISTS indices — pending Supabase SQL Editor application; orders/auth path has zero missing indices
 - [Phase 15-03]: UNIQUE(tenant_id, slug) composite on menus does not serve tenant_id-only or slug-only filters — both required separate single-column indices
+- [Phase 16-frontend-performance]: Retain revalidate=60 on public menu routes — appropriate for 0-10 daily menu changes; defers chunk 5346 Supabase browser client fix to Phase 17 (architectural change >2 files)
 
 ### Pending Todos
 
@@ -181,5 +183,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T01:42:00Z
-Stopped at: Completed 15-03-PLAN.md — migration 024 written, apply to Supabase when ready
+Last session: 2026-05-08T02:22:01.595Z
+Stopped at: Completed 16-02-PLAN.md — bundle analysis and ISR review

@@ -121,7 +121,7 @@ Plans:
 
 Plans:
 - [ ] 16-01-PLAN.md — Replace all img tags in MenuPage.tsx with next/image; add main landmark and aria-labels (FE-02, FE-01)
-- [ ] 16-02-PLAN.md — Bundle chunk 5536 investigation + ISR revalidate review and documentation (FE-04)
+- [x] 16-02-PLAN.md — Bundle chunk 5536 investigation + ISR revalidate review and documentation (FE-04)
 
 #### Phase 17: CI Gate
 **Goal**: No PR can regress Lighthouse scores below the targets established in Phase 16
@@ -142,5 +142,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 14. Instrumentacao | 1/3 | Complete    | 2026-05-08 |
 | 15. Database Indices | 1/3 | Complete    | 2026-05-08 |
-| 16. Frontend Performance | 0/2 | Not started | - |
+| 16. Frontend Performance | 1/2 | In Progress|  |
 | 17. CI Gate | 0/1 | Not started | - |
