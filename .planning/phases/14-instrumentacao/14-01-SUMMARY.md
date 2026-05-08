@@ -154,6 +154,13 @@ None - no external service configuration required.
 - Key optimization target: chunk `5536` (170.1 KB unnamed shared bundle) — investigate composition in Phase 16
 - Framework chunks (chunks 1-3 + main + polyfills = ~819 KB) are non-deferrable baseline overhead for all routes
 
+## Self-Check: PASSED
+
+- FOUND: `.next/analyze/client.html` (Test-Path True)
+- FOUND: `.next/analyze/nodejs.html` (Test-Path True)
+- FOUND: commit `db7126d` (task commit in worktree)
+- FOUND: `14-01-SUMMARY.md` at `.planning/phases/14-instrumentacao/14-01-SUMMARY.md`
+
 ---
 *Phase: 14-instrumentacao*
 *Completed: 2026-05-08*
