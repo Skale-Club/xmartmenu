@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Operations
-status: defining requirements
-stopped_at: Milestone v1.6 started — defining requirements
-last_updated: "2026-05-08T12:00:00.000Z"
+status: roadmap defined
+stopped_at: Roadmap created — Phase 21 and 22 defined
+last_updated: "2026-05-08T12:30:00.000Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 0
+  total_phases: 2
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -18,26 +18,24 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-07)
+See: .planning/PROJECT.md (updated 2026-05-08)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
 **Current focus:** v1.6 Operations — KDS dashboard + per-item notes
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 21 — KDS Dashboard (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-08 — Milestone v1.6 started
+Status: Roadmap defined, ready for plan-phase 21
+Last activity: 2026-05-08 — v1.6 roadmap created (Phases 21-22)
 
 ## Milestone Overview
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 14 | Instrumentacao | PERF-01, PERF-02, FE-03 | Not started |
-| 15 | Database Indices | DB-01, DB-02, DB-03 | Not started |
-| 16 | Frontend Performance | FE-01, FE-02, FE-04 | Not started |
-| 17 | CI Gate | PERF-03 | Not started |
+| 21 | KDS Dashboard | KDS-01, KDS-02, KDS-03, KDS-04, KDS-05 | Not started |
+| 22 | Realtime + Per-Item Notes | KDS-06, NOTE-01, NOTE-02, NOTE-03, NOTE-04 | Not started |
 
 ## Performance Metrics
 
@@ -168,6 +166,12 @@ Recent decisions affecting current work:
 - [Phase 15-03]: UNIQUE(tenant_id, slug) composite on menus does not serve tenant_id-only or slug-only filters — both required separate single-column indices
 - [Phase 16-frontend-performance]: Retain revalidate=60 on public menu routes — appropriate for 0-10 daily menu changes; defers chunk 5346 Supabase browser client fix to Phase 17 (architectural change >2 files)
 - [Phase 19-admin-next-image]: Remove Tailwind w-14 h-14 / w-16 h-16 from className when next/image takes over sizing — avoids conflicting dimension hints
+- [v1.6 Roadmap]: KDS grid/list toggle persists to localStorage per tenant — same localStorage pattern as existing direct_orders_enabled flag awareness
+- [v1.6 Roadmap]: Elapsed-time hook ticks every ~30s; amber threshold 10min, red threshold 20min — hardcoded for v1.6, configurable thresholds deferred to v1.7
+- [v1.6 Roadmap]: statusColors dict already exists in OrdersClient.tsx lines 9-15 — Phase 21 extends/relocates it to a shared constant
+- [v1.6 Roadmap]: Supabase Realtime filtered by tenant_id on orders table; polling at 15s interval as fallback — decision on primary vs fallback made in Phase 22
+- [v1.6 Roadmap]: item_notes_enabled flag follows same pattern as direct_orders_enabled on tenants/store_settings table
+- [v1.6 Roadmap]: order_items.notes TEXT — validated server-side (truncate at 140 chars, strip control chars); client textarea is UX-only guard
 
 ### Pending Todos
 
@@ -183,5 +187,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T10:25:15.751Z
-Stopped at: Completed 19-02-PLAN.md — ProductsClient img to next/image migration
+Last session: 2026-05-08T12:30:00.000Z
+Stopped at: v1.6 roadmap defined — Phase 21 (KDS Dashboard) and Phase 22 (Realtime + Per-Item Notes) created
