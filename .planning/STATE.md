@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Performance Gaps — Phases 28-29
-status: executing
-stopped_at: Completed 28-db-cdn/28-01-PLAN.md — profiles indices + CDN cache headers
-last_updated: "2026-05-08T18:58:00.000Z"
+status: completed
+stopped_at: Completed 28-db-cdn/28-01-PLAN.md — profiles indices (PERF-01/02/03) + CDN cache headers (PERF-04)
+last_updated: "2026-05-08T19:05:55.727Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 2
@@ -24,8 +24,8 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: 28 (DB + CDN) — COMPLETE
-Plan: 1 of 1 — COMPLETE
+Phase: 29
+Plan: Not started
 Status: Plan 28-01 complete — profiles indices (PERF-01/02/03) + CDN cache headers (PERF-04) shipped
 Last activity: 2026-05-08
 
