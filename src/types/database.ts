@@ -31,6 +31,8 @@ export interface TenantSettings {
   direct_orders_enabled: boolean
   item_notes_enabled: boolean  // NOTE-01: per-item notes feature flag (migration 025)
   ingredient_customization_enabled: boolean  // INGR-03: ingredient customization opt-in (migration 026)
+  amber_threshold_minutes: number  // KDS-07: amber urgency threshold in minutes (default 10)
+  red_threshold_minutes: number    // KDS-07: red urgency threshold in minutes (default 20)
   updated_at: string
   // AI-04: New fields added in migration 022
   business_type: string | null
