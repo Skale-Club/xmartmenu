@@ -28,6 +28,14 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
+## Current Milestone: v1.6 Operations
+
+**Goal:** Transformar o admin de pedidos numa superfície operacional real — KDS-style dashboard para a cozinha + notas por item no pedido.
+
+**Target features:**
+- KDS dashboard — grid de cards com status colorido, timer de tempo decorrido (>20min = vermelho), toggle grid/lista, Supabase Realtime ou polling 15s
+- Per-item notes — `order_items.notes TEXT`, flag `item_notes_enabled` por tenant, textarea no modal de produto, render no KDS e na tabela admin orders
+
 ## Current State
 
 **v1.5 Image Optimization shipped (2026-05-08)** — All image paths enforce WebP, admin migrated to `next/image`, storage is provider-abstracted.
@@ -165,4 +173,4 @@ Key changes in v1.5:
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-08 — v1.5 Image Optimization milestone complete*
+*Last updated: 2026-05-08 — v1.6 Operations milestone started*
