@@ -28,6 +28,15 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
+## Current Milestone: v1.9 Performance Gaps
+
+**Goal:** Fechar os gaps restantes do SEED-004 — índices em `profiles`, CDN headers nas imagens, decomposição do `MenuPage.tsx`.
+
+**Target features:**
+- Migration 028: índices em `profiles(tenant_id)`, `profiles(role)`, `profiles(tenant_id, role)` — eliminam scan em RLS helpers `auth_tenant_id()` e `is_superadmin()` em toda query
+- CDN `Cache-Control: public, max-age=31536000, immutable` nas imagens do Supabase Storage
+- `MenuPage.tsx` decomposição: extrair `ProductModal`, `CartModal`, `OrderForm` como componentes separados
+
 ## Current State
 
 **v1.8 KDS+ shipped (2026-05-08)** — SEED-007 fully complete: configurable time thresholds, filter chips, Web Audio beep alert.
