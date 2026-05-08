@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 26-schema-settings/26-01-PLAN.md — migration 027, useElapsedTime parameterised, StoreClient KDS section
-last_updated: "2026-05-08T17:48:21.656Z"
+stopped_at: Completed 27-filter-chips-sound/27-01-PLAN.md — filter chips, Web Audio beep, mute button
+last_updated: "2026-05-08T18:02:46.931Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 2
-  completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  completed_phases: 2
+  total_plans: 2
+  completed_plans: 2
 ---
 
 # Project State
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 ## Current Position
 
 Phase: 27
-Plan: Not started
-Status: Plan 26-01 complete — KDS threshold schema + settings UI shipped
+Plan: 01 complete
+Status: Plan 27-01 complete — filter chips, Web Audio beep, mute button shipped; v1.8 KDS+ milestone complete
 Last activity: 2026-05-08
 
 ## Milestone Overview
@@ -34,7 +34,7 @@ Last activity: 2026-05-08
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 26 | Schema + Settings | KDS-07, KDS-08, KDS-09 | Plan 01 complete |
-| 27 | Filter Chips + Sound | KDS-10, KDS-11, KDS-12, KDS-13 | Not started |
+| 27 | Filter Chips + Sound | KDS-10, KDS-11, KDS-12, KDS-13 | Plan 01 complete |
 
 ## Performance Metrics
 
@@ -89,6 +89,7 @@ Last activity: 2026-05-08
 | Phase 25 P01 | 4min | 2 tasks | 4 files |
 | Phase 25 P02 | 2min | 1 tasks | 1 files |
 | Phase 26 P01 | ~2.5min | 2 tasks | 7 files |
+| Phase 27 P01 | 176 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -218,6 +219,9 @@ Recent decisions affecting current work:
 - [Phase 26-01]: orders/page.tsx uses Promise.all for parallel fetch of orders + tenant_settings thresholds — zero added latency
 - [Phase 26-01]: StoreClient KDS validation: amber >= red and either <= 0 block upsert — prevents nonsensical KDS config reaching DB
 - [Phase 26-01]: Migration 027 applied via node scripts/apply-migration-027.mjs using DATABASE_URL from .env.local
+- [Phase 27]: DEFAULT_FILTER='pending' (not array) — chips mutually exclusive; single active filter per v1.8 Roadmap decision
+- [Phase 27]: mutedRef synced via useEffect([muted]) — avoids re-subscribing Realtime channel on every mute toggle (stale closure prevention)
+- [Phase 27]: AudioContext created lazily inside playBeep() — browser autoplay policy requires user gesture before AudioContext creation
 
 ### Pending Todos
 
@@ -233,5 +237,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T18:03:00.000Z
-Stopped at: Completed 26-schema-settings/26-01-PLAN.md — migration 027, useElapsedTime parameterised, StoreClient KDS section
+Last session: 2026-05-08T18:02:46.918Z
+Stopped at: Completed 27-filter-chips-sound/27-01-PLAN.md — filter chips, Web Audio beep, mute button

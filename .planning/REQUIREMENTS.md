@@ -8,13 +8,13 @@
 
 ## Filter Chips
 
-- [ ] **KDS-10**: KDS exibe chips de filtro acima do grid: "Pendentes" (`pending`), "Em preparo" (`preparing`), "Prontos" (`ready`), "Todos" — padrão `['pending', 'preparing']`; filtro aplicado localmente sobre os pedidos já carregados
-- [ ] **KDS-11**: Filtro ativo persiste em localStorage por tenant (`kds_filter_{tenantId}`); restaurado ao montar o componente via `useEffect`
+- [x] **KDS-10**: KDS exibe chips de filtro acima do grid: "Pendentes" (`pending`), "Em preparo" (`preparing`), "Prontos" (`ready`), "Todos" — padrão `['pending', 'preparing']`; filtro aplicado localmente sobre os pedidos já carregados
+- [x] **KDS-11**: Filtro ativo persiste em localStorage por tenant (`kds_filter_{tenantId}`); restaurado ao montar o componente via `useEffect`
 
 ## Alerta Sonoro
 
-- [ ] **KDS-12**: KDS emite um beep via Web Audio API (`AudioContext`) quando um novo pedido `pending` chega via Realtime INSERT; não toca quando `muted` está ativo; não toca para status updates (só INSERT)
-- [ ] **KDS-13**: Botão mute/unmute no cabeçalho do KDS (ícone Bell/BellOff de lucide-react); estado `muted` persiste em localStorage (`kds_mute_{tenantId}`)
+- [x] **KDS-12**: KDS emite um beep via Web Audio API (`AudioContext`) quando um novo pedido `pending` chega via Realtime INSERT; não toca quando `muted` está ativo; não toca para status updates (só INSERT)
+- [x] **KDS-13**: Botão mute/unmute no cabeçalho do KDS (ícone Bell/BellOff de lucide-react); estado `muted` persiste em localStorage (`kds_mute_{tenantId}`)
 
 ## Out of Scope
 
@@ -30,7 +30,7 @@
 | KDS-07 | Phase 26 | Done (26-01) |
 | KDS-08 | Phase 26 | Done (26-01) |
 | KDS-09 | Phase 26 | Done (26-01) |
-| KDS-10 | Phase 27 | Pending |
-| KDS-11 | Phase 27 | Pending |
-| KDS-12 | Phase 27 | Pending |
-| KDS-13 | Phase 27 | Pending |
+| KDS-10 | Phase 27 | Complete |
+| KDS-11 | Phase 27 | Complete |
+| KDS-12 | Phase 27 | Complete |
+| KDS-13 | Phase 27 | Complete |
