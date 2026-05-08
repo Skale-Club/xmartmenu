@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Image Optimization
-status: idle
-stopped_at: v1.5 SHIPPED — all phases complete, migration 024 applied to production
-last_updated: "2026-05-08T11:30:00.000Z"
+status: Idle — v1.5 milestone shipped
+stopped_at: Completed 19-02-PLAN.md — ProductsClient img to next/image migration
+last_updated: "2026-05-08T11:31:54.712Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 20
-  completed_phases: 20
-  total_plans: 41
-  completed_plans: 41
+  total_phases: 18
+  completed_phases: 15
+  total_plans: 38
+  completed_plans: 38
   percent: 100
 ---
 
