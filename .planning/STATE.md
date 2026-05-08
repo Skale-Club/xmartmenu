@@ -1,16 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-stopped_at: Completed 27-filter-chips-sound/27-01-PLAN.md — filter chips, Web Audio beep, mute button
-last_updated: "2026-05-08T18:29:23.160Z"
+milestone: v1.9
+milestone_name: Performance Gaps
+status: defining requirements
+stopped_at: Milestone v1.9 started — defining requirements
+last_updated: "2026-05-08T19:00:00.000Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-08)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.8 KDS+ — thresholds configuráveis, filter chips, alerta sonoro
+**Current focus:** v1.9 Performance Gaps — profiles indices, CDN headers, MenuPage decomposição
 
 ## Current Position
 
-Phase: 27
-Plan: Not started
-Status: Plan 27-01 complete — filter chips, Web Audio beep, mute button shipped; v1.8 KDS+ milestone complete
-Last activity: 2026-05-08
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-08 — Milestone v1.9 started
 
 ## Milestone Overview
 
