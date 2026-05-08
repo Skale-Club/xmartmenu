@@ -29,7 +29,10 @@
   3. `tenant_settings.ingredient_customization_enabled` column exists and defaults to false; existing tenants are unaffected
   4. `order_items.ingredient_modifications` JSONB column exists, accepts null, and the TypeScript `OrderItem` type reflects it
   5. All four new/extended DB entities have TypeScript types in `src/types/database.ts` matching the column definitions
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 23-01-PLAN.md — Migration 026 (SQL + apply) and TypeScript type extensions
 
 ### Phase 24: Admin Catalog
 **Goal**: A store admin with `ingredient_customization_enabled` active can manage their ingredient catalog and assign ingredients to products with per-product price overrides
@@ -61,7 +64,7 @@
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 23. Ingredient Schema | 0/? | Not started | - |
+| 23. Ingredient Schema | 0/1 | Not started | - |
 | 24. Admin Catalog | 0/? | Not started | - |
 | 25. Customer + Kitchen | 0/? | Not started | - |
 
