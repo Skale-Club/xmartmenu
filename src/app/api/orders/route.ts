@@ -17,6 +17,15 @@ interface CreateOrderRequest {
   items: OrderItem[]
 }
 
+function sanitizeNote(raw: string | undefined | null): string | null {
+  if (!raw) return null
+  // Strip control chars (0x00-0x08, 0x0B-0x1F, 0x7F) — preserve tab (0x09) and newline (0x0A)
+  const stripped = raw.replace(/[\x00-\x08\x0B-\x1F\x7F]/g, '')
+  const trimmed = stripped.trim()
+  if (!trimmed) return null
+  return trimmed.slice(0, 140)
+}
+
 export async function POST(request: Request) {
   try {
     const body: CreateOrderRequest = await request.json()
@@ -78,7 +87,7 @@ export async function POST(request: Request) {
       product_name: item.product_name,
       quantity: item.quantity,
       unit_price: item.unit_price,
-      notes: item.notes || null,
+      notes: sanitizeNote(item.notes),
       selected_options: item.selected_options || null,
     }))
 
