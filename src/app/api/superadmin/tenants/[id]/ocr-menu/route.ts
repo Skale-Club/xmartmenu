@@ -5,6 +5,7 @@ import { openai } from '@ai-sdk/openai'
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { OcrMenuSchema } from '@/lib/ai/schemas'
+import { getStorageClient } from '@/lib/storage'
 
 // Node.js runtime required — @ai-sdk/openai uses native Node APIs (D-04 constraint)
 export const runtime = 'nodejs'
@@ -45,22 +46,22 @@ export async function POST(
     .eq('id', tenantId)
     .single()
 
-  // Download image from Supabase Storage
-  const { data: blob, error: downloadError } = await service.storage
-    .from('tenant-assets')
-    .download(storagePath)
-
-  if (downloadError || !blob) {
+  // Download image from storage
+  let imageBuffer: Buffer
+  try {
+    imageBuffer = await getStorageClient().download('tenant-assets', storagePath)
+  } catch (downloadError) {
     return NextResponse.json(
-      { error: `Failed to download menu image: ${downloadError?.message ?? 'Unknown error'}` },
+      { error: `Failed to download menu image: ${downloadError instanceof Error ? downloadError.message : 'Unknown error'}` },
       { status: 500 }
     )
   }
 
-  // Convert Blob to base64 for AI SDK vision message
-  const arrayBuffer = await blob.arrayBuffer()
-  const base64 = Buffer.from(arrayBuffer).toString('base64')
-  const mimeType = blob.type || 'image/jpeg'
+  // Convert Buffer to base64 for AI SDK vision message
+  const base64 = imageBuffer.toString('base64')
+  // Infer mime type from storage path extension
+  const ext = storagePath.split('.').pop()?.toLowerCase()
+  const mimeType = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
   const imageUrl = `data:${mimeType};base64,${base64}`
 
   let categoriesCreated = 0

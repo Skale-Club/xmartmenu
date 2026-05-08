@@ -1,6 +1,6 @@
-import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { validateAndConvertToWebP } from '@/lib/upload'
+import { getStorageClient } from '@/lib/storage'
 import { NextResponse } from 'next/server'
 
 export async function POST(
@@ -19,17 +19,20 @@ export async function POST(
   const conversion = await validateAndConvertToWebP(file)
   if (conversion.error) return NextResponse.json({ error: conversion.error }, { status: 400 })
 
-  const bucket = 'tenant-assets'
+  // After error check, buffer is guaranteed present by the discriminated union
+  const webpBuffer = conversion.buffer as Buffer
   const filename = `${id}/${type}.webp`
-  const blob = new Blob([conversion.buffer], { type: 'image/webp' })
 
-  const service = await createServiceClient()
-  const { data, error } = await service.storage
-    .from(bucket)
-    .upload(filename, blob, { upsert: true, contentType: 'image/webp' })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  const { data: { publicUrl } } = service.storage.from(bucket).getPublicUrl(data.path)
-  return NextResponse.json({ url: publicUrl })
+  try {
+    const publicUrl = await getStorageClient().upload('tenant-assets', filename, webpBuffer, {
+      contentType: 'image/webp',
+      upsert: true,
+    })
+    return NextResponse.json({ url: publicUrl })
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Upload failed' },
+      { status: 500 }
+    )
+  }
 }

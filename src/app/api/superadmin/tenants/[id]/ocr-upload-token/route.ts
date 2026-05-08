@@ -1,9 +1,9 @@
-import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
+import { getStorageClient } from '@/lib/storage'
 import { NextResponse } from 'next/server'
 
 // GET /api/superadmin/tenants/[id]/ocr-upload-token?filename=menu.jpg
-// Returns { uploadUrl, storagePath } for direct browser upload to Supabase Storage.
+// Returns { uploadUrl, storagePath } for direct browser upload to storage.
 // Bypasses Vercel 4.5 MB serverless body limit (PITFALLS.md Pitfall 4, D-01).
 export async function GET(
   request: Request,
@@ -23,21 +23,19 @@ export async function GET(
   const timestamp = Date.now()
   const storagePath = `${tenantId}/ocr/${timestamp}.${ext}`
 
-  const service = await createServiceClient()
-  const { data, error } = await service.storage
-    .from('tenant-assets')
-    .createSignedUploadUrl(storagePath)
+  try {
+    const { url, token } = await getStorageClient().createSignedUploadUrl('tenant-assets', storagePath)
 
-  if (error || !data) {
+    // Return uploadUrl + storagePath; token included for Supabase provider compatibility
+    return NextResponse.json({
+      uploadUrl: url,
+      storagePath,
+      ...(token !== undefined ? { token } : {}),
+    })
+  } catch (err) {
     return NextResponse.json(
-      { error: `Failed to create upload URL: ${error?.message ?? 'Unknown error'}` },
+      { error: `Failed to create upload URL: ${err instanceof Error ? err.message : 'Unknown error'}` },
       { status: 500 }
     )
   }
-
-  // data = { signedUrl, token, path }
-  return NextResponse.json({
-    uploadUrl: data.signedUrl,
-    storagePath: data.path,
-  })
 }
