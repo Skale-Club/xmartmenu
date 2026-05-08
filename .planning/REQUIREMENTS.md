@@ -20,7 +20,7 @@
 
 ## Kitchen Display
 
-- [ ] **INGR-10**: KDS card e modal admin orders renderizam `ingredient_modifications` de forma destacada — ingredientes removidos com prefixo "SEM" (vermelho/strikethrough), extras com "+qty" (âmbar), adicionados com "+" (verde)
+- [x] **INGR-10**: KDS card e modal admin orders renderizam `ingredient_modifications` de forma destacada — ingredientes removidos com prefixo "SEM" (vermelho/strikethrough), extras com "+qty" (âmbar), adicionados com "+" (verde)
 
 ## Out of Scope
 
@@ -44,4 +44,4 @@
 | INGR-07 | Phase 25 | Complete |
 | INGR-08 | Phase 25 | Complete |
 | INGR-09 | Phase 25 | Complete |
-| INGR-10 | Phase 25 | Pending |
+| INGR-10 | Phase 25 | Complete |
