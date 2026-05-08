@@ -2,9 +2,9 @@
 
 ## KDS Thresholds
 
-- [ ] **KDS-07**: `tenant_settings` recebe `amber_threshold_minutes INT NOT NULL DEFAULT 10` e `red_threshold_minutes INT NOT NULL DEFAULT 20` — migration 027 com `IF NOT EXISTS`
-- [ ] **KDS-08**: Admin configura os thresholds no Store Settings — dois campos numéricos (1-120 min) com validação server-side: `amber < red`, ambos `> 0`; salva via upsert existente
-- [ ] **KDS-09**: `useElapsedTime` hook aceita `amberMinutes` e `redMinutes` como props (em vez de constantes hardcoded `AMBER_MINUTES=10`, `RED_MINUTES=20`); `OrdersClient` passa os valores do tenant
+- [x] **KDS-07**: `tenant_settings` recebe `amber_threshold_minutes INT NOT NULL DEFAULT 10` e `red_threshold_minutes INT NOT NULL DEFAULT 20` — migration 027 com `IF NOT EXISTS`
+- [x] **KDS-08**: Admin configura os thresholds no Store Settings — dois campos numéricos (1-120 min) com validação server-side: `amber < red`, ambos `> 0`; salva via upsert existente
+- [x] **KDS-09**: `useElapsedTime` hook aceita `amberMinutes` e `redMinutes` como props (em vez de constantes hardcoded `AMBER_MINUTES=10`, `RED_MINUTES=20`); `OrdersClient` passa os valores do tenant
 
 ## Filter Chips
 
@@ -27,9 +27,9 @@
 
 | Req ID | Phase | Status |
 |--------|-------|--------|
-| KDS-07 | Phase 26 | Pending |
-| KDS-08 | Phase 26 | Pending |
-| KDS-09 | Phase 26 | Pending |
+| KDS-07 | Phase 26 | Done (26-01) |
+| KDS-08 | Phase 26 | Done (26-01) |
+| KDS-09 | Phase 26 | Done (26-01) |
 | KDS-10 | Phase 27 | Pending |
 | KDS-11 | Phase 27 | Pending |
 | KDS-12 | Phase 27 | Pending |

@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: KDS+
-status: roadmap ready
-stopped_at: Roadmap created — Phase 26 and 27 defined, ready for plan-phase
-last_updated: "2026-05-08T17:30:00.000Z"
+status: in progress
+stopped_at: "Completed 26-schema-settings/26-01-PLAN.md"
+last_updated: "2026-05-08T18:03:00.000Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 2
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 1
+  completed_plans: 1
+  percent: 50
 ---
 
 # Project State
@@ -25,16 +25,16 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: Phase 26 (not started)
-Plan: —
-Status: Roadmap ready — awaiting plan-phase
-Last activity: 2026-05-08 — Roadmap created for v1.8 KDS+
+Phase: Phase 26 (in progress)
+Plan: 26-01 complete, next: Phase 27
+Status: Plan 26-01 complete — KDS threshold schema + settings UI shipped
+Last activity: 2026-05-08 — Plan 26-01 executed (migration 027, useElapsedTime parameterised, StoreClient KDS section)
 
 ## Milestone Overview
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 26 | Schema + Settings | KDS-07, KDS-08, KDS-09 | Not started |
+| 26 | Schema + Settings | KDS-07, KDS-08, KDS-09 | Plan 01 complete |
 | 27 | Filter Chips + Sound | KDS-10, KDS-11, KDS-12, KDS-13 | Not started |
 
 ## Performance Metrics
@@ -89,6 +89,7 @@ Last activity: 2026-05-08 — Roadmap created for v1.8 KDS+
 | Phase 24 P02 | 5 | 2 tasks | 2 files |
 | Phase 25 P01 | 4min | 2 tasks | 4 files |
 | Phase 25 P02 | 2min | 1 tasks | 1 files |
+| Phase 26 P01 | ~2.5min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -214,6 +215,10 @@ Recent decisions affecting current work:
 - [v1.8 Roadmap]: Filter chips are mutually exclusive (not multi-select); default active set is [pending, preparing] — done/cancelled hidden by default
 - [v1.8 Roadmap]: Web Audio API beep fires only on Realtime INSERT events, not on status-update payloads; AudioContext created lazily on first user interaction to satisfy browser autoplay policy
 - [v1.8 Roadmap]: kds_filter_{tenantId} and kds_mute_{tenantId} are the localStorage keys — consistent with existing kds_view_{tenantId} pattern
+- [Phase 26-01]: useElapsedTime accepts amberMinutes/redMinutes with defaults 10/20 — backward-compatible; no existing callers break
+- [Phase 26-01]: orders/page.tsx uses Promise.all for parallel fetch of orders + tenant_settings thresholds — zero added latency
+- [Phase 26-01]: StoreClient KDS validation: amber >= red and either <= 0 block upsert — prevents nonsensical KDS config reaching DB
+- [Phase 26-01]: Migration 027 applied via node scripts/apply-migration-027.mjs using DATABASE_URL from .env.local
 
 ### Pending Todos
 
@@ -229,5 +234,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T17:30:00.000Z
-Stopped at: Roadmap created for v1.8 KDS+ — Phase 26 (Schema + Settings) and Phase 27 (Filter Chips + Sound) defined
+Last session: 2026-05-08T18:03:00.000Z
+Stopped at: Completed 26-schema-settings/26-01-PLAN.md — migration 027, useElapsedTime parameterised, StoreClient KDS section
