@@ -9,7 +9,7 @@
 - ✅ **v1.4 Performance** — Phases 14-17 (shipped 2026-05-08)
 - ✅ **v1.5 Image Optimization** — Phases 18-20 (shipped 2026-05-08)
 - ✅ **v1.6 Operations** — Phases 21-22 (shipped 2026-05-08)
-- 🔄 **v1.7 Customization** — Phases 23-25 (in progress)
+- ✅ **v1.7 Customization** — Phases 23-25 (shipped 2026-05-08)
 
 ## Phases
 
@@ -63,16 +63,16 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 25-01-PLAN.md — Server pages ingredient fetch + MenuPage customization panel + cart/API pipeline (INGR-07, INGR-08, INGR-09)
-- [ ] 25-02-PLAN.md — KDS OrderCard + admin orders modal ingredient_modifications rendering (INGR-10)
+- [x] 25-01-PLAN.md — Server pages ingredient fetch + MenuPage customization panel + cart/API pipeline (INGR-07, INGR-08, INGR-09)
+- [x] 25-02-PLAN.md — KDS OrderCard + admin orders modal ingredient_modifications rendering (INGR-10)
 
 ## Progress Table
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 23. Ingredient Schema | 0/1 | Complete    | 2026-05-08 |
+| 23. Ingredient Schema | 1/1 | Complete    | 2026-05-08 |
 | 24. Admin Catalog | 2/2 | Complete    | 2026-05-08 |
-| 25. Customer + Kitchen | 0/2 | Not started | - |
+| 25. Customer + Kitchen | 2/2 | Complete | 2026-05-08 |
 
 ## Completed Milestones
 
