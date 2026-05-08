@@ -28,19 +28,17 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v1.7 Customization
-
-**Goal:** Permitir que clientes personalizem pedidos ao nível do ingrediente — catálogo normalizado por tenant, painel +/− no modal de produto, modificações visíveis no KDS e admin orders.
-
-**Target features:**
-- Catálogo `ingredients` + join `product_ingredients` com flag `is_default`, preços e posição; flag `ingredient_customization_enabled` por tenant
-- Admin: página `/admin/menu/ingredients` (CRUD) + tab "Ingredientes" no editor de produto (multi-select picker)
-- Customer: painel de personalização no `ProductModal` com chips, steppers e "Adicionar ingrediente"; persist em `order_items.ingredient_modifications JSONB`
-- Kitchen: modificações renderizadas no KDS card e admin orders (SEM/+extra destacados)
-
 ## Current State
 
-**v1.6 Operations shipped (2026-05-08)** — Admin orders transformed into a real-time KDS; customers can attach per-item notes.
+**v1.7 Customization shipped (2026-05-08)** — Full McDonald's-style ingredient customization: catalog, admin panel, customer stepper UI, and kitchen display.
+
+Key changes in v1.7:
+- Migration 026: `ingredients` + `product_ingredients` tables with RLS + `ingredient_customization_enabled` flag + `ingredient_modifications JSONB` on `order_items`
+- `/admin/menu/ingredients` CRUD (flag-gated) + "Ingredientes" tab in product editor (multi-select picker, `is_default` toggle, per-product price overrides)
+- `ProductModal`: stepper chips −/0/+ for default ingredients + inline "Adicionar ingrediente" picker; live price delta; `buildIngredientModifications` → JSONB → DB
+- KDS OrderCard + admin orders modal: "SEM [name]" red/strikethrough, "+qty [name]" amber, "+qty [name]" green
+
+*v1.6 Operations (2026-05-08)*: KDS dashboard, Supabase Realtime, per-item notes.
 
 Key changes in v1.6:
 - `useElapsedTime` hook (30s tick) + corrected `STATUS_COLORS` (pending=blue) + `OrderCard` grid — KDS card view for kitchen tablet
@@ -142,13 +140,22 @@ Key changes in v1.5:
 - ✓ `sanitizeNote` server-side (strip control chars, trim, cap 140) on orders POST — Phase 22
 - ✓ Migration 025 applied: `order_items.notes`, `tenant_settings.item_notes_enabled`, Realtime publication — Phase 22
 
+### Validated — v1.7
+
+- ✓ Migration 026: `ingredients`, `product_ingredients`, `ingredient_customization_enabled`, `ingredient_modifications JSONB` with RLS — Phase 23
+- ✓ `/admin/menu/ingredients` CRUD (flag-gated) + ChevronUp/Down reorder + Ingredientes nav in sidebar — Phase 24
+- ✓ "Ingredientes" tab in product editor: multi-select picker + `is_default` toggle + per-product price overrides — Phase 24
+- ✓ Customer customization panel in `ProductModal`: stepper chips + "Adicionar ingrediente" inline picker + live price delta — Phase 25
+- ✓ `buildIngredientModifications` → null when empty → JSONB persisted in `order_items` — Phase 25
+- ✓ KDS card + admin orders modal render SEM/extras/additions with color-coded text — Phase 25
+
 ### Deferred (seeds)
 
 - SEED-003 — Stripe Connect payments (tenant-owned accounts)
 - SEED-004 — Full performance milestone (DB indices, RUM, Lighthouse budget)
 - SEED-005 — ✅ Marketing landing page (shipped v1.3)
 - SEED-007 Phase B — KDS configurable time thresholds + sound alerts
-- SEED-008 — Ingredient catalog + McDonald's-style customization (Phases A-C)
+- SEED-008 Phase D — ✅ per-item notes (shipped v1.6)
 
 ### Out of Scope
 
@@ -193,10 +200,14 @@ Key changes in v1.5:
 | Follow-up query after Realtime INSERT | INSERT payload carries only `orders` row — must re-fetch with `order_items(*)` join | ✓ Shipped v1.6 |
 | `item_notes_enabled` on `tenant_settings` | Same pattern as `direct_orders_enabled`; opt-in per tenant | ✓ Shipped v1.6 |
 | `CartItem.note` excluded from `buildCartKey` | Same product+options merges; re-adding replaces note (not creates duplicate slot) | ✓ Shipped v1.6 |
+| `ingredients` catalog separate from `product_option_groups` | Ingredient semantics (default-on/tweak) vs option group semantics (pick-one-of-N) diverge enough to warrant separate tables | ✓ Shipped v1.7 |
+| `buildIngredientModifications` returns `null` when all arrays empty | Store null, not `{}` — DB cleaner, display guard simpler (`hasAny`) | ✓ Shipped v1.7 |
+| "Adicionar ingrediente" as inline expandable (not modal) | Avoids z-index conflicts inside the existing product overlay | ✓ Shipped v1.7 |
+| Price override `defaultValue + onBlur` (not controlled) | Avoids per-keystroke DB writes; empty field → `null` → catalog default | ✓ Shipped v1.7 |
 
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-08 — v1.7 Customization milestone started*
+*Last updated: 2026-05-08 — v1.7 Customization milestone complete*
