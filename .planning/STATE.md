@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: "Roadmap defined — ready for /gsd:plan-phase 23"
-stopped_at: Completed 24-02-PLAN.md — product editor tab bar + Ingredientes tab (INGR-06)
-last_updated: "2026-05-08T15:04:24.260Z"
+stopped_at: Completed 25-01-PLAN.md — customer customization panel + ingredient_modifications pipeline (INGR-07/08/09)
+last_updated: "2026-05-08T16:14:00.000Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 3
@@ -25,8 +25,8 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 ## Current Position
 
 Phase: 25
-Plan: Not started
-Status: Roadmap defined — ready for /gsd:plan-phase 23
+Plan: 01 complete
+Status: 25-01 complete — INGR-07/08/09 satisfied; INGR-10 (KDS rendering) is next
 Last activity: 2026-05-08
 
 ## Milestone Overview
@@ -87,6 +87,7 @@ Last activity: 2026-05-08
 | Phase 23 P01 | 98s | 2 tasks | 2 files |
 | Phase 24 P01 | 7min | 2 tasks | 4 files |
 | Phase 24 P02 | 5 | 2 tasks | 2 files |
+| Phase 25 P01 | 4min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -202,6 +203,11 @@ Recent decisions affecting current work:
 - [Phase 24]: Tab bar pattern with activeTab state drives conditional card rendering (details/options/ingredients) — zero complexity, clean separation
 - [Phase 24]: defaultValue + onBlur on price override inputs avoids React controlled/uncontrolled conflict on independent per-row updates
 - [Phase 24]: empty string maps to null (val !== '' ? parseFloat(val) : null) — explicit contract for catalog default_extra_price fallback
+- [Phase 25]: buildCartKey unchanged — modifications are slot metadata, not key dimensions; same product+options = same cart slot regardless of modifications
+- [Phase 25]: buildIngredientModifications returns null when all arrays empty — avoids empty JSONB being truthy in KDS/modal checks
+- [Phase 25]: ingredientDelta IIFE placed after computedUnitPrice IIFE — finalUnitPrice = computedUnitPrice + ingredientDelta
+- [Phase 25]: Inline expandable picker (not a new modal) for Adicionar ingrediente — avoids z-index stacking in fixed overlay modal
+- [Phase 25]: Both public server pages fetch product_ingredients for parity — [slug]/page.tsx passes no optionGroupsByProductId but still fetches ingredients when flag is on
 
 ### Pending Todos
 
