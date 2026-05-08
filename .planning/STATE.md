@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Customization
-status: defining requirements
-stopped_at: Milestone v1.7 started — defining requirements
-last_updated: "2026-05-08T14:00:00.000Z"
+status: roadmap defined
+stopped_at: Milestone v1.7 roadmap created — Phases 23-25 defined, ready for plan-phase 23
+last_updated: "2026-05-08T14:30:00.000Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,21 +21,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-08)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.7 Customization — catálogo de ingredientes + painel McDonald's-style
+**Current focus:** v1.7 Customization — catálogo de ingredientes + painel McDonald's-style + KDS rendering
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 23 (not started)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-05-08 — Milestone v1.7 started
+Status: Roadmap defined — ready for /gsd:plan-phase 23
+Last activity: 2026-05-08 — v1.7 roadmap created (Phases 23-25)
 
 ## Milestone Overview
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 21 | KDS Dashboard | KDS-01, KDS-02, KDS-03, KDS-04, KDS-05 | In progress (Plan 01/02 done) |
-| 22 | Realtime + Per-Item Notes | KDS-06, NOTE-01, NOTE-02, NOTE-03, NOTE-04 | Not started |
+| 23 | Ingredient Schema | INGR-01, INGR-02, INGR-03, INGR-04 | Not started |
+| 24 | Admin Catalog | INGR-05, INGR-06 | Not started |
+| 25 | Customer + Kitchen | INGR-07, INGR-08, INGR-09, INGR-10 | Not started |
 
 ## Performance Metrics
 
@@ -184,6 +185,13 @@ Recent decisions affecting current work:
 - [Phase 22]: Run Realtime and polling simultaneously — Realtime for instant updates, polling at 15s as safety net covering status changes and gaps
 - [Phase 22]: Follow-up query on INSERT payload.new.id fetches full order+items — avoids empty items list on new KDS cards (Pitfall 1)
 - [Phase 22]: Migration 025 applied manually via Supabase SQL Editor (local Docker not available — consistent with all prior migrations)
+- [v1.7 Roadmap]: extra_price_override ?? default_extra_price rule — null override means use catalog default; zero override means explicitly free
+- [v1.7 Roadmap]: ingredient_modifications JSONB structure: {removed:[{ingredient_id, name}], extras:[{ingredient_id, name, qty, unit_price}], added:[{ingredient_id, name, qty, unit_price}]}
+- [v1.7 Roadmap]: Removal is always free in v1.7 — charging for removal deferred to v1.8
+- [v1.7 Roadmap]: Ingredient catalog is always via /admin/menu/ingredients page — no inline ingredient creation in product editor
+- [v1.7 Roadmap]: PT-BR labels: "Ingredientes", "Padrão do produto", "Adicionar ingrediente", "SEM cebola", "Extra queijo"
+- [v1.7 Roadmap]: Phase 24 UI gated by ingredient_customization_enabled on tenant_settings — same opt-in pattern as item_notes_enabled
+- [v1.7 Roadmap]: Phase 25 customer panel slot is below option groups in ProductModal — same pattern as notes textarea added in v1.6
 
 ### Pending Todos
 
@@ -199,5 +207,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T12:47:26.479Z
-Stopped at: Completed 22-01-PLAN.md — Realtime subscription + 15s polling + per-item notes display (KDS-06, NOTE-04 satisfied)
+Last session: 2026-05-08T14:30:00.000Z
+Stopped at: v1.7 roadmap created — Phases 23-25 defined. Next: /gsd:plan-phase 23
