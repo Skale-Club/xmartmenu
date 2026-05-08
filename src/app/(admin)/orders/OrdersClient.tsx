@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderItem } from '@/types/database'
 import { useElapsedTime } from './useElapsedTime'
-import { LayoutGrid, List } from 'lucide-react'
+import { LayoutGrid, List, MessageSquare } from 'lucide-react'
 
 type OrderWithItems = Order & { order_items: OrderItem[] }
 
@@ -77,7 +77,15 @@ function OrderCard({
       {/* Items summary */}
       <ul className="text-xs text-zinc-700 space-y-0.5">
         {order.order_items.map((item, i) => (
-          <li key={i}>{item.quantity}x {item.product_name}</li>
+          <li key={i} className="flex flex-col gap-0.5">
+            <span>{item.quantity}x {item.product_name}</span>
+            {item.notes && (
+              <span className="text-xs text-zinc-500 italic flex items-center gap-1">
+                <MessageSquare size={10} className="flex-shrink-0" />
+                {item.notes}
+              </span>
+            )}
+          </li>
         ))}
       </ul>
 
@@ -124,6 +132,53 @@ export default function OrdersClient({ initialOrders, tenantId }: OrdersClientPr
   useEffect(() => {
     const saved = localStorage.getItem(KDS_VIEW_KEY(tenantId))
     if (saved === 'grid' || saved === 'list') setView(saved)
+  }, [tenantId])
+
+  // Realtime subscription — primary path for KDS-06
+  useEffect(() => {
+    const channel = supabase
+      .channel(`orders-realtime-${tenantId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        async (payload) => {
+          // Pitfall 1: payload.new does NOT include order_items — must fetch full order
+          const { data: fullOrder } = await supabase
+            .from('orders')
+            .select('*, order_items(*)')
+            .eq('id', (payload.new as { id: string }).id)
+            .single()
+          if (fullOrder) {
+            setOrders((prev) => {
+              // Idempotent: ignore if already present (handles polling race)
+              if (prev.some((o) => o.id === fullOrder.id)) return prev
+              return [fullOrder as OrderWithItems, ...prev]
+            })
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [tenantId, supabase])
+
+  // Polling fallback — 15s safety net covers Realtime gaps and status refreshes
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const res = await fetch(`/api/orders?tenant_id=${tenantId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setOrders(data.orders)
+      }
+    }, 15_000)
+    return () => clearInterval(id)
   }, [tenantId])
 
   function toggleView(next: 'grid' | 'list') {
@@ -275,6 +330,12 @@ export default function OrdersClient({ initialOrders, tenantId }: OrdersClientPr
                               .join(' · ')}
                           </span>
                         )}
+                      {item.notes && (
+                        <span className="text-xs text-zinc-500 italic flex items-center gap-1 mt-0.5">
+                          <MessageSquare size={10} className="flex-shrink-0" />
+                          {item.notes}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
