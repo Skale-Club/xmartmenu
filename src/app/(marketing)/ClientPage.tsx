@@ -94,10 +94,10 @@ function Nav() {
           <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">XmartMenu</span>
         </div>
         <a
-          href="/auth/register"
+          href="/auth/login"
           className="relative group overflow-hidden bg-white text-zinc-950 px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2"
         >
-          <span className="relative z-10">Get started</span>
+          <span className="relative z-10">Sign In</span>
           <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
         </a>
       </div>
@@ -152,10 +152,10 @@ function Hero() {
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <a
-            href="/auth/register"
+            href="/auth/login"
             className="w-full sm:w-auto inline-flex items-center justify-center bg-white text-zinc-950 px-8 py-4 rounded-full text-lg font-bold hover:bg-zinc-200 transition-colors shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.3)]"
           >
-            Get started free
+            Sign in to dashboard
           </a>
           <a
             href="#how-it-works"
@@ -336,10 +336,10 @@ function FooterCTABand() {
           transition={{ delay: 0.2 }}
         >
           <a
-            href="/auth/register"
+            href="/auth/login"
             className="inline-flex items-center justify-center bg-white text-zinc-950 px-10 py-5 rounded-full text-xl font-bold hover:bg-zinc-200 transition-transform hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.3)]"
           >
-            Get started free
+            Sign in now
           </a>
         </motion.div>
       </div>

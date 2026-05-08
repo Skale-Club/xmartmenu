@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { UtensilsCrossed } from 'lucide-react'
 
 export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false)
@@ -61,25 +62,26 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-sm">
-        <div className="bg-white rounded-2xl shadow-sm border border-zinc-200 p-8">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 selection:bg-indigo-500/30 relative overflow-hidden">
+      {/* Background Glows */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[120px] opacity-50 pointer-events-none" />
+      
+      <div className="w-full max-w-sm relative z-10">
+        <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
           {/* Marca */}
-          <div className="mb-7 text-center">
-            <div className="w-12 h-12 rounded-xl bg-zinc-900 flex items-center justify-center mx-auto mb-4">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1H4a1 1 0 01-1-1v-3zM13 4a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1V4zM13 13a1 1 0 011-1h3a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-3z" />
-              </svg>
+          <div className="mb-8 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-indigo-500/20">
+              <UtensilsCrossed className="w-7 h-7 text-white" />
             </div>
-            <a href="/" className="text-xl font-bold text-zinc-900 hover:text-zinc-600 transition-colors">XmartMenu</a>
-            <p className="text-sm text-zinc-500 mt-1">Sign in to your menu dashboard</p>
+            <a href="/" className="text-2xl font-bold text-white hover:text-indigo-400 transition-colors">XmartMenu</a>
+            <p className="text-zinc-400 mt-2">Sign in to your menu dashboard</p>
           </div>
 
           {/* Google */}
           <button
             onClick={handleGoogleLogin}
             disabled={googleLoading || emailLoading}
-            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-zinc-300 rounded-xl text-sm font-medium text-zinc-700 bg-white hover:bg-zinc-50 disabled:opacity-50 transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-white/10 rounded-xl text-sm font-bold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-colors shadow-sm"
           >
             {googleLoading ? (
               <svg className="w-5 h-5 animate-spin text-zinc-400" fill="none" viewBox="0 0 24 24">
@@ -98,59 +100,63 @@ export default function LoginPage() {
           </button>
 
           {/* Divisor */}
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-zinc-200" />
-            <span className="text-xs text-zinc-400">or sign in with email</span>
-            <div className="flex-1 h-px bg-zinc-200" />
+          <div className="flex items-center gap-3 my-6">
+            <div className="flex-1 h-px bg-white/10" />
+            <span className="text-xs text-zinc-500 font-medium">or sign in with email</span>
+            <div className="flex-1 h-px bg-white/10" />
           </div>
 
           {/* Formulário e-mail/senha */}
-          <form onSubmit={handleEmailLogin} className="space-y-3">
+          <form onSubmit={handleEmailLogin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Email</label>
+              <label className="block text-sm font-medium text-zinc-300 mb-1.5">Email</label>
               <input
                 type="email"
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 placeholder="seu@email.com"
-                className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Password</label>
+              <label className="block text-sm font-medium text-zinc-300 mb-1.5">Password</label>
               <input
                 type="password"
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
               />
             </div>
 
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="text-sm text-red-400">{error}</p>}
 
             <button
               type="submit"
               disabled={emailLoading || googleLoading}
-              className="w-full bg-zinc-900 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+              className="w-full bg-white text-zinc-950 py-3 rounded-xl text-sm font-bold hover:bg-zinc-200 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] mt-2"
             >
               {emailLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
 
-          <p className="text-xs text-zinc-400 text-center mt-6">
+          <p className="text-xs text-zinc-500 text-center mt-6">
             By signing in, you agree to the platform terms of use.
           </p>
-          <p className="text-xs text-zinc-400 text-center mt-2">
-            Don&apos;t have an account?{' '}
-            <a href="/auth/register" className="text-zinc-700 underline hover:text-zinc-900">Create one</a>
-          </p>
+          <div className="mt-6 pt-6 border-t border-white/10 text-center">
+            <p className="text-sm text-zinc-400">
+              Don&apos;t have an account?{' '}
+              <a href="/auth/register" className="text-white font-bold hover:text-indigo-400 transition-colors">
+                Create one
+              </a>
+            </p>
+          </div>
         </div>
 
-        <p className="text-xs text-zinc-400 text-center mt-4">
-          <a href="/" className="hover:text-zinc-600 transition-colors">XmartMenu</a> © {new Date().getFullYear()}
+        <p className="text-xs text-zinc-600 text-center mt-6">
+          <a href="/" className="hover:text-zinc-400 transition-colors">XmartMenu</a> © {new Date().getFullYear()}
         </p>
       </div>
     </div>
