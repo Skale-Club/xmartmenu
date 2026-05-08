@@ -29,6 +29,7 @@ export interface TenantSettings {
   whatsapp_orders_enabled: boolean
   orders_enabled: boolean
   direct_orders_enabled: boolean
+  item_notes_enabled: boolean  // NOTE-01: per-item notes feature flag
   updated_at: string
   // AI-04: New fields added in migration 022
   business_type: string | null
