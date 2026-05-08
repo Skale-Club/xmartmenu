@@ -28,6 +28,16 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
+## Current Milestone: v1.7 Customization
+
+**Goal:** Permitir que clientes personalizem pedidos ao nível do ingrediente — catálogo normalizado por tenant, painel +/− no modal de produto, modificações visíveis no KDS e admin orders.
+
+**Target features:**
+- Catálogo `ingredients` + join `product_ingredients` com flag `is_default`, preços e posição; flag `ingredient_customization_enabled` por tenant
+- Admin: página `/admin/menu/ingredients` (CRUD) + tab "Ingredientes" no editor de produto (multi-select picker)
+- Customer: painel de personalização no `ProductModal` com chips, steppers e "Adicionar ingrediente"; persist em `order_items.ingredient_modifications JSONB`
+- Kitchen: modificações renderizadas no KDS card e admin orders (SEM/+extra destacados)
+
 ## Current State
 
 **v1.6 Operations shipped (2026-05-08)** — Admin orders transformed into a real-time KDS; customers can attach per-item notes.
@@ -189,4 +199,4 @@ Key changes in v1.5:
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-08 — v1.6 Operations milestone complete*
+*Last updated: 2026-05-08 — v1.7 Customization milestone started*
