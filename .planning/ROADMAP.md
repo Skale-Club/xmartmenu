@@ -69,7 +69,7 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 ### Phases
 
-- [x] **Phase 14: Instrumentacao** — Establish real production baselines before any optimization (completed 2026-05-08)
+- [x] **Phase 14: Instrumentacao** — Establish real production baselines before any optimization (completed 2026-05-08)
 - [ ] **Phase 15: Database Indices** — EXPLAIN ANALYZE on critical queries and add indices where needed
 - [ ] **Phase 16: Frontend Performance** — Lighthouse scores, bundle optimization, and ISR cache tuning
 - [ ] **Phase 17: CI Gate** — Lock Lighthouse regressions out of the main branch via GitHub Actions
@@ -101,7 +101,12 @@ Plans:
   2. EXPLAIN ANALYZE output for orders INSERT and admin orders SELECT shows no unnecessary Seq Scan; indices added where the planner defaults to Seq Scan on large row estimates
   3. EXPLAIN ANALYZE output for tenant lookup and auth middleware query shows no unnecessary Seq Scan; RLS policy queries confirmed to use indexed columns
   4. All new indices are applied via Supabase SQL editor and verified with a follow-up EXPLAIN ANALYZE showing the planner now uses Index Scan
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 15-01-PLAN.md — EXPLAIN ANALYZE public menu path (/{slug} + /{slug}/{menuSlug}), capture results (DB-01)
+- [ ] 15-02-PLAN.md — EXPLAIN ANALYZE orders + auth paths (POST/GET orders, RLS helpers), capture results (DB-02, DB-03)
+- [ ] 15-03-PLAN.md — Write migration 024, apply to Supabase, verify with follow-up EXPLAIN ANALYZE (DB-01, DB-02, DB-03)
 
 #### Phase 16: Frontend Performance
 **Goal**: Landing page and public menu score >= 90 on Lighthouse mobile, and ISR cache strategy matches real access patterns
@@ -130,6 +135,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 14. Instrumentacao | 1/3 | Complete    | 2026-05-08 |
-| 15. Database Indices | 0/? | Not started | - |
+| 15. Database Indices | 0/3 | Not started | - |
 | 16. Frontend Performance | 0/? | Not started | - |
 | 17. CI Gate | 0/? | Not started | - |
