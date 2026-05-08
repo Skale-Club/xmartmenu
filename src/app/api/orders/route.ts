@@ -38,12 +38,14 @@ export async function POST(request: Request) {
     const service = await createServiceClient()
 
     // SEC-01: Validate tenant exists, is active, and has orders enabled
+    console.time('perf:orders-post:tenant-validate') // PERF-PROBE
     const { data: tenantSettings, error: tenantError } = await service
       .from('tenants')
       .select('id, is_active, tenant_settings(orders_enabled)')
       .eq('id', tenant_id)
       .eq('is_active', true)
       .single()
+    console.timeEnd('perf:orders-post:tenant-validate') // PERF-PROBE
 
     if (tenantError || !tenantSettings) {
       return NextResponse.json({ error: 'Invalid tenant' }, { status: 400 })
@@ -55,6 +57,7 @@ export async function POST(request: Request) {
 
     const total = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
 
+    console.time('perf:orders-post:insert') // PERF-PROBE
     const { data: order, error: orderError } = await service
       .from('orders')
       .insert({
@@ -66,6 +69,7 @@ export async function POST(request: Request) {
       })
       .select()
       .single()
+    console.timeEnd('perf:orders-post:insert') // PERF-PROBE
 
     if (orderError || !order) {
       console.error('orders.create_error', orderError)
@@ -82,9 +86,11 @@ export async function POST(request: Request) {
       selected_options: item.selected_options || null,
     }))
 
+    console.time('perf:orders-post:insert-items') // PERF-PROBE
     const { error: itemsError } = await service
       .from('order_items')
       .insert(orderItems)
+    console.timeEnd('perf:orders-post:insert-items') // PERF-PROBE
 
     if (itemsError) {
       console.error('orders.items_create_error', itemsError)
