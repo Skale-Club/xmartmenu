@@ -28,6 +28,15 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
+## Current Milestone: v1.8 KDS+
+
+**Goal:** Completar SEED-007 Phase B — KDS com thresholds configuráveis por tenant, filter chips de status e alerta sonoro para novos pedidos.
+
+**Target features:**
+- `amber_threshold_minutes` e `red_threshold_minutes` em `tenant_settings`; admin configura no Store Settings
+- Filter chips no KDS: Pendentes / Em preparo / Prontos / Todos — padrão oculta done/cancelled
+- Alerta sonoro via Web Audio API quando chega novo pedido; botão mute com persistência em localStorage
+
 ## Current State
 
 **v1.7 Customization shipped (2026-05-08)** — Full McDonald's-style ingredient customization: catalog, admin panel, customer stepper UI, and kitchen display.
@@ -210,4 +219,4 @@ Key changes in v1.5:
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-08 — v1.7 Customization milestone complete*
+*Last updated: 2026-05-08 — v1.8 KDS+ milestone started*
