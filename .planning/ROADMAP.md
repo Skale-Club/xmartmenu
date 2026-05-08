@@ -49,7 +49,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 26. Schema + Settings | 1/1 | Complete | 2026-05-08 |
+| 26. Schema + Settings | 1/1 | Complete    | 2026-05-08 |
 | 27. Filter Chips + Sound | 0/? | Not started | - |
 
 ## Completed Milestones
