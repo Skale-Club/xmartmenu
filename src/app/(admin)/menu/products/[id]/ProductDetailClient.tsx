@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
 import { ChevronUp, ChevronDown, Pencil, Trash2, Plus } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import type { Product, ProductOption, OptionGroupType } from '@/types/database'
+import type { Product, ProductOption, OptionGroupType, Ingredient, ProductIngredient } from '@/types/database'
 import { type GroupWithOptions } from './page'
 
 const TYPE_BADGE: Record<OptionGroupType, string> = {
@@ -27,6 +27,9 @@ interface Props {
   tenantId: string
   currency: string
   canManage: boolean
+  ingredientCustomizationEnabled?: boolean
+  allIngredients?: Ingredient[]
+  initialProductIngredients?: ProductIngredient[]
 }
 
 function OptionGroupForm({
@@ -259,7 +262,16 @@ function OptionForm({
   )
 }
 
-export default function ProductDetailClient({ product, initialGroups, tenantId: _tenantId, currency, canManage }: Props) {
+export default function ProductDetailClient({
+  product,
+  initialGroups,
+  tenantId: _tenantId,
+  currency,
+  canManage,
+  ingredientCustomizationEnabled = false,
+  allIngredients = [],
+  initialProductIngredients = [],
+}: Props) {
   // Product fields form state
   const [productForm, setProductForm] = useState({
     name: product.name,
@@ -289,6 +301,14 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
 
   const supabase = createClient()
   const router = useRouter()
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<'details' | 'options' | 'ingredients'>('details')
+
+  // Ingredient tab state
+  const [productIngredients, setProductIngredients] = useState<ProductIngredient[]>(initialProductIngredients)
+  const [ingredientSearch, setIngredientSearch] = useState('')
+  const [ingLoading, setIngLoading] = useState<string | null>(null)
 
   function updateGroupOptions(groupId: string, updater: (opts: ProductOption[]) => ProductOption[]) {
     setGroups(prev => prev.map(g =>
@@ -493,6 +513,52 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
     }
   }
 
+  async function handleAddIngredient(ingredientId: string) {
+    setIngLoading(ingredientId)
+    const { data, error } = await supabase
+      .from('product_ingredients')
+      .insert({
+        product_id: product.id,
+        ingredient_id: ingredientId,
+        tenant_id: _tenantId,
+        is_default: false,
+        extra_price_override: null,
+        add_price_override: null,
+        position: productIngredients.length,
+      })
+      .select()
+      .single()
+    if (!error && data) setProductIngredients(prev => [...prev, data as ProductIngredient])
+    setIngLoading(null)
+  }
+
+  async function handleRemoveIngredient(ingredientId: string) {
+    setIngLoading(ingredientId)
+    const { error } = await supabase
+      .from('product_ingredients')
+      .delete()
+      .eq('product_id', product.id)
+      .eq('ingredient_id', ingredientId)
+    if (!error) setProductIngredients(prev => prev.filter(pi => pi.ingredient_id !== ingredientId))
+    setIngLoading(null)
+  }
+
+  async function handleUpdateProductIngredient(
+    ingredientId: string,
+    patch: Partial<Pick<ProductIngredient, 'is_default' | 'extra_price_override' | 'add_price_override'>>
+  ) {
+    const { error } = await supabase
+      .from('product_ingredients')
+      .update(patch)
+      .eq('product_id', product.id)
+      .eq('ingredient_id', ingredientId)
+    if (!error) {
+      setProductIngredients(prev =>
+        prev.map(pi => pi.ingredient_id === ingredientId ? { ...pi, ...patch } : pi)
+      )
+    }
+  }
+
   return (
     <div className="p-8 max-w-3xl mx-auto">
       {/* ConfirmDialogs */}
@@ -525,7 +591,44 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
         <h1 className="text-2xl font-semibold text-zinc-900">Edit product</h1>
       </div>
 
-      {/* Product fields section */}
+      {/* Tab bar */}
+      <div className="flex gap-1 mb-6 border-b border-zinc-200">
+        <button
+          onClick={() => setActiveTab('details')}
+          className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
+            activeTab === 'details'
+              ? 'bg-white border border-b-white border-zinc-200 -mb-px text-zinc-900'
+              : 'text-zinc-500 hover:text-zinc-900'
+          }`}
+        >
+          Detalhes
+        </button>
+        <button
+          onClick={() => setActiveTab('options')}
+          className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
+            activeTab === 'options'
+              ? 'bg-white border border-b-white border-zinc-200 -mb-px text-zinc-900'
+              : 'text-zinc-500 hover:text-zinc-900'
+          }`}
+        >
+          Opções
+        </button>
+        {ingredientCustomizationEnabled && (
+          <button
+            onClick={() => setActiveTab('ingredients')}
+            className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
+              activeTab === 'ingredients'
+                ? 'bg-white border border-b-white border-zinc-200 -mb-px text-zinc-900'
+                : 'text-zinc-500 hover:text-zinc-900'
+            }`}
+          >
+            Ingredientes
+          </button>
+        )}
+      </div>
+
+      {/* Product fields card — shown only on Detalhes tab */}
+      {activeTab === 'details' && (
       <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 mb-8">
         <form onSubmit={handleSaveProduct} className="space-y-4">
           {/* name field */}
@@ -605,8 +708,10 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
           )}
         </form>
       </div>
+      )}
 
-      {/* Option Groups section */}
+      {/* Option Groups card — shown only on Opções tab */}
+      {activeTab === 'options' && (
       <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-zinc-900">Option Groups</h2>
@@ -841,6 +946,159 @@ export default function ProductDetailClient({ product, initialGroups, tenantId: 
           ))}
         </div>
       </div>
+      )}
+
+      {/* Ingredientes tab — shown only when flag is on and tab is active */}
+      {activeTab === 'ingredients' && ingredientCustomizationEnabled && (
+        <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-base font-semibold text-zinc-900">Ingredientes</h2>
+          </div>
+
+          {/* Search / picker */}
+          <div className="mb-4">
+            <input
+              type="text"
+              value={ingredientSearch}
+              onChange={e => setIngredientSearch(e.target.value)}
+              placeholder="Buscar ingrediente..."
+              className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          </div>
+
+          {/* Catalog list — unselected ingredients (available for adding) */}
+          {(() => {
+            const selectedIds = new Set(productIngredients.map(pi => pi.ingredient_id))
+            const filtered = allIngredients.filter(ing =>
+              !selectedIds.has(ing.id) &&
+              ing.name.toLowerCase().includes(ingredientSearch.toLowerCase())
+            )
+            return filtered.length > 0 ? (
+              <div className="mb-6">
+                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Catálogo</p>
+                <div className="space-y-1">
+                  {filtered.map(ing => (
+                    <div key={ing.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-zinc-100 hover:border-zinc-300 transition-colors">
+                      <span className="text-sm text-zinc-700">{ing.name}</span>
+                      {canManage && (
+                        <button
+                          onClick={() => handleAddIngredient(ing.id)}
+                          disabled={ingLoading === ing.id}
+                          className="text-xs px-3 py-1 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors flex items-center gap-1"
+                        >
+                          <Plus size={12} /> Adicionar
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null
+          })()}
+
+          {/* Selected ingredients — product associations */}
+          {productIngredients.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Ingredientes do produto</p>
+              <div className="space-y-3">
+                {productIngredients.map(pi => {
+                  const ing = allIngredients.find(i => i.id === pi.ingredient_id)
+                  if (!ing) return null
+                  return (
+                    <div key={pi.ingredient_id} className="border border-zinc-200 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-semibold text-zinc-900">{ing.name}</span>
+                        {canManage && (
+                          <button
+                            onClick={() => handleRemoveIngredient(pi.ingredient_id)}
+                            disabled={ingLoading === pi.ingredient_id}
+                            className="text-xs px-3 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
+                          >
+                            Remover ingrediente
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* is_default toggle */}
+                        <div className="col-span-2 flex items-center gap-3">
+                          <label className="text-sm text-zinc-600">Padrão do produto</label>
+                          <button
+                            type="button"
+                            disabled={!canManage || ingLoading === pi.ingredient_id}
+                            onClick={() => handleUpdateProductIngredient(pi.ingredient_id, { is_default: !pi.is_default })}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none disabled:opacity-50 ${
+                              pi.is_default ? 'bg-zinc-900' : 'bg-zinc-200'
+                            }`}
+                          >
+                            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                              pi.is_default ? 'translate-x-6' : 'translate-x-1'
+                            }`} />
+                          </button>
+                        </div>
+                        {/* extra_price_override */}
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-600 mb-1">Preço extra para este produto</label>
+                          <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
+                            <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">
+                              {CURRENCY_SYMBOL[currency] ?? currency}
+                            </span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              disabled={!canManage}
+                              defaultValue={pi.extra_price_override !== null ? String(pi.extra_price_override) : ''}
+                              placeholder={`Padrão: ${(CURRENCY_SYMBOL[currency] ?? currency)}${ing.default_extra_price.toFixed(2)}`}
+                              onBlur={e => {
+                                const val = e.target.value
+                                handleUpdateProductIngredient(pi.ingredient_id, {
+                                  extra_price_override: val !== '' ? parseFloat(val) : null,
+                                })
+                              }}
+                              className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                        {/* add_price_override */}
+                        <div>
+                          <label className="block text-xs font-medium text-zinc-600 mb-1">Preço para adicionar a este produto</label>
+                          <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
+                            <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">
+                              {CURRENCY_SYMBOL[currency] ?? currency}
+                            </span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              disabled={!canManage}
+                              defaultValue={pi.add_price_override !== null ? String(pi.add_price_override) : ''}
+                              placeholder={`Padrão: ${(CURRENCY_SYMBOL[currency] ?? currency)}${ing.default_add_price.toFixed(2)}`}
+                              onBlur={e => {
+                                const val = e.target.value
+                                handleUpdateProductIngredient(pi.ingredient_id, {
+                                  add_price_override: val !== '' ? parseFloat(val) : null,
+                                })
+                              }}
+                              className="flex-1 px-3 py-2 text-sm focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {productIngredients.length === 0 && (
+            <div className="text-center py-12 text-zinc-400">
+              <p className="font-medium text-zinc-500">Nenhum ingrediente associado</p>
+              <p className="text-sm mt-1">Busque e adicione ingredientes do catálogo acima</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
