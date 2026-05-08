@@ -105,8 +105,8 @@ Plans:
 
 Plans:
 - [x] 15-01-PLAN.md — EXPLAIN ANALYZE public menu path (/{slug} + /{slug}/{menuSlug}), capture results (DB-01)
-- [ ] 15-02-PLAN.md — EXPLAIN ANALYZE orders + auth paths (POST/GET orders, RLS helpers), capture results (DB-02, DB-03)
-- [ ] 15-03-PLAN.md — Write migration 024, apply to Supabase, verify with follow-up EXPLAIN ANALYZE (DB-01, DB-02, DB-03)
+- [x] 15-02-PLAN.md — EXPLAIN ANALYZE orders + auth paths (POST/GET orders, RLS helpers), capture results (DB-02, DB-03)
+- [x] 15-03-PLAN.md — Write migration 024, apply to Supabase, verify with follow-up EXPLAIN ANALYZE (DB-01, DB-02, DB-03)
 
 #### Phase 16: Frontend Performance
 **Goal**: Landing page and public menu score >= 90 on Lighthouse mobile, and ISR cache strategy matches real access patterns

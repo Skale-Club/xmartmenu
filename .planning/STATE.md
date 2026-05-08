@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Performance — Active
 status: executing
-stopped_at: Completed 15-01-PLAN.md — explain-results.md and SUMMARY.md created
-last_updated: "2026-05-08T01:30:46.634Z"
+stopped_at: Completed 15-03-PLAN.md — migration 024 written, verify-results pending application
+last_updated: "2026-05-08T01:42:00Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 33
+  completed_plans: 6
+  percent: 67
 ---
 
 # Project State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 
 ## Current Position
 
-Phase: 15 (database-indices) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
+Phase: 15 (database-indices) — COMPLETE
+Plan: 3 of 3
+Status: Migration written — pending Supabase application
 Last activity: 2026-05-08
 
-Progress: [█         ] 33% (v1.4 — 1/3 plans complete)
+Progress: [██████    ] 67% (v1.4 — 3/3 plans complete, migration pending)
 
 ## Milestone Overview
 
@@ -81,6 +81,8 @@ Progress: [█         ] 33% (v1.4 — 1/3 plans complete)
 | Phase 13-seo-metadata P13-01 | 204 | 2 tasks | 4 files |
 | Phase 13-seo-metadata P13-02 | ~15min | 1 tasks | 1 files |
 | Phase 15 P01 | 15min | 2 tasks | 3 files |
+| Phase 15 P02 | ~15min | 1 tasks | 2 files |
+| Phase 15 P03 | 5min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -162,6 +164,8 @@ Recent decisions affecting current work:
 - [Phase 14-01]: Top 5 client chunks: 3794 (216KB, App Router runtime), 4bd1b696 (195KB, react-dom), framework (185KB, React+scheduler), 5536 (170KB, unnamed shared — lazy candidate), main (128KB, hydration bootstrap); total non-deferrable baseline ~819KB
 - [Phase 15]: EXPLAIN ANALYZE deferred by user — migration audit used as deterministic substitute (index presence in migration = index exists in DB)
 - [Phase 15]: menus(tenant_id), menus(slug), categories(menu_id), products(menu_id) confirmed missing — all causing Seq Scans on every public menu page load
+- [Phase 15-03]: Migration 024 written with 4 IF NOT EXISTS indices — pending Supabase SQL Editor application; orders/auth path has zero missing indices
+- [Phase 15-03]: UNIQUE(tenant_id, slug) composite on menus does not serve tenant_id-only or slug-only filters — both required separate single-column indices
 
 ### Pending Todos
 
@@ -177,5 +181,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T01:30:46.629Z
-Stopped at: Completed 15-01-PLAN.md — explain-results.md and SUMMARY.md created
+Last session: 2026-05-08T01:42:00Z
+Stopped at: Completed 15-03-PLAN.md — migration 024 written, apply to Supabase when ready
