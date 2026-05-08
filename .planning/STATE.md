@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.7
-milestone_name: Customization
-status: roadmap defined
-stopped_at: Milestone v1.7 roadmap created — Phases 23-25 defined, ready for plan-phase 23
-last_updated: "2026-05-08T14:30:00.000Z"
-last_activity: 2026-05-08
+milestone: v1.0
+milestone_name: milestone
+status: "Roadmap defined — ready for /gsd:plan-phase 23"
+stopped_at: Completed 23-01-PLAN.md — migration 026 + TypeScript types for ingredient schema
+last_updated: "2026-05-08T13:56:42.558Z"
+last_activity: 2026-05-08 — v1.7 roadmap created (Phases 23-25)
 progress:
   total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
@@ -85,6 +84,7 @@ Last activity: 2026-05-08 — v1.7 roadmap created (Phases 23-25)
 | Phase 21-kds-dashboard P01 | 3min | 2 tasks | 3 files |
 | Phase 21 P02 | 10 | 2 tasks | 1 files |
 | Phase 22 P01 | 5min | 2 tasks | 3 files |
+| Phase 23 P01 | 98s | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -192,6 +192,9 @@ Recent decisions affecting current work:
 - [v1.7 Roadmap]: PT-BR labels: "Ingredientes", "Padrão do produto", "Adicionar ingrediente", "SEM cebola", "Extra queijo"
 - [v1.7 Roadmap]: Phase 24 UI gated by ingredient_customization_enabled on tenant_settings — same opt-in pattern as item_notes_enabled
 - [v1.7 Roadmap]: Phase 25 customer panel slot is below option groups in ProductModal — same pattern as notes textarea added in v1.6
+- [Phase 23]: Public read policy on product_ingredients uses USING(true) — customers need all product ingredients for customization panel; availability filtering at ingredient level
+- [Phase 23]: Primary key on product_ingredients is composite (product_id, ingredient_id) — satisfies UNIQUE constraint without a separate index
+- [Phase 23]: IngredientModifications.added reuses IngredientExtra type — additions and extras carry identical payload (qty + unit_price)
 
 ### Pending Todos
 
@@ -207,5 +210,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T14:30:00.000Z
-Stopped at: v1.7 roadmap created — Phases 23-25 defined. Next: /gsd:plan-phase 23
+Last session: 2026-05-08T13:56:42.545Z
+Stopped at: Completed 23-01-PLAN.md — migration 026 + TypeScript types for ingredient schema

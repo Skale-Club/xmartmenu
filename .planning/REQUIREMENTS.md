@@ -2,10 +2,10 @@
 
 ## Schema & Infrastructure
 
-- [ ] **INGR-01**: Tabela `ingredients` criada com RLS por tenant — campos: `id`, `tenant_id`, `name TEXT NOT NULL`, `image_url TEXT`, `default_extra_price NUMERIC(10,2) DEFAULT 0`, `default_add_price NUMERIC(10,2) DEFAULT 0`, `is_available BOOLEAN DEFAULT true`, `position INTEGER DEFAULT 0`, `translations JSONB DEFAULT '{}'`
-- [ ] **INGR-02**: Tabela `product_ingredients` join criada com RLS — campos: `product_id`, `ingredient_id`, `tenant_id`, `is_default BOOLEAN DEFAULT false`, `extra_price_override NUMERIC(10,2)`, `add_price_override NUMERIC(10,2)`, `position INTEGER DEFAULT 0`; UNIQUE(product_id, ingredient_id); índice em (product_id, tenant_id)
-- [ ] **INGR-03**: Flag `ingredient_customization_enabled BOOLEAN NOT NULL DEFAULT false` adicionada em `tenant_settings`
-- [ ] **INGR-04**: Coluna `ingredient_modifications JSONB` adicionada em `order_items` para persistir remoções, extras e adições estruturadas
+- [x] **INGR-01**: Tabela `ingredients` criada com RLS por tenant — campos: `id`, `tenant_id`, `name TEXT NOT NULL`, `image_url TEXT`, `default_extra_price NUMERIC(10,2) DEFAULT 0`, `default_add_price NUMERIC(10,2) DEFAULT 0`, `is_available BOOLEAN DEFAULT true`, `position INTEGER DEFAULT 0`, `translations JSONB DEFAULT '{}'`
+- [x] **INGR-02**: Tabela `product_ingredients` join criada com RLS — campos: `product_id`, `ingredient_id`, `tenant_id`, `is_default BOOLEAN DEFAULT false`, `extra_price_override NUMERIC(10,2)`, `add_price_override NUMERIC(10,2)`, `position INTEGER DEFAULT 0`; UNIQUE(product_id, ingredient_id); índice em (product_id, tenant_id)
+- [x] **INGR-03**: Flag `ingredient_customization_enabled BOOLEAN NOT NULL DEFAULT false` adicionada em `tenant_settings`
+- [x] **INGR-04**: Coluna `ingredient_modifications JSONB` adicionada em `order_items` para persistir remoções, extras e adições estruturadas
 
 ## Admin Catalog
 
@@ -35,10 +35,10 @@
 
 | Req ID | Phase | Status |
 |--------|-------|--------|
-| INGR-01 | Phase 23 | Pending |
-| INGR-02 | Phase 23 | Pending |
-| INGR-03 | Phase 23 | Pending |
-| INGR-04 | Phase 23 | Pending |
+| INGR-01 | Phase 23 | Complete |
+| INGR-02 | Phase 23 | Complete |
+| INGR-03 | Phase 23 | Complete |
+| INGR-04 | Phase 23 | Complete |
 | INGR-05 | Phase 24 | Pending |
 | INGR-06 | Phase 24 | Pending |
 | INGR-07 | Phase 25 | Pending |
