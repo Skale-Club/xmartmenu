@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: Performance — Active
-status: planning
-stopped_at: Phase 14 context gathered
-last_updated: "2026-05-08T00:08:39.047Z"
-last_activity: 2026-05-07
+status: executing
+stopped_at: "Completed 14-01-PLAN.md — bundle analysis done, top 5 chunks identified"
+last_updated: "2026-05-08T00:27:52Z"
+last_activity: 2026-05-08 -- Phase 14 Plan 01 completed
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.4 Performance — Phase 14: Instrumentacao (next)
+**Current focus:** Phase 14 — instrumentacao
 
 ## Current Position
 
-Phase: 14 — Instrumentacao (not started)
-Plan: —
-Status: Roadmap complete — ready to plan Phase 14
-Last activity: 2026-05-07
+Phase: 14 (instrumentacao) — EXECUTING
+Plan: 2 of 3 (Plan 01 complete)
+Status: Executing Phase 14
+Last activity: 2026-05-08 -- Plan 01 complete — bundle analysis executed, chunk data captured
 
-Progress: [          ] 0% (v1.4 — 0/4 phases, roadmap ready)
+Progress: [█         ] 33% (v1.4 — 1/3 plans complete)
 
 ## Milestone Overview
 
@@ -156,6 +156,9 @@ Recent decisions affecting current work:
 - [v1.4 Roadmap]: Vercel Speed Insights already installed (v1.3); Phase 14 is about reading/interpreting data, not installing tooling
 - [v1.4 Roadmap]: All DB analysis runs via Supabase SQL editor — no local Docker available
 - [v1.4 Roadmap]: Phase 17 CI Gate depends on Phase 16 achieving >= 90 so threshold is meaningful, not aspirational
+- [Phase 14-01]: Turbopack incompatible with @next/bundle-analyzer — must use ANALYZE=true npm run build --webpack
+- [Phase 14-01]: Bundle analyzer generates client.html, edge.html, nodejs.html (not server.html as originally documented)
+- [Phase 14-01]: Top 5 client chunks: 3794 (216KB, App Router runtime), 4bd1b696 (195KB, react-dom), framework (185KB, React+scheduler), 5536 (170KB, unnamed shared — lazy candidate), main (128KB, hydration bootstrap); total non-deferrable baseline ~819KB
 
 ### Pending Todos
 
