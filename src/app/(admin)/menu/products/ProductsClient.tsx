@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 import type { Product, Category } from '@/types/database'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import { validateAndConvertToWebP } from '@/lib/upload'
 
 interface ProductWithCategory extends Product {
   category: { id: string; name: string } | null
@@ -169,32 +168,24 @@ export default function ProductsClient({ products: initial, categories, tenantId
     setFormError(null)
 
     const uploadedUrls: string[] = []
-    const conversionErrors: string[] = []
+    const uploadErrors: string[] = []
 
     for (const file of files) {
-      const result = await validateAndConvertToWebP(file)
-      if (result.error) {
-        conversionErrors.push(`${file.name}: ${result.error}`)
-        continue
-      }
+      const fd = new FormData()
+      fd.append('file', file)
 
-      const filename = `${tenantId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`
-      const blob = new Blob([result.buffer], { type: 'image/webp' })
+      const res = await fetch('/api/admin/products/upload', { method: 'POST', body: fd })
+      const json = await res.json() as { url?: string; error?: string }
 
-      const { data, error } = await supabase.storage
-        .from('product-images')
-        .upload(filename, blob, { upsert: true, contentType: 'image/webp' })
-
-      if (!error && data) {
-        const { data: { publicUrl } } = supabase.storage
-          .from('product-images')
-          .getPublicUrl(data.path)
-        uploadedUrls.push(publicUrl)
+      if (!res.ok || !json.url) {
+        uploadErrors.push(`${file.name}: ${json.error ?? 'Upload failed'}`)
+      } else {
+        uploadedUrls.push(json.url)
       }
     }
 
-    if (conversionErrors.length > 0) {
-      setFormError(conversionErrors.join(' | '))
+    if (uploadErrors.length > 0) {
+      setFormError(uploadErrors.join(' | '))
     }
 
     if (uploadedUrls.length > 0) {
