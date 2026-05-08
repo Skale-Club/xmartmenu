@@ -65,6 +65,7 @@ interface CartItem {
   selectedOptions: Record<string, unknown>
   unitPrice: number
   cartKey: string
+  note?: string  // per-item customer note — does NOT affect buildCartKey
 }
 
 function buildCartKey(productId: string, selectedOptions: Record<string, unknown>): string {
@@ -140,16 +141,17 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
   const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number) {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string) {
     const key = buildCartKey(product.id, selectedOptions)
     setCart(prev => {
       const existing = prev.find(item => item.cartKey === key)
       if (existing) {
+        // Note replaces existing slot's note (Pitfall 7: same product+options = same slot, note is metadata)
         return prev.map(item =>
-          item.cartKey === key ? { ...item, quantity: item.quantity + 1 } : item
+          item.cartKey === key ? { ...item, quantity: item.quantity + 1, note: note ?? item.note } : item
         )
       }
-      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key }]
+      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key, note }]
     })
   }
 
@@ -196,6 +198,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             quantity: item.quantity,
             unit_price: item.unitPrice,
             selected_options: item.selectedOptions,
+            notes: item.note || undefined,  // NOTE-02: pass note to API
           })),
         }),
       })
@@ -598,9 +601,10 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           onClose={() => setSelectedProduct(null)}
           onWhatsApp={() => openWhatsApp(selectedProduct)}
           optionGroups={optionGroupsByProductId[selectedProduct.id] ?? []}
+          itemNotesEnabled={settings?.item_notes_enabled ?? false}
           onAddToCart={directOrdersEnabled
-            ? (selectedOptions, unitPrice) => {
-                addToCart(selectedProduct, selectedOptions, unitPrice)
+            ? (selectedOptions, unitPrice, note) => {
+                addToCart(selectedProduct, selectedOptions, unitPrice, note)
                 setSelectedProduct(null)
               }
             : undefined}
@@ -747,10 +751,12 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
   )
 }
 
-function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [] }: {
+function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false }: {
   product: Product; accentColor: string; currency: string; whatsapp?: string | null;
-  lang: string; onClose: () => void; onWhatsApp: () => void; onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number) => void;
+  lang: string; onClose: () => void; onWhatsApp: () => void;
+  onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string) => void;
   optionGroups?: GroupWithOptions[]
+  itemNotesEnabled?: boolean
 }) {
   const images = getProductImages(product)
   const [imageIndex, setImageIndex] = useState(0)
@@ -767,11 +773,13 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
   const [singleSelections, setSingleSelections] = useState<Record<string, string>>({})
   const [halfSelections, setHalfSelections] = useState<Record<string, { half1: string | null; half2: string | null }>>({})
   const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>({})
+  const [itemNote, setItemNote] = useState('')
 
   useEffect(() => {
     setSingleSelections({})
     setHalfSelections({})
     setMultiSelections({})
+    setItemNote('')  // Pitfall 6: reset note when new product opens
   }, [product.id])
 
   const canAddToCart = optionGroups.every(group => {
@@ -1098,6 +1106,23 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
               })}
             </div>
           )}
+          {itemNotesEnabled && (
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-zinc-700 mb-1">
+                Observações
+                <span className="ml-2 text-xs text-zinc-400 font-normal">Máx. 140 caracteres</span>
+              </label>
+              <textarea
+                value={itemNote}
+                onChange={e => setItemNote(e.target.value.slice(0, 140))}
+                placeholder="Ex: sem gelo, ponto bem passado..."
+                rows={2}
+                maxLength={140}
+                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
+              />
+              <p className="text-xs text-zinc-400 text-right mt-1">{itemNote.length}/140</p>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4">
             <div>
               {product.original_price && <p className="text-sm text-zinc-400 line-through">{formatPrice(product.original_price, currency)}</p>}
@@ -1144,7 +1169,7 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
                         }
                       }
                     }
-                    onAddToCart(opts, computedUnitPrice)
+                    onAddToCart(opts, computedUnitPrice, itemNote || undefined)
                   }}
                   disabled={!canAddToCart}
                   aria-disabled={!canAddToCart}
