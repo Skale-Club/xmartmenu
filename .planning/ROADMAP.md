@@ -60,8 +60,11 @@ Plans:
   3. Placing an order with modifications writes `ingredient_modifications` JSONB to `order_items` with the structure `{removed:[...], extras:[...], added:[...]}`; a product ordered with no modifications stores null or an empty/omitted field
   4. KDS card displays ingredient modifications with "SEM [name]" in red/strikethrough for removals, "+[qty] [name]" in amber for extras, and "[name]" in green for additions — visually distinct from item notes
   5. Admin orders modal renders the same ingredient modification summary alongside selected_options and notes, so staff can read the full order without opening the KDS
-**Plans**: TBD
-**UI hint**: yes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 25-01-PLAN.md — Server pages ingredient fetch + MenuPage customization panel + cart/API pipeline (INGR-07, INGR-08, INGR-09)
+- [ ] 25-02-PLAN.md — KDS OrderCard + admin orders modal ingredient_modifications rendering (INGR-10)
 
 ## Progress Table
 
@@ -69,7 +72,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 23. Ingredient Schema | 0/1 | Complete    | 2026-05-08 |
 | 24. Admin Catalog | 2/2 | Complete    | 2026-05-08 |
-| 25. Customer + Kitchen | 0/? | Not started | - |
+| 25. Customer + Kitchen | 0/2 | Not started | - |
 
 ## Completed Milestones
 
