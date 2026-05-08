@@ -1,5 +1,15 @@
 # Milestones
 
+## v1.9 Performance Gaps (Shipped: 2026-05-08)
+
+**Phases completed:** 2 phases, 2 plans, 2 tasks
+
+**Key accomplishments:**
+
+- One-liner:
+
+---
+
 ## v1.8 KDS+ (Shipped: 2026-05-08)
 
 **Phases completed:** 2 phases, 2 plans, 4 tasks

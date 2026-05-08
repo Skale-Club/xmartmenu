@@ -11,7 +11,7 @@
 - ✅ **v1.6 Operations** — Phases 21-22 (shipped 2026-05-08)
 - ✅ **v1.7 Customization** — Phases 23-25 (shipped 2026-05-08)
 - ✅ **v1.8 KDS+** — Phases 26-27 (shipped 2026-05-08)
-- ⏳ **v1.9 Performance Gaps** — Phases 28-29 (in progress)
+- ✅ **v1.9 Performance Gaps** — Phases 28-29 (shipped 2026-05-08)
 
 ## Completed Milestones
 
@@ -83,42 +83,14 @@ See `.planning/milestones/v1.8-ROADMAP.md` for full details.
 
 </details>
 
-## v1.9 Performance Gaps — Phases 28-29
+<details>
+<summary>✅ v1.9 Performance Gaps (Phases 28-29) — SHIPPED 2026-05-08</summary>
 
-**Goal:** Fechar gaps restantes do SEED-004 — índices RLS em `profiles`, CDN headers imutáveis nas imagens, decomposição do `MenuPage.tsx`.
+| # | Phase | Plans | Status |
+|---|---|---|---|
+| 28 | DB + CDN | 1/1 | ✅ 2026-05-08 |
+| 29 | MenuPage Decomposition | 1/1 | ✅ 2026-05-08 |
 
-| # | Phase | Plans | Requirements | Status |
-|---|---|---|---|---|
-| 28 | DB + CDN | 1/1 | Complete    | 2026-05-08 |
-| 29 | MenuPage Decomposition | 1/1 | Complete    | 2026-05-08 |
+See `.planning/milestones/v1.9-ROADMAP.md` for full details.
 
-## Phase Details
-
-### Phase 28: DB + CDN
-**Goal**: DB indices on `profiles` are live and Storage buckets serve images with long-lived immutable cache headers
-**Depends on**: Nothing (first phase of v1.9)
-**Requirements**: PERF-01, PERF-02, PERF-03, PERF-04
-**Success Criteria** (what must be TRUE):
-  1. Migration 028 is applied — `EXPLAIN ANALYZE` on a `profiles` query filtered by `tenant_id` shows an index scan, not a sequential scan
-  2. `EXPLAIN ANALYZE` on a `profiles` query filtered by `role` shows an index scan
-  3. Both `tenant-assets` and `product-images` Storage buckets respond with `Cache-Control: public, max-age=31536000, immutable` on image URLs
-  4. No regression on any existing RLS policy (all protected routes still require authenticated session)
-**Plans**: 1 plan
-
-Plans:
-- [x] 28-01-PLAN.md — Migration 028 (3 profiles indices) + CDN cache headers on both Storage buckets
-
-### Phase 29: MenuPage Decomposition
-**Goal**: `MenuPage.tsx` is split into focused components with lazy-loaded modals, reducing initial JS payload for the public menu
-**Depends on**: Phase 28
-**Requirements**: PERF-05, PERF-06
-**Success Criteria** (what must be TRUE):
-  1. `src/components/menu/ProductModal.tsx` exists as a self-contained component with explicit props — no implicit shared state with `MenuPage`
-  2. `src/components/menu/CartModal.tsx` exists as a self-contained component with explicit props covering cart items, order form, and submission
-  3. Both components are imported in `MenuPage.tsx` via `next/dynamic` with `ssr: false` — they are absent from the initial server-rendered HTML
-  4. `tsc --noEmit` passes with zero new type errors after the extraction
-  5. Public menu page loads and functions end-to-end: product modal opens on tap, cart accumulates items, order submits successfully
-**Plans**: 1 plan
-
-Plans:
-- [ ] 29-01-PLAN.md — Create menu-utils.ts + extract ProductModal.tsx + CartModal.tsx + slim MenuPage.tsx with dynamic imports
+</details>
