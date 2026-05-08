@@ -202,9 +202,38 @@
 | v1.4 Performance | 4 | 9 | Baselines, DB indices, next/image, Lighthouse CI |
 | v1.5 Image Optimization | 3 | 7 | WebP pipeline, admin next/image, storage abstraction |
 | v1.6 Operations | 2 | 4 | KDS dashboard, Supabase Realtime, per-item notes |
+| v1.7 Customization | 3 | 5 | Ingredient catalog, admin UI, customer stepper panel, kitchen display |
 
-**Velocity trend:** v1.6 was the fastest milestone yet — 2 phases, 4 plans, shipped same day. Smallest scope, clearest seed documentation. Tight scope = fast execution.
+**Velocity trend:** v1.7 was the most complex milestone (3 new primitives: ingredients table, product_ingredients join, ingredient_modifications JSONB) but still shipped same day. Thorough seed documentation + Phase 23 as pure schema (no UI) kept execution clean.
 
-**Architecture pattern:** v1.6 introduced the first real-time feature (Supabase Realtime). The dual Realtime+polling pattern establishes the project's approach to live data: Realtime for UX, polling as safety net.
+**Architecture pattern:** v1.7 established the "catalog + join + panel" pattern for structured customization — a template for future feature flags that need admin setup, customer UI, and kitchen display.
 
-**Recurring failure mode:** Cherry-pick conflicts on `.planning/` files remain consistent per milestone. Now an established pattern: always `--ours` for planning files, `--theirs` for new source files. Not a problem, just a process step.
+**Recurring failure mode:** Cherry-pick conflicts on `.planning/` files remain consistent. Established process: `--ours` for planning files, resolve source conflicts manually. Both patterns now automatic muscle memory.
+
+## Milestone: v1.7 — Customization
+
+**Shipped:** 2026-05-08
+**Phases:** 3 (23-25) | **Plans:** 5
+
+### What Was Built
+
+- Phase 23: Migration 026 — `ingredients`, `product_ingredients`, `ingredient_customization_enabled`, `ingredient_modifications JSONB` — all with RLS + public-read policies + TypeScript types
+- Phase 24: `/admin/menu/ingredients` CRUD (ChevronUp/Down reorder, modal, flag redirect); Ingredientes tab in product editor (multi-select picker, is_default toggle, per-product price overrides); AdminSidebar nav item conditionally shown
+- Phase 25: Customer customization panel in `ProductModal` (stepper −/0/+, inline "Adicionar ingrediente" picker, live price delta, buildIngredientModifications → null); cart→API→DB pipeline; KDS card + admin modal color-coded rendering
+
+### What Worked
+
+- **Schema-first phase (23)** — Pure migration with no UI meant Phase 24 and 25 could focus entirely on functionality without schema uncertainty. Clear dependency chain.
+- **Seed documentation quality** — SEED-008 had exact table schemas and phase breakdown. Planning was essentially just translating the seed into requirements/roadmap.
+- **Research caught the inline-modal pitfall** — "Adicionar ingrediente" as inline expandable (not modal) avoided z-index conflicts in the existing overlay. Research call prevented a UI regression.
+
+### What Was Inefficient
+
+- **`ProductModal` is inline in `MenuPage.tsx`** — the 1200-line file is unwieldy. Phase 25 Task 2 was the most complex single task in the milestone (15 labeled sub-steps). Future refactoring into a separate `ProductModal.tsx` would help.
+- **Two server pages need parallel changes** — `[slug]/page.tsx` and `[slug]/[menuSlug]/page.tsx` both needed the `productIngredientsByProductId` fetch. Any time the public menu fetches new data, both pages need updating. This is a maintenance overhead worth noting.
+
+### Patterns Established
+
+- **`buildXxx()` returns null when empty** — established for `buildIngredientModifications`. Apply this pattern to any future JSONB builder.
+- **`defaultValue + onBlur` for override inputs** — avoids per-keystroke DB writes; null = use catalog default. Reuse for any optional override UI.
+- **Catalog + join + panel** — the ingredient system's three-layer design (catalog, product association, customer panel) is a reusable pattern for future customization features (allergens, nutrition, add-ons).

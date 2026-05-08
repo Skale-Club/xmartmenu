@@ -1,5 +1,17 @@
 # Milestones
 
+## v1.7 Customization (Shipped: 2026-05-08)
+
+**Phases completed:** 3 phases, 5 plans, 7 tasks
+
+**Key accomplishments:**
+
+- Ingredients catalog page at /admin/menu/ingredients with full CRUD modal + ChevronUp/Down reorder, gated by ingredient_customization_enabled; Ingredientes nav item in AdminSidebar conditionally shown via prop from layout.tsx
+- Tab bar (Detalhes / Opcoes / Ingredientes) added to product editor; Ingredientes tab delivers searchable catalog picker + per-product ingredient associations with is_default toggle and per-product price override fields
+- KDS OrderCard and admin orders modal now render ingredient modifications with color-coded text: red/strikethrough for SEM removals, amber for extras, green for additions — completing the full INGR-10 requirement
+
+---
+
 ## v1.6 Operations (Shipped: 2026-05-08)
 
 **Phases completed:** 2 phases, 4 plans, 8 tasks
