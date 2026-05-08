@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { formatPrice } from '@/lib/utils'
-import type { Category, Product, TenantWithSettings } from '@/types/database'
+import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 
 interface Props {
@@ -20,6 +20,8 @@ interface Props {
   initialLanguage?: string
   footerBrand?: string
   optionGroupsByProductId?: Record<string, GroupWithOptions[]>
+  ingredientCustomizationEnabled?: boolean
+  productIngredientsByProductId?: Record<string, ProductIngredientWithIngredient[]>
 }
 
 const DAYS: Record<string, string> = {
@@ -66,6 +68,7 @@ interface CartItem {
   unitPrice: number
   cartKey: string
   note?: string  // per-item customer note — does NOT affect buildCartKey
+  ingredientModifications?: IngredientModifications | null  // INGR-09: per D-07 slot metadata
 }
 
 function buildCartKey(productId: string, selectedOptions: Record<string, unknown>): string {
@@ -74,7 +77,7 @@ function buildCartKey(productId: string, selectedOptions: Record<string, unknown
   )}`
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {} }: Props) {
+export default function MenuPage({ tenant, categories, products, menu = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {} }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -141,17 +144,17 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
   const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string) {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null) {
     const key = buildCartKey(product.id, selectedOptions)
     setCart(prev => {
       const existing = prev.find(item => item.cartKey === key)
       if (existing) {
         // Note replaces existing slot's note (Pitfall 7: same product+options = same slot, note is metadata)
         return prev.map(item =>
-          item.cartKey === key ? { ...item, quantity: item.quantity + 1, note: note ?? item.note } : item
+          item.cartKey === key ? { ...item, quantity: item.quantity + 1, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications } : item
         )
       }
-      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key, note }]
+      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications }]
     })
   }
 
@@ -199,6 +202,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             unit_price: item.unitPrice,
             selected_options: item.selectedOptions,
             notes: item.note || undefined,  // NOTE-02: pass note to API
+            ingredient_modifications: item.ingredientModifications || null,  // INGR-09
           })),
         }),
       })
@@ -602,9 +606,11 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           onWhatsApp={() => openWhatsApp(selectedProduct)}
           optionGroups={optionGroupsByProductId[selectedProduct.id] ?? []}
           itemNotesEnabled={settings?.item_notes_enabled ?? false}
+          ingredientCustomizationEnabled={ingredientCustomizationEnabled}
+          productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
           onAddToCart={directOrdersEnabled
-            ? (selectedOptions, unitPrice, note) => {
-                addToCart(selectedProduct, selectedOptions, unitPrice, note)
+            ? (selectedOptions, unitPrice, note, ingredientModifications) => {
+                addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications)
                 setSelectedProduct(null)
               }
             : undefined}
@@ -751,12 +757,14 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
   )
 }
 
-function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false }: {
+function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [] }: {
   product: Product; accentColor: string; currency: string; whatsapp?: string | null;
   lang: string; onClose: () => void; onWhatsApp: () => void;
-  onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string) => void;
+  onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null) => void;
   optionGroups?: GroupWithOptions[]
   itemNotesEnabled?: boolean
+  ingredientCustomizationEnabled?: boolean
+  productIngredients?: ProductIngredientWithIngredient[]
 }) {
   const images = getProductImages(product)
   const [imageIndex, setImageIndex] = useState(0)
@@ -774,12 +782,18 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
   const [halfSelections, setHalfSelections] = useState<Record<string, { half1: string | null; half2: string | null }>>({})
   const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>({})
   const [itemNote, setItemNote] = useState('')
+  const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>({})
+  const [addedIngredients, setAddedIngredients] = useState<string[]>([])
+  const [showAddIngredient, setShowAddIngredient] = useState(false)
 
   useEffect(() => {
     setSingleSelections({})
     setHalfSelections({})
     setMultiSelections({})
     setItemNote('')  // Pitfall 6: reset note when new product opens
+    setIngredientSteppers({})
+    setAddedIngredients([])
+    setShowAddIngredient(false)
   }, [product.id])
 
   const canAddToCart = optionGroups.every(group => {
@@ -826,6 +840,56 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
     }
     return price
   })()
+
+  // INGR-08: ingredient delta adds on top of options price
+  const ingredientDelta = (() => {
+    let delta = 0
+    // Default ingredients with stepper = +1 (extra)
+    for (const pi of productIngredients) {
+      const stepperVal = ingredientSteppers[pi.ingredient_id] ?? 0
+      if (stepperVal === 1) {
+        // extra_price_override ?? catalog default; removal is always free (v1.7)
+        delta += pi.extra_price_override ?? pi.ingredient.default_extra_price
+      }
+    }
+    // Non-default added ingredients
+    for (const ingId of addedIngredients) {
+      const pi = productIngredients.find(p => p.ingredient_id === ingId)
+      if (pi) {
+        delta += pi.add_price_override ?? pi.ingredient.default_add_price
+      }
+    }
+    return delta
+  })()
+
+  const finalUnitPrice = computedUnitPrice + ingredientDelta
+
+  function buildIngredientModifications(): IngredientModifications | null {
+    const removed: IngredientRemoval[] = []
+    const extras: IngredientExtra[] = []
+    const addedMods: IngredientExtra[] = []
+
+    for (const pi of productIngredients) {
+      const val = ingredientSteppers[pi.ingredient_id] ?? 0
+      if (val === -1 && pi.is_default) {
+        removed.push({ ingredient_id: pi.ingredient_id, name: pi.ingredient.name })
+      } else if (val === 1 && pi.is_default) {
+        const unit_price = pi.extra_price_override ?? pi.ingredient.default_extra_price
+        extras.push({ ingredient_id: pi.ingredient_id, name: pi.ingredient.name, qty: 1, unit_price })
+      }
+    }
+
+    for (const ingId of addedIngredients) {
+      const pi = productIngredients.find(p => p.ingredient_id === ingId)
+      if (pi) {
+        const unit_price = pi.add_price_override ?? pi.ingredient.default_add_price
+        addedMods.push({ ingredient_id: ingId, name: pi.ingredient.name, qty: 1, unit_price })
+      }
+    }
+
+    if (removed.length === 0 && extras.length === 0 && addedMods.length === 0) return null
+    return { removed, extras, added: addedMods }
+  }
 
   const prevImage = () => setImageIndex(i => (i - 1 + images.length) % images.length)
   const nextImage = () => setImageIndex(i => (i + 1) % images.length)
@@ -1106,6 +1170,108 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
               })}
             </div>
           )}
+          {ingredientCustomizationEnabled && productIngredients.length > 0 && (
+            <div className="px-5 pt-4 pb-2">
+              <p className="text-xs font-semibold text-zinc-500 uppercase mb-2">Ingredientes</p>
+
+              {/* Default ingredient chips with stepper */}
+              <div className="space-y-2">
+                {productIngredients.filter(pi => pi.is_default).map(pi => {
+                  const stepperVal = ingredientSteppers[pi.ingredient_id] ?? 0
+                  const extraPrice = pi.extra_price_override ?? pi.ingredient.default_extra_price
+                  return (
+                    <div key={pi.ingredient_id} className="flex items-center justify-between gap-2">
+                      <span className={`text-sm flex-1 ${stepperVal === -1 ? 'text-red-600 line-through' : 'text-zinc-800'}`}>
+                        {pi.ingredient.name}
+                      </span>
+                      {stepperVal === 1 && extraPrice > 0 && (
+                        <span className="text-xs text-amber-600">+{formatPrice(extraPrice, currency)}</span>
+                      )}
+                      <div className="flex items-center gap-1">
+                        {([-1, 0, 1] as const).map(val => (
+                          <button
+                            key={val}
+                            onClick={() => setIngredientSteppers(prev => ({ ...prev, [pi.ingredient_id]: val }))}
+                            className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors
+                              ${stepperVal === val
+                                ? 'bg-zinc-900 text-white'
+                                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                          >
+                            {val === -1 ? '−' : val === 0 ? '0' : '+'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* "Adicionar ingrediente" expandable picker */}
+              {productIngredients.filter(pi => !pi.is_default && !addedIngredients.includes(pi.ingredient_id)).length > 0 && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => setShowAddIngredient(v => !v)}
+                    className="text-sm text-zinc-600 underline underline-offset-2 hover:text-zinc-900"
+                  >
+                    + Adicionar ingrediente
+                  </button>
+                  {showAddIngredient && (
+                    <div className="mt-2 border border-zinc-200 rounded-xl overflow-hidden">
+                      {productIngredients
+                        .filter(pi => !pi.is_default && !addedIngredients.includes(pi.ingredient_id))
+                        .map(pi => {
+                          const addPrice = pi.add_price_override ?? pi.ingredient.default_add_price
+                          return (
+                            <div key={pi.ingredient_id} className="flex items-center justify-between px-3 py-2 border-b border-zinc-100 last:border-b-0">
+                              <span className="text-sm text-zinc-800">{pi.ingredient.name}</span>
+                              <div className="flex items-center gap-2">
+                                {addPrice > 0 && (
+                                  <span className="text-xs text-zinc-500">+{formatPrice(addPrice, currency)}</span>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    setAddedIngredients(prev => [...prev, pi.ingredient_id])
+                                    setShowAddIngredient(false)
+                                  }}
+                                  className="text-xs bg-zinc-900 text-white px-2 py-1 rounded-lg hover:bg-zinc-800"
+                                >
+                                  Adicionar
+                                </button>
+                              </div>
+                            </div>
+                          )
+                        })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Selected added ingredients as removable chips */}
+              {addedIngredients.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {addedIngredients.map(ingId => {
+                    const pi = productIngredients.find(p => p.ingredient_id === ingId)
+                    if (!pi) return null
+                    const addPrice = pi.add_price_override ?? pi.ingredient.default_add_price
+                    return (
+                      <div key={ingId} className="flex items-center gap-1 bg-green-50 border border-green-200 rounded-full px-2 py-1">
+                        <span className="text-xs text-green-600">
+                          {pi.ingredient.name}{addPrice > 0 ? ` +${formatPrice(addPrice, currency)}` : ''}
+                        </span>
+                        <button
+                          onClick={() => setAddedIngredients(prev => prev.filter(id => id !== ingId))}
+                          className="text-green-500 hover:text-green-700 text-xs leading-none ml-0.5"
+                          aria-label={`Remover ${pi.ingredient.name}`}
+                        >
+                          &#x2715;
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
           {itemNotesEnabled && (
             <div className="mt-4">
               <label className="block text-sm font-medium text-zinc-700 mb-1">
@@ -1127,9 +1293,9 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
             <div>
               {product.original_price && <p className="text-sm text-zinc-400 line-through">{formatPrice(product.original_price, currency)}</p>}
               <p style={{ color: accentColor }} className="text-2xl font-bold">
-                {formatPrice(computedUnitPrice, currency)}
+                {formatPrice(finalUnitPrice, currency)}
               </p>
-              {optionGroups.length > 0 && computedUnitPrice !== product.price && (
+              {optionGroups.length > 0 && finalUnitPrice !== product.price && (
                 <p className="text-xs text-zinc-400">Base: {formatPrice(product.price, currency)}</p>
               )}
             </div>
@@ -1169,7 +1335,8 @@ function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose,
                         }
                       }
                     }
-                    onAddToCart(opts, computedUnitPrice, itemNote || undefined)
+                    const mods = buildIngredientModifications()
+                    onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods)
                   }}
                   disabled={!canAddToCart}
                   aria-disabled={!canAddToCart}

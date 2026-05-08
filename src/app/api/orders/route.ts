@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import type { IngredientModifications } from '@/types/database'
 
 interface OrderItem {
   product_id: string
@@ -8,6 +9,7 @@ interface OrderItem {
   unit_price: number
   notes?: string
   selected_options?: Record<string, unknown>
+  ingredient_modifications?: IngredientModifications | null  // INGR-09: ADD
 }
 
 interface CreateOrderRequest {
@@ -89,6 +91,7 @@ export async function POST(request: Request) {
       unit_price: item.unit_price,
       notes: sanitizeNote(item.notes),
       selected_options: item.selected_options || null,
+      ingredient_modifications: item.ingredient_modifications || null,  // INGR-09
     }))
 
     const { error: itemsError } = await service
