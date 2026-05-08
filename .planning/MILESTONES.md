@@ -1,5 +1,15 @@
 # Milestones
 
+## v1.8 KDS+ (Shipped: 2026-05-08)
+
+**Phases completed:** 2 phases, 2 plans, 4 tasks
+
+**Key accomplishments:**
+
+- Per-tenant KDS time thresholds: migration 027 adds amber/red columns (defaults 10/20), hook parameterised, settings UI wired with validation.
+
+---
+
 ## v1.7 Customization (Shipped: 2026-05-08)
 
 **Phases completed:** 3 phases, 5 plans, 7 tasks
