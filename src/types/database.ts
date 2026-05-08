@@ -30,6 +30,7 @@ export interface TenantSettings {
   orders_enabled: boolean
   direct_orders_enabled: boolean
   item_notes_enabled: boolean  // NOTE-01: per-item notes feature flag (migration 025)
+  ingredient_customization_enabled: boolean  // INGR-03: ingredient customization opt-in (migration 026)
   updated_at: string
   // AI-04: New fields added in migration 022
   business_type: string | null
@@ -153,6 +154,7 @@ export interface OrderItem {
   unit_price: number
   selected_options: Record<string, unknown> | null
   notes: string | null
+  ingredient_modifications: IngredientModifications | null  // INGR-04: structured modifications (migration 026)
 }
 
 export interface AiUsage {
@@ -206,4 +208,58 @@ export interface ProductOption {
   translations: Record<string, { name?: string }>
   created_at: string
   updated_at: string
+}
+
+// ============================================================
+// Ingredient Catalog types (v1.7 — migration 026)
+// ============================================================
+
+// INGR-01: Ingredient catalog entry per tenant
+export interface Ingredient {
+  id: string
+  tenant_id: string
+  name: string
+  image_url: string | null
+  default_extra_price: number
+  default_add_price: number
+  is_available: boolean
+  position: number
+  translations: Record<string, { name?: string }>
+  created_at: string
+  updated_at: string
+}
+
+// INGR-02: Product–ingredient association with per-product price overrides
+export interface ProductIngredient {
+  product_id: string
+  ingredient_id: string
+  tenant_id: string
+  is_default: boolean
+  extra_price_override: number | null
+  add_price_override: number | null
+  position: number
+}
+
+// Joined type: product_ingredient row with its ingredient details
+export interface ProductIngredientWithIngredient extends ProductIngredient {
+  ingredient: Ingredient
+}
+
+// INGR-04: Structured ingredient modification types for order_items JSONB
+export interface IngredientRemoval {
+  ingredient_id: string
+  name: string
+}
+
+export interface IngredientExtra {
+  ingredient_id: string
+  name: string
+  qty: number
+  unit_price: number
+}
+
+export interface IngredientModifications {
+  removed: IngredientRemoval[]
+  extras: IngredientExtra[]
+  added: IngredientExtra[]
 }
