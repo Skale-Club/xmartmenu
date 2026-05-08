@@ -12,8 +12,8 @@
 
 ## MenuPage Decomposição
 
-- [ ] **PERF-05**: `ProductModal` extraído de `MenuPage.tsx` (~1200 linhas) para `src/components/menu/ProductModal.tsx` — componente autônomo com suas props explícitas; `MenuPage.tsx` importa via dynamic import com `ssr: false` para lazy-load
-- [ ] **PERF-06**: `CartModal` + formulário de pedido extraídos para `src/components/menu/CartModal.tsx` — mesmo padrão de dynamic import; reduz JS inicial do menu público
+- [x] **PERF-05**: `ProductModal` extraído de `MenuPage.tsx` (~1200 linhas) para `src/components/menu/ProductModal.tsx` — componente autônomo com suas props explícitas; `MenuPage.tsx` importa via dynamic import com `ssr: false` para lazy-load
+- [x] **PERF-06**: `CartModal` + formulário de pedido extraídos para `src/components/menu/CartModal.tsx` — mesmo padrão de dynamic import; reduz JS inicial do menu público
 
 ## Out of Scope
 
@@ -30,5 +30,5 @@
 | PERF-02 | Phase 28 | ✅ Done (2026-05-08) |
 | PERF-03 | Phase 28 | ✅ Done (2026-05-08) |
 | PERF-04 | Phase 28 | ✅ Done (2026-05-08) |
-| PERF-05 | Phase 29 | Pending |
-| PERF-06 | Phase 29 | Pending |
+| PERF-05 | Phase 29 | ✅ Done (2026-05-08) |
+| PERF-06 | Phase 29 | ✅ Done (2026-05-08) |
