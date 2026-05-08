@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.6
 milestone_name: Operations
-status: verifying
-stopped_at: Completed 21-02-PLAN.md — KDS view toggle + localStorage persistence (KDS-04, KDS-05 satisfied)
-last_updated: "2026-05-08T12:23:57.721Z"
+status: executing
+stopped_at: Completed 22-01-PLAN.md — Realtime subscription + 15s polling + per-item notes display (KDS-06, NOTE-04 satisfied)
+last_updated: "2026-05-08T12:47:26.498Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 2
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
 ---
 
 # Project State
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-08)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 21 — KDS Dashboard
+**Current focus:** Phase 22 — Realtime + Per-Item Notes
 
 ## Current Position
 
-Phase: 22
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 22 (Realtime + Per-Item Notes) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-05-08
 
 ## Milestone Overview
@@ -82,6 +82,7 @@ Last activity: 2026-05-08
 | Phase 19-admin-next-image P02 | 8min | 1 tasks | 1 files |
 | Phase 21-kds-dashboard P01 | 3min | 2 tasks | 3 files |
 | Phase 21 P02 | 10 | 2 tasks | 1 files |
+| Phase 22 P01 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -179,6 +180,9 @@ Recent decisions affecting current work:
 - [Phase 21-01]: useRef for intervalRef avoids spurious renders when storing the 30s timer ID
 - [Phase 21]: localStorage read in useEffect only (SSR-safe) — never in useState initializer or render body
 - [Phase 21]: List view reuses existing table + modal pattern (setSelectedOrder on row click) — no new modal needed
+- [Phase 22]: Run Realtime and polling simultaneously — Realtime for instant updates, polling at 15s as safety net covering status changes and gaps
+- [Phase 22]: Follow-up query on INSERT payload.new.id fetches full order+items — avoids empty items list on new KDS cards (Pitfall 1)
+- [Phase 22]: Migration 025 applied manually via Supabase SQL Editor (local Docker not available — consistent with all prior migrations)
 
 ### Pending Todos
 
@@ -194,5 +198,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T12:19:44.773Z
-Stopped at: Completed 21-02-PLAN.md — KDS view toggle + localStorage persistence (KDS-04, KDS-05 satisfied)
+Last session: 2026-05-08T12:47:26.479Z
+Stopped at: Completed 22-01-PLAN.md — Realtime subscription + 15s polling + per-item notes display (KDS-06, NOTE-04 satisfied)
