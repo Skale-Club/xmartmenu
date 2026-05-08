@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import MenuPage from '@/components/menu/MenuPage'
 import type { Metadata } from 'next'
+import type { ProductIngredientWithIngredient } from '@/types/database'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -87,6 +88,26 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     products = response[1].data ?? []
   }
 
+  const ingredientCustomizationEnabled =
+    (tenant.tenant_settings as any)?.ingredient_customization_enabled ?? false
+  const productIds = products.map((p: any) => p.id)
+
+  const productIngredientsByProductId: Record<string, ProductIngredientWithIngredient[]> = {}
+  if (ingredientCustomizationEnabled && productIds.length > 0) {
+    const { data: rawPIs } = await supabase
+      .from('product_ingredients')
+      .select('*, ingredient:ingredients(*)')
+      .in('product_id', productIds)
+      .order('position')
+
+    for (const pi of rawPIs ?? []) {
+      if (!productIngredientsByProductId[pi.product_id]) {
+        productIngredientsByProductId[pi.product_id] = []
+      }
+      productIngredientsByProductId[pi.product_id].push(pi as ProductIngredientWithIngredient)
+    }
+  }
+
   // Registra scan (fire-and-forget)
   supabase.from('scan_events').insert({ tenant_id: tenant.id }).then(() => {})
 
@@ -97,6 +118,8 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
       products={products}
       menu={resolvedMenu ?? null}
       initialLanguage={lang}
+      ingredientCustomizationEnabled={ingredientCustomizationEnabled}
+      productIngredientsByProductId={productIngredientsByProductId}
     />
   )
 }

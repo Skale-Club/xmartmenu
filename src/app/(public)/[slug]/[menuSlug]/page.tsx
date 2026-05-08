@@ -6,6 +6,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import MenuPage from '@/components/menu/MenuPage'
 import type { Metadata } from 'next'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
+import type { ProductIngredientWithIngredient } from '@/types/database'
 
 interface Props {
   params: Promise<{ slug: string; menuSlug: string }>
@@ -76,6 +77,25 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
     }
   }
 
+  const ingredientCustomizationEnabled =
+    tenant.tenant_settings?.ingredient_customization_enabled ?? false
+
+  const productIngredientsByProductId: Record<string, ProductIngredientWithIngredient[]> = {}
+  if (ingredientCustomizationEnabled && productIds.length > 0) {
+    const { data: rawPIs } = await supabase
+      .from('product_ingredients')
+      .select('*, ingredient:ingredients(*)')
+      .in('product_id', productIds)
+      .order('position')
+
+    for (const pi of rawPIs ?? []) {
+      if (!productIngredientsByProductId[pi.product_id]) {
+        productIngredientsByProductId[pi.product_id] = []
+      }
+      productIngredientsByProductId[pi.product_id].push(pi as ProductIngredientWithIngredient)
+    }
+  }
+
   supabase.from('scan_events').insert({ tenant_id: tenant.id }).then(() => {})
 
   return (
@@ -86,6 +106,8 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       menu={menu}
       initialLanguage={lang}
       optionGroupsByProductId={optionGroupsByProductId}
+      ingredientCustomizationEnabled={ingredientCustomizationEnabled}
+      productIngredientsByProductId={productIngredientsByProductId}
     />
   )
 }
