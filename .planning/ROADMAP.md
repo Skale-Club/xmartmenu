@@ -104,7 +104,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 15-01-PLAN.md — EXPLAIN ANALYZE public menu path (/{slug} + /{slug}/{menuSlug}), capture results (DB-01)
+- [x] 15-01-PLAN.md — EXPLAIN ANALYZE public menu path (/{slug} + /{slug}/{menuSlug}), capture results (DB-01)
 - [ ] 15-02-PLAN.md — EXPLAIN ANALYZE orders + auth paths (POST/GET orders, RLS helpers), capture results (DB-02, DB-03)
 - [ ] 15-03-PLAN.md — Write migration 024, apply to Supabase, verify with follow-up EXPLAIN ANALYZE (DB-01, DB-02, DB-03)
 
@@ -135,6 +135,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 14. Instrumentacao | 1/3 | Complete    | 2026-05-08 |
-| 15. Database Indices | 0/3 | Not started | - |
+| 15. Database Indices | 1/3 | In Progress|  |
 | 16. Frontend Performance | 0/? | Not started | - |
 | 17. CI Gate | 0/? | Not started | - |
