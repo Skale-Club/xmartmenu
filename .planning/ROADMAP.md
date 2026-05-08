@@ -85,7 +85,12 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
   2. A bundle analysis report (via @next/bundle-analyzer) is generated and the top 3 largest chunks are identified with notes on lazy-loading candidates
   3. Supabase query timing is visible for the three critical paths (public menu, orders, tenant lookup) — either via pg_stat_statements or explicit server-side logging in the route handlers
   4. A written baseline note records current scores/timings so Phase 15 and 16 optimizations can be compared against it
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 14-01-PLAN.md — Run bundle analyzer, extract top 5 chunks with lazy-load assessment (FE-03)
+- [ ] 14-02-PLAN.md — Add timing probes to 3 routes, measure from Vercel logs, remove probes (PERF-02)
+- [ ] 14-03-PLAN.md — PageSpeed Insights audit + write 14-BASELINE.md (PERF-01, FE-03, PERF-02)
 
 #### Phase 15: Database Indices
 **Goal**: Critical Supabase queries run on index scans, not sequential scans, eliminating DB-layer latency
@@ -124,7 +129,7 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 14. Instrumentacao | 0/? | Not started | - |
+| 14. Instrumentacao | 0/3 | Not started | - |
 | 15. Database Indices | 0/? | Not started | - |
 | 16. Frontend Performance | 0/? | Not started | - |
 | 17. CI Gate | 0/? | Not started | - |
