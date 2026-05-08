@@ -3,29 +3,122 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderItem } from '@/types/database'
+import { useElapsedTime } from './useElapsedTime'
 
 type OrderWithItems = Order & { order_items: OrderItem[] }
 
-const statusColors: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  preparing: 'bg-blue-100 text-blue-800',
-  ready: 'bg-indigo-100 text-indigo-800',
-  done: 'bg-green-100 text-green-800',
-  cancelled: 'bg-red-100 text-red-800',
+const STATUS_COLORS: Record<string, {
+  border: string
+  bg: string
+  badge: string
+  label: string
+}> = {
+  pending:   { border: 'border-l-blue-500',   bg: 'bg-blue-50',   badge: 'bg-blue-100 text-blue-800',    label: 'Pendente' },
+  preparing: { border: 'border-l-yellow-500', bg: 'bg-yellow-50', badge: 'bg-yellow-100 text-yellow-800', label: 'Em preparo' },
+  ready:     { border: 'border-l-green-500',  bg: 'bg-green-50',  badge: 'bg-green-100 text-green-800',   label: 'Pronto' },
+  done:      { border: 'border-l-zinc-400',   bg: 'bg-zinc-50',   badge: 'bg-zinc-100 text-zinc-600',     label: 'Concluído' },
+  cancelled: { border: 'border-l-red-500',    bg: 'bg-red-50',    badge: 'bg-red-100 text-red-800',       label: 'Cancelado' },
+}
+
+const NEXT_STATUS: Record<string, string | null> = {
+  pending:   'preparing',
+  preparing: 'ready',
+  ready:     'done',
+  done:      null,
+  cancelled: null,
+}
+
+const ADVANCE_LABEL: Record<string, string> = {
+  pending:   'Iniciar preparo',
+  preparing: 'Marcar pronto',
+  ready:     'Concluir',
 }
 
 interface OrdersClientProps {
   initialOrders: OrderWithItems[]
+  tenantId: string
 }
 
-export default function OrdersClient({ initialOrders }: OrdersClientProps) {
+function OrderCard({
+  order,
+  loadingId,
+  onAdvance,
+  onCancel,
+}: {
+  order: OrderWithItems
+  loadingId: string | null
+  onAdvance: (id: string, status: string) => void
+  onCancel: (id: string) => void
+}) {
+  const { minutes, chipClass } = useElapsedTime(order.created_at)
+  const colors = STATUS_COLORS[order.status] ?? STATUS_COLORS['pending']
+  const nextStatus = NEXT_STATUS[order.status]
+  const isLoading = loadingId === order.id
+
+  return (
+    <div className={`rounded-lg border border-zinc-200 border-l-4 ${colors.border} ${colors.bg} p-4 flex flex-col gap-3`}>
+      {/* Header: ID + status badge */}
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-xs text-zinc-500">#{order.id.slice(0, 8)}</span>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors.badge}`}>
+          {colors.label}
+        </span>
+      </div>
+
+      {/* Customer */}
+      <div>
+        <p className="text-sm font-semibold text-zinc-900">{order.customer_name}</p>
+        <p className="text-xs text-zinc-500">{order.customer_phone}</p>
+      </div>
+
+      {/* Items summary */}
+      <ul className="text-xs text-zinc-700 space-y-0.5">
+        {order.order_items.map((item, i) => (
+          <li key={i}>{item.quantity}x {item.product_name}</li>
+        ))}
+      </ul>
+
+      {/* Footer: total + elapsed-time chip */}
+      <div className="flex items-center justify-between mt-auto pt-2 border-t border-zinc-200">
+        <span className="text-sm font-bold text-zinc-900">R$ {order.total.toFixed(2)}</span>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${chipClass}`}>
+          {minutes}min
+        </span>
+      </div>
+
+      {/* Actions — advance button + cancel */}
+      {nextStatus && (
+        <button
+          onClick={() => onAdvance(order.id, nextStatus)}
+          disabled={isLoading}
+          className="w-full px-3 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-50"
+        >
+          {isLoading ? '...' : ADVANCE_LABEL[order.status]}
+        </button>
+      )}
+      {(order.status === 'pending' || order.status === 'preparing') && (
+        <button
+          onClick={() => onCancel(order.id)}
+          disabled={isLoading}
+          className="w-full text-xs text-red-600 hover:underline disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+      )}
+    </div>
+  )
+}
+
+export default function OrdersClient({ initialOrders, tenantId }: OrdersClientProps) {
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+  // view toggle state — Plan 02 adds localStorage persistence
+  const [view, setView] = useState<'grid' | 'list'>('grid')
   const supabase = createClient()
 
   async function updateStatus(orderId: string, status: string) {
-    setLoading(true)
+    setLoadingId(orderId)
     const res = await fetch(`/api/orders/${orderId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -37,63 +130,32 @@ export default function OrdersClient({ initialOrders }: OrdersClientProps) {
         prev.map((o) => (o.id === orderId ? { ...o, status: data.status } : o))
       )
       if (selectedOrder?.id === orderId) {
-        setSelectedOrder({ ...selectedOrder, status: data.status })
+        setSelectedOrder((prev) => prev ? { ...prev, status: data.status } : null)
       }
     }
-    setLoading(false)
+    setLoadingId(null)
   }
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-zinc-900">Orders</h1>
-        <p className="text-sm text-zinc-500">{orders.length} order(s)</p>
+        <h1 className="text-2xl font-bold text-zinc-900">Pedidos</h1>
+        <p className="text-sm text-zinc-500">{orders.length} pedido(s)</p>
       </div>
 
       {orders.length === 0 ? (
-        <div className="text-center py-12 text-zinc-500">No orders yet</div>
+        <div className="text-center py-12 text-zinc-500">Nenhum pedido ainda</div>
       ) : (
-        <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-zinc-50 border-b border-zinc-200">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">ID</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Customer</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Phone</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Items</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Total</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200">
-              {orders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="hover:bg-zinc-50 cursor-pointer"
-                  onClick={() => setSelectedOrder(order)}
-                >
-                  <td className="px-4 py-3 text-xs text-zinc-500 font-mono">{order.id.slice(0, 8)}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-900">{order.customer_name}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-600">{order.customer_phone}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-600">
-                    {(order.order_items?.length ?? 0) === 1
-                      ? '1 item'
-                      : `${order.order_items?.length ?? 0} items`}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-zinc-900 font-medium">R$ {order.total.toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[order.status]}`}>
-                      {order.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-zinc-500">
-                    {new Date(order.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {orders.map((order) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              loadingId={loadingId}
+              onAdvance={(id, status) => updateStatus(id, status)}
+              onCancel={(id) => updateStatus(id, 'cancelled')}
+            />
+          ))}
         </div>
       )}
 
@@ -102,26 +164,26 @@ export default function OrdersClient({ initialOrders }: OrdersClientProps) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedOrder(null)}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-900">Order Details</h2>
+              <h2 className="font-semibold text-zinc-900">Detalhes do Pedido</h2>
               <button onClick={() => setSelectedOrder(null)} className="text-zinc-400 hover:text-zinc-600">✕</button>
             </div>
             <div className="p-4 space-y-4">
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Customer</p>
+                <p className="text-xs text-zinc-500 uppercase mb-1">Cliente</p>
                 <p className="text-zinc-900">{selectedOrder.customer_name}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Phone</p>
+                <p className="text-xs text-zinc-500 uppercase mb-1">Telefone</p>
                 <p className="text-zinc-900">{selectedOrder.customer_phone}</p>
               </div>
               {selectedOrder.notes && (
                 <div>
-                  <p className="text-xs text-zinc-500 uppercase mb-1">Notes</p>
+                  <p className="text-xs text-zinc-500 uppercase mb-1">Observações</p>
                   <p className="text-sm text-zinc-700">{selectedOrder.notes}</p>
                 </div>
               )}
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Items</p>
+                <p className="text-xs text-zinc-500 uppercase mb-1">Itens</p>
                 <div className="space-y-2">
                   {selectedOrder.order_items?.map((item, idx) => (
                     <div key={idx} className="flex flex-col gap-0.5">
@@ -137,7 +199,7 @@ export default function OrdersClient({ initialOrders }: OrdersClientProps) {
                               .filter(Boolean)
                               .join(' · ')}
                           </span>
-                      )}
+                        )}
                     </div>
                   ))}
                 </div>
@@ -148,45 +210,45 @@ export default function OrdersClient({ initialOrders }: OrdersClientProps) {
               </div>
               <div>
                 <p className="text-xs text-zinc-500 uppercase mb-1">Status</p>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[selectedOrder.status]}`}>
-                  {selectedOrder.status}
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[selectedOrder.status]?.badge}`}>
+                  {STATUS_COLORS[selectedOrder.status]?.label}
                 </span>
               </div>
               <div className="flex gap-2 pt-2">
                 {selectedOrder.status === 'pending' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'preparing')}
-                    disabled={loading}
+                    disabled={loadingId === selectedOrder.id}
                     className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                   >
-                    Start Preparing
+                    Iniciar preparo
                   </button>
                 )}
                 {selectedOrder.status === 'preparing' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'ready')}
-                    disabled={loading}
-                    className="flex-1 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                    disabled={loadingId === selectedOrder.id}
+                    className="flex-1 px-3 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 disabled:opacity-50"
                   >
-                    Mark Ready
+                    Marcar pronto
                   </button>
                 )}
                 {selectedOrder.status === 'ready' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'done')}
-                    disabled={loading}
+                    disabled={loadingId === selectedOrder.id}
                     className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                   >
-                    Mark Done
+                    Concluir
                   </button>
                 )}
                 {(selectedOrder.status === 'pending' || selectedOrder.status === 'preparing') && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'cancelled')}
-                    disabled={loading}
+                    disabled={loadingId === selectedOrder.id}
                     className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                   >
-                    Cancel
+                    Cancelar
                   </button>
                 )}
               </div>
