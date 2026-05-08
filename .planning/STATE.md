@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.9
-milestone_name: Performance Gaps
-status: planning
-stopped_at: Roadmap approved — Phase 28 ready to plan
-last_updated: "2026-05-08T19:15:00.000Z"
+milestone_name: Performance Gaps — Phases 28-29
+status: executing
+stopped_at: Completed 28-db-cdn/28-01-PLAN.md — profiles indices + CDN cache headers
+last_updated: "2026-05-08T18:58:00.000Z"
 last_activity: 2026-05-08
 progress:
   total_phases: 2
-  completed_phases: 0
-  total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
@@ -21,20 +20,20 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-08)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.9 Performance Gaps — profiles indices, CDN headers, MenuPage decomposição
+**Current focus:** Phase 28 — DB + CDN
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-05-08 — Milestone v1.9 started
+Phase: 28 (DB + CDN) — COMPLETE
+Plan: 1 of 1 — COMPLETE
+Status: Plan 28-01 complete — profiles indices (PERF-01/02/03) + CDN cache headers (PERF-04) shipped
+Last activity: 2026-05-08
 
 ## Milestone Overview
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 28 | DB + CDN | PERF-01, PERF-02, PERF-03, PERF-04 | ⏳ Pending |
+| 28 | DB + CDN | PERF-01, PERF-02, PERF-03, PERF-04 | Plan 01 complete |
 | 29 | MenuPage Decomposition | PERF-05, PERF-06 | ⏳ Pending |
 
 ## Performance Metrics
@@ -91,6 +90,7 @@ Last activity: 2026-05-08 — Milestone v1.9 started
 | Phase 25 P02 | 2min | 1 tasks | 1 files |
 | Phase 26 P01 | ~2.5min | 2 tasks | 7 files |
 | Phase 27 P01 | 176 | 2 tasks | 1 files |
+| Phase 28 P01 | ~2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -223,6 +223,10 @@ Recent decisions affecting current work:
 - [Phase 27]: DEFAULT_FILTER='pending' (not array) — chips mutually exclusive; single active filter per v1.8 Roadmap decision
 - [Phase 27]: mutedRef synced via useEffect([muted]) — avoids re-subscribing Realtime channel on every mute toggle (stale closure prevention)
 - [Phase 27]: AudioContext created lazily inside playBeep() — browser autoplay policy requires user gesture before AudioContext creation
+- [Phase 28-01]: 3 separate indices on profiles (tenant_id, role, composite) vs single composite — single-column filters cannot use leading-column-only composite efficiently (same rationale as migration 024)
+- [Phase 28-01]: configure-cdn-cache.mjs reads .env.local directly via readFileSync — no dotenv dependency; consistent with migration runner pattern
+- [Phase 28-01]: public: true passed alongside cacheControl in updateBucket() — preserves bucket public access settings during cache header update
+- [Phase 28-01]: Migration 028 applied via node scripts/apply-migration-028.mjs using DATABASE_URL from .env.local
 
 ### Pending Todos
 
@@ -238,5 +242,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T18:02:46.918Z
-Stopped at: Completed 27-filter-chips-sound/27-01-PLAN.md — filter chips, Web Audio beep, mute button
+Last session: 2026-05-08T18:58:00.000Z
+Stopped at: Completed 28-db-cdn/28-01-PLAN.md — profiles indices (PERF-01/02/03) + CDN cache headers (PERF-04)
