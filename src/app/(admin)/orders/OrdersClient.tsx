@@ -39,16 +39,17 @@ const KDS_VIEW_KEY    = (tenantId: string) => `kds_view_${tenantId}`
 const KDS_FILTER_KEY  = (tenantId: string) => `kds_filter_${tenantId}`
 const KDS_MUTE_KEY    = (tenantId: string) => `kds_mute_${tenantId}`
 
-type FilterValue = 'pending' | 'preparing' | 'ready' | 'all'
+type FilterValue = 'active' | 'pending' | 'preparing' | 'ready' | 'all'
 
 const FILTER_CHIPS: { value: FilterValue; label: string }[] = [
+  { value: 'active',    label: 'Ativos' },      // pending + preparing (default)
   { value: 'pending',   label: 'Pendentes' },
   { value: 'preparing', label: 'Em preparo' },
   { value: 'ready',     label: 'Prontos' },
   { value: 'all',       label: 'Todos' },
 ]
 
-const DEFAULT_FILTER: FilterValue = 'pending'
+const DEFAULT_FILTER: FilterValue = 'active'
 
 interface OrdersClientProps {
   initialOrders: OrderWithItems[]
@@ -296,10 +297,12 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     localStorage.setItem(KDS_MUTE_KEY(tenantId), String(next))
   }
 
-  // KDS-10: filter applied locally over loaded orders; done/cancelled hidden by default
+  // KDS-10: filter applied locally; 'active' = pending+preparing (default); 'all' = everything
   const filteredOrders = activeFilter === 'all'
     ? orders
-    : orders.filter((o) => o.status === activeFilter)
+    : activeFilter === 'active'
+      ? orders.filter((o) => o.status === 'pending' || o.status === 'preparing')
+      : orders.filter((o) => o.status === activeFilter)
 
   async function updateStatus(orderId: string, status: string) {
     setLoadingId(orderId)
