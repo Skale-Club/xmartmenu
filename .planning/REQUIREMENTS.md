@@ -9,8 +9,8 @@
 ## Database Performance
 
 - [x] **DB-01**: Queries do menu público (`/{slug}`) têm EXPLAIN ANALYZE executado e índices adicionados onde o query planner usa Seq Scan desnecessário
-- [ ] **DB-02**: Queries de pedidos (INSERT em orders/order_items, SELECT na orders view do admin) têm EXPLAIN ANALYZE executado e índices adicionados onde necessário
-- [ ] **DB-03**: Queries de tenant lookup e auth middleware têm EXPLAIN ANALYZE executado e índices adicionados onde necessário
+- [x] **DB-02**: Queries de pedidos (INSERT em orders/order_items, SELECT na orders view do admin) têm EXPLAIN ANALYZE executado e índices adicionados onde necessário
+- [x] **DB-03**: Queries de tenant lookup e auth middleware têm EXPLAIN ANALYZE executado e índices adicionados onde necessário
 
 ## Frontend Performance
 
@@ -39,8 +39,8 @@
 | PERF-02 | Phase 14 | Partial (probes deployed/removed; values deferred to Vercel log review) |
 | FE-03 | Phase 14 | Complete |
 | DB-01 | Phase 15 | Complete |
-| DB-02 | Phase 15 | Pending |
-| DB-03 | Phase 15 | Pending |
+| DB-02 | Phase 15 | Complete (no missing indices on orders/auth path confirmed by migration analysis) |
+| DB-03 | Phase 15 | Complete (no missing indices on orders/auth path confirmed by migration analysis) |
 | FE-01 | Phase 16 | Pending |
 | FE-02 | Phase 16 | Pending |
 | FE-04 | Phase 16 | Pending |
