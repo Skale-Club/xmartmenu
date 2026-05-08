@@ -1,16 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-stopped_at: Completed 25-02-PLAN.md — KDS OrderCard + admin orders modal ingredient_modifications rendering (INGR-10)
-last_updated: "2026-05-08T16:11:14.511Z"
+milestone: v1.8
+milestone_name: KDS+
+status: defining requirements
+stopped_at: Milestone v1.8 started — defining requirements
+last_updated: "2026-05-08T17:00:00.000Z"
 last_activity: 2026-05-08
 progress:
-  total_phases: 3
-  completed_phases: 3
-  total_plans: 5
-  completed_plans: 5
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -20,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-08)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v1.7 Customization — catálogo de ingredientes + painel McDonald's-style + KDS rendering
+**Current focus:** v1.8 KDS+ — thresholds configuráveis, filter chips, alerta sonoro
 
 ## Current Position
 
-Phase: 25
-Plan: Not started
-Status: Phase 25 complete — all INGR-07/08/09/10 satisfied; v1.7 Customization milestone complete
-Last activity: 2026-05-08
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-08 — Milestone v1.8 started
 
 ## Milestone Overview
 
