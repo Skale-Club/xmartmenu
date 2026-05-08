@@ -85,6 +85,31 @@ function OrderCard({
                 {item.notes}
               </span>
             )}
+            {item.ingredient_modifications && (() => {
+              const mods = item.ingredient_modifications
+              const hasAny =
+                mods.removed.length > 0 || mods.extras.length > 0 || mods.added.length > 0
+              if (!hasAny) return null
+              return (
+                <span className="flex flex-col gap-0.5 mt-0.5">
+                  {mods.removed.map(r => (
+                    <span key={r.ingredient_id} className="text-xs text-red-600 line-through">
+                      SEM {r.name}
+                    </span>
+                  ))}
+                  {mods.extras.map(e => (
+                    <span key={e.ingredient_id} className="text-xs text-amber-600">
+                      +{e.qty} {e.name}
+                    </span>
+                  ))}
+                  {mods.added.map(a => (
+                    <span key={a.ingredient_id} className="text-xs text-green-600">
+                      +{a.qty} {a.name}
+                    </span>
+                  ))}
+                </span>
+              )
+            })()}
           </li>
         ))}
       </ul>
@@ -336,6 +361,31 @@ export default function OrdersClient({ initialOrders, tenantId }: OrdersClientPr
                           {item.notes}
                         </span>
                       )}
+                      {item.ingredient_modifications && (() => {
+                        const mods = item.ingredient_modifications
+                        const hasAny =
+                          mods.removed.length > 0 || mods.extras.length > 0 || mods.added.length > 0
+                        if (!hasAny) return null
+                        return (
+                          <span className="flex flex-col gap-0.5 mt-0.5">
+                            {mods.removed.map(r => (
+                              <span key={r.ingredient_id} className="text-xs text-red-600 line-through">
+                                SEM {r.name}
+                              </span>
+                            ))}
+                            {mods.extras.map(e => (
+                              <span key={e.ingredient_id} className="text-xs text-amber-600">
+                                +{e.qty} {e.name}
+                              </span>
+                            ))}
+                            {mods.added.map(a => (
+                              <span key={a.ingredient_id} className="text-xs text-green-600">
+                                +{a.qty} {a.name}
+                              </span>
+                            ))}
+                          </span>
+                        )
+                      })()}
                     </div>
                   ))}
                 </div>
