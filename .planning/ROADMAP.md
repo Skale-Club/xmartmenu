@@ -63,7 +63,7 @@ See `.planning/milestones/v1.5-ROADMAP.md` for full details.
 ## 🚧 v1.6 Operations (In Progress)
 
 - [x] **Phase 21: KDS Dashboard** — Grid/list toggle, order cards with status colors, elapsed-time chip, item summary, action button for status transitions (completed 2026-05-08)
-- [ ] **Phase 22: Realtime + Per-Item Notes** — Supabase Realtime subscription (polling fallback), per-item notes schema, customer textarea, KDS and admin render of notes
+- [x] **Phase 22: Realtime + Per-Item Notes** — Supabase Realtime subscription (polling fallback), per-item notes schema, customer textarea, KDS and admin render of notes (completed 2026-05-08)
 
 ## Phase Details
 
@@ -105,4 +105,4 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 21. KDS Dashboard | 2/2 | Complete    | 2026-05-08 |
-| 22. Realtime + Per-Item Notes | 1/2 | In Progress|  |
+| 22. Realtime + Per-Item Notes | 1/2 | Complete    | 2026-05-08 |
