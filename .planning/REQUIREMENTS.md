@@ -29,3 +29,9 @@
 | IMG-04 | Phase 19 | Pending |
 | IMG-05 | Phase 19 | Pending |
 | IMG-06 | Phase 19 | Pending |
+
+## Storage Portability
+
+- [ ] **IMG-07**: `src/lib/storage/index.ts` exporta `IStorageClient`, `SupabaseStorageClient`, `S3StorageClient` e `getStorageClient()` factory lida por `STORAGE_PROVIDER` env var
+- [ ] **IMG-08**: Todas as chamadas server-side a `supabase.storage`/`service.storage` (6 arquivos) usam `getStorageClient()` — nenhuma chamada direta ao SDK permanece nos arquivos de rota
+- [ ] **IMG-09**: `S3StorageClient` implementado e funcional com `STORAGE_S3_ENDPOINT`, `STORAGE_S3_ACCESS_KEY_ID`, `STORAGE_S3_SECRET_ACCESS_KEY` — testável apontando para Hetzner Object Storage
