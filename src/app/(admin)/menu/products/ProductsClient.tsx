@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
 import type { Product, Category } from '@/types/database'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { validateAndConvertToWebP } from '@/lib/upload'
 
 interface ProductWithCategory extends Product {
   category: { id: string; name: string } | null
@@ -165,16 +166,24 @@ export default function ProductsClient({ products: initial, categories, tenantId
     const files = Array.from(e.target.files ?? [])
     if (files.length === 0) return
     setUploadingImage(true)
+    setFormError(null)
 
     const uploadedUrls: string[] = []
+    const conversionErrors: string[] = []
 
     for (const file of files) {
-      const ext = file.name.split('.').pop()
-      const filename = `${tenantId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+      const result = await validateAndConvertToWebP(file)
+      if (result.error) {
+        conversionErrors.push(`${file.name}: ${result.error}`)
+        continue
+      }
+
+      const filename = `${tenantId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.webp`
+      const blob = new Blob([result.buffer], { type: 'image/webp' })
 
       const { data, error } = await supabase.storage
         .from('product-images')
-        .upload(filename, file, { upsert: true })
+        .upload(filename, blob, { upsert: true, contentType: 'image/webp' })
 
       if (!error && data) {
         const { data: { publicUrl } } = supabase.storage
@@ -182,6 +191,10 @@ export default function ProductsClient({ products: initial, categories, tenantId
           .getPublicUrl(data.path)
         uploadedUrls.push(publicUrl)
       }
+    }
+
+    if (conversionErrors.length > 0) {
+      setFormError(conversionErrors.join(' | '))
     }
 
     if (uploadedUrls.length > 0) {
