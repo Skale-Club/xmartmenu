@@ -14,9 +14,9 @@
 
 ## Customer UI
 
-- [ ] **INGR-07**: Painel de customização no `ProductModal` — chips pré-marcados com stepper −/+ para ingredientes com `is_default=true` (−1=remover grátis, 0=padrão, +1=extra com preço se > 0), botão "Adicionar ingrediente" com lista de ingredientes `is_default=false` disponíveis; painel visível apenas quando `ingredient_customization_enabled` e produto tem `product_ingredients`
-- [ ] **INGR-08**: Preço recalculado em tempo real no painel conforme modificações; chip de preço visível apenas quando custo > 0 (ex: "+R$5,00"); remoção sempre gratuita em v1.7
-- [ ] **INGR-09**: Modificações persistidas em `order_items.ingredient_modifications JSONB` via orders POST API com estrutura `{removed:[{ingredient_id, name}], extras:[{ingredient_id, name, qty, unit_price}], added:[{ingredient_id, name, qty, unit_price}]}`
+- [x] **INGR-07**: Painel de customização no `ProductModal` — chips pré-marcados com stepper −/+ para ingredientes com `is_default=true` (−1=remover grátis, 0=padrão, +1=extra com preço se > 0), botão "Adicionar ingrediente" com lista de ingredientes `is_default=false` disponíveis; painel visível apenas quando `ingredient_customization_enabled` e produto tem `product_ingredients`
+- [x] **INGR-08**: Preço recalculado em tempo real no painel conforme modificações; chip de preço visível apenas quando custo > 0 (ex: "+R$5,00"); remoção sempre gratuita em v1.7
+- [x] **INGR-09**: Modificações persistidas em `order_items.ingredient_modifications JSONB` via orders POST API com estrutura `{removed:[{ingredient_id, name}], extras:[{ingredient_id, name, qty, unit_price}], added:[{ingredient_id, name, qty, unit_price}]}`
 
 ## Kitchen Display
 
@@ -41,7 +41,7 @@
 | INGR-04 | Phase 23 | Complete |
 | INGR-05 | Phase 24 | Complete |
 | INGR-06 | Phase 24 | Complete |
-| INGR-07 | Phase 25 | Pending |
-| INGR-08 | Phase 25 | Pending |
-| INGR-09 | Phase 25 | Pending |
+| INGR-07 | Phase 25 | Complete |
+| INGR-08 | Phase 25 | Complete |
+| INGR-09 | Phase 25 | Complete |
 | INGR-10 | Phase 25 | Pending |
