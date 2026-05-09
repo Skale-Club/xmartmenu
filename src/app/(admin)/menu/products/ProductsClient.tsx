@@ -16,15 +16,10 @@ const DEFAULT_TAGS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Spicy', 'Chef\'s sp
 
 const TAG_COLORS: Record<string, string> = {
   'Vegetarian': 'bg-green-100 text-green-700',
-  'Vegetariano': 'bg-green-100 text-green-700',
   'Vegan': 'bg-emerald-100 text-emerald-700',
-  'Vegano': 'bg-emerald-100 text-emerald-700',
   'Gluten-Free': 'bg-amber-100 text-amber-700',
-  'Sem Glúten': 'bg-amber-100 text-amber-700',
   'Spicy': 'bg-red-100 text-red-700',
-  'Picante': 'bg-red-100 text-red-700',
   'Chef\'s special': 'bg-purple-100 text-purple-700',
-  'Especial do Chef': 'bg-purple-100 text-purple-700',
 }
 
 function getTagStyle(tag: string): string {
@@ -72,7 +67,7 @@ function Modal({
   )
 }
 
-export default function ProductsClient({ products: initial, categories, tenantId, menuId, activeMenuName, availableTags, currency = 'BRL', canManage }: Props) {
+export default function ProductsClient({ products: initial, categories, tenantId, menuId, activeMenuName, availableTags, currency = 'USD', canManage }: Props) {
   const TAGS = availableTags?.length ? availableTags : DEFAULT_TAGS
   const [products, setProducts] = useState(initial)
   const [showForm, setShowForm] = useState(false)

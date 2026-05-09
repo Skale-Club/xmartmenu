@@ -60,7 +60,7 @@ export default async function ProductDetailPage({
       product={product}
       initialGroups={(groups ?? []) as GroupWithOptions[]}
       tenantId={tenantId}
-      currency={settings?.currency ?? 'BRL'}
+      currency={settings?.currency ?? 'USD'}
       canManage={canManage}
       ingredientCustomizationEnabled={settings?.ingredient_customization_enabled ?? false}
       allIngredients={(ingredients ?? []) as Ingredient[]}

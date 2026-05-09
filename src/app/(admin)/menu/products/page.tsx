@@ -54,7 +54,7 @@ export default async function ProductsPage() {
       menuId={activeMenu.id}
       activeMenuName={activeMenu.name}
       availableTags={settings?.custom_tags ?? undefined}
-      currency={settings?.currency ?? 'BRL'}
+      currency={settings?.currency ?? 'USD'}
       canManage={canManage}
     />
   )

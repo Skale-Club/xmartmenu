@@ -1,6 +1,6 @@
 import { ImageResponse } from 'next/og'
 
-export const alt = 'XmartMenu — Your restaurant menu, online in minutes'
+export const alt = 'XmartMenu | Digital menus built for service'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
@@ -42,7 +42,7 @@ export default function Image() {
             lineHeight: 1.4,
           }}
         >
-          Your restaurant menu, online in minutes
+          Digital menus built for service
         </div>
         <div
           style={{

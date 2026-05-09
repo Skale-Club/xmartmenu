@@ -601,7 +601,7 @@ export default function ProductDetailClient({
               : 'text-zinc-500 hover:text-zinc-900'
           }`}
         >
-          Detalhes
+          Details
         </button>
         <button
           onClick={() => setActiveTab('options')}
@@ -611,7 +611,7 @@ export default function ProductDetailClient({
               : 'text-zinc-500 hover:text-zinc-900'
           }`}
         >
-          Opções
+          Options
         </button>
         {ingredientCustomizationEnabled && (
           <button
@@ -622,12 +622,12 @@ export default function ProductDetailClient({
                 : 'text-zinc-500 hover:text-zinc-900'
             }`}
           >
-            Ingredientes
+            Ingredients
           </button>
         )}
       </div>
 
-      {/* Product fields card — shown only on Detalhes tab */}
+      {/* Product fields card shown only on Details tab */}
       {activeTab === 'details' && (
       <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 mb-8">
         <form onSubmit={handleSaveProduct} className="space-y-4">
@@ -710,7 +710,7 @@ export default function ProductDetailClient({
       </div>
       )}
 
-      {/* Option Groups card — shown only on Opções tab */}
+      {/* Option Groups card shown only on Options tab */}
       {activeTab === 'options' && (
       <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
@@ -948,11 +948,11 @@ export default function ProductDetailClient({
       </div>
       )}
 
-      {/* Ingredientes tab — shown only when flag is on and tab is active */}
+      {/* Ingredients tab shown only when flag is on and tab is active */}
       {activeTab === 'ingredients' && ingredientCustomizationEnabled && (
         <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-zinc-900">Ingredientes</h2>
+            <h2 className="text-base font-semibold text-zinc-900">Ingredients</h2>
           </div>
 
           {/* Search / picker */}
@@ -961,12 +961,12 @@ export default function ProductDetailClient({
               type="text"
               value={ingredientSearch}
               onChange={e => setIngredientSearch(e.target.value)}
-              placeholder="Buscar ingrediente..."
+              placeholder="Search ingredient..."
               className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
             />
           </div>
 
-          {/* Catalog list — unselected ingredients (available for adding) */}
+          {/* Catalog list | unselected ingredients (available for adding) */}
           {(() => {
             const selectedIds = new Set(productIngredients.map(pi => pi.ingredient_id))
             const filtered = allIngredients.filter(ing =>
@@ -975,7 +975,7 @@ export default function ProductDetailClient({
             )
             return filtered.length > 0 ? (
               <div className="mb-6">
-                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Catálogo</p>
+                <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Catalog</p>
                 <div className="space-y-1">
                   {filtered.map(ing => (
                     <div key={ing.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-zinc-100 hover:border-zinc-300 transition-colors">
@@ -986,7 +986,7 @@ export default function ProductDetailClient({
                           disabled={ingLoading === ing.id}
                           className="text-xs px-3 py-1 rounded-lg bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50 transition-colors flex items-center gap-1"
                         >
-                          <Plus size={12} /> Adicionar
+                          <Plus size={12} /> Add
                         </button>
                       )}
                     </div>
@@ -996,10 +996,10 @@ export default function ProductDetailClient({
             ) : null
           })()}
 
-          {/* Selected ingredients — product associations */}
+          {/* Selected ingredients | product associations */}
           {productIngredients.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Ingredientes do produto</p>
+              <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">Product ingredients</p>
               <div className="space-y-3">
                 {productIngredients.map(pi => {
                   const ing = allIngredients.find(i => i.id === pi.ingredient_id)
@@ -1014,14 +1014,14 @@ export default function ProductDetailClient({
                             disabled={ingLoading === pi.ingredient_id}
                             className="text-xs px-3 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
                           >
-                            Remover ingrediente
+                            Remove ingredient
                           </button>
                         )}
                       </div>
                       <div className="grid grid-cols-2 gap-3">
                         {/* is_default toggle */}
                         <div className="col-span-2 flex items-center gap-3">
-                          <label className="text-sm text-zinc-600">Padrão do produto</label>
+                          <label className="text-sm text-zinc-600">Product default</label>
                           <button
                             type="button"
                             disabled={!canManage || ingLoading === pi.ingredient_id}
@@ -1037,7 +1037,7 @@ export default function ProductDetailClient({
                         </div>
                         {/* extra_price_override */}
                         <div>
-                          <label className="block text-xs font-medium text-zinc-600 mb-1">Preço extra para este produto</label>
+                          <label className="block text-xs font-medium text-zinc-600 mb-1">Extra price for this product</label>
                           <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
                             <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">
                               {CURRENCY_SYMBOL[currency] ?? currency}
@@ -1048,7 +1048,7 @@ export default function ProductDetailClient({
                               min="0"
                               disabled={!canManage}
                               defaultValue={pi.extra_price_override !== null ? String(pi.extra_price_override) : ''}
-                              placeholder={`Padrão: ${(CURRENCY_SYMBOL[currency] ?? currency)}${ing.default_extra_price.toFixed(2)}`}
+                              placeholder={`Default: ${(CURRENCY_SYMBOL[currency] ?? currency)}${ing.default_extra_price.toFixed(2)}`}
                               onBlur={e => {
                                 const val = e.target.value
                                 handleUpdateProductIngredient(pi.ingredient_id, {
@@ -1061,7 +1061,7 @@ export default function ProductDetailClient({
                         </div>
                         {/* add_price_override */}
                         <div>
-                          <label className="block text-xs font-medium text-zinc-600 mb-1">Preço para adicionar a este produto</label>
+                          <label className="block text-xs font-medium text-zinc-600 mb-1">Add-on price for this product</label>
                           <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
                             <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">
                               {CURRENCY_SYMBOL[currency] ?? currency}
@@ -1072,7 +1072,7 @@ export default function ProductDetailClient({
                               min="0"
                               disabled={!canManage}
                               defaultValue={pi.add_price_override !== null ? String(pi.add_price_override) : ''}
-                              placeholder={`Padrão: ${(CURRENCY_SYMBOL[currency] ?? currency)}${ing.default_add_price.toFixed(2)}`}
+                              placeholder={`Default: ${(CURRENCY_SYMBOL[currency] ?? currency)}${ing.default_add_price.toFixed(2)}`}
                               onBlur={e => {
                                 const val = e.target.value
                                 handleUpdateProductIngredient(pi.ingredient_id, {
@@ -1093,8 +1093,8 @@ export default function ProductDetailClient({
 
           {productIngredients.length === 0 && (
             <div className="text-center py-12 text-zinc-400">
-              <p className="font-medium text-zinc-500">Nenhum ingrediente associado</p>
-              <p className="text-sm mt-1">Busque e adicione ingredientes do catálogo acima</p>
+              <p className="font-medium text-zinc-500">No ingredients associated</p>
+              <p className="text-sm mt-1">Search and add ingredients from the catalog above</p>
             </div>
           )}
         </div>

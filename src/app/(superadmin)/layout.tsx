@@ -22,7 +22,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
       <aside className="w-60 flex-shrink-0 bg-zinc-900 text-white flex flex-col">
         <div className="p-5 border-b border-zinc-700">
           <a href="/" className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-1 hover:text-zinc-200 transition-colors">XmartMenu</a>
-          <p className="text-sm font-semibold">XmartMenu — Super Admin</p>
+          <p className="text-sm font-semibold">XmartMenu | Super Admin</p>
         </div>
         <nav className="flex-1 p-3 space-y-0.5">
           <a href="/overview" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">

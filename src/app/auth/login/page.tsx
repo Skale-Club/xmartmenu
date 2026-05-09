@@ -56,7 +56,7 @@ export default function LoginPage() {
         if (payload.redirectTo) redirectTo = payload.redirectTo
       }
     } catch {
-      // Fall back to /dashboard — middleware will enforce password change / role routing.
+      // Fall back to /dashboard | middleware will enforce password change / role routing.
     }
     router.replace(redirectTo)
   }
@@ -106,7 +106,7 @@ export default function LoginPage() {
             <div className="flex-1 h-px bg-white/10" />
           </div>
 
-          {/* Formulário e-mail/senha */}
+          {/* Email and password form */}
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-zinc-300 mb-1.5">Email</label>
@@ -115,7 +115,7 @@ export default function LoginPage() {
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                placeholder="seu@email.com"
+                placeholder="you@example.com"
                 className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
               />
             </div>

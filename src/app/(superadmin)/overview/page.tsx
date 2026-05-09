@@ -6,7 +6,7 @@ import Link from 'next/link'
 export default async function OverviewPage() {
   const service = await createServiceClient()
 
-  // Hoje no fuso de Brasília (UTC-3)
+  // Today in UTC-3
   const todayBRT = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   const [
@@ -66,7 +66,7 @@ export default async function OverviewPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Clientes recentes */}
+        {/* Recent clients */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-zinc-900">Recent clients</h2>
@@ -116,7 +116,7 @@ export default async function OverviewPage() {
           )}
         </div>
 
-        {/* Ações rápidas */}
+        {/* Quick actions */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
           <h2 className="text-sm font-semibold text-zinc-900 mb-4">Quick actions</h2>
           <div className="space-y-2">

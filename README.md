@@ -1,5 +1,11 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Product Language
+
+XmartMenu is English-first. New tenant and menu defaults should use English (`en`) for language and `USD` for currency unless a specific customer configuration says otherwise.
+
+Portuguese can be enabled as an additional menu language, but it is not the default product language or positioning.
+
 ## Getting Started
 
 First, run the development server:

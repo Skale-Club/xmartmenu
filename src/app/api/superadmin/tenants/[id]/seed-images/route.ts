@@ -13,7 +13,7 @@ export async function POST(
 ) {
   const { id: tenantId } = await params
 
-  // Auth guard — assertSuperadmin returns client or null (SEC-03 pattern)
+  // Auth guard | assertSuperadmin returns client or null (SEC-03 pattern)
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -22,7 +22,7 @@ export async function POST(
 
   const service = await createServiceClient()
 
-  // Insert ai_jobs row — GH Actions script will update status as it progresses
+  // Insert ai_jobs row | GH Actions script will update status as it progresses
   const featureKey = productId ? 'image_single' : 'image_seeding'
   const { data: job, error: jobErr } = await service
     .from('ai_jobs')
@@ -41,7 +41,7 @@ export async function POST(
   const jobId = job.id
 
   // Dispatch GH Actions workflow_dispatch
-  // CRITICAL (Pitfall 1): Returns HTTP 204 with NO body — DO NOT call .json()
+  // CRITICAL (Pitfall 1): Returns HTTP 204 with NO body | DO NOT call .json()
   // CRITICAL (Pitfall 2): Use Fine-Grained PAT (GH_PAT), NOT GITHUB_TOKEN
   const owner = process.env.GITHUB_REPO_OWNER
   const repo = process.env.GITHUB_REPO_NAME
@@ -76,7 +76,7 @@ export async function POST(
     }
   )
 
-  // workflow_dispatch returns 204 No Content on success — NEVER .json() this response
+  // workflow_dispatch returns 204 No Content on success | NEVER .json() this response
   if (dispatchRes.status !== 204) {
     const text = await dispatchRes.text()
     await service

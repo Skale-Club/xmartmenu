@@ -149,27 +149,27 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
     <div className="p-8">
       <ConfirmDialog
         open={canManage && !!confirmId}
-        title="Excluir ingrediente"
-        message="Excluir este ingrediente? Esta ação não pode ser desfeita."
+        title="Delete ingredient"
+        message="Delete this ingredient? This action cannot be undone."
         onConfirm={confirmDelete}
         onCancel={() => setConfirmId(null)}
       />
 
-      <Modal open={canManage && showForm} title={editingId ? 'Editar ingrediente' : 'Novo ingrediente'} onClose={resetForm}>
+      <Modal open={canManage && showForm} title={editingId ? 'Edit ingredient' : 'New ingredient'} onClose={resetForm}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Nome *</label>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Name *</label>
             <input
               required
               value={form.name}
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              placeholder="ex: Queijo, Cebola, Alface"
+              placeholder="ex: Cheese, Onion, Lettuce"
               className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Preço extra (padrão)</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Extra price (default)</label>
               <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
                 <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">
                   {CURRENCY_SYMBOL[currency] ?? currency}
@@ -184,7 +184,7 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Preço para adicionar (padrão)</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Add-on price (default)</label>
               <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
                 <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">
                   {CURRENCY_SYMBOL[currency] ?? currency}
@@ -200,7 +200,7 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-zinc-700">Disponível</label>
+            <label className="text-sm font-medium text-zinc-700">Available</label>
             <button
               type="button"
               onClick={() => setForm(f => ({ ...f, is_available: !f.is_available }))}
@@ -222,10 +222,10 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
               disabled={loading}
               className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
             >
-              {loading ? 'Salvando...' : 'Salvar ingrediente'}
+              {loading ? 'Saving...' : 'Save ingredient'}
             </button>
             <button type="button" onClick={resetForm} className="px-4 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100 transition-colors">
-              Cancelar
+              Cancel
             </button>
           </div>
         </form>
@@ -233,15 +233,15 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Ingredientes</h1>
-          <p className="text-sm text-zinc-500 mt-1">{ingredients.length} ingrediente(s)</p>
+          <h1 className="text-2xl font-bold text-zinc-900">Ingredients</h1>
+          <p className="text-sm text-zinc-500 mt-1">{ingredients.length} ingredient(s)</p>
         </div>
         {canManage && (
           <button
             onClick={() => { resetForm(); setShowForm(true) }}
             className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors"
           >
-            + Novo ingrediente
+            + New ingredient
           </button>
         )}
       </div>
@@ -249,8 +249,8 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
       {ingredients.length === 0 ? (
         <div className="text-center py-16 text-zinc-400">
           <p className="text-4xl mb-3">🥗</p>
-          <p className="font-medium">Nenhum ingrediente cadastrado</p>
-          <p className="text-sm mt-1">Adicione ingredientes para compor seus produtos</p>
+          <p className="font-medium">No ingredients registered</p>
+          <p className="text-sm mt-1">Add ingredients to build your products</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -259,7 +259,7 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
               {canManage && (
                 <div className="flex flex-col gap-0.5">
                   <button
-                    aria-label="Mover para cima"
+                    aria-label="Move up"
                     disabled={idx === 0 || reorderInFlight}
                     onClick={() => moveIngredient(ing.id, 'up')}
                     className="text-zinc-400 hover:text-zinc-700 p-1 rounded disabled:opacity-30"
@@ -267,7 +267,7 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
                     <ChevronUp size={16} />
                   </button>
                   <button
-                    aria-label="Mover para baixo"
+                    aria-label="Move down"
                     disabled={idx === ingredients.length - 1 || reorderInFlight}
                     onClick={() => moveIngredient(ing.id, 'down')}
                     className="text-zinc-400 hover:text-zinc-700 p-1 rounded disabled:opacity-30"
@@ -279,27 +279,27 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-zinc-900">{ing.name}</p>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  Extra: {CURRENCY_SYMBOL[currency] ?? currency}{ing.default_extra_price.toFixed(2)} · Adicionar: {CURRENCY_SYMBOL[currency] ?? currency}{ing.default_add_price.toFixed(2)}
+                  Extra: {CURRENCY_SYMBOL[currency] ?? currency}{ing.default_extra_price.toFixed(2)} · Add-on: {CURRENCY_SYMBOL[currency] ?? currency}{ing.default_add_price.toFixed(2)}
                 </p>
               </div>
               <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                 ing.is_available ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'
               }`}>
-                {ing.is_available ? 'Disponível' : 'Indisponível'}
+                {ing.is_available ? 'Available' : 'Unavailable'}
               </span>
               {canManage && (
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => startEdit(ing)}
                     className="text-zinc-400 hover:text-zinc-700 p-1.5 rounded"
-                    aria-label="Editar ingrediente"
+                    aria-label="Edit ingredient"
                   >
                     <Pencil size={14} />
                   </button>
                   <button
                     onClick={() => setConfirmId(ing.id)}
                     className="text-zinc-400 hover:text-red-600 p-1.5 rounded"
-                    aria-label="Excluir ingrediente"
+                    aria-label="Delete ingredient"
                   >
                     <Trash2 size={14} />
                   </button>

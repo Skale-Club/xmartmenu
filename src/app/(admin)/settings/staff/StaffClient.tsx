@@ -201,7 +201,7 @@ export default function StaffClient() {
               {staff.map(member => (
                 <tr key={member.id} className="hover:bg-zinc-50">
                   <td className="px-5 py-3">
-                    <p className="font-medium text-zinc-900">{member.full_name ?? '—'}</p>
+                    <p className="font-medium text-zinc-900">{member.full_name ?? 'N/A'}</p>
                     <p className="text-xs text-zinc-400">{member.email}</p>
                     {member.phone && <p className="text-xs text-zinc-400">{member.phone}</p>}
                   </td>

@@ -1,5 +1,5 @@
 -- ============================================================
--- Skale QR Menu — Schema inicial
+-- Skale QR Menu | Initial schema
 -- ============================================================
 
 -- TENANTS
@@ -88,7 +88,7 @@ CREATE TABLE scan_events (
 );
 
 -- ============================================================
--- ÍNDICES
+-- INDEXES
 -- ============================================================
 CREATE INDEX idx_products_tenant ON products(tenant_id);
 CREATE INDEX idx_products_category ON products(category_id);
@@ -114,7 +114,7 @@ CREATE TRIGGER products_updated_at BEFORE UPDATE ON products
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
 
 -- ============================================================
--- TRIGGER: cria profile automaticamente ao cadastrar usuário
+-- TRIGGER: create profile automatically when a user signs up
 -- ============================================================
 CREATE OR REPLACE FUNCTION handle_new_user()
 RETURNS TRIGGER AS $$
@@ -141,13 +141,13 @@ ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE qr_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE scan_events ENABLE ROW LEVEL SECURITY;
 
--- Helper: retorna tenant_id do usuário autenticado
+-- Helper: return tenant_id for the authenticated user
 CREATE OR REPLACE FUNCTION auth_tenant_id()
 RETURNS UUID AS $$
   SELECT tenant_id FROM profiles WHERE id = auth.uid();
 $$ LANGUAGE SQL STABLE SECURITY DEFINER;
 
--- Helper: verifica se é superadmin
+-- Helper: check whether the authenticated user is a superadmin
 CREATE OR REPLACE FUNCTION is_superadmin()
 RETURNS BOOLEAN AS $$
   SELECT EXISTS (
@@ -155,13 +155,13 @@ RETURNS BOOLEAN AS $$
   );
 $$ LANGUAGE SQL STABLE SECURITY DEFINER;
 
--- TENANTS: superadmin vê tudo, admin vê só o próprio
+-- TENANTS: superadmins see all rows, admins see only their own tenant
 CREATE POLICY "tenants_superadmin" ON tenants FOR ALL
   USING (is_superadmin());
 CREATE POLICY "tenants_self" ON tenants FOR SELECT
   USING (id = auth_tenant_id());
 
--- TENANT_SETTINGS: mesma lógica
+-- TENANT_SETTINGS: same access model
 CREATE POLICY "settings_superadmin" ON tenant_settings FOR ALL
   USING (is_superadmin());
 CREATE POLICY "settings_self" ON tenant_settings
@@ -173,13 +173,13 @@ CREATE POLICY "profiles_self" ON profiles FOR SELECT
 CREATE POLICY "profiles_update_self" ON profiles FOR UPDATE
   USING (id = auth.uid());
 
--- CATEGORIES: admins gerenciam as próprias, página pública lê todas ativas
+-- CATEGORIES: admins manage their own rows, public pages read active rows
 CREATE POLICY "categories_admin" ON categories
   USING (tenant_id = auth_tenant_id() OR is_superadmin());
 CREATE POLICY "categories_public" ON categories FOR SELECT
   USING (is_active = true);
 
--- PRODUCTS: admins gerenciam os próprios, página pública lê disponíveis
+-- PRODUCTS: admins manage their own rows, public pages read available products
 CREATE POLICY "products_admin" ON products
   USING (tenant_id = auth_tenant_id() OR is_superadmin());
 CREATE POLICY "products_public" ON products FOR SELECT
@@ -189,7 +189,7 @@ CREATE POLICY "products_public" ON products FOR SELECT
 CREATE POLICY "qrcodes_admin" ON qr_codes
   USING (tenant_id = auth_tenant_id() OR is_superadmin());
 
--- SCAN EVENTS: qualquer um insere (anon), admin lê os próprios
+-- SCAN EVENTS: anyone can insert, admins read their own rows
 CREATE POLICY "scan_insert_anon" ON scan_events FOR INSERT
   WITH CHECK (true);
 CREATE POLICY "scan_read_admin" ON scan_events FOR SELECT

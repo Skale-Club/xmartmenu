@@ -5,18 +5,18 @@
 -- ============================================================
 
 -- ============================================================
--- 1. TENANT_SETTINGS — add all missing columns
+-- 1. TENANT_SETTINGS | add all missing columns
 -- ============================================================
 ALTER TABLE tenant_settings
   ADD COLUMN IF NOT EXISTS custom_tags          TEXT[] DEFAULT '{}',
-  ADD COLUMN IF NOT EXISTS currency             TEXT NOT NULL DEFAULT 'BRL',
-  ADD COLUMN IF NOT EXISTS language             TEXT NOT NULL DEFAULT 'pt',
+  ADD COLUMN IF NOT EXISTS currency             TEXT NOT NULL DEFAULT 'USD',
+  ADD COLUMN IF NOT EXISTS language             TEXT NOT NULL DEFAULT 'en',
   ADD COLUMN IF NOT EXISTS whatsapp_orders_enabled BOOLEAN NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS orders_enabled       BOOLEAN NOT NULL DEFAULT true,
   ADD COLUMN IF NOT EXISTS direct_orders_enabled BOOLEAN NOT NULL DEFAULT false;
 
 -- ============================================================
--- 2. PROFILES — add missing columns and fix role constraint
+-- 2. PROFILES | add missing columns and fix role constraint
 -- ============================================================
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS phone                TEXT,
@@ -29,7 +29,7 @@ ALTER TABLE profiles ADD CONSTRAINT profiles_role_check
   CHECK (role IN ('superadmin', 'store-admin', 'store-staff', 'admin'));
 
 -- ============================================================
--- 3. PRODUCTS — add image_urls array
+-- 3. PRODUCTS | add image_urls array
 -- ============================================================
 ALTER TABLE products
   ADD COLUMN IF NOT EXISTS image_urls TEXT[] DEFAULT '{}';
@@ -43,8 +43,8 @@ CREATE TABLE IF NOT EXISTS menus (
   name        TEXT NOT NULL,
   slug        TEXT NOT NULL,
   description TEXT,
-  language    TEXT NOT NULL DEFAULT 'pt',
-  supported_languages TEXT[] NOT NULL DEFAULT ARRAY['pt'],
+  language    TEXT NOT NULL DEFAULT 'en',
+  supported_languages TEXT[] NOT NULL DEFAULT ARRAY['en'],
   translations        JSONB  NOT NULL DEFAULT '{}'::jsonb,
   purpose     TEXT NOT NULL DEFAULT 'restaurant',
   is_active   BOOLEAN NOT NULL DEFAULT true,
@@ -82,7 +82,7 @@ DO $$ BEGIN
 END $$;
 
 -- menus i18n columns (safe if already exist)
-ALTER TABLE menus ADD COLUMN IF NOT EXISTS supported_languages TEXT[] NOT NULL DEFAULT ARRAY['pt'];
+ALTER TABLE menus ADD COLUMN IF NOT EXISTS supported_languages TEXT[] NOT NULL DEFAULT ARRAY['en'];
 ALTER TABLE menus ADD COLUMN IF NOT EXISTS translations        JSONB  NOT NULL DEFAULT '{}'::jsonb;
 
 -- menu_id on categories and products
@@ -91,7 +91,7 @@ ALTER TABLE products   ADD COLUMN IF NOT EXISTS menu_id UUID REFERENCES menus(id
 
 -- Create a default menu for any tenant that doesn't have one yet
 INSERT INTO menus (tenant_id, name, slug, language, supported_languages, purpose, is_active, is_default, position)
-SELECT t.id, 'Main Menu', 'main', 'pt', ARRAY['pt'], 'restaurant', true, true, 0
+SELECT t.id, 'Main Menu', 'main', 'en', ARRAY['en'], 'restaurant', true, true, 0
 FROM tenants t
 WHERE NOT EXISTS (SELECT 1 FROM menus m WHERE m.tenant_id = t.id);
 

@@ -31,7 +31,7 @@ export default async function IngredientsPage() {
     <IngredientsClient
       ingredients={ingredients ?? []}
       tenantId={tenantId}
-      currency={settings?.currency ?? 'BRL'}
+      currency={settings?.currency ?? 'USD'}
       canManage={canManage}
     />
   )

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const { name, slug, email, plan } = body
 
   if (!name || !slug || !email) {
-    return NextResponse.json({ error: 'Nome, slug e email são obrigatórios' }, { status: 400 })
+    return NextResponse.json({ error: 'Name, slug and email are required' }, { status: 400 })
   }
 
   const { data: existing } = await supabase
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     .single()
 
   if (existing) {
-    return NextResponse.json({ error: 'Slug já existe. Escolha outro.' }, { status: 400 })
+    return NextResponse.json({ error: 'Slug already exists. Choose another one.' }, { status: 400 })
   }
 
   const { data: tenant, error: tenantError } = await supabase
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     .single()
 
   if (tenantError || !tenant) {
-    return NextResponse.json({ error: 'Erro ao criar tenant' }, { status: 500 })
+    return NextResponse.json({ error: 'Error creating tenant' }, { status: 500 })
   }
 
   await supabase.from('tenant_settings').insert({ tenant_id: tenant.id })
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 
   if (userError) {
     await service.from('tenants').delete().eq('id', tenant.id)
-    return NextResponse.json({ error: `Erro ao criar usuário: ${userError.message}` }, { status: 500 })
+    return NextResponse.json({ error: `Error creating user: ${userError.message}` }, { status: 500 })
   }
 
   if (userData.user) {

@@ -71,13 +71,13 @@ export default function TenantDetailClient({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('')
   const [menuCategories, setMenuCategories] = useState<{ id: string; name: string }[]>([])
 
-  // Image seeding state — Phase 10: AI-07, AI-08, AI-09
+  // Image seeding state | Phase 10: AI-07, AI-08, AI-09
   const [imageSeedLoading, setImageSeedLoading] = useState<string | null>(null)
   const [imageSeedStatus, setImageSeedStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [selectedProductId, setSelectedProductId] = useState<string>('')
   const [menuProducts, setMenuProducts] = useState<{ id: string; name: string }[]>([])
 
-  // OCR photo upload state — AI-10, AI-11
+  // OCR photo upload state | AI-10, AI-11
   const [ocrFile, setOcrFile] = useState<File | null>(null)
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrStatus, setOcrStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
@@ -146,7 +146,7 @@ export default function TenantDetailClient({
     setSelectedCategoryId('')
   }, [selectedMenuId, tenant.id])
 
-  // Fetch products for selected category — for single-product image seed (AI-09)
+  // Fetch products for selected category | for single-product image seed (AI-09)
   useEffect(() => {
     if (!selectedMenuId || !selectedCategoryId) { setMenuProducts([]); setSelectedProductId(''); return }
     fetch(`/api/superadmin/tenants/${tenant.id}/menus/${selectedMenuId}/products-list?categoryId=${selectedCategoryId}`)
@@ -162,20 +162,20 @@ export default function TenantDetailClient({
     const cats = data.categoriesCreated ?? 0
     const prods = data.productsCreated ?? 0
     if (type === 'menu') {
-      if (cats === 0 && prods === 0) return 'Nothing added — all generated items already exist.'
+      if (cats === 0 && prods === 0) return 'Nothing added. All generated items already exist.'
       return `Menu seeded. ${cats} ${cats === 1 ? 'category' : 'categories'} and ${prods} ${prods === 1 ? 'product' : 'products'} added.`
     }
     if (type === 'categories') {
-      if (cats === 0) return 'Nothing added — all generated items already exist.'
+      if (cats === 0) return 'Nothing added. All generated items already exist.'
       return `${cats} ${cats === 1 ? 'category' : 'categories'} added.`
     }
     if (type === 'products') {
-      if (prods === 0) return 'Nothing added — all generated items already exist.'
+      if (prods === 0) return 'Nothing added. All generated items already exist.'
       return `${prods} ${prods === 1 ? 'product' : 'products'} added.`
     }
     if (type === 'copy') return 'Restaurant copy updated.'
-    if (type === 'single_category') return cats > 0 ? 'Category added.' : 'Nothing added — already exists.'
-    if (type === 'single_product') return prods > 0 ? 'Product added.' : 'Nothing added — already exists.'
+    if (type === 'single_category') return cats > 0 ? 'Category added.' : 'Nothing added. Already exists.'
+    if (type === 'single_product') return prods > 0 ? 'Product added.' : 'Nothing added. Already exists.'
     return 'Done.'
   }
 
@@ -234,11 +234,11 @@ export default function TenantDetailClient({
       })
       const data = await res.json()
       if (!res.ok) {
-        setPerItemError(data.error ?? 'Failed — retry?')
+        setPerItemError(data.error ?? 'Failed. Retry?')
         setTimeout(() => setPerItemError(null), 5000)
       }
     } catch {
-      setPerItemError('Failed — retry?')
+      setPerItemError('Failed. Retry?')
       setTimeout(() => setPerItemError(null), 5000)
     }
     setPerItemLoading(null)
@@ -338,7 +338,7 @@ export default function TenantDetailClient({
         const cats = ocrData.categoriesCreated ?? 0
         const prods = ocrData.productsCreated ?? 0
         const msg = cats === 0 && prods === 0
-          ? 'No new items extracted — all detected items already exist.'
+          ? 'No new items extracted. All detected items already exist.'
           : `OCR complete. ${cats} ${cats === 1 ? 'category' : 'categories'} and ${prods} ${prods === 1 ? 'product' : 'products'} added.`
         setOcrStatus({ type: 'success', message: msg })
         setOcrFile(null)
@@ -476,12 +476,12 @@ export default function TenantDetailClient({
                   {staff.map(member => (
                     <tr key={member.id} className="hover:bg-zinc-50">
                       <td className="px-5 py-3">
-                        <p className="font-medium text-zinc-900">{member.full_name ?? '—'}</p>
+                        <p className="font-medium text-zinc-900">{member.full_name ?? 'N/A'}</p>
                         <p className="text-xs text-zinc-400">{member.email}</p>
                         {member.phone && <p className="text-xs text-zinc-400">{member.phone}</p>}
                       </td>
                       <td className="px-5 py-3 text-xs text-zinc-400">
-                        {new Date(member.created_at).toLocaleDateString('pt-BR')}
+                        {new Date(member.created_at).toLocaleDateString('en-US')}
                       </td>
                       <td className="px-5 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -530,14 +530,14 @@ export default function TenantDetailClient({
                       <p className="font-medium text-zinc-900">{menu.name}</p>
                       <p className="text-xs text-zinc-400">/{menu.slug}</p>
                     </td>
-                    <td className="px-5 py-3 text-xs text-zinc-500">{menu.language ?? '—'}</td>
+                    <td className="px-5 py-3 text-xs text-zinc-500">{menu.language ?? 'N/A'}</td>
                     <td className="px-5 py-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${menu.is_active ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
                         {menu.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-xs text-zinc-400">
-                      {new Date(menu.created_at).toLocaleDateString('pt-BR')}
+                      {new Date(menu.created_at).toLocaleDateString('en-US')}
                     </td>
                   </tr>
                 ))}
@@ -547,7 +547,7 @@ export default function TenantDetailClient({
         </div>
       )}
 
-      {/* AI Tools section — D-02: placed below Tabs, always visible */}
+      {/* AI Tools section | D-02: placed below Tabs, always visible */}
       <div className="mt-8 bg-white border border-zinc-200 rounded-xl p-5">
         <h2 className="text-sm font-semibold text-zinc-900 mb-1">AI Tools</h2>
 
@@ -558,7 +558,7 @@ export default function TenantDetailClient({
           </p>
         ) : (
           <div className="mb-4">
-            <p className="text-xs text-zinc-400 mb-1">Business type not set — enter to enable seeding:</p>
+            <p className="text-xs text-zinc-400 mb-1">Business type not set. Enter it to enable seeding:</p>
             <input
               type="text"
               value={businessTypeInput}
@@ -569,7 +569,7 @@ export default function TenantDetailClient({
           </div>
         )}
 
-        {/* Menu selector — shown only when tenant has multiple menus */}
+        {/* Menu selector | shown only when tenant has multiple menus */}
         {menus.length > 1 && (
           <select
             value={selectedMenuId}
@@ -586,10 +586,10 @@ export default function TenantDetailClient({
 
         {/* No menus state */}
         {menus.length === 0 && (
-          <p className="text-xs text-zinc-400 mb-4">No menus yet — create a menu first to enable seeding.</p>
+          <p className="text-xs text-zinc-400 mb-4">No menus yet. Create a menu first to enable seeding.</p>
         )}
 
-        {/* Bulk seed buttons — D-03 */}
+        {/* Bulk seed buttons | D-03 */}
         {menus.length > 0 && (
           <div className="flex flex-wrap gap-2">
             <button
@@ -626,7 +626,7 @@ export default function TenantDetailClient({
         {/* Loading pulse message */}
         {seedLoading && (
           <p className="text-xs text-zinc-400 mt-3 animate-pulse">
-            Generating menu content — this may take up to 20 seconds...
+            Generating menu content. This may take up to 20 seconds...
           </p>
         )}
 
@@ -648,7 +648,7 @@ export default function TenantDetailClient({
           </div>
         )}
 
-        {/* Per-item seed section — D-03: single category and single product — AI-06 */}
+        {/* Per-item seed section | D-03: single category and single product | AI-06 */}
         {menus.length > 0 && selectedMenuId && (
           <div className="mt-5 pt-4 border-t border-zinc-100">
             <p className="text-xs text-zinc-400 mb-3">Per-item seeding</p>
@@ -664,7 +664,7 @@ export default function TenantDetailClient({
               </button>
             </div>
 
-            {/* Seed product row — requires category selection */}
+            {/* Seed product row | requires category selection */}
             <div className="flex items-center gap-2">
               <select
                 value={selectedCategoryId}
@@ -699,7 +699,7 @@ export default function TenantDetailClient({
           </div>
         )}
 
-        {/* Image Seeding — Phase 10: AI-07, AI-08, AI-09 */}
+        {/* Image Seeding | Phase 10: AI-07, AI-08, AI-09 */}
         {menus.length > 0 && selectedMenuId && (
           <div className="mt-5 pt-4 border-t border-zinc-100">
             <p className="text-xs text-zinc-400 mb-3">Image seeding</p>
@@ -721,12 +721,12 @@ export default function TenantDetailClient({
             </div>
             {imageSeedLoading === 'image_products' && (
               <p className="text-xs text-zinc-400 mb-3 animate-pulse">
-                Generating images — this may take several minutes. Keep this tab open.
+                Generating images. This may take several minutes. Keep this tab open.
               </p>
             )}
             {imageSeedLoading === 'image_cover' && (
               <p className="text-xs text-zinc-400 mb-3 animate-pulse">
-                Generating cover photo — this may take up to 30 seconds...
+                Generating cover photo. This may take up to 30 seconds...
               </p>
             )}
             <div className="flex items-center gap-2 flex-wrap">
@@ -770,7 +770,7 @@ export default function TenantDetailClient({
           </div>
         )}
 
-        {/* OCR photo upload section — AI-10, AI-11 */}
+        {/* OCR photo upload section | AI-10, AI-11 */}
         {menus.length > 0 && selectedMenuId && (
           <div className="mt-5 pt-4 border-t border-zinc-100">
             <p className="text-xs text-zinc-400 mb-3">Menu photo OCR</p>
@@ -801,7 +801,7 @@ export default function TenantDetailClient({
 
             {ocrLoading && (
               <p className="text-xs text-zinc-400 mt-2 animate-pulse">
-                Extracting menu — this may take up to 30 seconds...
+                Extracting menu. This may take up to 30 seconds...
               </p>
             )}
 

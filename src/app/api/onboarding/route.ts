@@ -96,7 +96,7 @@ export async function POST(request: Request) {
         })
       }
 
-      // Tenant exists but no menu — previous attempt failed mid-way. Resume from menu creation.
+      // Tenant exists but no menu | previous attempt failed mid-way. Resume from menu creation.
       tenant = {
         id: currentProfile.tenant_id,
         slug: (currentProfile.tenants as any)?.slug ?? '',
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       // 1. Create tenant
       let slug = slugify(company_name)
 
-      // Reject slugs that collide with reserved marketing paths — dual enforcement
+      // Reject slugs that collide with reserved marketing paths | dual enforcement
       // (middleware blocks access; API blocks creation). D-07 from CONTEXT.md.
       if (RESERVED_PATHS.has(slug)) {
         return NextResponse.json(

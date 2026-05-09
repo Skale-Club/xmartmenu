@@ -1,5 +1,5 @@
 /**
- * Storage abstraction — swap provider via STORAGE_PROVIDER env var.
+ * Storage abstraction | swap provider via STORAGE_PROVIDER env var.
  *
  * Current default: 'supabase' (Supabase Storage)
  * S3-compatible:   STORAGE_PROVIDER=s3

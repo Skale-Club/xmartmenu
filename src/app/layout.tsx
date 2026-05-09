@@ -13,14 +13,13 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: {
     template: '%s | XmartMenu',
-    default: 'XmartMenu — Cardápio digital para restaurantes',
+    default: 'XmartMenu | Digital menu for restaurants',
   },
-  description: 'Crie seu cardápio digital via QR Code em minutos. Sem design, sem desenvolvedor.',
+  description: 'A digital menu platform built for restaurant service, QR code ordering, and menu operations.',
   metadataBase: new URL('https://xmartmenu.skale.club'),
   openGraph: {
     type: 'website',
-    locale: 'pt_BR',
-    alternateLocale: 'en_US',
+    locale: 'en_US',
     siteName: 'XmartMenu',
     images: [
       {
@@ -42,7 +41,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="pt-BR" className="h-full antialiased">
+    <html lang="en" className="h-full antialiased">
       <body className={`${inter.className} min-h-full`}>
         {children}
         <Analytics />

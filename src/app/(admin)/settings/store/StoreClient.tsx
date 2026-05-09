@@ -10,16 +10,16 @@ interface Props {
 }
 
 const CURRENCIES = [
-  { value: 'USD', label: 'USD — US Dollar ($)' },
-  { value: 'BRL', label: 'BRL — Brazilian Real (R$)' },
-  { value: 'EUR', label: 'EUR — Euro (€)' },
-  { value: 'GBP', label: 'GBP — British Pound (£)' },
-  { value: 'CAD', label: 'CAD — Canadian Dollar (CA$)' },
-  { value: 'AUD', label: 'AUD — Australian Dollar (A$)' },
-  { value: 'MXN', label: 'MXN — Mexican Peso (MX$)' },
-  { value: 'ARS', label: 'ARS — Argentine Peso ($)' },
-  { value: 'CLP', label: 'CLP — Chilean Peso ($)' },
-  { value: 'COP', label: 'COP — Colombian Peso ($)' },
+  { value: 'USD', label: 'USD | US Dollar ($)' },
+  { value: 'BRL', label: 'BRL | Brazilian Real (R$)' },
+  { value: 'EUR', label: 'EUR | Euro (€)' },
+  { value: 'GBP', label: 'GBP | British Pound (£)' },
+  { value: 'CAD', label: 'CAD | Canadian Dollar (CA$)' },
+  { value: 'AUD', label: 'AUD | Australian Dollar (A$)' },
+  { value: 'MXN', label: 'MXN | Mexican Peso (MX$)' },
+  { value: 'ARS', label: 'ARS | Argentine Peso ($)' },
+  { value: 'CLP', label: 'CLP | Chilean Peso ($)' },
+  { value: 'COP', label: 'COP | Colombian Peso ($)' },
 ]
 
 const LANGUAGES = [
@@ -68,12 +68,12 @@ export default function StoreClient({ settings, tenantId }: Props) {
     setError(null)
 
     if (form.amber_threshold_minutes <= 0 || form.red_threshold_minutes <= 0) {
-      setError('Os limites devem ser maiores que zero')
+      setError('Thresholds must be greater than zero')
       setLoading(false)
       return
     }
     if (form.amber_threshold_minutes >= form.red_threshold_minutes) {
-      setError('O limite âmbar deve ser menor que o limite vermelho')
+      setError('The amber threshold must be lower than the red threshold')
       setLoading(false)
       return
     }
@@ -191,27 +191,27 @@ export default function StoreClient({ settings, tenantId }: Props) {
           <h2 className="text-sm font-semibold text-zinc-900 pb-2 border-b border-zinc-100">Ordering</h2>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-zinc-700">Observações por item</p>
-              <p className="text-xs text-zinc-400 mt-0.5">Permite que o cliente adicione uma nota a cada item do pedido</p>
+              <p className="text-sm font-medium text-zinc-700">Item notes</p>
+              <p className="text-xs text-zinc-400 mt-0.5">Allow customers to add a note to each order item</p>
             </div>
             <button
               type="button"
               onClick={() => setForm(f => ({ ...f, item_notes_enabled: !f.item_notes_enabled }))}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${form.item_notes_enabled ? 'bg-zinc-900' : 'bg-zinc-200'}`}
-              aria-label="Ativar observações por item"
+              aria-label="Enable item notes"
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${form.item_notes_enabled ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
           </div>
         </div>
 
-        {/* KDS — Alertas de tempo */}
+        {/* KDS time alerts */}
         <div className={section}>
-          <h2 className="text-sm font-semibold text-zinc-900 pb-2 border-b border-zinc-100">KDS — Alertas de tempo</h2>
-          <p className="text-xs text-zinc-400 mb-2">Tempo de espera para mudar a cor do card no painel da cozinha</p>
+          <h2 className="text-sm font-semibold text-zinc-900 pb-2 border-b border-zinc-100">KDS | Time alerts</h2>
+          <p className="text-xs text-zinc-400 mb-2">Wait time before changing the card color on the kitchen display</p>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={label}>Limite âmbar (min)</label>
+              <label className={label}>Amber threshold (min)</label>
               <input
                 type="number"
                 min={1}
@@ -222,7 +222,7 @@ export default function StoreClient({ settings, tenantId }: Props) {
               />
             </div>
             <div>
-              <label className={label}>Limite vermelho (min)</label>
+              <label className={label}>Red threshold (min)</label>
               <input
                 type="number"
                 min={1}

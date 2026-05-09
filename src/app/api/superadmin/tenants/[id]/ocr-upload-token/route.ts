@@ -11,7 +11,7 @@ export async function GET(
 ) {
   const { id: tenantId } = await params
 
-  // D-18: Auth guard — assertSuperadmin() first on every new route
+  // D-18: Auth guard | assertSuperadmin() first on every new route
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

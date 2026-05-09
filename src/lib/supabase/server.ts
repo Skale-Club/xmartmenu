@@ -26,10 +26,10 @@ const createClientUncached = async () => {
   )
 }
 
-// Cache por request — evita múltiplos clientes na mesma request (resolve lock conflict)
+// Per-request cache prevents multiple clients in the same request.
 export const createClient = cache(createClientUncached)
 
-// Service client usa a chave de serviço diretamente, sem dependência de cookies
+// Service client uses the service key directly without cookie dependencies.
 export function createServiceClient() {
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

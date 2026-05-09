@@ -14,11 +14,11 @@ const STATUS_COLORS: Record<string, {
   badge: string
   label: string
 }> = {
-  pending:   { border: 'border-l-blue-500',   bg: 'bg-blue-50',   badge: 'bg-blue-100 text-blue-800',    label: 'Pendente' },
-  preparing: { border: 'border-l-yellow-500', bg: 'bg-yellow-50', badge: 'bg-yellow-100 text-yellow-800', label: 'Em preparo' },
-  ready:     { border: 'border-l-green-500',  bg: 'bg-green-50',  badge: 'bg-green-100 text-green-800',   label: 'Pronto' },
-  done:      { border: 'border-l-zinc-400',   bg: 'bg-zinc-50',   badge: 'bg-zinc-100 text-zinc-600',     label: 'Concluído' },
-  cancelled: { border: 'border-l-red-500',    bg: 'bg-red-50',    badge: 'bg-red-100 text-red-800',       label: 'Cancelado' },
+  pending:   { border: 'border-l-blue-500',   bg: 'bg-blue-50',   badge: 'bg-blue-100 text-blue-800',    label: 'Pending' },
+  preparing: { border: 'border-l-yellow-500', bg: 'bg-yellow-50', badge: 'bg-yellow-100 text-yellow-800', label: 'Preparing' },
+  ready:     { border: 'border-l-green-500',  bg: 'bg-green-50',  badge: 'bg-green-100 text-green-800',   label: 'Ready' },
+  done:      { border: 'border-l-zinc-400',   bg: 'bg-zinc-50',   badge: 'bg-zinc-100 text-zinc-600',     label: 'Done' },
+  cancelled: { border: 'border-l-red-500',    bg: 'bg-red-50',    badge: 'bg-red-100 text-red-800',       label: 'Cancelled' },
 }
 
 const NEXT_STATUS: Record<string, string | null> = {
@@ -30,9 +30,9 @@ const NEXT_STATUS: Record<string, string | null> = {
 }
 
 const ADVANCE_LABEL: Record<string, string> = {
-  pending:   'Iniciar preparo',
-  preparing: 'Marcar pronto',
-  ready:     'Concluir',
+  pending:   'Start preparing',
+  preparing: 'Mark ready',
+  ready:     'Complete',
 }
 
 const KDS_VIEW_KEY    = (tenantId: string) => `kds_view_${tenantId}`
@@ -42,11 +42,11 @@ const KDS_MUTE_KEY    = (tenantId: string) => `kds_mute_${tenantId}`
 type FilterValue = 'active' | 'pending' | 'preparing' | 'ready' | 'all'
 
 const FILTER_CHIPS: { value: FilterValue; label: string }[] = [
-  { value: 'active',    label: 'Ativos' },      // pending + preparing (default)
-  { value: 'pending',   label: 'Pendentes' },
-  { value: 'preparing', label: 'Em preparo' },
-  { value: 'ready',     label: 'Prontos' },
-  { value: 'all',       label: 'Todos' },
+  { value: 'active',    label: 'Active' },      // pending + preparing (default)
+  { value: 'pending',   label: 'Pending' },
+  { value: 'preparing', label: 'Preparing' },
+  { value: 'ready',     label: 'Ready' },
+  { value: 'all',       label: 'All' },
 ]
 
 const DEFAULT_FILTER: FilterValue = 'active'
@@ -114,7 +114,7 @@ function OrderCard({
                 <span className="flex flex-col gap-0.5 mt-0.5">
                   {mods.removed.map(r => (
                     <span key={r.ingredient_id} className="text-xs text-red-600 line-through">
-                      SEM {r.name}
+                      NO {r.name}
                     </span>
                   ))}
                   {mods.extras.map(e => (
@@ -142,7 +142,7 @@ function OrderCard({
         </span>
       </div>
 
-      {/* Actions — advance button + cancel */}
+      {/* Actions | advance button + cancel */}
       {nextStatus && (
         <button
           onClick={() => onAdvance(order.id, nextStatus)}
@@ -158,7 +158,7 @@ function OrderCard({
           disabled={isLoading}
           className="w-full text-xs text-red-600 hover:underline disabled:opacity-50"
         >
-          Cancelar
+          Cancel
         </button>
       )}
     </div>
@@ -169,13 +169,13 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
-  // view toggle state — persisted to localStorage per tenant
+  // view toggle state | persisted to localStorage per tenant
   const [view, setView] = useState<'grid' | 'list'>('grid')
-  // filter chips — default shows pending + preparing (one active chip, mutually exclusive)
+  // filter chips | default shows pending + preparing (one active chip, mutually exclusive)
   const [activeFilter, setActiveFilter] = useState<FilterValue>(DEFAULT_FILTER)
-  // mute state — persisted to localStorage per tenant
+  // mute state | persisted to localStorage per tenant
   const [muted, setMuted] = useState(false)
-  // lazy AudioContext ref — created on first user interaction to satisfy browser autoplay policy
+  // lazy AudioContext ref | created on first user interaction to satisfy browser autoplay policy
   const audioCtxRef = useRef<AudioContext | null>(null)
   // mutedRef mirrors muted state so Realtime closure reads current value without re-subscribing
   const mutedRef = useRef(false)
@@ -206,7 +206,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     mutedRef.current = muted
   }, [muted])
 
-  // Beep via Web Audio API — oscillator at 880Hz for 0.1s
+  // Beep via Web Audio API | oscillator at 880Hz for 0.1s
   function playBeep() {
     try {
       if (!audioCtxRef.current) {
@@ -224,11 +224,11 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
       osc.start(ctx.currentTime)
       osc.stop(ctx.currentTime + 0.1)
     } catch {
-      // AudioContext creation may fail in non-interactive contexts — ignore silently
+      // AudioContext creation may fail in non-interactive contexts | ignore silently
     }
   }
 
-  // Realtime subscription — primary path for KDS-06
+  // Realtime subscription | primary path for KDS-06
   // KDS-12: beep fires only on INSERT of pending orders (not status updates)
   useEffect(() => {
     const channel = supabase
@@ -242,7 +242,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
           filter: `tenant_id=eq.${tenantId}`,
         },
         async (payload) => {
-          // Pitfall 1: payload.new does NOT include order_items — must fetch full order
+          // Pitfall 1: payload.new does NOT include order_items | must fetch full order
           const { data: fullOrder } = await supabase
             .from('orders')
             .select('*, order_items(*)')
@@ -269,7 +269,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     }
   }, [tenantId, supabase])
 
-  // Polling fallback — 15s safety net covers Realtime gaps and status refreshes
+  // Polling fallback | 15s safety net covers Realtime gaps and status refreshes
   useEffect(() => {
     const id = setInterval(async () => {
       const res = await fetch(`/api/orders?tenant_id=${tenantId}`)
@@ -326,19 +326,19 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-zinc-900">Pedidos</h1>
+        <h1 className="text-2xl font-bold text-zinc-900">Orders</h1>
         <div className="flex items-center gap-3">
           <p className="text-sm text-zinc-500">
             {filteredOrders.length !== orders.length
-              ? `${filteredOrders.length} / ${orders.length} pedido(s)`
-              : `${orders.length} pedido(s)`}
+              ? `${filteredOrders.length} / ${orders.length} order(s)`
+              : `${orders.length} order(s)`}
           </p>
           {/* KDS-13: mute/unmute button */}
           <button
             onClick={toggleMute}
             className={`p-1.5 rounded-lg border border-zinc-200 ${muted ? 'text-zinc-400 hover:text-zinc-600' : 'text-zinc-700 hover:text-zinc-900'}`}
-            aria-label={muted ? 'Ativar som' : 'Silenciar som'}
-            title={muted ? 'Som silenciado — clique para ativar' : 'Som ativo — clique para silenciar'}
+            aria-label={muted ? 'Enable sound' : 'Mute sound'}
+            title={muted ? 'Sound muted | click to enable' : 'Sound on | click to mute'}
           >
             {muted ? <BellOff size={16} /> : <Bell size={16} />}
           </button>
@@ -346,14 +346,14 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
             <button
               onClick={() => toggleView('grid')}
               className={`p-1.5 rounded ${view === 'grid' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'}`}
-              aria-label="Visualização em grade"
+              aria-label="Grid view"
             >
               <LayoutGrid size={16} />
             </button>
             <button
               onClick={() => toggleView('list')}
               className={`p-1.5 rounded ${view === 'list' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'}`}
-              aria-label="Visualização em lista"
+              aria-label="List view"
             >
               <List size={16} />
             </button>
@@ -361,7 +361,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
         </div>
       </div>
 
-      {/* KDS-10: filter chips — mutually exclusive, default pending */}
+      {/* KDS-10: filter chips | mutually exclusive, default pending */}
       <div className="flex items-center gap-2 mb-6">
         {FILTER_CHIPS.map((chip) => (
           <button
@@ -380,7 +380,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
 
       {filteredOrders.length === 0 ? (
         <div className="text-center py-12 text-zinc-500">
-          {orders.length === 0 ? 'Nenhum pedido ainda' : 'Nenhum pedido com este filtro'}
+          {orders.length === 0 ? 'No orders yet' : 'No orders match this filter'}
         </div>
       ) : view === 'grid' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -402,12 +402,12 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
             <thead className="bg-zinc-50 border-b border-zinc-200">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">ID</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Cliente</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Telefone</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Itens</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Customer</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Phone</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Items</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Total</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Data</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Date</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-200">
@@ -423,7 +423,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                   <td className="px-4 py-3 text-sm text-zinc-600">
                     {(order.order_items?.length ?? 0) === 1
                       ? '1 item'
-                      : `${order.order_items?.length ?? 0} itens`}
+                      : `${order.order_items?.length ?? 0} items`}
                   </td>
                   <td className="px-4 py-3 text-sm text-zinc-900 font-medium">R$ {order.total.toFixed(2)}</td>
                   <td className="px-4 py-3">
@@ -432,7 +432,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-zinc-500">
-                    {new Date(order.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(order.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
                   </td>
                 </tr>
               ))}
@@ -446,26 +446,26 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedOrder(null)}>
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-900">Detalhes do Pedido</h2>
+              <h2 className="font-semibold text-zinc-900">Order Details</h2>
               <button onClick={() => setSelectedOrder(null)} className="text-zinc-400 hover:text-zinc-600">✕</button>
             </div>
             <div className="p-4 space-y-4">
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Cliente</p>
+                <p className="text-xs text-zinc-500 uppercase mb-1">Customer</p>
                 <p className="text-zinc-900">{selectedOrder.customer_name}</p>
               </div>
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Telefone</p>
+                <p className="text-xs text-zinc-500 uppercase mb-1">Phone</p>
                 <p className="text-zinc-900">{selectedOrder.customer_phone}</p>
               </div>
               {selectedOrder.notes && (
                 <div>
-                  <p className="text-xs text-zinc-500 uppercase mb-1">Observações</p>
+                  <p className="text-xs text-zinc-500 uppercase mb-1">Notes</p>
                   <p className="text-sm text-zinc-700">{selectedOrder.notes}</p>
                 </div>
               )}
               <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Itens</p>
+                <p className="text-xs text-zinc-500 uppercase mb-1">Items</p>
                 <div className="space-y-2">
                   {selectedOrder.order_items?.map((item, idx) => (
                     <div key={idx} className="flex flex-col gap-0.5">
@@ -497,7 +497,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                           <span className="flex flex-col gap-0.5 mt-0.5">
                             {mods.removed.map(r => (
                               <span key={r.ingredient_id} className="text-xs text-red-600 line-through">
-                                SEM {r.name}
+                                NO {r.name}
                               </span>
                             ))}
                             {mods.extras.map(e => (
@@ -534,7 +534,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                     disabled={loadingId === selectedOrder.id}
                     className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                   >
-                    Iniciar preparo
+                    Start preparing
                   </button>
                 )}
                 {selectedOrder.status === 'preparing' && (
@@ -543,7 +543,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                     disabled={loadingId === selectedOrder.id}
                     className="flex-1 px-3 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 disabled:opacity-50"
                   >
-                    Marcar pronto
+                    Mark ready
                   </button>
                 )}
                 {selectedOrder.status === 'ready' && (
@@ -552,7 +552,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                     disabled={loadingId === selectedOrder.id}
                     className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
                   >
-                    Concluir
+                    Complete
                   </button>
                 )}
                 {(selectedOrder.status === 'pending' || selectedOrder.status === 'preparing') && (
@@ -561,7 +561,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                     disabled={loadingId === selectedOrder.id}
                     className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
                   >
-                    Cancelar
+                    Cancel
                   </button>
                 )}
               </div>

@@ -1,65 +1,65 @@
--- Configurações globais da plataforma (linha única)
+-- Global platform settings (single row)
 CREATE TABLE platform_settings (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  app_name              TEXT NOT NULL DEFAULT 'Skale QR Menu',
-  brand_name            TEXT NOT NULL DEFAULT 'Skale Club',
+  app_name              TEXT NOT NULL DEFAULT 'XmartMenu',
+  brand_name            TEXT NOT NULL DEFAULT 'XmartMenu',
   default_primary_color TEXT NOT NULL DEFAULT '#000000',
   default_accent_color  TEXT NOT NULL DEFAULT '#FF5722',
-  menu_footer_brand     TEXT NOT NULL DEFAULT 'Skale QR Menu',
+  menu_footer_brand     TEXT NOT NULL DEFAULT 'XmartMenu',
   landing               JSONB NOT NULL DEFAULT '{}',
   updated_at            TIMESTAMPTZ DEFAULT now()
 );
 
--- Garante que só exista uma linha
+-- Ensure there is only one row.
 CREATE UNIQUE INDEX platform_settings_singleton ON platform_settings ((true));
 
--- Insere defaults com todo o conteúdo da landing page
+-- Insert English-first landing page defaults.
 INSERT INTO platform_settings (landing) VALUES ('{
   "hero": {
-    "badge": "Cardápio digital para restaurantes",
-    "heading": "Seu cardápio no celular",
-    "heading_highlight": "com um QR Code",
-    "subheading": "Crie seu cardápio digital em minutos, gere um QR Code e deixe seus clientes pedindo pelo WhatsApp. Sem app, sem complicação.",
-    "cta_primary": "Começar grátis",
-    "cta_secondary": "Ver como funciona"
+    "badge": "Digital menus built for service",
+    "heading": "Your restaurant menu",
+    "heading_highlight": "built for service",
+    "subheading": "Create a clean digital menu, share it with a QR code, and manage ordering workflows without adding friction for your team.",
+    "cta_primary": "Get started",
+    "cta_secondary": "See how it works"
   },
   "how_it_works": {
-    "title": "Como funciona",
-    "subtitle": "Em 3 passos simples você já está no ar",
+    "title": "How it works",
+    "subtitle": "A simple workflow for restaurants and service teams",
     "steps": [
-      {"step": "01", "icon": "📋", "title": "Cadastre seu cardápio", "desc": "Crie categorias e adicione seus produtos com fotos, descrições e preços no painel de controle."},
-      {"step": "02", "icon": "🎨", "title": "Personalize o visual", "desc": "Adicione seu logotipo, cores do restaurante e informações de contato para deixar com a sua cara."},
-      {"step": "03", "icon": "📱", "title": "Gere e imprima o QR Code", "desc": "Com um clique gere seu QR Code único. Coloque nas mesas e deixe seus clientes acessarem na hora."}
+      {"step": "01", "icon": "list", "title": "Build your menu", "desc": "Add categories, products, photos, descriptions, prices, and options from the admin dashboard."},
+      {"step": "02", "icon": "palette", "title": "Match your brand", "desc": "Set your logo, colors, contact details, and service settings for each restaurant."},
+      {"step": "03", "icon": "qr", "title": "Share your QR code", "desc": "Print or display a QR code so customers can browse your live menu from their phones."}
     ]
   },
   "features": {
-    "title": "Tudo que você precisa",
-    "subtitle": "Funcionalidades pensadas para restaurantes",
+    "title": "Built for daily restaurant service",
+    "subtitle": "The essentials for keeping menus accurate and easy to use",
     "items": [
-      {"icon": "🔗", "title": "Link único por restaurante", "desc": "Cada cliente tem seu próprio endereço de cardápio digital."},
-      {"icon": "📲", "title": "Pedido pelo WhatsApp", "desc": "O cliente clica no produto e já abre o WhatsApp pronto para pedir."},
-      {"icon": "🎨", "title": "Branding personalizado", "desc": "Logo, cores e identidade visual do seu restaurante."},
-      {"icon": "📊", "title": "Contagem de scans", "desc": "Veja quantas vezes seu QR Code foi escaneado."},
-      {"icon": "🔍", "title": "Busca no cardápio", "desc": "Clientes encontram qualquer produto em segundos."},
-      {"icon": "⚡", "title": "Sem instalar app", "desc": "Tudo abre direto no navegador do celular, sem fricção."}
+      {"icon": "link", "title": "Unique restaurant links", "desc": "Each restaurant gets its own public menu URL."},
+      {"icon": "cart", "title": "Ordering workflows", "desc": "Enable direct ordering when your team is ready."},
+      {"icon": "palette", "title": "Restaurant branding", "desc": "Use your logo, colors, and visual identity."},
+      {"icon": "chart", "title": "Scan analytics", "desc": "Track QR code usage over time."},
+      {"icon": "search", "title": "Menu search", "desc": "Help customers find items quickly."},
+      {"icon": "phone", "title": "Mobile-first browsing", "desc": "Menus open directly in the customer browser."}
     ]
   },
   "pricing": {
-    "title": "Planos simples",
-    "subtitle": "Comece grátis, escale quando precisar",
+    "title": "Simple plans",
+    "subtitle": "Start free, scale when you need",
     "plans": [
-      {"name": "Free", "price": "R$ 0", "period": "/mês", "desc": "Para começar", "features": ["Cardápio digital", "QR Code gerado", "Até 20 produtos", "Branding básico"], "cta": "Começar grátis", "highlight": false},
-      {"name": "Pro", "price": "R$ 49", "period": "/mês", "desc": "Para crescer", "features": ["Tudo do Free", "Produtos ilimitados", "Branding completo", "Analytics de scans", "Suporte prioritário"], "cta": "Assinar Pro", "highlight": true},
-      {"name": "Enterprise", "price": "R$ 149", "period": "/mês", "desc": "Para redes", "features": ["Tudo do Pro", "Múltiplas unidades", "Domínio próprio", "Onboarding dedicado", "SLA garantido"], "cta": "Falar com vendas", "highlight": false}
+      {"name": "Free", "price": "$0", "period": "/mo", "desc": "To get started", "features": ["Digital menu", "QR code", "Up to 20 products", "Basic branding"], "cta": "Get started", "highlight": false},
+      {"name": "Pro", "price": "$49", "period": "/mo", "desc": "For growing restaurants", "features": ["Everything in Free", "Unlimited products", "Full branding", "Scan analytics", "Priority support"], "cta": "Subscribe to Pro", "highlight": true},
+      {"name": "Enterprise", "price": "$149", "period": "/mo", "desc": "For groups and chains", "features": ["Everything in Pro", "Multiple locations", "Custom domain", "Dedicated onboarding", "Guaranteed SLA"], "cta": "Talk to sales", "highlight": false}
     ]
   },
   "cta": {
-    "heading": "Pronto para digitalizar\nseu cardápio?",
-    "text": "Crie sua conta agora e tenha seu QR Code em menos de 5 minutos.",
-    "button": "Criar conta grátis"
+    "heading": "Ready to modernize your menu?",
+    "text": "Set up a digital menu your staff can maintain and your customers can use with confidence.",
+    "button": "Get started"
   },
   "footer": {
-    "copyright": "Skale Club. Todos os direitos reservados."
+    "copyright": "XmartMenu. All rights reserved."
   }
 }');
 

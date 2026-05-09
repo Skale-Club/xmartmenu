@@ -294,7 +294,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Clientes</h1>
+          <h1 className="text-2xl font-bold text-zinc-900">Clients</h1>
           <p className="text-sm text-zinc-500 mt-1">{withTenant.length} client(s)</p>
         </div>
         <button
@@ -385,7 +385,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
         </div>
       )}
 
-      {/* Lista principal */}
+      {/* Main list */}
       <div className="space-y-2">
         {withTenant.map(client => {
           const td = tenantData[client.id!]
@@ -404,7 +404,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-zinc-900">{client.name}</p>
                   <p className="text-xs text-zinc-400">
-                    {client.email ?? '—'}
+                    {client.email ?? 'N/A'}
                     {client.provider === 'google' && <span className="ml-1.5 text-blue-500">• Google</span>}
                     {client.slug && <span className="ml-1.5 text-zinc-300">• /{client.slug}</span>}
                   </p>
@@ -432,7 +432,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                     isExpanded ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
                   }`}
                 >
-                  {isExpanded ? '▲ Fechar' : '▼ Ver tudo'}
+                  {isExpanded ? '▲ Close' : '▼ View all'}
                 </button>
                 <a href={`/api/admin/enter-preview?tenant=${client.id}`}
                   className="text-xs px-2.5 py-1 rounded-full font-medium bg-zinc-900 text-white hover:bg-zinc-700 transition-colors flex-shrink-0">
@@ -507,7 +507,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                           >
                             {t === 'staff'
                               ? `Staff (${td?.staff.length ?? 0})`
-                              : `Cardápios (${td?.menus.length ?? 0})`}
+                              : `Menus (${td?.menus.length ?? 0})`}
                           </button>
                         ))}
                       </div>
@@ -524,17 +524,17 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                           )}
                           {td?.staffCredentials && (
                             <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-xs">
-                              <p className="font-semibold text-green-800 mb-2">Credenciais geradas:</p>
+                              <p className="font-semibold text-green-800 mb-2">Generated credentials:</p>
                               <div className="space-y-1 font-mono text-green-900">
-                                {td.staffCredentials.owner && <p><span className="text-green-600">Nome:</span> {td.staffCredentials.owner}</p>}
+                                {td.staffCredentials.owner && <p><span className="text-green-600">Name:</span> {td.staffCredentials.owner}</p>}
                                 <p><span className="text-green-600">Email:</span> {td.staffCredentials.email}</p>
-                                <p><span className="text-green-600">Senha:</span> {td.staffCredentials.password}</p>
+                                <p><span className="text-green-600">Password:</span> {td.staffCredentials.password}</p>
                               </div>
                               <button
                                 onClick={() => setTenantData(prev => ({ ...prev, [client.id!]: { ...prev[client.id!], staffCredentials: null } }))}
                                 className="mt-2 text-green-600 hover:text-green-800"
                               >
-                                Fechar ✕
+                                Close ✕
                               </button>
                             </div>
                           )}
@@ -542,7 +542,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                           {/* Add staff form */}
                           <div className="flex gap-2">
                             <input
-                              placeholder="Nome"
+                              placeholder="Name"
                               value={inviteForm[client.id!]?.name ?? ''}
                               onChange={e => setInviteForm(prev => ({ ...prev, [client.id!]: { ...prev[client.id!] ?? { name: '', email: '' }, name: e.target.value } }))}
                               className="flex-1 px-3 py-2 border border-zinc-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900"
@@ -559,20 +559,20 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                               disabled={inviteLoading === client.id}
                               className="px-4 py-2 bg-zinc-900 text-white rounded-lg text-xs font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors whitespace-nowrap"
                             >
-                              {inviteLoading === client.id ? 'Adicionando...' : '+ Add staff'}
+                              {inviteLoading === client.id ? 'Adding...' : '+ Add staff'}
                             </button>
                           </div>
 
                           {/* Staff list */}
                           {!td || td.staff.length === 0 ? (
-                            <p className="text-xs text-zinc-400 text-center py-4">Nenhum staff ainda</p>
+                            <p className="text-xs text-zinc-400 text-center py-4">No staff yet</p>
                           ) : (
                             <div className="border border-zinc-100 rounded-lg overflow-hidden">
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="bg-zinc-50 border-b border-zinc-100">
-                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Membro</th>
-                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Adicionado</th>
+                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Member</th>
+                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Added</th>
                                     <th className="px-4 py-2.5" />
                                   </tr>
                                 </thead>
@@ -580,11 +580,11 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                                   {td.staff.map(member => (
                                     <tr key={member.id} className="hover:bg-zinc-50">
                                       <td className="px-4 py-2.5">
-                                        <p className="font-medium text-zinc-900">{member.full_name ?? '—'}</p>
+                                        <p className="font-medium text-zinc-900">{member.full_name ?? 'N/A'}</p>
                                         <p className="text-zinc-400">{member.email}</p>
                                       </td>
                                       <td className="px-4 py-2.5 text-zinc-400">
-                                        {new Date(member.created_at).toLocaleDateString('pt-BR')}
+                                        {new Date(member.created_at).toLocaleDateString('en-US')}
                                       </td>
                                       <td className="px-4 py-2.5">
                                         <div className="flex items-center justify-end gap-1.5">
@@ -592,13 +592,13 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                                             onClick={() => handleStaffResetPassword(client.id!, member)}
                                             className="px-2.5 py-1 border border-zinc-200 text-zinc-700 rounded-md hover:bg-zinc-50 transition-colors"
                                           >
-                                            Nova senha
+                                            New password
                                           </button>
                                           <button
                                             onClick={() => setConfirmStaff({ tenantId: client.id!, staffId: member.id, name: member.full_name ?? member.email ?? '' })}
                                             className="px-2.5 py-1 border border-red-200 text-red-600 rounded-md hover:bg-red-50 transition-colors"
                                           >
-                                            Remover
+                                            Remove
                                           </button>
                                         </div>
                                       </td>
@@ -615,16 +615,16 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                       {tab === 'menus' && (
                         <div className="p-5">
                           {!td || td.menus.length === 0 ? (
-                            <p className="text-xs text-zinc-400 text-center py-4">Nenhum cardápio ainda</p>
+                            <p className="text-xs text-zinc-400 text-center py-4">No menus yet</p>
                           ) : (
                             <div className="border border-zinc-100 rounded-lg overflow-hidden">
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="bg-zinc-50 border-b border-zinc-100">
-                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Cardápio</th>
-                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Idioma</th>
+                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Menu</th>
+                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Language</th>
                                     <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Status</th>
-                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Criado</th>
+                                    <th className="text-left px-4 py-2.5 font-semibold text-zinc-500 uppercase tracking-wider">Created</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-zinc-50">
@@ -634,14 +634,14 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                                         <p className="font-medium text-zinc-900">{menu.name}</p>
                                         <p className="text-zinc-400">/{menu.slug}</p>
                                       </td>
-                                      <td className="px-4 py-2.5 text-zinc-500">{menu.language ?? '—'}</td>
+                                      <td className="px-4 py-2.5 text-zinc-500">{menu.language ?? 'N/A'}</td>
                                       <td className="px-4 py-2.5">
                                         <span className={`px-2 py-0.5 rounded-full font-medium ${menu.is_active ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                                          {menu.is_active ? 'Ativo' : 'Inativo'}
+                                          {menu.is_active ? 'Active' : 'Inactive'}
                                         </span>
                                       </td>
                                       <td className="px-4 py-2.5 text-zinc-400">
-                                        {new Date(menu.created_at).toLocaleDateString('pt-BR')}
+                                        {new Date(menu.created_at).toLocaleDateString('en-US')}
                                       </td>
                                     </tr>
                                   ))}
@@ -660,7 +660,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
         })}
       </div>
 
-      {/* Usuários sem cliente */}
+      {/* Users without clients */}
       {withoutTenant.length > 0 && (
         <div className="mt-8">
           <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wider mb-3">Pending assignment</p>
@@ -680,7 +680,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                 <span className="text-xs text-amber-600 font-medium flex-shrink-0">No client</span>
                 <button onClick={() => setConfirmItem(u)}
                   className="text-xs px-2.5 py-1 rounded-full font-medium bg-red-100 text-red-600 hover:bg-red-200 transition-colors flex-shrink-0">
-                  Excluir
+                  Delete
                 </button>
               </div>
             ))}

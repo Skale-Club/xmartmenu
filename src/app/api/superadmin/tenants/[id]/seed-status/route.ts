@@ -3,7 +3,7 @@ import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 
-// Polling endpoint — called every 3s by TenantDetailClient.
+// Polling endpoint | called every 3s by TenantDetailClient.
 // When status transitions to 'complete', revalidates the tenant's public menu ISR cache
 // so newly seeded images become visible without an extra round-trip from GH Actions.
 export const runtime = 'nodejs'
@@ -14,7 +14,7 @@ export async function GET(
 ) {
   const { id: tenantId } = await params
 
-  // Auth guard — assertSuperadmin returns client or null (SEC-03 pattern)
+  // Auth guard | assertSuperadmin returns client or null (SEC-03 pattern)
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

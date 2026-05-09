@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     supabase.from('menus').select('name').eq('slug', menuSlug).single(),
   ])
   if (!tenant) return { title: 'Menu' }
-  return { title: `${menu?.name ?? 'Menu'} — ${tenant.name}` }
+  return { title: `${menu?.name ?? 'Menu'} | ${tenant.name}` }
 }
 
 export default async function PublicMenuSlugPage({ params, searchParams }: Props) {

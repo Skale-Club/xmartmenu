@@ -30,7 +30,7 @@ const features = [
   {
     icon: Globe,
     title: 'Multi-language menus',
-    body: 'Serve customers in Portuguese, English, Spanish and more — your menu adapts to every language automatically.',
+    body: 'Serve customers in English, Spanish and more. Your menu adapts to every language automatically.',
   },
   {
     icon: QrCode,
@@ -40,7 +40,7 @@ const features = [
   {
     icon: Sparkles,
     title: 'AI-powered setup',
-    body: 'Our team can populate your entire menu in minutes using AI — categories, descriptions, and photos included.',
+    body: 'Our team can structure your menu with AI, including categories, descriptions, and photos.',
   },
   {
     icon: ShoppingCart,
@@ -56,7 +56,7 @@ const faqs = [
   },
   {
     q: 'Do I need a developer?',
-    a: 'No. You set up your menu from a simple admin panel — no code required.',
+    a: 'No. You set up your menu from a simple admin panel. No code required.',
   },
   {
     q: 'Can my menu be in multiple languages?',
@@ -132,7 +132,7 @@ function Hero() {
         >
           Your restaurant menu, <br className="hidden sm:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
-            online in minutes.
+            built for service.
           </span>
         </motion.h1>
         
@@ -142,7 +142,7 @@ function Hero() {
           transition={{ duration: 0.8, delay: 0.4 }}
           className="text-xl sm:text-2xl text-zinc-400 mb-10 max-w-2xl mx-auto leading-relaxed"
         >
-          Create a beautiful digital menu, generate a QR code, and start taking orders — no tech skills needed.
+          Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.
         </motion.p>
         
         <motion.div 
@@ -361,7 +361,7 @@ function Footer() {
               <span className="text-lg font-bold text-white">XmartMenu</span>
             </div>
             <p className="text-zinc-400 text-base max-w-sm">
-              Cardápio digital para restaurantes. Modernize the way your customers order.
+              Digital menu for restaurants. Modernize the way your customers order.
             </p>
             {/* Social icons */}
             <div className="flex gap-4 mt-6">

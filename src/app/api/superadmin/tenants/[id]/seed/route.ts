@@ -12,7 +12,7 @@ import {
   SingleProductSeedSchema,
 } from '@/lib/ai/schemas'
 
-// Node.js runtime required — Gemini SDK uses native Node APIs (D-04 constraint)
+// Node.js runtime required | Gemini SDK uses native Node APIs (D-04 constraint)
 export const runtime = 'nodejs'
 export const maxDuration = 60  // Gemini text: < 10s typical; 60s headroom
 
@@ -24,7 +24,7 @@ export async function POST(
 ) {
   const { id: tenantId } = await params
 
-  // Auth guard — assertSuperadmin returns client or null (SEC-03 pattern)
+  // Auth guard | assertSuperadmin returns client or null (SEC-03 pattern)
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -44,7 +44,7 @@ export async function POST(
   if (!menuId) return NextResponse.json({ error: 'menuId is required' }, { status: 400 })
   if (!type) return NextResponse.json({ error: 'type is required' }, { status: 400 })
 
-  // D-08: Sanitize before any LLM interpolation — strip prompt injection chars
+  // D-08: Sanitize before any LLM interpolation | strip prompt injection chars
   const safeBusinessType = sanitizeForPrompt(businessType)
   const safeCompanyName  = sanitizeForPrompt(companyName)
 
@@ -81,7 +81,7 @@ export async function POST(
     if (type === 'menu' || type === 'categories') {
       // ── Generate categories (and products if type='menu') ──────────────
 
-      // Fetch existing category names — additive-only (D-07)
+      // Fetch existing category names | additive-only (D-07)
       const { data: existingCats } = await service
         .from('categories')
         .select('name, id')
@@ -207,7 +207,7 @@ export async function POST(
         .eq('menu_id', menuId)
 
       if (!existingCats?.length) {
-        return NextResponse.json({ error: 'No categories found — seed categories first' }, { status: 400 })
+        return NextResponse.json({ error: 'No categories found | seed categories first' }, { status: 400 })
       }
 
       const { data: maxProdPos } = await service
@@ -276,7 +276,7 @@ export async function POST(
     }
 
     else if (type === 'copy') {
-      // ── Generate restaurant copy — AI-04 ──────────────────────────────
+      // ── Generate restaurant copy | AI-04 ──────────────────────────────
       const { object: copyObj, usage } = await generateObject({
         model: google('gemini-2.5-flash'),
         schema: CopySeedSchema,
@@ -297,7 +297,7 @@ export async function POST(
     }
 
     else if (type === 'single_category') {
-      // ── Generate one category — AI-06 ─────────────────────────────────
+      // ── Generate one category | AI-06 ─────────────────────────────────
       const { data: existingCats } = await service
         .from('categories')
         .select('name')
@@ -342,7 +342,7 @@ export async function POST(
     }
 
     else if (type === 'single_product') {
-      // ── Generate one product — AI-06 ──────────────────────────────────
+      // ── Generate one product | AI-06 ──────────────────────────────────
       // categoryId must be provided in body for per-item product seeding
       const { categoryId } = body as { categoryId?: string }
       if (!categoryId) return NextResponse.json({ error: 'categoryId required for single_product' }, { status: 400 })
@@ -408,12 +408,12 @@ export async function POST(
   } catch (err) {
     console.error('[seed] generation or insert error:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Seeding failed — check server logs' },
+      { error: err instanceof Error ? err.message : 'Seeding failed | check server logs' },
       { status: 500 }
     )
   }
 
-  // ── Log ai_usage (non-blocking — D-09) ────────────────────────────────────
+  // ── Log ai_usage (non-blocking | D-09) ────────────────────────────────────
   try {
     const today = new Date().toISOString().slice(0, 10)
     await service.from('ai_usage').upsert({

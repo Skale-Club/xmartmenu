@@ -80,7 +80,7 @@ export default function UsersClient({ users: initial, tenants }: { users: UserRo
       />
 
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-zinc-900">Usuários</h1>
+        <h1 className="text-2xl font-bold text-zinc-900">Users</h1>
         <p className="text-sm text-zinc-500 mt-1">{users.length} user(s)</p>
       </div>
 

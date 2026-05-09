@@ -14,7 +14,7 @@ export async function POST(
   const file = formData.get('file') as File | null
   const type = formData.get('type') as string | null
 
-  if (!file || !type) return NextResponse.json({ error: 'Arquivo ou tipo inválido' }, { status: 400 })
+  if (!file || !type) return NextResponse.json({ error: 'Invalid file or type' }, { status: 400 })
 
   const conversion = await validateAndConvertToWebP(file)
   if (conversion.error) return NextResponse.json({ error: conversion.error }, { status: 400 })

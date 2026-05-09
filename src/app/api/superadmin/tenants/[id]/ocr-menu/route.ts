@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server'
 import { OcrMenuSchema } from '@/lib/ai/schemas'
 import { getStorageClient } from '@/lib/storage'
 
-// Node.js runtime required — @ai-sdk/openai uses native Node APIs (D-04 constraint)
+// Node.js runtime required | @ai-sdk/openai uses native Node APIs (D-04 constraint)
 export const runtime = 'nodejs'
 export const maxDuration = 60  // GPT-4.1-mini vision: typically 5–15s; 60s headroom
 
@@ -17,7 +17,7 @@ export async function POST(
 ) {
   const { id: tenantId } = await params
 
-  // Auth guard — assertSuperadmin returns client or null (SEC-03 pattern)
+  // Auth guard | assertSuperadmin returns client or null (SEC-03 pattern)
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -92,7 +92,7 @@ export async function POST(
 
     totalTokens = usage?.totalTokens ?? 0
 
-    // ── Write categories + products to DB (additive-only — D-07) ──────────
+    // ── Write categories + products to DB (additive-only | D-07) ──────────
 
     // Fetch existing category names to avoid duplicates
     const { data: existingCats } = await service
@@ -200,12 +200,12 @@ export async function POST(
   } catch (err) {
     console.error('[ocr-menu] vision or insert error:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'OCR extraction failed — check server logs' },
+      { error: err instanceof Error ? err.message : 'OCR extraction failed | check server logs' },
       { status: 500 }
     )
   }
 
-  // ── Log ai_usage (non-blocking — D-09) ────────────────────────────────────
+  // ── Log ai_usage (non-blocking | D-09) ────────────────────────────────────
   try {
     const today = new Date().toISOString().slice(0, 10)
     await service.from('ai_usage').upsert({

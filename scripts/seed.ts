@@ -61,8 +61,8 @@ async function seed() {
     const { data: tenant, error: tenantError } = await supabase
       .from('tenants')
       .insert({
-        slug: 'restaurante-teste',
-        name: 'Restaurante Teste',
+        slug: 'demo-restaurant',
+        name: 'Demo Restaurant',
         plan: 'pro',
         is_active: true
       })
@@ -107,13 +107,13 @@ async function seed() {
       primary_color: '#1a1a2e',
       accent_color: '#e94560',
       banner_url: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1200',
-      address: 'Rua das Flores, 123 - Centro, São Paulo - SP',
+      address: '123 Main Street, New York, NY',
       phone: '(11) 99999-8888',
-      instagram: '@restauranteteste',
+      instagram: '@demorestaurant',
       whatsapp: '5511999998888',
       orders_enabled: true,
       whatsapp_orders_enabled: true,
-      custom_tags: ['Vegetariano', 'Vegano', 'Sem Glúten', 'Picante', 'Destaque do chef', 'Recomendado', 'Novidade'],
+      custom_tags: ['Vegetarian', 'Vegan', 'Gluten-free', 'Spicy', 'Chef pick', 'Recommended', 'New'],
       business_hours: businessHours
     }, { onConflict: 'tenant_id' }).then(({ error }) => error)
 
@@ -127,11 +127,11 @@ async function seed() {
         primary_color: '#1a1a2e',
         accent_color: '#e94560',
         banner_url: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1200',
-        address: 'Rua das Flores, 123 - Centro, São Paulo - SP',
+        address: '123 Main Street, New York, NY',
         phone: '(11) 99999-8888',
-        instagram: '@restauranteteste',
+        instagram: '@demorestaurant',
         whatsapp: '5511999998888',
-        custom_tags: ['Vegetariano', 'Vegano', 'Sem Glúten', 'Picante', 'Destaque do chef', 'Recomendado', 'Novidade'],
+        custom_tags: ['Vegetarian', 'Vegan', 'Gluten-free', 'Spicy', 'Chef pick', 'Recommended', 'New'],
         business_hours: businessHours
       }, { onConflict: 'tenant_id' }).then(({ error }) => error)
   }
@@ -148,18 +148,17 @@ async function seed() {
     .from('menus')
     .upsert({
       tenant_id: tenantId,
-      name: 'Cardápio Principal',
-      slug: 'cardapio-principal',
-      description: 'Nosso cardápio completo com todas as delícias',
-      language: 'pt',
-      supported_languages: ['pt', 'en', 'es'],
+      name: 'Main Menu',
+      slug: 'main-menu',
+      description: 'Our complete menu with signature dishes',
+      language: 'en',
+      supported_languages: ['en', 'es'],
       purpose: 'restaurant',
       is_active: true,
       is_default: true,
       position: 0,
       translations: {
-        en: { name: 'Main Menu', description: 'Our complete menu with all delicacies' },
-        es: { name: 'Menú Principal', description: 'Nuestro menú completo con todas las delicias' }
+        es: { name: 'Menu Principal', description: 'Nuestro menu completo con platos destacados' }
       }
     }, { onConflict: 'tenant_id,slug' })
     .select()
@@ -172,10 +171,10 @@ async function seed() {
       .from('menus')
       .upsert({
         tenant_id: tenantId,
-        name: 'Cardápio Principal',
-        slug: 'cardapio-principal',
-        description: 'Nosso cardápio completo com todas as delícias',
-        language: 'pt',
+        name: 'Main Menu',
+        slug: 'main-menu',
+        description: 'Our complete menu with signature dishes',
+        language: 'en',
         purpose: 'restaurant',
         is_active: true,
         is_default: true,
@@ -199,10 +198,10 @@ async function seed() {
     .from('menus')
     .upsert({
       tenant_id: tenantId,
-      name: 'Carta de Bebidas',
-      slug: 'carta-de-bebidas',
-      description: 'Bebidas e coquetéis especiais',
-      language: 'pt',
+      name: 'Drinks Menu',
+      slug: 'drinks-menu',
+      description: 'Drinks and house cocktails',
+      language: 'en',
       purpose: 'bar',
       is_active: true,
       is_default: false,
@@ -215,10 +214,10 @@ async function seed() {
 
   // 6. Create categories
   const categories = [
-    { name: 'Entradas', description: 'Porções para começar', position: 0 },
-    { name: 'Pratos Principais', description: 'Nossos pratos mais pedidos', position: 1 },
-    { name: 'Sobremesas', description: 'Doces deliciosos', position: 2 },
-    { name: 'Bebidas', description: 'Refrigerantes e sucos', position: 3 }
+    { name: 'Starters', description: 'Small plates to begin with', position: 0 },
+    { name: 'Mains', description: 'Our most requested dishes', position: 1 },
+    { name: 'Desserts', description: 'Sweet finishes', position: 2 },
+    { name: 'Drinks', description: 'Soft drinks, juices, and cocktails', position: 3 }
   ]
 
   const categoryIds: Record<string, string> = {}
@@ -256,187 +255,187 @@ async function seed() {
 
   // 7. Create products
   const products = [
-    // Entradas
+    // Starters
     {
-      category: 'Entradas',
-      name: 'Bruschetta Italiana',
-      description: 'Pão italiano grelhado com tomate fresco, manjericão e azeite de oliva extra virgem',
+      category: 'Starters',
+      name: 'Italian Bruschetta',
+      description: 'Grilled Italian bread with fresh tomato, basil and extra virgin olive oil',
       price: 28.90,
       original_price: 35.00,
       image_url: 'https://images.unsplash.com/photo-1572695157366-5e585ab2b69f?w=500',
       is_featured: true,
-      tags: ['Vegetariano', 'Destaque do chef'],
+      tags: ['Vegetarian', 'Chef pick'],
       translations: { en: { name: 'Italian Bruschetta', description: 'Grilled Italian bread with fresh tomato, basil and extra virgin olive oil' }, es: { name: 'Bruschetta Italiana', description: 'Pan italiano a la parrilla con tomate fresco, albahaca y aceite de oliva extra virgen' } }
     },
     {
-      category: 'Entradas',
-      name: 'Carpaccio de Carne',
-      description: 'Finas fatias de carne bovina com rúcula, parmesão e molho de mostarda',
+      category: 'Starters',
+      name: 'Beef Carpaccio',
+      description: 'Thin slices of beef with arugula, parmesan and mustard sauce',
       price: 45.90,
       image_url: 'https://images.unsplash.com/photo-1544025162-d76694265947?w=500',
-      tags: ['Destaque do chef'],
+      tags: ['Chef pick'],
       translations: { en: { name: 'Beef Carpaccio', description: 'Thin slices of beef with arugula, parmesan and mustard sauce' } }
     },
     {
-      category: 'Entradas',
-      name: 'Salada Caesar',
-      description: 'Alface romana, croutons, parmesão e molho caesar tradicional',
+      category: 'Starters',
+      name: 'Caesar Salad',
+      description: 'Romaine lettuce, croutons, parmesan and traditional caesar dressing',
       price: 32.00,
       image_url: 'https://images.unsplash.com/photo-1550304943-4f24f54ddde9?w=500',
-      tags: ['Vegetariano', 'Sem Glúten'],
+      tags: ['Vegetarian', 'Gluten-free'],
       translations: { en: { name: 'Caesar Salad', description: 'Romaine lettuce, croutons, parmesan and traditional caesar dressing' } }
     },
     {
-      category: 'Entradas',
-      name: 'Bolinho de Bacalhau',
-      description: 'Tradicional bolinho português com bacalhau desfiado e batata (4 unidades)',
+      category: 'Starters',
+      name: 'Cod Fritters',
+      description: 'Traditional Portuguese fritters with shredded cod and potato (4 units)',
       price: 38.00,
       image_url: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=500',
       is_featured: true,
-      tags: ['Recomendado'],
+      tags: ['Recommended'],
       translations: { en: { name: 'Cod Fritters', description: 'Traditional Portuguese fritters with shredded cod and potato (4 units)' } }
     },
-    // Pratos Principais
+    // Mains
     {
-      category: 'Pratos Principais',
+      category: 'Mains',
       name: 'Picanha Premium',
-      description: 'Picanha maturada 30 dias grelhada na brasa, arroz, farofa e vinagrete',
+      description: '30-day aged picanha grilled over charcoal, rice, farofa and vinaigrette',
       price: 89.90,
       original_price: 110.00,
       image_url: 'https://images.unsplash.com/photo-1594041680534-e8c8cdebd659?w=500',
       is_featured: true,
-      tags: ['Destaque do chef', 'Recomendado'],
+      tags: ['Chef pick', 'Recommended'],
       translations: { en: { name: 'Premium Picanha', description: '30-day aged picanha grilled over charcoal, rice, farofa and vinaigrette' } }
     },
     {
-      category: 'Pratos Principais',
-      name: 'Filé Mignon ao Molho Madeira',
-      description: 'Filé mignon suíno com molho madeira, purê de batata e legumes salteados',
+      category: 'Mains',
+      name: 'Filet Mignon with Madeira Sauce',
+      description: 'Pork filet mignon with madeira sauce, mashed potatoes and sauteed vegetables',
       price: 72.00,
       image_url: 'https://images.unsplash.com/photo-1558030006-450675393462?w=500',
-      tags: ['Sem Glúten'],
-      translations: { en: { name: 'Filet Mignon with Madeira Sauce', description: 'Pork filet mignon with madeira sauce, mashed potatoes and sautéed vegetables' } }
+      tags: ['Gluten-free'],
+      translations: { en: { name: 'Filet Mignon with Madeira Sauce', description: 'Pork filet mignon with madeira sauce, mashed potatoes and sauteed vegetables' } }
     },
     {
-      category: 'Pratos Principais',
-      name: 'Salmão Grelhado',
-      description: 'Salmão norueguês grelhado com crosta de ervas, legumes assados e molho de limão',
+      category: 'Mains',
+      name: 'Grilled Salmon',
+      description: 'Norwegian salmon grilled with herb crust, roasted vegetables and lemon sauce',
       price: 78.00,
       image_url: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=500',
       is_featured: true,
-      tags: ['Sem Glúten', 'Recomendado'],
+      tags: ['Gluten-free', 'Recommended'],
       translations: { en: { name: 'Grilled Salmon', description: 'Norwegian salmon grilled with herb crust, roasted vegetables and lemon sauce' } }
     },
     {
-      category: 'Pratos Principais',
-      name: 'Risoto de Funghi Secchi',
-      description: 'Arroz arbóreo com cogumelos secchi, parmesão e trufa negra',
+      category: 'Mains',
+      name: 'Porcini Risotto',
+      description: 'Arborio rice with porcini mushrooms, parmesan and black truffle',
       price: 58.00,
       image_url: 'https://images.unsplash.com/photo-1476124369491-e7addf5db371?w=500',
-      tags: ['Vegetariano'],
+      tags: ['Vegetarian'],
       translations: { en: { name: 'Porcini Risotto', description: 'Arborio rice with porcini mushrooms, parmesan and black truffle' } }
     },
     {
-      category: 'Pratos Principais',
-      name: 'Frango à Parmegiana',
-      description: 'Peito de frango empanado com molho de tomate e queijo gratinado, arroz e batata frita',
+      category: 'Mains',
+      name: 'Chicken Parmigiana',
+      description: 'Breaded chicken breast with tomato sauce and gratin cheese, rice and french fries',
       price: 52.00,
       image_url: 'https://images.unsplash.com/photo-1632778149955-e80f8ceca2e8?w=500',
       tags: [],
       translations: { en: { name: 'Chicken Parmigiana', description: 'Breaded chicken breast with tomato sauce and gratin cheese, rice and french fries' } }
     },
     {
-      category: 'Pratos Principais',
-      name: 'Hambúrguer Artesanal',
-      description: 'Pão brioche, blend de 180g, queijo cheddar, bacon crocante, cebola caramelizada e molho especial',
+      category: 'Mains',
+      name: 'Artisan Burger',
+      description: 'Brioche bun, 180g blend, cheddar cheese, crispy bacon, caramelized onion and special sauce',
       price: 42.00,
       image_url: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=500',
-      tags: ['Novidade'],
+      tags: ['New'],
       translations: { en: { name: 'Artisan Burger', description: 'Brioche bun, 180g blend, cheddar cheese, crispy bacon, caramelized onion and special sauce' } }
     },
-    // Sobremesas
+    // Desserts
     {
-      category: 'Sobremesas',
-      name: 'Petit Gâteau',
-      description: 'Bolo de chocolate com recheio cremoso, sorvete de baunilha e calda de frutas vermelhas',
+      category: 'Desserts',
+      name: 'Chocolate Lava Cake',
+      description: 'Chocolate cake with creamy filling, vanilla ice cream and red fruit sauce',
       price: 28.00,
       image_url: 'https://images.unsplash.com/photo-1624353365286-3f8d62daad51?w=500',
       is_featured: true,
-      tags: ['Destaque do chef'],
+      tags: ['Chef pick'],
       translations: { en: { name: 'Chocolate Lava Cake', description: 'Chocolate cake with creamy filling, vanilla ice cream and red fruit sauce' } }
     },
     {
-      category: 'Sobremesas',
-      name: 'Tiramisù',
-      description: 'Clássica sobremesa italiana com café, mascarpone e cacau',
+      category: 'Desserts',
+      name: 'Tiramisu',
+      description: 'Classic Italian dessert with coffee, mascarpone and cocoa',
       price: 26.00,
       image_url: 'https://images.unsplash.com/photo-1571877227200-a0d98ea607e9?w=500',
-      tags: ['Vegetariano'],
+      tags: ['Vegetarian'],
       translations: { en: { name: 'Tiramisu', description: 'Classic Italian dessert with coffee, mascarpone and cocoa' } }
     },
     {
-      category: 'Sobremesas',
-      name: 'Cheesecake de Frutas Vermelhas',
-      description: 'Cheesecake cremoso com calda de frutas vermelhas frescas',
+      category: 'Desserts',
+      name: 'Red Fruit Cheesecake',
+      description: 'Creamy cheesecake with fresh red fruit sauce',
       price: 24.00,
       image_url: 'https://images.unsplash.com/photo-1533134242443-d4fd215305ad?w=500',
-      tags: ['Vegetariano', 'Sem Glúten'],
+      tags: ['Vegetarian', 'Gluten-free'],
       translations: { en: { name: 'Red Fruit Cheesecake', description: 'Creamy cheesecake with fresh red fruit sauce' } }
     },
     {
-      category: 'Sobremesas',
-      name: 'Pudim de Leite Condensado',
-      description: 'Tradicional pudim brasileiro com calda de caramelo',
+      category: 'Desserts',
+      name: 'Condensed Milk Flan',
+      description: 'Traditional Brazilian flan with caramel sauce',
       price: 18.00,
       image_url: 'https://images.unsplash.com/photo-1528975604071-b4dc52a2d18c?w=500',
-      tags: ['Vegetariano'],
+      tags: ['Vegetarian'],
       translations: { en: { name: 'Condensed Milk Flan', description: 'Traditional Brazilian flan with caramel sauce' } }
     },
-    // Bebidas
+    // Drinks
     {
-      category: 'Bebidas',
-      name: 'Suco Natural de Laranja',
-      description: 'Suco de laranja espremido na hora',
+      category: 'Drinks',
+      name: 'Fresh Orange Juice',
+      description: 'Freshly squeezed orange juice',
       price: 12.00,
       image_url: 'https://images.unsplash.com/photo-1621506289937-a8e4df240d0b?w=500',
-      tags: ['Sem Glúten', 'Vegano'],
+      tags: ['Gluten-free', 'Vegan'],
       translations: { en: { name: 'Fresh Orange Juice', description: 'Freshly squeezed orange juice' } }
     },
     {
-      category: 'Bebidas',
+      category: 'Drinks',
       name: 'Coca-Cola 350ml',
-      description: 'Refrigerante Coca-Cola lata 350ml',
+      description: 'Coca-Cola 350ml can',
       price: 8.00,
       image_url: 'https://images.unsplash.com/photo-1554866585-cd94860890b7?w=500',
       tags: [],
       translations: { en: { name: 'Coca-Cola 350ml', description: 'Coca-Cola 350ml can' } }
     },
     {
-      category: 'Bebidas',
-      name: 'Água Mineral 500ml',
-      description: 'Água mineral sem gás 500ml',
+      category: 'Drinks',
+      name: 'Mineral Water 500ml',
+      description: 'Still mineral water 500ml',
       price: 6.00,
       image_url: 'https://images.unsplash.com/photo-1548839140-29a749e1cf4d?w=500',
-      tags: ['Sem Glüten', 'Vegano'],
+      tags: ['Gluten-free', 'Vegan'],
       translations: { en: { name: 'Mineral Water 500ml', description: 'Still mineral water 500ml' } }
     },
     {
-      category: 'Bebidas',
-      name: 'Caipiroska de Limão',
-      description: 'Vodka, limão, açúcar e gelo',
+      category: 'Drinks',
+      name: 'Lime Caipiroska',
+      description: 'Vodka, lime, sugar and ice',
       price: 22.00,
       image_url: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=500',
       is_featured: true,
-      tags: ['Alcoólico'],
+      tags: ['Alcoholic'],
       translations: { en: { name: 'Lime Caipiroska', description: 'Vodka, lime, sugar and ice' } }
     },
     {
-      category: 'Bebidas',
-      name: 'Mojito Clássico',
-      description: 'Rum branco, hortelã, limão, açúcar e água com gás',
+      category: 'Drinks',
+      name: 'Classic Mojito',
+      description: 'White rum, mint, lime, sugar and soda water',
       price: 24.00,
       image_url: 'https://images.unsplash.com/photo-1551538827-9c037cb4f32a?w=500',
-      tags: ['Alcoólico'],
+      tags: ['Alcoholic'],
       translations: { en: { name: 'Classic Mojito', description: 'White rum, mint, lime, sugar and soda water' } }
     }
   ]
@@ -464,12 +463,12 @@ async function seed() {
 
   // 8. Create QR Codes
   const qrCodes = [
-    { label: 'QR Mesa 1', target_url: 'https://xmartmenu.skale.club/r/restaurante-teste?table=1', scans: 127 },
-    { label: 'QR Mesa 2', target_url: 'https://xmartmenu.skale.club/r/restaurante-teste?table=2', scans: 89 },
-    { label: 'QR Mesa 3', target_url: 'https://xmartmenu.skale.club/r/restaurante-teste?table=3', scans: 54 },
-    { label: 'QR Entrada', target_url: 'https://xmartmenu.skale.club/r/restaurante-teste', scans: 342 },
-    { label: 'QR Cardápio Digital', target_url: 'https://xmartmenu.skale.club/r/restaurante-teste', scans: 512 },
-    { label: 'QR Instagram', target_url: 'https://xmartmenu.skale.club/r/restaurante-teste?ref=instagram', scans: 78 }
+    { label: 'QR Table 1', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant?table=1', scans: 127 },
+    { label: 'QR Table 2', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant?table=2', scans: 89 },
+    { label: 'QR Table 3', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant?table=3', scans: 54 },
+    { label: 'QR Entrance', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant', scans: 342 },
+    { label: 'QR Digital Menu', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant', scans: 512 },
+    { label: 'QR Instagram', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant?ref=instagram', scans: 78 }
   ]
 
   for (const qr of qrCodes) {
@@ -535,7 +534,7 @@ async function seed() {
 
   // 10. Create sample orders
   const orders = [
-    { customer_name: 'João Silva', customer_phone: '11988887777', status: 'completed', total: 127.80 },
+    { customer_name: 'John Silva', customer_phone: '11988887777', status: 'completed', total: 127.80 },
     { customer_name: 'Maria Santos', customer_phone: '11977776666', status: 'completed', total: 89.90 },
     { customer_name: 'Pedro Oliveira', customer_phone: '11966665555', status: 'confirmed', total: 156.00 },
     { customer_name: 'Ana Costa', customer_phone: '11955554444', status: 'pending', total: 72.00 },
@@ -572,7 +571,7 @@ async function seed() {
           product_name: product.name,
           quantity: Math.floor(Math.random() * 3) + 1,
           unit_price: product.price,
-          notes: Math.random() > 0.7 ? 'Sem cebola' : null
+          notes: Math.random() > 0.7 ? 'No onions' : null
         })
       }
       await supabase.from('order_items').insert(orderItems)
@@ -583,9 +582,9 @@ async function seed() {
 
   // 11. Create staff members
   const staffMembers = [
-    { name: 'Ana Paula Silva', email: 'ana.paula@restauranteteste.com' },
-    { name: 'Carlos Eduardo', email: 'carlos@restauranteteste.com' },
-    { name: 'Mariana Costa', email: 'mariana@restauranteteste.com' }
+    { name: 'Ana Paula Silva', email: 'ana.paula@demo-restaurant.com' },
+    { name: 'Carlos Eduardo', email: 'carlos@demo-restaurant.com' },
+    { name: 'Mariana Costa', email: 'mariana@demo-restaurant.com' }
   ]
 
   const defaultPassword = 'Staff@12345'
@@ -645,7 +644,7 @@ async function seed() {
   console.log('Tenant ID:', tenantId)
   console.log('User ID:', user.id)
   console.log('\n📋 Summary:')
-  console.log('  - 2 menus (Cardápio Principal + Carta de Bebidas)')
+  console.log('  - 2 menus (Main Menu + Drinks Menu)')
   console.log('  - 4 categories with 19 products')
   console.log('  - 6 QR codes')
   console.log('  - 50 scan events')

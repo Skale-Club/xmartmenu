@@ -103,7 +103,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
 
   function openWhatsApp(product: Product) {
     if (!whatsapp) return
-    const msg = encodeURIComponent(`Hi! I'd like to order: ${product.name} — ${formatPrice(product.price, currency)}`)
+    const msg = encodeURIComponent(`Hi! I'd like to order: ${product.name} | ${formatPrice(product.price, currency)}`)
     window.open(`https://wa.me/${whatsapp}?text=${msg}`, '_blank')
   }
 
@@ -187,7 +187,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
       setCart([])
       setCustomerName('')
       setCustomerPhone('')
-      // Modal stays open — confirmation view renders inside it (D-07, D-10)
+      // Modal stays open | confirmation view renders inside it (D-07, D-10)
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : 'Failed to submit order')
     } finally {
@@ -390,7 +390,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         </div>
       </header>
 
-      {/* Filtro de categorias */}
+      {/* Category filter */}
       {categories.length > 0 && (
         <div className="sticky top-0 z-20 bg-white border-b border-zinc-200 shadow-sm supports-backdrop-blur:bg-white/95 supports-backdrop-blur:backdrop-blur-sm">
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
@@ -411,7 +411,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                   type="search"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Buscar..."
+                  placeholder="Search..."
                   className="w-64 sm:w-80 px-3 py-1 rounded-full border border-zinc-300 text-sm text-zinc-900 focus:outline-none focus:ring-1 transition-all"
                 />
               ) : (
@@ -452,7 +452,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6 sm:py-8 lg:py-10 space-y-8 sm:space-y-10"
         style={hasFixedFooter ? { paddingBottom: `${footerHeight + 24}px` } : undefined}
       >
-        {/* Destaques */}
+        {/* Featured */}
         {featured.length > 0 && !search && !activeCategory && (
           <section>
             <h2 className="text-base font-bold text-zinc-900 mb-3">⭐ {ui.featured}</h2>
@@ -650,38 +650,19 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
 }
 
 const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
-  'Vegetarian': { en: 'Vegetarian', pt: 'Vegetariano', es: 'Vegetariano', fr: 'Végétarien', de: 'Vegetarisch', it: 'Vegetariano' },
-  'Vegan': { en: 'Vegan', pt: 'Vegano', es: 'Vegano', fr: 'Végan', de: 'Vegan', it: 'Vegano' },
-  'Gluten-Free': { en: 'Gluten-Free', pt: 'Sem Glúten', es: 'Sin Gluten', fr: 'Sans Gluten', de: 'Glutenfrei', it: 'Senza Glutine' },
-  'Spicy': { en: 'Spicy', pt: 'Picante', es: 'Picante', fr: 'Épicé', de: 'Scharf', it: 'Piccante' },
-  'Chef\'s special': { en: 'Chef\'s special', pt: 'Especial do Chef', es: 'Especial del Chef', fr: 'Spécialité du Chef', de: 'Spezialität des Kochs', it: 'Speciale dello Chef' },
+  'Vegetarian': { en: 'Vegetarian' },
+  'Vegan': { en: 'Vegan' },
+  'Gluten-Free': { en: 'Gluten-Free' },
+  'Spicy': { en: 'Spicy' },
+  'Chef\'s special': { en: 'Chef\'s special' },
 }
 
 const TAG_COLORS: Record<string, string> = {
   'Vegetarian': 'bg-green-100 text-green-700',
-  'Vegetariano': 'bg-green-100 text-green-700',
-  'Végétarien': 'bg-green-100 text-green-700',
-  'Vegetarisch': 'bg-green-100 text-green-700',
   'Vegan': 'bg-emerald-100 text-emerald-700',
-  'Vegano': 'bg-emerald-100 text-emerald-700',
-  'Végan': 'bg-emerald-100 text-emerald-700',
   'Gluten-Free': 'bg-amber-100 text-amber-700',
-  'Sem Glúten': 'bg-amber-100 text-amber-700',
-  'Sin Gluten': 'bg-amber-100 text-amber-700',
-  'Sans Gluten': 'bg-amber-100 text-amber-700',
-  'Glutenfrei': 'bg-amber-100 text-amber-700',
-  'Senza Glutine': 'bg-amber-100 text-amber-700',
   'Spicy': 'bg-red-100 text-red-700',
-  'Picante': 'bg-red-100 text-red-700',
-  'Épicé': 'bg-red-100 text-red-700',
-  'Scharf': 'bg-red-100 text-red-700',
-  'Piccante': 'bg-red-100 text-red-700',
   'Chef\'s special': 'bg-purple-100 text-purple-700',
-  'Especial do Chef': 'bg-purple-100 text-purple-700',
-  'Especial del Chef': 'bg-purple-100 text-purple-700',
-  'Spécialité du Chef': 'bg-purple-100 text-purple-700',
-  'Spezialität des Kochs': 'bg-purple-100 text-purple-700',
-  'Speciale dello Chef': 'bg-purple-100 text-purple-700',
 }
 
 function translateTag(tag: string, lang: string): string {
@@ -724,4 +705,4 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
     </button>
   )
 }
-
+

@@ -14,7 +14,7 @@ export default async function TenantsPage() {
 
   const authMap = new Map((authData?.users ?? []).map(u => [u.id, u]))
 
-  // Monta lista combinada: cada cliente = tenant + seu usuário admin
+  // Build combined list: each client = tenant + admin user
   const clients = (tenants ?? []).map(tenant => {
     const profile = (profiles ?? []).find(
       p => p.tenant_id === tenant.id && (p.role === 'store-admin' || p.role === 'admin')
@@ -28,7 +28,7 @@ export default async function TenantsPage() {
       is_active: tenant.is_active,
       created_at: tenant.created_at,
       logo_url: ((tenant.tenant_settings as unknown as Array<{ logo_url: string | null }> | null)?.[0]?.logo_url) ?? null,
-      // dados do usuário
+      // user data
       user_id: profile?.id ?? null,
       email: authUser?.email ?? null,
       full_name: profile?.full_name ?? null,
@@ -36,7 +36,7 @@ export default async function TenantsPage() {
     }
   })
 
-  // Usuários sem tenant (ex: Google login sem atribuição)
+  // Users without a tenant, for example Google login without assignment.
   const unassigned = (authData?.users ?? [])
     .filter(u => {
       const profile = (profiles ?? []).find(p => p.id === u.id)

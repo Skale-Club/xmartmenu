@@ -8,9 +8,9 @@ import { sanitizeForPrompt } from '@/lib/ai/sanitize'
 import { convertBufferToWebP } from '@/lib/upload'
 import { getStorageClient } from '@/lib/storage'
 
-// Node.js runtime required — Sharp uses native bindings (cannot run on Edge)
+// Node.js runtime required | Sharp uses native bindings (cannot run on Edge)
 export const runtime = 'nodejs'
-// maxDuration = 300: bulk product seeding can take several minutes (20 products × ~15s each)
+// maxDuration = 300: bulk product seeding can take several minutes (20 products | ~15s each)
 // Requires Vercel Pro plan (D-05)
 export const maxDuration = 300
 
@@ -22,7 +22,7 @@ export async function POST(
 ) {
   const { id: tenantId } = await params
 
-  // Auth guard — D-20: assertSuperadmin() first on every new route
+  // Auth guard | D-20: assertSuperadmin() first on every new route
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -69,7 +69,7 @@ export async function POST(
 
   // ── image_cover (AI-07) ─────────────────────────────────────────────────────
   if (type === 'image_cover') {
-    // D-11: Additive — skip if banner_url already set
+    // D-11: Additive | skip if banner_url already set
     const { data: settings } = await service
       .from('tenant_settings')
       .select('banner_url')
@@ -154,7 +154,7 @@ export async function POST(
 
     if (prodFetchErr) return NextResponse.json({ error: prodFetchErr.message }, { status: 500 })
     if (!products || products.length === 0) {
-      return NextResponse.json({ success: true, imagesCreated: 0, message: 'No products need images — all already have image_url set.' })
+      return NextResponse.json({ success: true, imagesCreated: 0, message: 'No products need images | all already have image_url set.' })
     }
 
     let imagesCreated = 0
@@ -165,7 +165,7 @@ export async function POST(
         // D-12: Per-product prompt = business_type + product.name + sanitized description
         const safeDesc = product.description ? sanitizeForPrompt(product.description, 150) : ''
         const prompt = safeDesc
-          ? `A professional food photography image of "${product.name}" — ${safeDesc}. Style: ${safeBusinessType || 'restaurant'} dish, square composition, clean background, appetizing presentation.`
+          ? `A professional food photography image of "${product.name}" | ${safeDesc}. Style: ${safeBusinessType || 'restaurant'} dish, square composition, clean background, appetizing presentation.`
           : `A professional food photography image of "${product.name}" from a ${safeBusinessType || 'restaurant'}. Square composition, clean background, appetizing presentation.`
 
         const result = await generateImage({
@@ -242,7 +242,7 @@ export async function POST(
   if (type === 'image_single_product') {
     if (!productId) return NextResponse.json({ error: 'productId required for image_single_product' }, { status: 400 })
 
-    // D-13: Additive — skip if image_url already set
+    // D-13: Additive | skip if image_url already set
     const { data: product, error: fetchErr } = await service
       .from('products')
       .select('id, name, description, image_url')
@@ -260,7 +260,7 @@ export async function POST(
     try {
       const safeDesc = product.description ? sanitizeForPrompt(product.description, 150) : ''
       const prompt = safeDesc
-        ? `A professional food photography image of "${product.name}" — ${safeDesc}. Style: ${safeBusinessType || 'restaurant'} dish, square composition, clean background, appetizing presentation.`
+        ? `A professional food photography image of "${product.name}" | ${safeDesc}. Style: ${safeBusinessType || 'restaurant'} dish, square composition, clean background, appetizing presentation.`
         : `A professional food photography image of "${product.name}" from a ${safeBusinessType || 'restaurant'}. Square composition, clean background, appetizing presentation.`
 
       const result = await generateImage({

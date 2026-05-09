@@ -52,10 +52,10 @@ export default function AdminSidebar({
   const [menuLoading, setMenuLoading] = useState(false)
   const isStaff = role === 'store-staff'
 
-  const ingredienteItem = { href: '/menu/ingredients', label: 'Ingredientes', icon: '🥗' }
+  const ingredientItem = { href: '/menu/ingredients', label: 'Ingredients', icon: '🥗' }
   const visibleMainItems = [
     ...mainItems,
-    ...(ingredientCustomizationEnabled ? [ingredienteItem] : []),
+    ...(ingredientCustomizationEnabled ? [ingredientItem] : []),
   ].filter(item => isStaff ? item.href !== '/menus' : true)
   const visibleAdminPanelItems = isStaff
     ? adminPanelItems.filter((item) => item.href === '/settings/qrcode' || item.href === '/settings/password')

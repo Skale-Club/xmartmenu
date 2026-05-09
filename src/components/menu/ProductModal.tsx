@@ -8,38 +8,19 @@ import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { UI_COPY, getProductImages } from './menu-utils'
 
 const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
-  'Vegetarian': { en: 'Vegetarian', pt: 'Vegetariano', es: 'Vegetariano', fr: 'Végétarien', de: 'Vegetarisch', it: 'Vegetariano' },
-  'Vegan': { en: 'Vegan', pt: 'Vegano', es: 'Vegano', fr: 'Végan', de: 'Vegan', it: 'Vegano' },
-  'Gluten-Free': { en: 'Gluten-Free', pt: 'Sem Glúten', es: 'Sin Gluten', fr: 'Sans Gluten', de: 'Glutenfrei', it: 'Senza Glutine' },
-  'Spicy': { en: 'Spicy', pt: 'Picante', es: 'Picante', fr: 'Épicé', de: 'Scharf', it: 'Piccante' },
-  'Chef\'s special': { en: 'Chef\'s special', pt: 'Especial do Chef', es: 'Especial del Chef', fr: 'Spécialité du Chef', de: 'Spezialität des Kochs', it: 'Speciale dello Chef' },
+  'Vegetarian': { en: 'Vegetarian' },
+  'Vegan': { en: 'Vegan' },
+  'Gluten-Free': { en: 'Gluten-Free' },
+  'Spicy': { en: 'Spicy' },
+  'Chef\'s special': { en: 'Chef\'s special' },
 }
 
 const TAG_COLORS: Record<string, string> = {
   'Vegetarian': 'bg-green-100 text-green-700',
-  'Vegetariano': 'bg-green-100 text-green-700',
-  'Végétarien': 'bg-green-100 text-green-700',
-  'Vegetarisch': 'bg-green-100 text-green-700',
   'Vegan': 'bg-emerald-100 text-emerald-700',
-  'Vegano': 'bg-emerald-100 text-emerald-700',
-  'Végan': 'bg-emerald-100 text-emerald-700',
   'Gluten-Free': 'bg-amber-100 text-amber-700',
-  'Sem Glúten': 'bg-amber-100 text-amber-700',
-  'Sin Gluten': 'bg-amber-100 text-amber-700',
-  'Sans Gluten': 'bg-amber-100 text-amber-700',
-  'Glutenfrei': 'bg-amber-100 text-amber-700',
-  'Senza Glutine': 'bg-amber-100 text-amber-700',
   'Spicy': 'bg-red-100 text-red-700',
-  'Picante': 'bg-red-100 text-red-700',
-  'Épicé': 'bg-red-100 text-red-700',
-  'Scharf': 'bg-red-100 text-red-700',
-  'Piccante': 'bg-red-100 text-red-700',
   'Chef\'s special': 'bg-purple-100 text-purple-700',
-  'Especial do Chef': 'bg-purple-100 text-purple-700',
-  'Especial del Chef': 'bg-purple-100 text-purple-700',
-  'Spécialité du Chef': 'bg-purple-100 text-purple-700',
-  'Spezialität des Kochs': 'bg-purple-100 text-purple-700',
-  'Speciale dello Chef': 'bg-purple-100 text-purple-700',
 }
 
 function translateTag(tag: string, lang: string): string {
@@ -416,7 +397,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                           {halfNames.map((halfKey, idx) => (
                             <div key={halfKey}>
                               <p className="text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">
-                                {group.name} — {halfLabels[idx]}
+                                {group.name} | {halfLabels[idx]}
                               </p>
                               <div className="space-y-1">
                                 {group.options.map(opt => {
@@ -465,7 +446,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
           )}
           {ingredientCustomizationEnabled && productIngredients.length > 0 && (
             <div className="px-5 pt-4 pb-2">
-              <p className="text-xs font-semibold text-zinc-500 uppercase mb-2">Ingredientes</p>
+              <p className="text-xs font-semibold text-zinc-500 uppercase mb-2">Ingredients</p>
 
               {/* Default ingredient chips with stepper */}
               <div className="space-y-2">
@@ -499,14 +480,14 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                 })}
               </div>
 
-              {/* "Adicionar ingrediente" expandable picker */}
+              {/* Add ingredient expandable picker */}
               {productIngredients.filter(pi => !pi.is_default && !addedIngredients.includes(pi.ingredient_id)).length > 0 && (
                 <div className="mt-3">
                   <button
                     onClick={() => setShowAddIngredient(v => !v)}
                     className="text-sm text-zinc-600 underline underline-offset-2 hover:text-zinc-900"
                   >
-                    + Adicionar ingrediente
+                    + Add ingredient
                   </button>
                   {showAddIngredient && (
                     <div className="mt-2 border border-zinc-200 rounded-xl overflow-hidden">
@@ -528,7 +509,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                                   }}
                                   className="text-xs bg-zinc-900 text-white px-2 py-1 rounded-lg hover:bg-zinc-800"
                                 >
-                                  Adicionar
+                                  Add
                                 </button>
                               </div>
                             </div>
@@ -554,7 +535,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                         <button
                           onClick={() => setAddedIngredients(prev => prev.filter(id => id !== ingId))}
                           className="text-green-500 hover:text-green-700 text-xs leading-none ml-0.5"
-                          aria-label={`Remover ${pi.ingredient.name}`}
+                          aria-label={`Remove ${pi.ingredient.name}`}
                         >
                           &#x2715;
                         </button>
@@ -568,13 +549,13 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
           {itemNotesEnabled && (
             <div className="mt-4">
               <label className="block text-sm font-medium text-zinc-700 mb-1">
-                Observações
-                <span className="ml-2 text-xs text-zinc-400 font-normal">Máx. 140 caracteres</span>
+                Notes
+                <span className="ml-2 text-xs text-zinc-400 font-normal">Max. 140 characters</span>
               </label>
               <textarea
                 value={itemNote}
                 onChange={e => setItemNote(e.target.value.slice(0, 140))}
-                placeholder="Ex: sem gelo, ponto bem passado..."
+                placeholder="Ex: no ice, well done..."
                 rows={2}
                 maxLength={140}
                 className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"

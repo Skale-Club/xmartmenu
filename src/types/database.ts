@@ -213,7 +213,7 @@ export interface ProductOption {
 }
 
 // ============================================================
-// Ingredient Catalog types (v1.7 — migration 026)
+// Ingredient Catalog types (v1.7 | migration 026)
 // ============================================================
 
 // INGR-01: Ingredient catalog entry per tenant

@@ -40,7 +40,7 @@ for (const bucket of BUCKETS) {
     console.error(`Failed to update bucket '${bucket}':`, error.message)
     process.exit(1)
   }
-  console.log(`Bucket '${bucket}' updated — cacheControl: ${CACHE_SECONDS}`)
+  console.log(`Bucket '${bucket}' updated | cacheControl: ${CACHE_SECONDS}`)
 }
 
 console.log('CDN cache configuration complete.')

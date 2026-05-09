@@ -3,11 +3,11 @@
 import { useState } from 'react'
 
 const DEFAULT_LANDING = {
-  hero: { badge: 'Digital menu for restaurants', heading: 'Your menu on your phone', heading_highlight: 'with a QR Code', subheading: 'Create your digital menu in minutes, generate a QR Code and let your customers order via WhatsApp. No app, no hassle.', cta_primary: 'Get started free', cta_secondary: 'See how it works' },
+  hero: { badge: 'Digital menu for restaurants', heading: 'Your menu on your phone', heading_highlight: 'with a QR Code', subheading: 'Run a digital menu built for restaurant service, QR codes, and WhatsApp ordering. No app, no hassle.', cta_primary: 'Get started free', cta_secondary: 'See how it works' },
   how_it_works: { title: 'How it works', subtitle: 'Up and running in 3 simple steps', steps: [{ step: '01', icon: '📋', title: 'Build your menu', desc: 'Create categories and add your products with photos, descriptions and prices in the dashboard.' }, { step: '02', icon: '🎨', title: 'Customize the look', desc: 'Add your logo, restaurant colors and contact information to make it your own.' }, { step: '03', icon: '📱', title: 'Generate & print the QR Code', desc: 'Generate your unique QR Code with one click. Place it on tables and let customers access it instantly.' }] },
   features: { title: 'Everything you need', subtitle: 'Features designed for restaurants', items: [{ icon: '🔗', title: 'Unique link per restaurant', desc: 'Each customer has their own digital menu address.' }, { icon: '📲', title: 'Order via WhatsApp', desc: 'Customers tap a product and WhatsApp opens ready to order.' }, { icon: '🎨', title: 'Custom branding', desc: 'Logo, colors and visual identity for your restaurant.' }, { icon: '📊', title: 'Scan counter', desc: 'See how many times your QR Code has been scanned.' }, { icon: '🔍', title: 'Menu search', desc: 'Customers find any product in seconds.' }, { icon: '⚡', title: 'No app required', desc: 'Everything opens directly in the phone browser, zero friction.' }] },
   pricing: { title: 'Simple plans', subtitle: 'Start free, scale when you need', plans: [{ name: 'Free', price: '$0', period: '/mo', desc: 'To get started', features: ['Digital menu', 'QR Code generated', 'Up to 20 products', 'Basic branding'], cta: 'Get started free', highlight: false }, { name: 'Pro', price: '$49', period: '/mo', desc: 'To grow', features: ['Everything in Free', 'Unlimited products', 'Full branding', 'Scan analytics', 'Priority support'], cta: 'Subscribe to Pro', highlight: true }, { name: 'Enterprise', price: '$149', period: '/mo', desc: 'For chains', features: ['Everything in Pro', 'Multiple locations', 'Custom domain', 'Dedicated onboarding', 'Guaranteed SLA'], cta: 'Talk to sales', highlight: false }] },
-  cta: { heading: 'Ready to digitize\nyour menu?', text: 'Create your account now and have your QR Code in less than 5 minutes.', button: 'Create free account' },
+  cta: { heading: 'Ready to digitize\nyour menu?', text: 'Create your account and build a menu that works for daily service.', button: 'Create free account' },
   footer: { copyright: 'XmartMenu. All rights reserved.' },
 }
 
@@ -122,7 +122,7 @@ export default function SettingsClient({ settings }: Props) {
 
         {/* Hero */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page — Hero</h2>
+          <h2 className={sectionTitle}>Landing Page | Hero</h2>
           <div className="grid grid-cols-2 gap-4">
             <div><label className={label}>Badge (top)</label><input className={input} value={hero.badge} onChange={e => setHero({ ...hero, badge: e.target.value })} /></div>
             <div><label className={label}>Gradient highlight</label><input className={input} value={hero.heading_highlight} onChange={e => setHero({ ...hero, heading_highlight: e.target.value })} /></div>
@@ -137,7 +137,7 @@ export default function SettingsClient({ settings }: Props) {
 
         {/* Como funciona */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page — How it works</h2>
+          <h2 className={sectionTitle}>Landing Page | How it works</h2>
           <div className="grid grid-cols-2 gap-4">
             <div><label className={label}>Section title</label><input className={input} value={howItWorks.title} onChange={e => setHowItWorks({ ...howItWorks, title: e.target.value })} /></div>
             <div><label className={label}>Subtitle</label><input className={input} value={howItWorks.subtitle} onChange={e => setHowItWorks({ ...howItWorks, subtitle: e.target.value })} /></div>
@@ -156,7 +156,7 @@ export default function SettingsClient({ settings }: Props) {
 
         {/* Funcionalidades */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page — Features</h2>
+          <h2 className={sectionTitle}>Landing Page | Features</h2>
           <div className="grid grid-cols-2 gap-4">
             <div><label className={label}>Section title</label><input className={input} value={features.title} onChange={e => setFeatures({ ...features, title: e.target.value })} /></div>
             <div><label className={label}>Subtitle</label><input className={input} value={features.subtitle} onChange={e => setFeatures({ ...features, subtitle: e.target.value })} /></div>
@@ -176,7 +176,7 @@ export default function SettingsClient({ settings }: Props) {
 
         {/* Planos */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page — Pricing</h2>
+          <h2 className={sectionTitle}>Landing Page | Pricing</h2>
           <div className="grid grid-cols-2 gap-4">
             <div><label className={label}>Section title</label><input className={input} value={pricing.title} onChange={e => setPricing({ ...pricing, title: e.target.value })} /></div>
             <div><label className={label}>Subtitle</label><input className={input} value={pricing.subtitle} onChange={e => setPricing({ ...pricing, subtitle: e.target.value })} /></div>
@@ -203,15 +203,15 @@ export default function SettingsClient({ settings }: Props) {
 
         {/* CTA Final */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page — Final CTA</h2>
+          <h2 className={sectionTitle}>Landing Page | Final CTA</h2>
           <div><label className={label}>Heading</label><input className={input} value={cta.heading} onChange={e => setCta({ ...cta, heading: e.target.value })} /></div>
           <div><label className={label}>Text</label><input className={input} value={cta.text} onChange={e => setCta({ ...cta, text: e.target.value })} /></div>
           <div><label className={label}>Button</label><input className={input} value={cta.button} onChange={e => setCta({ ...cta, button: e.target.value })} /></div>
         </div>
 
-        {/* Rodapé */}
+        {/* Footer */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page — Footer</h2>
+          <h2 className={sectionTitle}>Landing Page | Footer</h2>
           <div><label className={label}>Copyright text (use {'{year}'} for the year)</label><input className={input} value={footer.copyright} onChange={e => setFooter({ ...footer, copyright: e.target.value })} /></div>
         </div>
 

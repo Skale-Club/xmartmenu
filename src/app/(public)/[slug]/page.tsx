@@ -30,10 +30,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tenant) return { title: 'Menu' }
 
   return {
-    title: `Menu — ${tenant.name}`,
+    title: `Menu | ${tenant.name}`,
     description: `View the full menu of ${tenant.name}`,
     openGraph: {
-      title: `Menu — ${tenant.name}`,
+      title: `Menu | ${tenant.name}`,
       images: [(tenant.tenant_settings as any)?.logo_url ?? ''],
     },
   }
@@ -108,7 +108,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     }
   }
 
-  // Registra scan (fire-and-forget)
+  // Record scan (fire-and-forget)
   supabase.from('scan_events').insert({ tenant_id: tenant.id }).then(() => {})
 
   return (

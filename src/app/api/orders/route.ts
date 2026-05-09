@@ -21,7 +21,7 @@ interface CreateOrderRequest {
 
 function sanitizeNote(raw: string | undefined | null): string | null {
   if (!raw) return null
-  // Strip control chars (0x00-0x08, 0x0B-0x1F, 0x7F) — preserve tab (0x09) and newline (0x0A)
+  // Strip control chars (0x00-0x08, 0x0B-0x1F, 0x7F) | preserve tab (0x09) and newline (0x0A)
   const stripped = raw.replace(/[\x00-\x08\x0B-\x1F\x7F]/g, '')
   const trimmed = stripped.trim()
   if (!trimmed) return null

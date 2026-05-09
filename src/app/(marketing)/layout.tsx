@@ -9,14 +9,14 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'XmartMenu — Your restaurant menu, online in minutes',
+  title: 'XmartMenu | Digital menus built for service',
   description:
-    'Create a beautiful digital menu, generate a QR code, and start taking orders — no tech skills needed.',
+    'Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.',
   metadataBase: new URL('https://xmartmenu.skale.club'),
   openGraph: {
-    title: 'XmartMenu — Your restaurant menu, online in minutes',
+    title: 'XmartMenu | Digital menus built for service',
     description:
-      'Create a beautiful digital menu, generate a QR code, and start taking orders — no tech skills needed.',
+      'Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.',
     url: 'https://xmartmenu.skale.club',
     siteName: 'XmartMenu',
     locale: 'en_US',
@@ -26,15 +26,15 @@ export const metadata: Metadata = {
         url: '/opengraph-image',
         width: 1200,
         height: 630,
-        alt: 'XmartMenu — Your restaurant menu, online in minutes',
+        alt: 'XmartMenu | Digital menus built for service',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'XmartMenu — Your restaurant menu, online in minutes',
+    title: 'XmartMenu | Digital menus built for service',
     description:
-      'Create a beautiful digital menu, generate a QR code, and start taking orders — no tech skills needed.',
+      'Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.',
     images: ['/opengraph-image'],
   },
 }

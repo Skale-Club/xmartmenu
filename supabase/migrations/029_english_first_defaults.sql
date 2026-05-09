@@ -1,0 +1,68 @@
+-- Migration 029: English-first defaults
+-- The product is English-first. Portuguese can still be enabled per menu, but
+-- new tenants and menus should start in English.
+
+ALTER TABLE tenant_settings
+  ALTER COLUMN currency SET DEFAULT 'USD',
+  ALTER COLUMN language SET DEFAULT 'en';
+
+ALTER TABLE menus
+  ALTER COLUMN language SET DEFAULT 'en',
+  ALTER COLUMN supported_languages SET DEFAULT ARRAY['en'];
+
+-- Align fresh/default platform copy with the English-first positioning without
+-- overwriting customized landing pages.
+UPDATE platform_settings
+SET
+  app_name = CASE WHEN app_name IN ('Skale QR Menu', 'XmartMenu') THEN 'XmartMenu' ELSE app_name END,
+  brand_name = CASE WHEN brand_name IN ('Skale Club', 'XmartMenu') THEN 'XmartMenu' ELSE brand_name END,
+  menu_footer_brand = CASE WHEN menu_footer_brand IN ('Skale QR Menu', 'XmartMenu') THEN 'XmartMenu' ELSE menu_footer_brand END,
+  landing = '{
+    "hero": {
+      "badge": "Digital menus built for service",
+      "heading": "Your restaurant menu",
+      "heading_highlight": "built for service",
+      "subheading": "Create a clean digital menu, share it with a QR code, and manage ordering workflows without adding friction for your team.",
+      "cta_primary": "Get started",
+      "cta_secondary": "See how it works"
+    },
+    "how_it_works": {
+      "title": "How it works",
+      "subtitle": "A simple workflow for restaurants and service teams",
+      "steps": [
+        {"step": "01", "icon": "list", "title": "Build your menu", "desc": "Add categories, products, photos, descriptions, prices, and options from the admin dashboard."},
+        {"step": "02", "icon": "palette", "title": "Match your brand", "desc": "Set your logo, colors, contact details, and service settings for each restaurant."},
+        {"step": "03", "icon": "qr", "title": "Share your QR code", "desc": "Print or display a QR code so customers can browse your live menu from their phones."}
+      ]
+    },
+    "features": {
+      "title": "Built for daily restaurant service",
+      "subtitle": "The essentials for keeping menus accurate and easy to use",
+      "items": [
+        {"icon": "link", "title": "Unique restaurant links", "desc": "Each restaurant gets its own public menu URL."},
+        {"icon": "cart", "title": "Ordering workflows", "desc": "Enable direct ordering when your team is ready."},
+        {"icon": "palette", "title": "Restaurant branding", "desc": "Use your logo, colors, and visual identity."},
+        {"icon": "chart", "title": "Scan analytics", "desc": "Track QR code usage over time."},
+        {"icon": "search", "title": "Menu search", "desc": "Help customers find items quickly."},
+        {"icon": "phone", "title": "Mobile-first browsing", "desc": "Menus open directly in the customer browser."}
+      ]
+    },
+    "pricing": {
+      "title": "Simple plans",
+      "subtitle": "Start free, scale when you need",
+      "plans": [
+        {"name": "Free", "price": "$0", "period": "/mo", "desc": "To get started", "features": ["Digital menu", "QR code", "Up to 20 products", "Basic branding"], "cta": "Get started", "highlight": false},
+        {"name": "Pro", "price": "$49", "period": "/mo", "desc": "For growing restaurants", "features": ["Everything in Free", "Unlimited products", "Full branding", "Scan analytics", "Priority support"], "cta": "Subscribe to Pro", "highlight": true},
+        {"name": "Enterprise", "price": "$149", "period": "/mo", "desc": "For groups and chains", "features": ["Everything in Pro", "Multiple locations", "Custom domain", "Dedicated onboarding", "Guaranteed SLA"], "cta": "Talk to sales", "highlight": false}
+      ]
+    },
+    "cta": {
+      "heading": "Ready to modernize your menu?",
+      "text": "Set up a digital menu your staff can maintain and your customers can use with confidence.",
+      "button": "Get started"
+    },
+    "footer": {
+      "copyright": "XmartMenu. All rights reserved."
+    }
+  }'::jsonb
+WHERE landing->'hero'->>'badge' ILIKE '%card%';

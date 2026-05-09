@@ -2,7 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
 
-// Lists products for a given menu — used by AI Tools per-product image seed UI (AI-09).
+// Lists products for a given menu | used by AI Tools per-product image seed UI (AI-09).
 // Mirrors the existing /menus/[menuId]/categories-list pattern.
 export const runtime = 'nodejs'
 
@@ -12,7 +12,7 @@ export async function GET(
 ) {
   const { id: tenantId } = await params
 
-  // Auth guard — assertSuperadmin returns client or null (SEC-03 pattern)
+  // Auth guard | assertSuperadmin returns client or null (SEC-03 pattern)
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

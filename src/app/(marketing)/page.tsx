@@ -3,8 +3,6 @@ export const dynamic = 'force-static'
 import type { WithContext, Organization, SoftwareApplication } from 'schema-dts'
 import ClientLandingPage from './ClientPage'
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function LandingPage() {
   const organization: WithContext<Organization> = {
     '@context': 'https://schema.org',
@@ -24,14 +22,14 @@ export default function LandingPage() {
     offers: {
       '@type': 'Offer',
       price: '0',
-      priceCurrency: 'BRL',
-      description: 'Grátis durante o beta',
+      priceCurrency: 'USD',
+      description: 'Free during beta',
     },
   }
 
   return (
     <>
-      {/* JSON-LD structured data — per SEO-03. Inline dangerouslySetInnerHTML only.
+      {/* JSON-LD structured data. Inline dangerouslySetInnerHTML only.
           Do NOT use the Script component for JSON-LD (causes RSC hydration duplicates in React 19).
           NEVER move this to layout.tsx (would appear on all tenant pages). */}
       <script

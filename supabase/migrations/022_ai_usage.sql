@@ -6,7 +6,7 @@
 -- ============================================================
 
 -- ============================================================
--- 1. TENANT_SETTINGS — add AI copy generation columns
+-- 1. TENANT_SETTINGS | add AI copy generation columns
 -- ============================================================
 ALTER TABLE tenant_settings
   ADD COLUMN IF NOT EXISTS business_type TEXT,
@@ -14,7 +14,7 @@ ALTER TABLE tenant_settings
   ADD COLUMN IF NOT EXISTS about         TEXT;
 
 -- ============================================================
--- 2. AI_USAGE — cost attribution table
+-- 2. AI_USAGE | cost attribution table
 -- ============================================================
 CREATE TABLE IF NOT EXISTS ai_usage (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -44,4 +44,4 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- No tenant read access — superadmin-only table
+-- No tenant read access | superadmin-only table

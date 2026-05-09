@@ -32,7 +32,7 @@ export async function DELETE(
 
   const service = await createServiceClient()
 
-  // Busca usuários do tenant para deletar do Auth
+  // Fetch tenant users to delete them from Auth
   const { data: profiles } = await service.from('profiles').select('id').eq('tenant_id', id)
   if (profiles) {
     for (const p of profiles) {
