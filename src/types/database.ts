@@ -1,5 +1,76 @@
 export type UserRole = 'superadmin' | 'store-admin' | 'store-staff' | 'customer'
-export type Plan = 'free' | 'pro' | 'enterprise'
+
+// ============================================================
+// Plan types (SEED-009 Phase A - v2.0 Monetization)
+// ============================================================
+
+// Plan lookup table row
+export interface Plan {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  monthly_price: number
+  annual_price: number
+  transaction_fee_pct: number
+  features: string[]
+  is_active: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+// Effective plan with resolved overrides (returned by getTenantPlan)
+export interface EffectivePlan {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  monthly_price: number
+  annual_price: number
+  transaction_fee_pct: number
+  features: string[]
+  billing_cycle: 'monthly' | 'annual'
+  status: 'active' | 'cancelled' | 'trial' | 'past_due'
+  is_grandfathered: boolean
+}
+
+// Per-tenant subscription with override support
+export interface TenantSubscription {
+  id: string
+  tenant_id: string
+  plan_id: string
+  billing_cycle: 'monthly' | 'annual'
+  status: 'active' | 'cancelled' | 'trial' | 'past_due'
+  override_monthly_price: number | null
+  override_annual_price: number | null
+  override_transaction_fee_pct: number | null
+  override_notes: string | null
+  stripe_customer_id: string | null
+  stripe_subscription_id: string | null
+  current_period_start: string | null
+  current_period_end: string | null
+  created_at: string
+  updated_at: string
+  // Joined fields
+  plan?: Plan
+}
+
+// Per-tenant Stripe Connect account
+export interface StripeConnection {
+  id: string
+  tenant_id: string
+  stripe_account_id: string
+  scope: string
+  connected_at: string
+  is_active: boolean
+}
+
+// Webhook idempotency tracking
+export interface ProcessedStripeEvent {
+  stripe_event_id: string
+  processed_at: string
+}
 
 export interface Tenant {
   id: string
