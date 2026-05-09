@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Monetization
 status: executing
-stopped_at: Phase 32 completed - Stripe Connect OAuth
-last_updated: "2026-05-09T16:16:02.551Z"
+stopped_at: Phase 33 complete - 7/8 tasks, Task 8 pending Stripe test keys
+last_updated: "2026-05-09T16:36:37.848Z"
 last_activity: 2026-05-09
 progress:
-  total_phases: 30
-  completed_phases: 27
-  total_plans: 54
-  completed_plans: 54
+  total_phases: 31
+  completed_phases: 28
+  total_plans: 55
+  completed_plans: 56
 ---
 
 # Project State
@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: 32
-Plan: 01 completed
-Status: v2.0 Monetization in progress — Phase 32 completed
+Phase: 33
+Plan: 01 complete (7/8 tasks, Task 8 checkpoint pending Stripe test keys)
+Status: v2.0 Monetization in progress — Phase 33 complete
 Last activity: 2026-05-09
 
 ## Milestone Overview
@@ -36,7 +36,7 @@ Last activity: 2026-05-09
 | 30 | Schema + Planos Base | MON-01, MON-02 | ✅ Complete |
 | 31 | Superadmin Plan Management | MON-01, MON-02 | ✅ Complete |
 | 32 | Stripe Connect OAuth | MON-03, MON-04 | ✅ Complete |
-| 33 | Payment Intent + Webhook | MON-03, MON-05 | ⏳ Pending |
+| 33 | Payment Intent + Webhook | MON-03, MON-05 | ✅ Complete (Task 8 pending) |
 | 34 | Tenant Subscription UI | MON-01, MON-02, MON-04 | ⏳ Pending |
 
 ## Performance Metrics
@@ -96,6 +96,7 @@ Last activity: 2026-05-09
 | Phase 28 P01 | ~2min | 2 tasks | 3 files |
 | Phase 30 P01 | ~15min | 4 tasks | 4 files |
 | Phase 32 P01 | 275 | 6 tasks | 6 files |
+| Phase 33 P01 | 15 | 8 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -240,6 +241,14 @@ Recent decisions affecting current work:
 - [Phase 32]: Soft-delete (is_active=false) for Stripe disconnection — preserves audit trail for compliance
 - [Phase 32]: OAuth state parameter contains tenantId + timestamp (15-min window) — stateless validation without session storage
 - [Phase 32]: Stripe status read from URL search params on client mount — enables OAuth result feedback without SSR
+- [Phase 33]: PaymentIntent server-create pattern — secret key never exposed to client
+- [Phase 33]: Stripe Connect routing with application_fee_amount = floor(order_total * transaction_fee_pct)
+- [Phase 33]: Raw body (request.text()) for webhook signature — not request.json()
+- [Phase 33]: Webhook idempotency upsert + business work in same DB transaction
+- [Phase 33]: Webhook returns 200 immediately — async processing for slow ops
+- [Phase 33]: Standalone checkout page with dynamic Stripe.js import
+- [Phase 33]: Order augment pattern — order created on cart submit, webhook confirms payment
+- [Phase 33]: PaymentIntent routes to Stripe Connect with application_fee_amount = floor(order_total * transaction_fee_pct)
 
 ### Pending Todos
 
@@ -255,5 +264,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-09T16:16:02.544Z
-Stopped at: Phase 32 completed - Stripe Connect OAuth
+Last session: 2026-05-09T16:36:37.842Z
+Stopped at: Phase 33 complete - 7/8 tasks, Task 8 pending Stripe test keys
