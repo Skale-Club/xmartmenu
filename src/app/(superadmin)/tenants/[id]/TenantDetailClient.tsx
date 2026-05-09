@@ -33,6 +33,27 @@ interface Menu {
   supported_languages?: string[]
 }
 
+interface Plan {
+  id: string
+  name: string
+  monthly_price: number
+  annual_price: number
+  transaction_fee_pct: number
+}
+
+interface Subscription {
+  id: string
+  tenant_id: string
+  plan_id: string
+  billing_cycle: 'monthly' | 'annual'
+  status: string
+  override_monthly_price: number | null
+  override_annual_price: number | null
+  override_transaction_fee_pct: number | null
+  override_notes: string | null
+  plan: Plan | null
+}
+
 interface Credentials { email: string; password: string }
 
 export default function TenantDetailClient({
@@ -40,13 +61,15 @@ export default function TenantDetailClient({
   initialStaff,
   initialMenus,
   businessType,
+  initialSubscription,
 }: {
   tenant: Tenant
   initialStaff: StaffMember[]
   initialMenus: Menu[]
   businessType: string | null
+  initialSubscription: Subscription | null
 }) {
-  const [tab, setTab] = useState<'staff' | 'menus'>('staff')
+  const [tab, setTab] = useState<'staff' | 'menus' | 'subscription'>('staff')
   const [staff, setStaff] = useState(initialStaff)
   const [menus] = useState(initialMenus)
 
@@ -349,6 +372,15 @@ export default function TenantDetailClient({
     setOcrLoading(false)
   }
 
+  // Subscription form state
+  const [subscription, setSubscription] = useState(initialSubscription)
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>(initialSubscription?.billing_cycle ?? 'monthly')
+  const [overrideMonthlyPrice, setOverrideMonthlyPrice] = useState(initialSubscription?.override_monthly_price?.toString() ?? '')
+  const [overrideAnnualPrice, setOverrideAnnualPrice] = useState(initialSubscription?.override_annual_price?.toString() ?? '')
+  const [overrideTransactionFee, setOverrideTransactionFee] = useState(initialSubscription?.override_transaction_fee_pct?.toString() ?? '')
+  const [overrideNotes, setOverrideNotes] = useState(initialSubscription?.override_notes ?? '')
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false)
+
   const input = 'w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
   const planBadge = tenant.plan === 'pro' ? 'bg-blue-100 text-blue-700' :
     tenant.plan === 'enterprise' ? 'bg-purple-100 text-purple-700' : 'bg-zinc-100 text-zinc-600'
@@ -423,13 +455,13 @@ export default function TenantDetailClient({
 
       {/* Tabs */}
       <div className="flex gap-1 mb-6 border-b border-zinc-200">
-        {(['staff', 'menus'] as const).map(t => (
+        {(['staff', 'menus', 'subscription'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${tab === t ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-400 hover:text-zinc-700'}`}
           >
-            {t === 'staff' ? `Staff (${staff.length})` : `Menus (${menus.length})`}
+            {t === 'staff' ? `Staff (${staff.length})` : t === 'menus' ? `Menus (${menus.length})` : 'Subscription'}
           </button>
         ))}
       </div>
@@ -543,6 +575,181 @@ export default function TenantDetailClient({
                 ))}
               </tbody>
             </table>
+          )}
+        </div>
+      )}
+
+      {/* Subscription tab */}
+      {tab === 'subscription' && (
+        <div className="bg-white border border-zinc-200 rounded-xl p-5">
+          {!subscription?.plan ? (
+            <p className="text-sm text-zinc-400 text-center py-8">
+              No subscription found. This tenant needs to be assigned to a plan first.
+            </p>
+          ) : (
+            <div className="space-y-6">
+              {/* Current Plan */}
+              <div className="bg-zinc-50 rounded-lg p-4">
+                <p className="text-xs text-zinc-400 uppercase tracking-wider mb-2">Current Plan</p>
+                <p className="text-lg font-semibold text-zinc-900">{subscription.plan.name}</p>
+              </div>
+
+              {/* Effective Pricing */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-zinc-50 rounded-lg p-4">
+                  <p className="text-xs text-zinc-400 uppercase tracking-wider mb-2">Monthly Price</p>
+                  <p className="text-lg font-semibold text-zinc-900">
+                    {subscription.override_monthly_price !== null
+                      ? `$${subscription.override_monthly_price}`
+                      : `$${subscription.plan.monthly_price}`}
+                  </p>
+                  {subscription.override_monthly_price !== null && (
+                    <p className="text-xs text-green-600 mt-1">Override applied</p>
+                  )}
+                </div>
+                <div className="bg-zinc-50 rounded-lg p-4">
+                  <p className="text-xs text-zinc-400 uppercase tracking-wider mb-2">Annual Price</p>
+                  <p className="text-lg font-semibold text-zinc-900">
+                    {subscription.override_annual_price !== null
+                      ? `$${subscription.override_annual_price}`
+                      : `$${subscription.plan.annual_price}`}
+                  </p>
+                  {subscription.override_annual_price !== null && (
+                    <p className="text-xs text-green-600 mt-1">Override applied</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Transaction Fee */}
+              <div className="bg-zinc-50 rounded-lg p-4">
+                <p className="text-xs text-zinc-400 uppercase tracking-wider mb-2">Transaction Fee</p>
+                <p className="text-lg font-semibold text-zinc-900">
+                  {subscription.override_transaction_fee_pct !== null
+                    ? `${subscription.override_transaction_fee_pct}%`
+                    : `${subscription.plan.transaction_fee_pct}%`}
+                </p>
+                {subscription.override_transaction_fee_pct !== null && (
+                  <p className="text-xs text-green-600 mt-1">Override applied</p>
+                )}
+              </div>
+
+              {/* Billing Cycle */}
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Billing Cycle</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setBillingCycle('monthly')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      billingCycle === 'monthly'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                    }`}
+                  >
+                    Monthly
+                  </button>
+                  <button
+                    onClick={() => setBillingCycle('annual')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      billingCycle === 'annual'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
+                    }`}
+                  >
+                    Annual
+                  </button>
+                </div>
+              </div>
+
+              {/* Override Fields */}
+              <div>
+                <p className="text-sm font-medium text-zinc-700 mb-3">Price Overrides (leave empty to use base)</p>
+                <div className="grid grid-cols-3 gap-4 mb-4">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-600 mb-1">Override Monthly Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={overrideMonthlyPrice}
+                      onChange={e => setOverrideMonthlyPrice(e.target.value)}
+                      placeholder={subscription.plan.monthly_price.toString()}
+                      className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-600 mb-1">Override Annual Price</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={overrideAnnualPrice}
+                      onChange={e => setOverrideAnnualPrice(e.target.value)}
+                      placeholder={subscription.plan.annual_price.toString()}
+                      className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-600 mb-1">Override Fee (%)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="100"
+                      value={overrideTransactionFee}
+                      onChange={e => setOverrideTransactionFee(e.target.value)}
+                      placeholder={subscription.plan.transaction_fee_pct.toString()}
+                      className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Override Notes */}
+                <div className="mb-4">
+                  <label className="block text-xs font-medium text-zinc-600 mb-1">Override Notes</label>
+                  <textarea
+                    value={overrideNotes}
+                    onChange={e => setOverrideNotes(e.target.value)}
+                    placeholder="Reason for override..."
+                    rows={2}
+                    className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                  />
+                </div>
+
+                <button
+                  onClick={async () => {
+                    setSubscriptionLoading(true)
+                    setError(null)
+
+                    const res = await fetch(`/api/superadmin/tenants/${tenant.id}/subscription`, {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        billing_cycle: billingCycle,
+                        override_monthly_price: overrideMonthlyPrice === '' ? null : parseFloat(overrideMonthlyPrice) || null,
+                        override_annual_price: overrideAnnualPrice === '' ? null : parseFloat(overrideAnnualPrice) || null,
+                        override_transaction_fee_pct: overrideTransactionFee === '' ? null : parseFloat(overrideTransactionFee) || null,
+                        override_notes: overrideNotes || null,
+                      }),
+                    })
+
+                    if (res.ok) {
+                      const data = await res.json()
+                      setSubscription(data)
+                      setError(null)
+                    } else {
+                      const data = await res.json()
+                      setError(data.error ?? 'Failed to save override')
+                    }
+
+                    setSubscriptionLoading(false)
+                  }}
+                  disabled={subscriptionLoading}
+                  className="bg-zinc-900 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                >
+                  {subscriptionLoading ? 'Saving...' : 'Save Override'}
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}

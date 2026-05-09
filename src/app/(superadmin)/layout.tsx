@@ -37,6 +37,9 @@ export default async function SuperadminLayout({ children }: { children: React.R
 <a href="/settings" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">
             <span>⚙️</span> Settings
           </a>
+          <a href="/plans" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white transition-colors">
+            <span>📋</span> Plans
+          </a>
         </nav>
         <div className="p-3 border-t border-zinc-700">
           <a href="/api/auth/signout" className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:bg-zinc-800 hover:text-white transition-colors">

@@ -52,12 +52,20 @@ export default async function TenantDetailPage({ params }: Props) {
     .eq('tenant_id', id)
     .order('position')
 
+  // Fetch subscription data
+  const { data: subscription } = await service
+    .from('tenant_subscriptions')
+    .select('*, plan:plans(*)')
+    .eq('tenant_id', id)
+    .single()
+
   return (
     <TenantDetailClient
       tenant={{ ...tenant, logo_url: settings?.logo_url ?? null }}
       initialStaff={staffWithEmail}
       initialMenus={menus ?? []}
       businessType={settings?.business_type ?? null}
+      initialSubscription={subscription ?? null}
     />
   )
 }
