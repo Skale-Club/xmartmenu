@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Monetization
 status: executing
-stopped_at: Phase 32 discussion complete — ready for planning
-last_updated: "2026-05-09T15:55:57.639Z"
+stopped_at: Phase 32 plan 01 completed — 1659ab7
+last_updated: "2026-05-09T16:12:07.048Z"
 last_activity: 2026-05-09
 progress:
-  total_phases: 29
-  completed_phases: 26
-  total_plans: 53
-  completed_plans: 53
+  total_phases: 30
+  completed_phases: 27
+  total_plans: 54
+  completed_plans: 54
 ---
 
 # Project State
@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: 31
+Phase: 32
 Plan: 01 completed
-Status: v2.0 Monetization in progress — Phase 31 completed
+Status: v2.0 Monetization in progress — Phase 32 completed
 Last activity: 2026-05-09
 
 ## Milestone Overview
@@ -35,7 +35,7 @@ Last activity: 2026-05-09
 |-------|------|--------------|--------|
 | 30 | Schema + Planos Base | MON-01, MON-02 | ✅ Complete |
 | 31 | Superadmin Plan Management | MON-01, MON-02 | ✅ Complete |
-| 32 | Stripe Connect OAuth | MON-03, MON-04 | 💬 Discussion |
+| 32 | Stripe Connect OAuth | MON-03, MON-04 | ✅ Complete |
 | 33 | Payment Intent + Webhook | MON-03, MON-05 | ⏳ Pending |
 | 34 | Tenant Subscription UI | MON-01, MON-02, MON-04 | ⏳ Pending |
 
@@ -95,6 +95,7 @@ Last activity: 2026-05-09
 | Phase 27 P01 | 176 | 2 tasks | 1 files |
 | Phase 28 P01 | ~2min | 2 tasks | 3 files |
 | Phase 30 P01 | ~15min | 4 tasks | 4 files |
+| Phase 32 P01 | 275 | 6 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -235,6 +236,10 @@ Recent decisions affecting current work:
 - [Phase 30]: Used Supabase migration pattern consistent with migrations 024-028
 - [Phase 30]: Override pattern: NULL = use plan value, non-NULL = use override
 - [Phase 30]: Grandfathered all existing tenants to payments plan with override_notes marker
+- [Phase 32]: Dynamic imports inside functions for tenant-plan and supabase/server — avoids circular dependency issues in Next.js App Router
+- [Phase 32]: Soft-delete (is_active=false) for Stripe disconnection — preserves audit trail for compliance
+- [Phase 32]: OAuth state parameter contains tenantId + timestamp (15-min window) — stateless validation without session storage
+- [Phase 32]: Stripe status read from URL search params on client mount — enables OAuth result feedback without SSR
 
 ### Pending Todos
 
@@ -250,5 +255,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-09T15:55:57.630Z
-Stopped at: Phase 32 discussion complete — ready for planning
+Last session: 2026-05-09T16:12:17.000Z
+Stopped at: Phase 32 plan 01 completed — 1659ab7

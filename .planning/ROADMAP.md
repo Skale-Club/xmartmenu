@@ -22,11 +22,11 @@ SEED-009: Plans, Pricing & Stripe Connect Monetization
 
 | # | Phase | Description | Status |
 |---|---|---|---|
- | 30 | Schema + Planos Base | Migration plans/tenant_subscriptions/stripe_connections tables, seed 3 plans, types, getTenantPlan helper | ✅ 2026-05-09 |
-| 31 | Superadmin Plan Management | /superadmin/plans CRUD, tenant subscription override UI | ⏳ Pending |
-| 32 | Stripe Connect OAuth | OAuth flow, connect/disconnect endpoints, tenant UI | ⏳ Pending |
-| 33 | Payment Intent + Webhook | Stripe payment processing, webhook handlers, idempotency | ⏳ Pending |
-| 34 | Tenant Subscription UI | Tenant-facing subscription panel, upgrade flow | ⏳ Pending |
+| 30 | Schema + Planos Base | Migration plans/tenant_subscriptions/stripe_connections tables, seed 3 plans, types, getTenantPlan helper | ✅ 2026-05-09 |
+ | 31 | Superadmin Plan Management | Superadmin UI for plans CRUD, tenant plan assignment | ✅ 2026-05-09 |
+ | 32 | Stripe Connect OAuth | OAuth flow, connect/disconnect endpoints, tenant UI | ✅ 2026-05-09 |
+ | 33 | Payment Intent + Webhook | Stripe payment processing, webhook handlers, idempotency | ⏳ Pending |
+ | 34 | Tenant Subscription UI | Tenant-facing subscription panel, upgrade flow | ⏳ Pending |
 
 ### Key Requirements (from SEED-009)
 
