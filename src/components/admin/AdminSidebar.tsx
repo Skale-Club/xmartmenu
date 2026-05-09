@@ -18,6 +18,7 @@ const mainItems = [
 
 const adminPanelItems = [
   { href: '/settings/store', label: 'Store', icon: '🏪' },
+  { href: '/settings/subscription', label: 'Subscription', icon: '💳' },
   { href: '/settings/branding', label: 'Branding', icon: '🎨' },
   { href: '/settings/qrcode', label: 'QR Code', icon: '📱' },
   { href: '/settings/password', label: 'Change Password', icon: '🔑' },
