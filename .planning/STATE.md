@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0
 milestone_name: Monetization
-status: executing
-stopped_at: Completed phase 34 plan
-last_updated: "2026-05-09T16:42:14.623Z"
+status: shipped
+stopped_at: Phase 34 complete - v2.0 Monetization milestone shipped
+last_updated: "2026-05-09T16:47:00.000Z"
 last_activity: 2026-05-09
 progress:
-  total_phases: 32
-  completed_phases: 28
-  total_plans: 55
-  completed_plans: 57
+  total_phases: 34
+  completed_phases: 34
+  total_plans: 56
+  completed_plans: 58
 ---
 
 # Project State
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-08)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 28 — DB + CDN
+**Current focus:** v2.0 Monetization shipped — awaiting next milestone
 
 ## Current Position
 
-Phase: 33
-Plan: 01 complete (7/8 tasks, Task 8 checkpoint pending Stripe test keys)
-Status: v2.0 Monetization in progress — Phase 33 complete
+Phase: 34
+Plan: 01 complete (4/4 tasks)
+Status: v2.0 Monetization shipped — all 5 phases complete
 Last activity: 2026-05-09
 
 ## Milestone Overview
@@ -36,8 +36,8 @@ Last activity: 2026-05-09
 | 30 | Schema + Planos Base | MON-01, MON-02 | ✅ Complete |
 | 31 | Superadmin Plan Management | MON-01, MON-02 | ✅ Complete |
 | 32 | Stripe Connect OAuth | MON-03, MON-04 | ✅ Complete |
-| 33 | Payment Intent + Webhook | MON-03, MON-05 | ✅ Complete (Task 8 pending) |
-| 34 | Tenant Subscription UI | MON-01, MON-02, MON-04 | ⏳ Pending |
+| 33 | Payment Intent + Webhook | MON-03, MON-05 | ✅ Complete |
+| 34 | Tenant Subscription UI | MON-01, MON-02, MON-04 | ✅ Complete |
 
 ## Performance Metrics
 
@@ -250,6 +250,7 @@ Recent decisions affecting current work:
 - [Phase 33]: Standalone checkout page with dynamic Stripe.js import
 - [Phase 33]: Order augment pattern — order created on cart submit, webhook confirms payment
 - [Phase 33]: PaymentIntent routes to Stripe Connect with application_fee_amount = floor(order_total * transaction_fee_pct)
+- [Phase 34]: Fixed TypeScript error in subscription API route - changed schema to use z.object for proper type inference
 
 ### Pending Todos
 
@@ -265,5 +266,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-09T16:42:14.617Z
-Stopped at: Completed phase 34 plan
+Last session: 2026-05-09T16:45:43.312Z
+Stopped at: Verified Phase 34 - TypeScript compilation passes, all 4 tasks verified
