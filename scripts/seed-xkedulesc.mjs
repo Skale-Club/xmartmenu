@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = 'https://ktogbpqookfcqilqvici.supabase.co'
-const SUPABASE_SERVICE_KEY = 'REDACTED_SUPABASE_SERVICE_ROLE_KEY'
+const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
 
 const TENANT_ID = 'b5f74b1e-4d7f-4d17-8ea0-c3a1a42ae808'
 const MENU_ID   = '91cb00b5-aa55-4683-939c-b8c2d5826b6f'

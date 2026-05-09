@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 
 interface Props { params: Promise<{ id: string; staffId: string }> }
 
-const PASSWORD_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+const PASSWORD_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ' + 'abcdefghjkmnpqrstuvwxyz23456789'
 
 function generatePassword() {
   return Array.from({ length: 12 }, () => PASSWORD_CHARS[Math.floor(Math.random() * PASSWORD_CHARS.length)]).join('')
