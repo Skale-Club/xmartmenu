@@ -25,15 +25,15 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 ## Current Position
 
 Phase: 30
-Plan: Not started
-Status: v2.0 Monetization started — SEED-009 roadmap created, Phase 30 pending
+Plan: 01 complete
+Status: v2.0 Monetization in progress — Phase 30 schema complete, migration ready for deployment
 Last activity: 2026-05-09
 
 ## Milestone Overview
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 30 | Schema + Planos Base | MON-01, MON-02 | ⏳ Pending |
+| 30 | Schema + Planos Base | MON-01, MON-02 | ✅ Complete |
 | 31 | Superadmin Plan Management | MON-01, MON-02 | ⏳ Pending |
 | 32 | Stripe Connect OAuth | MON-03, MON-04 | ⏳ Pending |
 | 33 | Payment Intent + Webhook | MON-03, MON-05 | ⏳ Pending |
@@ -94,6 +94,7 @@ Last activity: 2026-05-09
 | Phase 26 P01 | ~2.5min | 2 tasks | 7 files |
 | Phase 27 P01 | 176 | 2 tasks | 1 files |
 | Phase 28 P01 | ~2min | 2 tasks | 3 files |
+| Phase 30 P01 | ~15min | 4 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -230,6 +231,10 @@ Recent decisions affecting current work:
 - [Phase 28-01]: configure-cdn-cache.mjs reads .env.local directly via readFileSync — no dotenv dependency; consistent with migration runner pattern
 - [Phase 28-01]: public: true passed alongside cacheControl in updateBucket() — preserves bucket public access settings during cache header update
 - [Phase 28-01]: Migration 028 applied via node scripts/apply-migration-028.mjs using DATABASE_URL from .env.local
+- [Phase 30]: Created getTenantPlan() in src/lib/tenant-plan.ts as single source of truth for plan resolution
+- [Phase 30]: Used Supabase migration pattern consistent with migrations 024-028
+- [Phase 30]: Override pattern: NULL = use plan value, non-NULL = use override
+- [Phase 30]: Grandfathered all existing tenants to payments plan with override_notes marker
 
 ### Pending Todos
 
@@ -245,5 +250,5 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-08T18:58:00.000Z
-Stopped at: Completed 28-db-cdn/28-01-PLAN.md — profiles indices (PERF-01/02/03) + CDN cache headers (PERF-04)
+Last session: 2026-05-09T12:00:00.000Z
+Stopped at: Completed Phase 30-01 — plans subscription schema + helper
