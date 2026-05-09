@@ -13,7 +13,9 @@ import { isStripeEnabled } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
 
-const BillingCycleSchema = z.enum(['monthly', 'annual'])
+const BillingCycleSchema = z.object({
+  billing_cycle: z.enum(['monthly', 'annual'])
+})
 
 /**
  * GET /api/tenant/subscription
