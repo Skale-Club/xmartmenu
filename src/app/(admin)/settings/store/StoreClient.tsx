@@ -1,12 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { TenantSettings } from '@/types/database'
+import type { StripeConnection } from '@/lib/stripe'
 
 interface Props {
   settings: TenantSettings | null
   tenantId: string
+  stripeConnection: StripeConnection | null
 }
 
 const CURRENCIES = [
@@ -41,7 +43,7 @@ const DAYS = [
   { key: 'sun', label: 'Sunday' },
 ]
 
-export default function StoreClient({ settings, tenantId }: Props) {
+export default function StoreClient({ settings, tenantId, stripeConnection }: Props) {
   const hours = (settings?.business_hours ?? {}) as Record<string, string>
 
   const [form, setForm] = useState({
@@ -59,6 +61,44 @@ export default function StoreClient({ settings, tenantId }: Props) {
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Stripe Connect state
+  const [stripeStatus, setStripeStatus] = useState<string | null>(null)
+  const [disconnecting, setDisconnecting] = useState(false)
+
+  // Read Stripe status from URL params on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const status = params.get('stripe')
+      if (status) setStripeStatus(status)
+    }
+  }, [])
+
+  async function handleDisconnect() {
+    if (!confirm('Are you sure you want to disconnect your Stripe account?')) return
+    setDisconnecting(true)
+    const res = await fetch('/api/stripe/connect/disconnect', { method: 'POST' })
+    const data = await res.json()
+    if (data.success) {
+      window.location.reload()
+    } else {
+      setDisconnecting(false)
+      alert('Failed to disconnect: ' + (data.error || 'Unknown error'))
+    }
+  }
+
+  // Stripe status banner
+  const stripeStatusMessages: Record<string, { type: 'success' | 'error' | 'info'; message: string }> = {
+    connected: { type: 'success', message: 'Stripe account connected successfully!' },
+    access_denied: { type: 'error', message: 'Stripe authorization was denied.' },
+    missing_code: { type: 'error', message: 'Authorization code missing from Stripe response.' },
+    invalid_state: { type: 'error', message: 'Invalid or expired authorization request.' },
+    exchange_failed: { type: 'error', message: 'Failed to exchange authorization code with Stripe.' },
+    db_error: { type: 'error', message: 'Database error while saving Stripe connection.' },
+    already_connected: { type: 'info', message: 'You already have a Stripe account connected.' },
+    feature_not_available: { type: 'error', message: 'Stripe Connect requires the Menu + Payments plan.' },
+  }
 
   const supabase = createClient()
 
@@ -109,6 +149,17 @@ export default function StoreClient({ settings, tenantId }: Props) {
           {error}<button onClick={() => setError(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
         </div>
       )}
+
+      {stripeStatus && stripeStatusMessages[stripeStatus] && (
+          <div className={`rounded-xl px-4 py-3 mb-6 text-sm flex items-center justify-between ${
+            stripeStatusMessages[stripeStatus].type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' :
+            stripeStatusMessages[stripeStatus].type === 'error' ? 'bg-red-50 border border-red-200 text-red-700' :
+            'bg-blue-50 border border-blue-200 text-blue-700'
+          }`}>
+            {stripeStatusMessages[stripeStatus].message}
+            <button onClick={() => setStripeStatus(null)} className="ml-4 text-current opacity-50 hover:opacity-100">✕</button>
+          </div>
+        )}
 
       <form onSubmit={handleSave} className="space-y-6">
 
@@ -233,6 +284,50 @@ export default function StoreClient({ settings, tenantId }: Props) {
               />
             </div>
           </div>
+        </div>
+
+        {/* Stripe Connect */}
+        <div className={section}>
+          <h2 className="text-sm font-semibold text-zinc-900 pb-2 border-b border-zinc-100">Stripe Connect</h2>
+          {stripeConnection ? (
+            // Connected state
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                <span className="text-sm font-medium text-zinc-700">Connected</span>
+              </div>
+              <p className="text-xs text-zinc-400">
+                Account: {stripeConnection.stripe_account_id.replace('acct_', 'acct_****')}
+              </p>
+              <p className="text-xs text-zinc-400">
+                Connected: {new Date(stripeConnection.connected_at).toLocaleDateString()}
+              </p>
+              <button
+                type="button"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="mt-2 px-4 py-2 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+              >
+                {disconnecting ? 'Disconnecting...' : 'Disconnect Stripe Account'}
+              </button>
+            </div>
+          ) : (
+            // Not connected state
+            <div className="space-y-2">
+              <p className="text-xs text-zinc-400 mb-3">
+                Connect your Stripe account to accept online payments directly to your bank account.
+              </p>
+              <a
+                href="/api/stripe/connect/oauth"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-[#635BFF] text-white text-sm rounded-lg hover:bg-[#5552E5] transition-colors font-medium"
+              >
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                  <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.217 22.842 8.315 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z"/>
+                </svg>
+                Connect with Stripe
+              </a>
+            </div>
+          )}
         </div>
 
         <button

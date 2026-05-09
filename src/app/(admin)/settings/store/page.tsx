@@ -15,5 +15,13 @@ export default async function StorePage() {
     .eq('tenant_id', tenantId)
     .single()
 
-  return <StoreClient settings={settings} tenantId={tenantId} />
+  // Fetch Stripe connection status
+  const { data: stripeConnection } = await supabase
+    .from('stripe_connections')
+    .select('*')
+    .eq('tenant_id', tenantId)
+    .eq('is_active', true)
+    .single()
+
+  return <StoreClient settings={settings} tenantId={tenantId} stripeConnection={stripeConnection} />
 }
