@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.9
-milestone_name: Performance Gaps — Phases 28-29
-status: completed
-stopped_at: Completed 28-db-cdn/28-01-PLAN.md — profiles indices (PERF-01/02/03) + CDN cache headers (PERF-04)
-last_updated: "2026-05-08T19:26:03.130Z"
-last_activity: 2026-05-08
+milestone: v2.0
+milestone_name: Monetization
+status: in_progress
+stopped_at: v2.0 milestone started — SEED-009 (Plans, Pricing & Stripe Connect)
+last_updated: "2026-05-09T16:00:00.000Z"
+last_activity: 2026-05-09
 progress:
-  total_phases: 2
-  completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  total_phases: 34
+  completed_phases: 29
+  total_plans: 51
+  completed_plans: 51
 ---
 
 # Project State
@@ -24,17 +24,20 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: 29
+Phase: 30
 Plan: Not started
-Status: Plan 28-01 complete — profiles indices (PERF-01/02/03) + CDN cache headers (PERF-04) shipped
-Last activity: 2026-05-08
+Status: v2.0 Monetization started — SEED-009 roadmap created, Phase 30 pending
+Last activity: 2026-05-09
 
 ## Milestone Overview
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 28 | DB + CDN | PERF-01, PERF-02, PERF-03, PERF-04 | Plan 01 complete |
-| 29 | MenuPage Decomposition | PERF-05, PERF-06 | ⏳ Pending |
+| 30 | Schema + Planos Base | MON-01, MON-02 | ⏳ Pending |
+| 31 | Superadmin Plan Management | MON-01, MON-02 | ⏳ Pending |
+| 32 | Stripe Connect OAuth | MON-03, MON-04 | ⏳ Pending |
+| 33 | Payment Intent + Webhook | MON-03, MON-05 | ⏳ Pending |
+| 34 | Tenant Subscription UI | MON-01, MON-02, MON-04 | ⏳ Pending |
 
 ## Performance Metrics
 

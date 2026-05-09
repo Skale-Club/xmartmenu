@@ -30,6 +30,17 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 
 ## Current State
 
+**v2.0 Monetization in progress (started 2026-05-09)** — SEED-009: Plans, Pricing & Stripe Connect Monetization
+
+v2.0 delivers subscription plans (menu/orders/payments tiers), Stripe Connect for direct tenant payments, and feature gating based on plan type.
+
+Key deliverables:
+- Plans table with configurable monthly/annual pricing + transaction fee
+- Tenant subscriptions with override support for custom pricing
+- Stripe Connect OAuth flow for payments-tier tenants
+- Webhook handlers with idempotency for payment events
+- Tenant-facing subscription management UI
+
 **v1.9 Performance Gaps shipped (2026-05-08)** — SEED-004 gaps closed: profiles RLS indices, CDN cache headers, MenuPage decomposed.
 
 Key changes in v1.9:

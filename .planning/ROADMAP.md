@@ -12,6 +12,29 @@
 - ✅ **v1.7 Customization** — Phases 23-25 (shipped 2026-05-08)
 - ✅ **v1.8 KDS+** — Phases 26-27 (shipped 2026-05-08)
 - ✅ **v1.9 Performance Gaps** — Phases 28-29 (shipped 2026-05-08)
+- 🚧 **v2.0 Monetization** — SEED-009 (in progress)
+
+## Current Milestone: v2.0 Monetization
+
+SEED-009: Plans, Pricing & Stripe Connect Monetization
+
+### Phase Overview
+
+| # | Phase | Description | Status |
+|---|---|---|---|
+| 30 | Schema + Planos Base | Migration plans/tenant_subscriptions/stripe_connections tables, seed 3 plans, types, getTenantPlan helper | ⏳ Pending |
+| 31 | Superadmin Plan Management | /superadmin/plans CRUD, tenant subscription override UI | ⏳ Pending |
+| 32 | Stripe Connect OAuth | OAuth flow, connect/disconnect endpoints, tenant UI | ⏳ Pending |
+| 33 | Payment Intent + Webhook | Stripe payment processing, webhook handlers, idempotency | ⏳ Pending |
+| 34 | Tenant Subscription UI | Tenant-facing subscription panel, upgrade flow | ⏳ Pending |
+
+### Key Requirements (from SEED-009)
+
+- MON-01: Plans table with monthly/annual pricing, transaction fee
+- MON-02: Tenant subscriptions with billing cycle and override support
+- MON-03: Stripe Connect integration for tenant payments
+- MON-04: Feature gating based on plan type (menu/orders/payments)
+- MON-05: Webhook handlers with idempotency
 
 ## Completed Milestones
 
