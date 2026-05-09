@@ -1,6 +1,8 @@
 ---
 id: SEED-003
-status: dormant
+status: superseded
+superseded_by: SEED-009
+superseded: 2026-05-08
 planted: 2026-05-05
 planted_during: pre-GSD (no .planning/STATE.md yet)
 trigger_when: order system (SEED-002) is functional end-to-end

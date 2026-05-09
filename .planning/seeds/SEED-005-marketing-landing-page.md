@@ -1,6 +1,8 @@
 ---
 id: SEED-005
-status: dormant
+status: completed
+completed: 2026-05-07
+completed_in: v1.3 (Landing Page milestone — phases 12-13)
 planted: 2026-05-05
 planted_during: pre-GSD (no .planning/STATE.md yet)
 trigger_when: ready for real customer acquisition, starting marketing, public launch, paid traffic, or applying to launchpads

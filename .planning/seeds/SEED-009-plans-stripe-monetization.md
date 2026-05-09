@@ -1,6 +1,8 @@
 ---
 id: SEED-009
-status: ready
+status: completed
+completed: 2026-05-09
+completed_in: v2.0 (Monetization milestone — phases 30-34)
 planted: 2026-05-08
 trigger_when: now — v1.9 shipped, order system functional
 scope: large

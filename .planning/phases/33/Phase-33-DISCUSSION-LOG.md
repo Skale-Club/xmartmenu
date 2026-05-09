@@ -3,7 +3,7 @@ phase: 33
 plan: 33
 started: 2026-05-09T17:00:00Z
 status: discussed
-next_action: plan-phase 33
+next_action: execute-phase 33
 ---
 
 # Phase 33 Discussion Log

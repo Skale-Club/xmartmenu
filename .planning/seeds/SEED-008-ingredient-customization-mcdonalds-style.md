@@ -1,6 +1,8 @@
 ---
 id: SEED-008
-status: dormant
+status: completed
+completed: 2026-05-08
+completed_in: v1.7 (Customization milestone — phases 23-25)
 planted: 2026-05-07
 planted_during: v1.4 (Performance milestone — phase 16, frontend-performance)
 trigger_when: a tenant whose menu benefits from per-item ingredient customization comes online (burgers, pizzas, açaí, sushi, sanduíches, marmita) — or any milestone explicitly scoped to "personalização", "monte seu", "build your own", "totem-like ordering", "remove/extra ingredients", or "observação por item / instruções do cliente"

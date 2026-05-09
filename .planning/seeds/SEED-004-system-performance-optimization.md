@@ -1,6 +1,8 @@
 ---
 id: SEED-004
-status: dormant
+status: completed
+completed: 2026-05-08
+completed_in: v1.4 (Performance) + v1.9 (Performance Gaps)
 planted: 2026-05-05
 planted_during: pre-GSD (no .planning/STATE.md yet)
 trigger_when: users report slowness, OR prepping for a growth/scale milestone, OR before launching to a real customer

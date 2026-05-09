@@ -1,6 +1,8 @@
 ---
 id: SEED-006
-status: dormant
+status: completed
+completed: 2026-05-08
+completed_in: v1.5 (Image Optimization milestone — phases 18-20)
 planted: 2026-05-07
 planted_during: v1.4 (Performance) — Phase 14 (Instrumentacao) executing
 trigger_when: image payload identified as top-3 contributor in v1.4 Phase 14 baselines, OR before SEED-005 marketing landing page ships at Lighthouse 95+, OR after tenant onboarding ramps and Supabase storage bucket grows past ~1 GB

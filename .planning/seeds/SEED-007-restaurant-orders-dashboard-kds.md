@@ -1,6 +1,8 @@
 ---
 id: SEED-007
-status: dormant
+status: completed
+completed: 2026-05-08
+completed_in: v1.6 (Operations milestone — phases 21-22)
 planted: 2026-05-07
 planted_during: v1.4 (Performance milestone — phase 16, frontend-performance)
 trigger_when: restaurant has real order flow and the basic admin orders table is no longer enough — typically when first paying tenants start using orders in production or when SEED-003 (Stripe Connect) lands and orders become revenue-bearing

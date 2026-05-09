@@ -25,7 +25,7 @@ export default async function OverviewPage() {
   const allProfiles = profiles ?? []
   const allUsers = authData?.users ?? []
 
-  // Scans de hoje agrupados por tenant
+  // Today's scans grouped by tenant
   const scanMap: Record<string, number> = {}
   for (const s of scansToday ?? []) {
     scanMap[s.tenant_id] = (scanMap[s.tenant_id] ?? 0) + 1
@@ -56,9 +56,9 @@ export default async function OverviewPage() {
         <p className="text-sm text-zinc-500 mt-1">Platform overview</p>
       </div>
 
-      {/* Cards de stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <StatCard label="Total clients" value={allTenants.length} sub={`${active} active · ${inactive} inactive`} color="zinc" />
+      {/* Stats cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+        <StatCard label="Total clients" value={allTenants.length} sub={`${active} active | ${inactive} inactive`} color="zinc" />
         <StatCard label="Users" value={allUsers.length} sub={unassigned > 0 ? `${unassigned} unassigned` : 'all assigned'} color={unassigned > 0 ? 'amber' : 'zinc'} />
         <StatCard label="Pro plan" value={planCount.pro} sub={`${planCount.enterprise} enterprise`} color="blue" />
         <StatCard label="Free plan" value={planCount.free} sub="no subscription" color="zinc" />
@@ -77,7 +77,7 @@ export default async function OverviewPage() {
               <div key={t.id} className="flex items-center justify-between py-2 border-b border-zinc-50 last:border-0">
                 <div>
                   <p className="text-sm font-medium text-zinc-900">{t.name}</p>
-                  <p className="text-xs text-zinc-400">/{t.slug} · {new Date(t.created_at).toLocaleDateString('en-US')}</p>
+                  <p className="text-xs text-zinc-400">/{t.slug} | {new Date(t.created_at).toLocaleDateString('en-US')}</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -94,7 +94,7 @@ export default async function OverviewPage() {
           </div>
         </div>
 
-        {/* Scans hoje */}
+        {/* Today's scans */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
           <h2 className="text-sm font-semibold text-zinc-900 mb-4">Scans today by store</h2>
           {topScanners.length === 0 ? (
