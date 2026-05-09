@@ -1,8 +1,9 @@
 ---
 id: SEED-003
-status: superseded
+status: completed
+completed: 2026-05-09
+completed_in: v2.0 (Monetization) — absorbed by SEED-009
 superseded_by: SEED-009
-superseded: 2026-05-08
 planted: 2026-05-05
 planted_during: pre-GSD (no .planning/STATE.md yet)
 trigger_when: order system (SEED-002) is functional end-to-end
