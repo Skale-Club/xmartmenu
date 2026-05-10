@@ -28,11 +28,24 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
+## Current Milestone: v2.1 Custom Domains
+
+**Goal:** Permitir que cada cliente cadastre seu próprio domínio customizado — o menu deixa de viver em `xmartmenu.skale.club/nomedocliente` e passa a ser acessado diretamente no domínio do cliente (ex: `sitedocliente.com`).
+
+**Target features:**
+- Campo `custom_domain` na tabela `tenants` via migração
+- Middleware resolve tenant pelo `host` header em vez do pathname
+- Tela no admin do cliente para cadastrar/validar domínio customizado
+- Instruções DNS (CNAME) exibidas no painel
+- Bypass do slug no pathname para tenants com domínio customizado
+
 ## Current State
 
-**v2.0 Monetization in progress (started 2026-05-09)** — SEED-009: Plans, Pricing & Stripe Connect Monetization
+**v2.1 Custom Domains in progress** — SEED-010: custom domain routing
 
-v2.0 delivers subscription plans (menu/orders/payments tiers), Stripe Connect for direct tenant payments, and feature gating based on plan type.
+v2.1 delivers custom domain support per tenant: `sitedocliente.com` instead of `xmartmenu.skale.club/nomedocliente`.
+
+**v2.0 Monetization shipped (2026-05-09)** — SEED-009: Plans, Pricing & Stripe Connect Monetization
 
 Key deliverables:
 - Plans table with configurable monthly/annual pricing + transaction fee
@@ -257,4 +270,4 @@ Key changes in v1.5:
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-08 — v1.9 Performance Gaps milestone complete*
+*Last updated: 2026-05-10 — v2.1 Custom Domains started*

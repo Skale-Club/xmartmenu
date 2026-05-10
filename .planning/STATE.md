@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: completed
-stopped_at: v2.0 Monetization milestone shipped - all 5 phases complete, all requirements (MON-01 to MON-05) implemented
-last_updated: "2026-05-09T16:48:26.640Z"
-last_activity: 2026-05-09
+milestone: v2.1
+milestone_name: Custom Domains
+status: in_progress
+stopped_at: v2.0 Monetization shipped - all 5 phases complete, all requirements (MON-01 to MON-05) implemented
+last_updated: "2026-05-10T00:00:00.000Z"
+last_activity: 2026-05-10
 progress:
-  total_phases: 32
-  completed_phases: 28
-  total_plans: 55
-  completed_plans: 57
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -24,20 +24,18 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: 34
-Plan: 01 complete (4/4 tasks)
-Status: v2.0 Monetization shipped — all 5 phases complete
-Last activity: 2026-05-09
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements — v2.1 Custom Domains started
+Last activity: 2026-05-10
 
 ## Milestone Overview
 
+v2.1: Custom Domains — SEED-010
+
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 30 | Schema + Planos Base | MON-01, MON-02 | ✅ Complete |
-| 31 | Superadmin Plan Management | MON-01, MON-02 | ✅ Complete |
-| 32 | Stripe Connect OAuth | MON-03, MON-04 | ✅ Complete |
-| 33 | Payment Intent + Webhook | MON-03, MON-05 | ✅ Complete |
-| 34 | Tenant Subscription UI | MON-01, MON-02, MON-04 | ✅ Complete |
+| TBD | TBD | DOM-01 | Defining |
 
 ## Performance Metrics
 
