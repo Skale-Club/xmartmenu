@@ -3,14 +3,16 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { TenantSettings } from '@/types/database'
+import type { Tenant } from '@/types/database'
 import type { StripeConnection } from '@/lib/stripe'
-import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin } from 'lucide-react'
+import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
   settings: TenantSettings | null
   tenantId: string
   stripeConnection: StripeConnection | null
+  tenant: Pick<Tenant, 'custom_domain' | 'custom_domain_verified'> | null
 }
 
 const CURRENCIES = [
@@ -45,7 +47,7 @@ const DAYS = [
   { key: 'sun', label: 'Sunday' },
 ]
 
-export default function StoreClient({ settings, tenantId, stripeConnection }: Props) {
+export default function StoreClient({ settings, tenantId, stripeConnection, tenant }: Props) {
   const hours = (settings?.business_hours ?? {}) as Record<string, string>
 
   const [form, setForm] = useState({
@@ -67,6 +69,12 @@ export default function StoreClient({ settings, tenantId, stripeConnection }: Pr
   const [stripeStatus, setStripeStatus] = useState<string | null>(null)
   const [disconnecting, setDisconnecting] = useState(false)
 
+  const [customDomain, setCustomDomain] = useState(tenant?.custom_domain ?? '')
+  const [domainVerified, setDomainVerified] = useState(tenant?.custom_domain_verified ?? false)
+  const [verifying, setVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState<{ verified: boolean; reason?: string } | null>(null)
+  const [savingDomain, setSavingDomain] = useState(false)
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -86,6 +94,38 @@ export default function StoreClient({ settings, tenantId, stripeConnection }: Pr
       setDisconnecting(false)
       alert('Failed to disconnect: ' + (data.error || 'Unknown error'))
     }
+  }
+
+  async function handleSaveDomain() {
+    if (!customDomain.trim()) return
+    setSavingDomain(true)
+    const res = await fetch(`/api/admin/tenants/${tenantId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ custom_domain: customDomain }),
+    })
+    const data = await res.json()
+    if (data.tenant) {
+      setDomainVerified(data.tenant.custom_domain_verified)
+      setVerifyResult(null)
+    } else {
+      setError(data.error || 'Failed to save domain')
+    }
+    setSavingDomain(false)
+  }
+
+  async function handleVerifyDomain() {
+    if (!customDomain.trim()) return
+    setVerifying(true)
+    setVerifyResult(null)
+    const res = await fetch(`/api/admin/tenants/${tenantId}/verify-domain`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ custom_domain: customDomain }),
+    })
+    const data = await res.json()
+    setVerifyResult({ verified: data.verified, reason: data.reason })
+    setVerifying(false)
   }
 
   const stripeStatusMessages: Record<string, { type: 'success' | 'error' | 'info'; message: string }> = {
@@ -315,6 +355,85 @@ export default function StoreClient({ settings, tenantId, stripeConnection }: Pr
                   <p className="text-[9px] font-bold text-red-400 uppercase tracking-widest ml-1">Critical State</p>
                 </div>
               </div>
+            </div>
+          </div>
+
+          {/* Custom Domain */}
+          <div className="bg-white border border-zinc-100 rounded-[1.25rem] p-10 space-y-8 shadow-sm">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Link2 className="w-4 h-4 text-primary" />
+              </div>
+              <h2 className="text-xl font-black text-zinc-950 tracking-tight">Domínio Personalizado</h2>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className={labelClassName}>Seu domínio</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customDomain}
+                    onChange={e => setCustomDomain(e.target.value)}
+                    placeholder="sitedocliente.com"
+                    className={inputClassName}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveDomain}
+                    disabled={savingDomain || !customDomain.trim()}
+                    className="px-5 py-3 bg-primary text-zinc-950 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50 shrink-0"
+                  >
+                    {savingDomain ? '...' : 'Salvar'}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Sem https:// — ex: sitedocliente.com</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleVerifyDomain}
+                  disabled={verifying || !customDomain.trim()}
+                  className="px-4 py-2 border border-zinc-200 text-zinc-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-zinc-50 transition-all disabled:opacity-50"
+                >
+                  {verifying ? 'Verificando...' : 'Verificar DNS'}
+                </button>
+                {domainVerified ? (
+                  <span className="flex items-center gap-1 text-xs font-bold text-green-600">
+                    <CheckCircle2 className="w-4 h-4" /> Ativo
+                  </span>
+                ) : customDomain && verifyResult ? (
+                  <span className="flex items-center gap-1 text-xs font-bold text-red-500">
+                    <XCircle className="w-4 h-4" /> Não verificado
+                  </span>
+                ) : null}
+              </div>
+
+              {verifyResult && (
+                <div className={cn(
+                  "p-4 rounded-xl text-sm font-bold",
+                  verifyResult.verified
+                    ? "bg-green-50 border border-green-100 text-green-700"
+                    : "bg-red-50 border border-red-100 text-red-700"
+                )}>
+                  {verifyResult.verified
+                    ? 'Domínio verificado! Seu site está acessível em ' + customDomain
+                    : `Verificação falhou: ${verifyResult.reason ?? 'verifique o DNS'}`}
+                </div>
+              )}
+
+              {customDomain && (
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
+                  <h4 className="font-semibold text-blue-900 text-sm">Configurar DNS</h4>
+                  <p className="text-xs text-blue-700">No painel do seu registrador de domínio, crie um registro CNAME:</p>
+                  <div className="bg-blue-100 rounded p-3 font-mono text-xs space-y-1">
+                    <div><span className="font-semibold text-blue-800">Tipo:</span> CNAME</div>
+                    <div><span className="font-semibold text-blue-800">Host:</span> @ (ou vazio)</div>
+                    <div><span className="font-semibold text-blue-800">Destino:</span> xmartmenu.skale.club</div>
+                  </div>
+                  <p className="text-xs text-blue-600">A propagação pode levar até 24 horas.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

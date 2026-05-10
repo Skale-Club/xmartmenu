@@ -80,6 +80,8 @@ export interface Tenant {
   is_active: boolean
   created_at: string
   updated_at: string
+  custom_domain: string | null
+  custom_domain_verified: boolean
 }
 
 export interface TenantSettings {
