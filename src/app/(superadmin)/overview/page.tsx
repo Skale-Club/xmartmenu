@@ -57,7 +57,7 @@ export default async function OverviewPage() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-[repeat(5,minmax(0,1fr))] gap-4 mb-8">
         <StatCard label="Total clients" value={allTenants.length} sub={`${active} active | ${inactive} inactive`} color="zinc" />
         <StatCard label="Users" value={allUsers.length} sub={unassigned > 0 ? `${unassigned} unassigned` : 'all assigned'} color={unassigned > 0 ? 'amber' : 'zinc'} />
         <StatCard label="Pro plan" value={planCount.pro} sub={`${planCount.enterprise} enterprise`} color="blue" />
@@ -148,7 +148,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: number; 
     green: 'bg-green-50 border-green-200',
   }
   return (
-    <div className={`border rounded-xl p-5 ${colors[color] ?? colors.zinc}`}>
+    <div className={`min-w-0 border rounded-lg p-4 ${colors[color] ?? colors.zinc}`}>
       <p className="text-xs font-medium text-zinc-500 mb-1">{label}</p>
       <p className="text-3xl font-bold text-zinc-900">{value}</p>
       <p className="text-xs text-zinc-400 mt-1">{sub}</p>
