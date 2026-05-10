@@ -47,11 +47,13 @@ export async function updateSession(request: NextRequest) {
 
   const isAdminRoute = pathname.startsWith('/dashboard') ||
     pathname.startsWith('/menu') ||
-    pathname.startsWith('/settings')
+    pathname.startsWith('/settings/')
 
   const isSuperadminRoute = pathname.startsWith('/tenants') ||
     pathname.startsWith('/overview') ||
-    pathname.startsWith('/users')
+    pathname.startsWith('/users') ||
+    pathname.startsWith('/plans') ||
+    pathname === '/settings'
 
   const isOnboarding = pathname === '/onboarding'
   const isPasswordPage = pathname.startsWith('/settings/password')
