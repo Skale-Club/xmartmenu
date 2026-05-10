@@ -20,6 +20,7 @@ export default async function BrandingPage() {
       settings={settings}
       tenantId={tenantId}
       tenantSlug={slug}
+      tenantName={effective!.name}
     />
   )
 }

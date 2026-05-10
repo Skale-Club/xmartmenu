@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, getInitials } from '@/lib/utils'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { UI_COPY, type CartItem, buildCartKey, getProductImages } from './menu-utils'
@@ -321,7 +321,9 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                 className="rounded-xl object-cover bg-white/10 p-1"
               />
             ) : (
-              <div className="w-20 h-20 rounded-xl bg-white/20 flex items-center justify-center text-4xl">🏪</div>
+              <div className="w-20 h-20 rounded-xl bg-white/20 ring-1 ring-white/30 flex items-center justify-center text-2xl font-bold tracking-wide text-white">
+                {getInitials(tenant.name)}
+              </div>
             )}
             <div className="text-center">
               <h1 className="text-xl font-bold leading-tight">{tenant.name}</h1>

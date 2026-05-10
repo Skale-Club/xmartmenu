@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { slugify } from '@/lib/utils'
+import { getInitials, slugify } from '@/lib/utils'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface ClientRow {
@@ -399,7 +399,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                 <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center overflow-hidden flex-shrink-0">
                   {client.logo_url
                     ? <Image src={client.logo_url} alt={client.name!} width={40} height={40} className="object-contain" />
-                    : <span className="text-lg">🏪</span>}
+                    : <span className="text-xs font-bold tracking-wide text-zinc-600">{getInitials(client.name)}</span>}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-zinc-900">{client.name}</p>

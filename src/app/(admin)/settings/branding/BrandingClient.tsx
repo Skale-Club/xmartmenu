@@ -3,15 +3,17 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
+import { getInitials } from '@/lib/utils'
 import type { TenantSettings } from '@/types/database'
 
 interface Props {
   settings: TenantSettings | null
   tenantId: string
   tenantSlug: string
+  tenantName: string
 }
 
-export default function BrandingClient({ settings, tenantId, tenantSlug }: Props) {
+export default function BrandingClient({ settings, tenantId, tenantSlug, tenantName }: Props) {
   const [form, setForm] = useState({
     primary_color: settings?.primary_color ?? '#000000',
     accent_color: settings?.accent_color ?? '#FF5722',
@@ -111,10 +113,14 @@ export default function BrandingClient({ settings, tenantId, tenantSlug }: Props
       <form onSubmit={handleSave} className="space-y-6">
         {/* Logo */}
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Logo</h2>
+          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Restaurant logo</h2>
           <div className="flex items-center gap-5">
             <div className="w-20 h-20 rounded-xl border border-zinc-200 bg-zinc-50 flex items-center justify-center overflow-hidden flex-shrink-0">
-              {logoUrl ? <Image src={logoUrl} alt="Logo" width={80} height={80} className="object-contain" /> : <span className="text-3xl">🏪</span>}
+              {logoUrl ? (
+                <Image src={logoUrl} alt="Logo" width={80} height={80} className="object-contain" />
+              ) : (
+                <span className="text-xl font-bold tracking-wide text-zinc-700">{getInitials(tenantName)}</span>
+              )}
             </div>
             <div>
               <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo')}
