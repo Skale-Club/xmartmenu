@@ -1,6 +1,8 @@
 ---
 id: SEED-010
-status: dormant
+status: completed
+completed: 2026-05-10
+completed_in: v2.1 (Custom Domains milestone — phase 35)
 planted: 2026-05-10
 planted_during: current-session
 trigger_when: quando estivermos implementando infraestrutura para domínios customizados, ou expandindo para SaaS com identidade própria por cliente

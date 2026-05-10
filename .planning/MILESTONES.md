@@ -1,6 +1,21 @@
 # Milestones
 
-## v1.9 Performance Gaps (Shipped: 2026-05-09)
+## v2.1 Custom Domains (Shipped: 2026-05-10)
+
+**Phases completed:** 1 phase, 1 plan, 6 tasks
+
+**Key accomplishments:**
+
+- Migration 029: `custom_domain TEXT + custom_domain_verified BOOLEAN` on `tenants` table
+- Middleware hostname-based tenant resolution via `resolveTenantSlugFromHost()` with 60s cache
+- Admin UI: "Domínio Personalizado" section in Store Settings with save, verify DNS, CNAME instructions
+- DNS verification endpoint via `dns.lookup()` comparing custom domain IP to platform IP
+- Rewrite-based routing: custom domain requests proxy to `/${tenantSlug}${pathname}`
+- TypeScript `Tenant` interface updated with `custom_domain` + `custom_domain_verified`
+
+---
+
+## v2.0 Monetization (Shipped: 2026-05-09)
 
 **Phases completed:** 27 phases, 51 plans, 68 tasks
 
