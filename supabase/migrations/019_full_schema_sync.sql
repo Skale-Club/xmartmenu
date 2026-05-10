@@ -111,11 +111,11 @@ WHERE m.tenant_id = p.tenant_id AND m.is_default = true AND p.menu_id IS NULL;
 -- ============================================================
 CREATE TABLE IF NOT EXISTS platform_settings (
   id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  app_name              TEXT DEFAULT 'Skale QR Menu',
-  brand_name            TEXT DEFAULT 'Skale Club',
+  app_name              TEXT DEFAULT 'XmartMenu',
+  brand_name            TEXT DEFAULT 'XmartMenu',
   default_primary_color TEXT DEFAULT '#000000',
   default_accent_color  TEXT DEFAULT '#FF5722',
-  menu_footer_brand     TEXT DEFAULT 'Skale QR Menu',
+  menu_footer_brand     TEXT DEFAULT 'XmartMenu',
   landing               JSONB DEFAULT '{}',
   updated_at            TIMESTAMPTZ DEFAULT now()
 );

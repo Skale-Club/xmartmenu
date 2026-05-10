@@ -3,6 +3,8 @@ import { type Dispatch, type ReactNode, type SetStateAction, useState } from 're
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import { Plus, LayoutDashboard, Globe, Settings, Trash2, Eye, Edit3, CheckCircle2, ChevronRight, X, ArrowRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const PURPOSES = ['restaurant', 'bar', 'cafe', 'hotel', 'salon', 'retail', 'other']
 const LANGUAGES = [
@@ -82,13 +84,13 @@ function Modal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-3xl max-h-[90vh] overflow-y-auto bg-white rounded-xl border border-zinc-200 shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
-          <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
-          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-800">✕</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4">
+      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg border border-zinc-200 shadow-2xl">
+        <div className="flex items-center justify-between px-8 py-6 border-b border-zinc-100">
+          <h2 className="text-xl font-black text-zinc-950 tracking-tight">{title}</h2>
+          <button type="button" onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-8">{children}</div>
       </div>
     </div>
   )
@@ -97,12 +99,12 @@ function Modal({
 function MenuFormFields({
   draft,
   setDraft,
-  inputClassName,
 }: {
   draft: MenuDraft
   setDraft: Dispatch<SetStateAction<MenuDraft>>
-  inputClassName: string
 }) {
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  
   const supported = draft.supported_languages.includes(draft.language)
     ? draft.supported_languages
     : [draft.language, ...draft.supported_languages]
@@ -135,40 +137,45 @@ function MenuFormFields({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div>
-          <label className="block text-xs font-medium text-zinc-600 mb-1">Name *</label>
+          <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Menu Name *</label>
           <input required className={inputClassName} value={draft.name} onChange={e => setDraft(f => ({ ...f, name: e.target.value }))} placeholder="Dinner Menu" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-zinc-600 mb-1">Purpose</label>
+          <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Purpose</label>
           <select className={inputClassName} value={draft.purpose} onChange={e => setDraft(f => ({ ...f, purpose: e.target.value }))}>
             {PURPOSES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-zinc-600 mb-1">Default language</label>
+          <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Default language</label>
           <select className={inputClassName} value={draft.language} onChange={e => setBaseLanguage(e.target.value)}>
             {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-zinc-600 mb-1">Description</label>
+          <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Brief Description</label>
           <input className={inputClassName} value={draft.description} onChange={e => setDraft(f => ({ ...f, description: e.target.value }))} placeholder="Optional" />
         </div>
       </div>
 
       <div>
-        <p className="text-xs font-medium text-zinc-600 mb-2">Supported languages</p>
+        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3 ml-1">Enable multi-language support</label>
         <div className="flex flex-wrap gap-2">
           {LANGUAGES.map(lang => {
             const checked = supported.includes(lang.value)
             const isBase = draft.language === lang.value
             return (
-              <label key={lang.value} className={`text-xs px-3 py-1.5 rounded-full border cursor-pointer ${checked ? 'bg-zinc-900 text-white border-zinc-900' : 'bg-white text-zinc-600 border-zinc-200'}`}>
+              <label key={lang.value} className={cn(
+                "text-xs px-4 py-2 rounded-full border font-bold cursor-pointer transition-all active:scale-95",
+                checked 
+                  ? 'bg-zinc-950 text-white border-zinc-950' 
+                  : 'bg-white text-zinc-500 border-zinc-200 hover:border-zinc-400'
+              )}>
                 <input type="checkbox" className="hidden" checked={checked} onChange={() => toggleLanguage(lang.value)} disabled={isBase} />
-                {lang.label}{isBase ? ' (default)' : ''}
+                {lang.label}{isBase ? ' (Default)' : ''}
               </label>
             )
           })}
@@ -176,23 +183,28 @@ function MenuFormFields({
       </div>
 
       {supported.filter(lang => lang !== draft.language).map(lang => (
-        <div key={lang} className="grid grid-cols-2 gap-4 p-3 bg-zinc-50 rounded-lg border border-zinc-200">
-          <div className="col-span-2 text-xs font-semibold text-zinc-700">{LANGUAGES.find(x => x.value === lang)?.label ?? lang} translation</div>
-          <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-1">Translated name</label>
-            <input
-              className={inputClassName}
-              value={draft.translations[lang]?.name ?? ''}
-              onChange={e => setDraft(f => ({ ...f, translations: { ...f.translations, [lang]: { ...(f.translations[lang] ?? { name: '', description: '' }), name: e.target.value } } }))}
-            />
+        <div key={lang} className="p-6 bg-zinc-50 rounded-lg border border-zinc-100 space-y-4">
+          <div className="flex items-center gap-2">
+            <Globe className="w-4 h-4 text-primary" />
+            <span className="text-[10px] font-black text-zinc-950 uppercase tracking-widest">{LANGUAGES.find(x => x.value === lang)?.label ?? lang} Translation</span>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-zinc-600 mb-1">Translated description</label>
-            <input
-              className={inputClassName}
-              value={draft.translations[lang]?.description ?? ''}
-              onChange={e => setDraft(f => ({ ...f, translations: { ...f.translations, [lang]: { ...(f.translations[lang] ?? { name: '', description: '' }), description: e.target.value } } }))}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Translated name</label>
+              <input
+                className={inputClassName}
+                value={draft.translations[lang]?.name ?? ''}
+                onChange={e => setDraft(f => ({ ...f, translations: { ...f.translations, [lang]: { ...(f.translations[lang] ?? { name: '', description: '' }), name: e.target.value } } }))}
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Translated description</label>
+              <input
+                className={inputClassName}
+                value={draft.translations[lang]?.description ?? ''}
+                onChange={e => setDraft(f => ({ ...f, translations: { ...f.translations, [lang]: { ...(f.translations[lang] ?? { name: '', description: '' }), description: e.target.value } } }))}
+              />
+            </div>
           </div>
         </div>
       ))}
@@ -211,8 +223,6 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
   const [error, setError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const router = useRouter()
-
-  const input = 'w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -305,78 +315,149 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
   }
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-8 w-full space-y-8">
       <ConfirmDialog open={!!confirmId} title="Delete menu" message="Delete this menu? All categories and products in it will also be deleted." onConfirm={handleDelete} onCancel={() => setConfirmId(null)} />
 
-      <Modal open={createOpen} title="New menu" onClose={() => setCreateOpen(false)}>
-        <form onSubmit={handleCreate} className="space-y-4">
-          <MenuFormFields draft={createForm} setDraft={setCreateForm} inputClassName={input} />
-          <div className="flex gap-3">
-            <button type="submit" disabled={loading} className="bg-zinc-900 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50">{loading ? 'Creating...' : 'Create menu'}</button>
-            <button type="button" onClick={() => setCreateOpen(false)} className="px-5 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100">Cancel</button>
+      <Modal open={createOpen} title="New Menu Instance" onClose={() => setCreateOpen(false)}>
+        <form onSubmit={handleCreate} className="space-y-8">
+          <MenuFormFields draft={createForm} setDraft={setCreateForm} />
+          <div className="flex gap-4 pt-4">
+            <button type="submit" disabled={loading} className="flex-1 bg-primary text-zinc-950 py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50">
+              {loading ? 'Creating...' : 'Create Instance'}
+            </button>
+            <button type="button" onClick={() => setCreateOpen(false)} className="px-8 py-4 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">Cancel</button>
           </div>
         </form>
       </Modal>
 
-      <Modal open={!!editingId} title="Edit menu" onClose={cancelEdit}>
-        <form onSubmit={saveEdit} className="space-y-4">
-          <MenuFormFields draft={editForm} setDraft={setEditForm} inputClassName={input} />
-          <div className="flex gap-3">
-            <button type="submit" disabled={loading} className="bg-zinc-900 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50">{loading ? 'Saving...' : 'Save changes'}</button>
-            <button type="button" onClick={cancelEdit} className="px-5 py-2 rounded-lg text-sm font-medium text-zinc-600 hover:bg-zinc-100">Cancel</button>
+      <Modal open={!!editingId} title="Edit Menu Settings" onClose={cancelEdit}>
+        <form onSubmit={saveEdit} className="space-y-8">
+          <MenuFormFields draft={editForm} setDraft={setEditForm} />
+          <div className="flex gap-4 pt-4">
+            <button type="submit" disabled={loading} className="flex-1 bg-primary text-zinc-950 py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50">
+              {loading ? 'Saving...' : 'Save Configuration'}
+            </button>
+            <button type="button" onClick={cancelEdit} className="px-8 py-4 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">Cancel</button>
           </div>
         </form>
       </Modal>
 
-      <div className="flex items-center justify-between mb-6">
-        <div><h1 className="text-2xl font-bold text-zinc-900">Menus</h1><p className="text-sm text-zinc-500 mt-1">{menus.length} menu(s)</p></div>
-        <button onClick={() => setCreateOpen(true)} className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 transition-colors">+ New menu</button>
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b border-zinc-100">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Plus className="w-5 h-5 text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Instances</span>
+          </div>
+          <h1 className="text-4xl font-black text-zinc-950 tracking-tight">Menus</h1>
+          <p className="text-sm font-bold text-zinc-500 mt-1">Manage your active digital menu instances.</p>
+        </div>
+        <button 
+          onClick={() => setCreateOpen(true)} 
+          className="bg-primary text-zinc-950 px-8 py-4 rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-sm"
+        >
+          <Plus className="w-4 h-4" />
+          New Menu
+        </button>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-sm text-red-700 flex justify-between">{error}<button onClick={() => setError(null)}>✕</button></div>}
+      {error && <div className="bg-red-50 border border-red-100 rounded-lg px-6 py-4 text-sm font-bold text-red-600 flex justify-between items-center">{error}<button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded-full transition-colors"><X className="w-4 h-4" /></button></div>}
 
-      <div className="space-y-3">
-        {menus.map(menu => (
-          <div key={menu.id} className="bg-white border border-zinc-200 rounded-xl p-5 flex items-center gap-4">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-semibold text-zinc-900">{menu.name}</p>
-                {menu.is_default && <span className="text-xs bg-zinc-900 text-white px-2 py-0.5 rounded-full">Default</span>}
-                {selectedMenuId === menu.id && <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Editing</span>}
-                {!menu.is_active && <span className="text-xs bg-zinc-100 text-zinc-500 px-2 py-0.5 rounded-full">Inactive</span>}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {menus.map(menu => {
+          const isEditing = selectedMenuId === menu.id
+          return (
+            <div 
+              key={menu.id} 
+              className={cn(
+                "group bg-white border rounded-lg p-8 transition-all duration-300 flex flex-col sm:flex-row gap-8 items-start sm:items-center",
+                isEditing ? "border-primary ring-4 ring-primary/10 shadow-lg shadow-primary/5" : "border-zinc-100 hover:border-zinc-200"
+              )}
+            >
+              <div className="flex-1 min-w-0 space-y-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h3 className="text-2xl font-black text-zinc-950 truncate tracking-tight">{menu.name}</h3>
+                  <div className="flex gap-2">
+                    {menu.is_default && <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-950 text-white px-2.5 py-1 rounded-full">Default</span>}
+                    {isEditing && <span className="text-[9px] font-black uppercase tracking-widest bg-primary text-zinc-950 px-2.5 py-1 rounded-full">Editing</span>}
+                    {!menu.is_active && <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-100 text-zinc-400 px-2.5 py-1 rounded-full">Off</span>}
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-xs font-bold text-zinc-400">
+                  <span className="flex items-center gap-1.5 font-mono">/{menu.slug}</span>
+                  <span className="opacity-30">•</span>
+                  <span className="flex items-center gap-1.5 uppercase tracking-wider">{menu.language}</span>
+                  <span className="opacity-30">•</span>
+                  <span className="flex items-center gap-1.5 capitalize">{menu.purpose}</span>
+                </div>
+                <div className="pt-2 flex flex-wrap gap-2">
+                  {(menu.supported_languages?.length ? menu.supported_languages : [menu.language]).map(lang => (
+                    <span key={lang} className="text-[10px] font-black uppercase tracking-tighter text-zinc-300 border border-zinc-100 px-2 py-0.5 rounded-md">{lang}</span>
+                  ))}
+                </div>
+                {menu.description && <p className="text-sm font-medium text-zinc-500 line-clamp-2 leading-relaxed">{menu.description}</p>}
               </div>
-              <p className="text-xs text-zinc-400 mt-1">/{menu.slug} · {menu.language.toUpperCase()} · {menu.purpose}</p>
-              <p className="text-xs text-zinc-500 mt-1">Languages: {(menu.supported_languages?.length ? menu.supported_languages : [menu.language]).map(x => x.toUpperCase()).join(', ')}</p>
-              {menu.description && <p className="text-xs text-zinc-500 mt-0.5">{menu.description}</p>}
+
+              <div className="flex flex-wrap sm:flex-col gap-2 flex-shrink-0 w-full sm:w-auto">
+                <button
+                  onClick={async () => {
+                    await selectMenu(menu.id)
+                    router.push('/menu/categories')
+                  }}
+                  className="flex-1 sm:w-40 flex items-center justify-between gap-2 px-5 py-3 rounded-lg bg-zinc-950 text-white text-xs font-black hover:bg-primary hover:text-zinc-950 transition-all active:scale-95 group/btn"
+                >
+                  Manage Items
+                  <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
+                </button>
+                <div className="grid grid-cols-2 gap-2 w-full">
+                  <Link
+                    href={`/${tenantSlug}${menu.is_default ? '' : `/${menu.slug}`}`}
+                    target="_blank"
+                    className="flex items-center justify-center p-3 rounded-lg border border-zinc-100 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950 transition-all"
+                    title="View Public Menu"
+                  >
+                    <Eye className="w-4 h-4" />
+                  </Link>
+                  <button 
+                    onClick={() => startEdit(menu)} 
+                    className="flex items-center justify-center p-3 rounded-lg border border-zinc-100 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950 transition-all"
+                    title="Edit Settings"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                </div>
+                {!menu.is_default && (
+                  <button 
+                    onClick={() => handleToggle(menu, 'is_default')} 
+                    className="text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border border-zinc-100 text-zinc-400 hover:text-zinc-950 hover:border-zinc-300 transition-all"
+                  >
+                    Set Default
+                  </button>
+                )}
+                <div className="flex gap-2 w-full">
+                  <button 
+                    onClick={() => handleToggle(menu, 'is_active')} 
+                    className={cn(
+                      "flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all",
+                      menu.is_active ? "border-zinc-100 text-zinc-400 hover:text-zinc-950" : "border-green-100 text-green-500 bg-green-50/50"
+                    )}
+                  >
+                    {menu.is_active ? 'Off' : 'On'}
+                  </button>
+                  {!menu.is_default && (
+                    <button 
+                      onClick={() => setConfirmId(menu.id)} 
+                      className="p-2 rounded-lg border border-red-50 text-red-300 hover:bg-red-50 hover:text-red-500 transition-all"
+                      title="Delete Instance"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={async () => {
-                  await selectMenu(menu.id)
-                  router.push('/menu/categories')
-                }}
-                className="text-xs px-3 py-1.5 border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-50"
-              >
-                Manage items
-              </button>
-              <Link
-                href={`/${tenantSlug}${menu.is_default ? '' : `/${menu.slug}`}`}
-                target="_blank"
-                className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-lg hover:bg-zinc-50"
-              >
-                View menu
-              </Link>
-              <button onClick={() => startEdit(menu)} className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-lg hover:bg-zinc-50">Edit</button>
-              {!menu.is_default && (
-                <button onClick={() => handleToggle(menu, 'is_default')} className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-lg hover:bg-zinc-50">Set default</button>
-              )}
-              <button onClick={() => handleToggle(menu, 'is_active')} className="text-xs px-3 py-1.5 border border-zinc-200 text-zinc-600 rounded-lg hover:bg-zinc-50">{menu.is_active ? 'Deactivate' : 'Activate'}</button>
-              {!menu.is_default && (
-                <button onClick={() => setConfirmId(menu.id)} className="text-xs px-3 py-1.5 border border-red-200 text-red-600 rounded-lg hover:bg-red-50">Delete</button>
-              )}
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )

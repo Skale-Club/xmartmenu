@@ -3,7 +3,7 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
-import { UtensilsCrossed } from 'lucide-react'
+import { ArrowRight, CheckCircle2 } from 'lucide-react'
 
 function RegisterForm() {
   const router = useRouter()
@@ -69,31 +69,29 @@ function RegisterForm() {
   }
 
   return (
-    <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
+    <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-[1.25rem] p-8">
       <div className="mb-8 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-indigo-500/20">
-          <UtensilsCrossed className="w-7 h-7 text-white" />
-        </div>
-        <a href="/" className="text-2xl font-bold text-white hover:text-indigo-400 transition-colors">XmartMenu</a>
-        <p className="text-zinc-400 mt-2">
+        <img src="/icon.png" alt="XmartMenu Logo" className="w-12 h-12 mx-auto mb-5" />
+        <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">XmartMenu</a>
+        <p className="text-sm font-bold text-zinc-500 mt-2">
           {isQrFlow ? 'Enter your details to continue' : 'Create your account'}
         </p>
       </div>
 
       {success ? (
-        <div className="text-center space-y-5">
-          <div className="w-16 h-16 bg-green-500/20 border border-green-500/30 rounded-full flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(34,197,94,0.2)]">
-            <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-            </svg>
+        <div className="text-center space-y-6 py-4">
+          <div className="w-16 h-16 bg-primary/10 border border-primary/20 rounded-full flex items-center justify-center mx-auto">
+            <CheckCircle2 className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-xl font-bold text-white">Account created!</h2>
-          <p className="text-sm text-zinc-400 leading-relaxed max-w-[280px] mx-auto">
-            Check your email to confirm your account. After confirming, you&apos;ll be taken back to the menu.
-          </p>
+          <div>
+            <h2 className="text-xl font-black text-white">Account created!</h2>
+            <p className="text-sm text-zinc-500 font-medium mt-3 leading-relaxed">
+              Check your email to confirm your account. After confirming, you&apos;ll be taken back to the menu.
+            </p>
+          </div>
           <a
             href={from}
-            className="inline-block w-full bg-white text-zinc-950 py-3 rounded-xl text-sm font-bold hover:bg-zinc-200 transition-colors text-center mt-2"
+            className="inline-flex w-full items-center justify-center bg-white text-zinc-950 py-4 rounded-full text-base font-black hover:bg-zinc-200 transition-all hover:scale-[1.02] active:scale-95 mt-4"
           >
             Back to menu
           </a>
@@ -106,7 +104,7 @@ function RegisterForm() {
               <button
                 onClick={handleGoogleLogin}
                 disabled={googleLoading || loading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-white/10 rounded-xl text-sm font-bold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-colors shadow-sm"
+                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-white/10 rounded-full text-sm font-bold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
               >
                 {googleLoading ? (
                   <svg className="w-5 h-5 animate-spin text-zinc-400" fill="none" viewBox="0 0 24 24">
@@ -124,85 +122,89 @@ function RegisterForm() {
                 {googleLoading ? 'Redirecting...' : 'Continue with Google'}
               </button>
 
-              <div className="flex items-center gap-3 my-6">
-                <div className="flex-1 h-px bg-white/10" />
-                <span className="text-xs text-zinc-500 font-medium">or sign up with email</span>
-                <div className="flex-1 h-px bg-white/10" />
+              <div className="flex items-center gap-3 my-8">
+                <div className="flex-1 h-px bg-white/5" />
+                <span className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.2em]">or sign up with email</span>
+                <div className="flex-1 h-px bg-white/5" />
               </div>
             </>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1.5">Full name</label>
+              <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-2 ml-1">Full name</label>
               <input
                 type="text"
                 required
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Your name"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
               />
             </div>
 
             {!isQrFlow && (
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">Email</label>
+                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-2 ml-1">Email</label>
                 <input
                   type="email"
                   required
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
                 />
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-zinc-300 mb-1.5">Phone</label>
+              <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-2 ml-1">Phone</label>
               <input
                 type="tel"
                 required
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 placeholder="+1 (555) 000-0000"
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
               />
             </div>
 
             {!isQrFlow && (
               <div>
-                <label className="block text-sm font-medium text-zinc-300 mb-1.5">Password</label>
+                <label className="block text-[11px] font-bold text-zinc-400 uppercase tracking-widest mb-2 ml-1">Password</label>
                 <input
                   type="password"
                   required
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
                 />
-                <p className="text-xs text-zinc-500 mt-2">Minimum 8 characters</p>
+                <p className="text-[10px] text-zinc-600 mt-2 ml-1 font-bold">Minimum 8 characters</p>
               </div>
             )}
 
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && <p className="text-xs text-red-500 font-bold ml-1">{error}</p>}
 
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="w-full bg-white text-zinc-950 py-3 rounded-xl text-sm font-bold hover:bg-zinc-200 disabled:opacity-50 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] hover:shadow-[0_0_30px_rgba(255,255,255,0.2)] mt-2"
+              className="w-full bg-primary text-zinc-950 py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
             >
-              {loading ? 'Creating account...' : isQrFlow ? 'Continue' : 'Create account'}
+              {loading ? 'Creating account...' : (
+                <>
+                  {isQrFlow ? 'Continue' : 'Create account'}
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
 
             {!isQrFlow && (
-              <div className="mt-6 pt-6 border-t border-white/10 text-center">
-                <p className="text-sm text-zinc-400">
+              <div className="mt-8 pt-8 border-t border-white/5 text-center">
+                <p className="text-sm text-zinc-500 font-medium">
                   Already have an account?{' '}
-                  <a href={`/auth/login?from=${from}`} className="text-white font-bold hover:text-indigo-400 transition-colors relative group">
+                  <a href={`/auth/login?from=${from}`} className="text-white font-black hover:text-primary transition-colors underline underline-offset-4 decoration-white/20 hover:decoration-primary/50">
                     Sign in
-                    <span className="absolute -bottom-1 left-0 w-full h-px bg-indigo-400 scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
                   </a>
                 </p>
               </div>
@@ -216,16 +218,16 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 selection:bg-indigo-500/30 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 selection:bg-primary/30 relative overflow-hidden">
       {/* Background Glows */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[120px] opacity-50 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] opacity-40 pointer-events-none" />
       
       <div className="w-full max-w-sm relative z-10 py-12">
-        <Suspense fallback={<div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-3xl p-8 h-[500px] animate-pulse" />}>
+        <Suspense fallback={<div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-[1.25rem] p-8 h-[500px] animate-pulse" />}>
           <RegisterForm />
         </Suspense>
-        <p className="text-xs text-zinc-600 text-center mt-6">
-          <a href="/" className="hover:text-zinc-400 transition-colors">XmartMenu</a> © {new Date().getFullYear()}
+        <p className="text-[10px] font-bold text-zinc-700 text-center mt-8 uppercase tracking-[0.2em]">
+          <a href="/" className="hover:text-zinc-500 transition-colors">XmartMenu</a> © {new Date().getFullYear()}
         </p>
       </div>
     </div>

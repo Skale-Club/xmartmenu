@@ -8,6 +8,7 @@ const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
   preload: true,
+  variable: '--font-inter',
 })
 
 export const metadata: Metadata = {
@@ -16,7 +17,7 @@ export const metadata: Metadata = {
     default: 'XmartMenu | Digital menu for restaurants',
   },
   description: 'A digital menu platform built for restaurant service, QR code ordering, and menu operations.',
-  metadataBase: new URL('https://xmartmenu.skale.club'),
+  metadataBase: new URL('https://xmartmenu.com'),
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -41,7 +42,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`h-full antialiased ${inter.variable}`}>
       <body className={`${inter.className} min-h-full`}>
         {children}
         <Analytics />

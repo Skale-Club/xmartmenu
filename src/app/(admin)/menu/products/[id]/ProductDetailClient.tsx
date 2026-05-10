@@ -629,7 +629,7 @@ export default function ProductDetailClient({
 
       {/* Product fields card shown only on Details tab */}
       {activeTab === 'details' && (
-      <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 mb-8">
+      <div className="bg-white border border-zinc-200 rounded-lg shadow-sm p-6 mb-8">
         <form onSubmit={handleSaveProduct} className="space-y-4">
           {/* name field */}
           <div>
@@ -712,7 +712,7 @@ export default function ProductDetailClient({
 
       {/* Option Groups card shown only on Options tab */}
       {activeTab === 'options' && (
-      <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
+      <div className="bg-white border border-zinc-200 rounded-lg shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base font-semibold text-zinc-900">Option Groups</h2>
           {canManage && (
@@ -736,7 +736,7 @@ export default function ProductDetailClient({
 
         {/* "Add group" inline form */}
         {expandedGroup === 'new' && (
-          <div className="border border-zinc-200 rounded-xl p-4 mb-3 bg-zinc-50">
+          <div className="border border-zinc-200 rounded-lg p-4 mb-3 bg-zinc-50">
             <OptionGroupForm
               onSave={async (data) => {
                 await handleSaveGroup(data, null, () => setExpandedGroup(null), (msg) => { throw new Error(msg) })
@@ -749,7 +749,7 @@ export default function ProductDetailClient({
         {/* Groups list */}
         <div className="space-y-3">
           {groups.map((group, idx) => (
-            <div key={group.id} className="border border-zinc-200 rounded-xl overflow-hidden">
+            <div key={group.id} className="border border-zinc-200 rounded-lg overflow-hidden">
               {/* Group header row */}
               {expandedGroup === group.id ? (
                 <div className="p-4 bg-zinc-50">
@@ -950,7 +950,7 @@ export default function ProductDetailClient({
 
       {/* Ingredients tab shown only when flag is on and tab is active */}
       {activeTab === 'ingredients' && ingredientCustomizationEnabled && (
-        <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
+        <div className="bg-white border border-zinc-200 rounded-lg shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-zinc-900">Ingredients</h2>
           </div>
@@ -1005,7 +1005,7 @@ export default function ProductDetailClient({
                   const ing = allIngredients.find(i => i.id === pi.ingredient_id)
                   if (!ing) return null
                   return (
-                    <div key={pi.ingredient_id} className="border border-zinc-200 rounded-xl p-4">
+                    <div key={pi.ingredient_id} className="border border-zinc-200 rounded-lg p-4">
                       <div className="flex items-center justify-between mb-3">
                         <span className="text-sm font-semibold text-zinc-900">{ing.name}</span>
                         {canManage && (

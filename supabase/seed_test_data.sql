@@ -105,10 +105,10 @@ BEGIN
 
     INSERT INTO qr_codes (tenant_id, label, target_url, scans)
     VALUES
-        (v_tenant_id, 'QR Table 1', 'https://xmartmenu.skale.club/r/demo-restaurant?table=1', 127),
-        (v_tenant_id, 'QR Table 2', 'https://xmartmenu.skale.club/r/demo-restaurant?table=2', 89),
-        (v_tenant_id, 'QR Entrance', 'https://xmartmenu.skale.club/r/demo-restaurant', 342),
-        (v_tenant_id, 'QR Digital Menu', 'https://xmartmenu.skale.club/r/demo-restaurant', 512)
+        (v_tenant_id, 'QR Table 1', 'https://xmartmenu.com/r/demo-restaurant?table=1', 127),
+        (v_tenant_id, 'QR Table 2', 'https://xmartmenu.com/r/demo-restaurant?table=2', 89),
+        (v_tenant_id, 'QR Entrance', 'https://xmartmenu.com/r/demo-restaurant', 342),
+        (v_tenant_id, 'QR Digital Menu', 'https://xmartmenu.com/r/demo-restaurant', 512)
     ON CONFLICT DO NOTHING;
 
     INSERT INTO orders (tenant_id, customer_name, customer_phone, status, total, created_at, updated_at)

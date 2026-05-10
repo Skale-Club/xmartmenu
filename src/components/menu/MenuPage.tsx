@@ -3,10 +3,24 @@
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
+import { motion, AnimatePresence } from 'framer-motion'
 import { formatPrice, getInitials } from '@/lib/utils'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { UI_COPY, type CartItem, buildCartKey, getProductImages } from './menu-utils'
+import { 
+  MapPin, 
+  Phone, 
+  Clock, 
+  Search, 
+  X, 
+  ChevronRight, 
+  Star,
+  Instagram,
+  MessageCircle,
+  Mail,
+  ShoppingBag
+} from 'lucide-react'
 
 const ProductModal = dynamic(() => import('./ProductModal'), { ssr: false })
 const CartModal = dynamic(() => import('./CartModal'), { ssr: false })
@@ -117,7 +131,6 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
     setCart(prev => {
       const existing = prev.find(item => item.cartKey === key)
       if (existing) {
-        // Note replaces existing slot's note (Pitfall 7: same product+options = same slot, note is metadata)
         return prev.map(item =>
           item.cartKey === key ? { ...item, quantity: item.quantity + 1, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications } : item
         )
@@ -169,8 +182,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             quantity: item.quantity,
             unit_price: item.unitPrice,
             selected_options: item.selectedOptions,
-            notes: item.note || undefined,  // NOTE-02: pass note to API
-            ingredient_modifications: item.ingredientModifications || null,  // INGR-09
+            notes: item.note || undefined,
+            ingredient_modifications: item.ingredientModifications || null,
           })),
         }),
       })
@@ -187,7 +200,6 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
       setCart([])
       setCustomerName('')
       setCustomerPhone('')
-      // Modal stays open | confirmation view renders inside it (D-07, D-10)
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : 'Failed to submit order')
     } finally {
@@ -288,13 +300,15 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
 
 
   return (
-    <div className="min-h-screen bg-zinc-50">
-      {/* Header */}
-      <header
-        className="relative text-white overflow-hidden"
+    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+      {/* Premium Header */}
+      <motion.header
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="relative text-white min-h-[280px] flex items-center justify-center overflow-hidden"
         style={!settings?.banner_url ? { backgroundColor: primaryColor } : undefined}
       >
-        {/* Banner as background when set */}
+        {/* Banner with modern treatment */}
         {settings?.banner_url && (
           <>
             <Image
@@ -303,180 +317,260 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
               fill
               priority
               sizes="100vw"
-              className="object-cover"
+              className="object-cover scale-110"
             />
-            <div className="absolute inset-0" style={{ backgroundColor: primaryColor, opacity: 0.65 }} />
+            {/* Multi-layer overlay for depth */}
+            <div className="absolute inset-0 bg-black/40" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-zinc-950" />
+            <div className="absolute inset-0" style={{ backgroundColor: primaryColor, opacity: 0.2 }} />
           </>
         )}
-        {/* Content over banner or blue background */}
-        <div className="relative z-10">
-          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-5 sm:py-6 flex flex-col items-center gap-3">
-            {settings?.logo_url ? (
-              <Image
-                src={settings.logo_url}
-                alt={tenant.name}
-                width={80}
-                height={80}
-                priority
-                className="rounded-xl object-cover bg-white/10 p-1"
-              />
-            ) : (
-              <div className="w-20 h-20 rounded-xl bg-white/20 ring-1 ring-white/30 flex items-center justify-center text-2xl font-bold tracking-wide text-white">
-                {getInitials(tenant.name)}
+
+        {/* Header Content */}
+        <div className="relative z-10 w-full max-w-5xl px-4 py-10 flex flex-col items-center">
+          
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="flex flex-col items-center gap-6"
+          >
+            {/* Title Group with Logo and Name in same line */}
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+              {/* Logo with Glassmorphism */}
+              <motion.div 
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: "spring", damping: 15 }}
+              >
+                {settings?.logo_url ? (
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 p-1 bg-white/10 backdrop-blur-xl rounded-lg ring-1 ring-white/30 shadow-2xl overflow-hidden">
+                    <Image
+                      src={settings.logo_url}
+                      alt={tenant.name}
+                      fill
+                      priority
+                      className="rounded-lg object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-white/10 backdrop-blur-xl ring-1 ring-white/40 flex items-center justify-center text-xl font-black tracking-tighter text-white shadow-2xl">
+                    {getInitials(tenant.name)}
+                  </div>
+                )}
+              </motion.div>
+
+              <div className="text-center sm:text-left">
+                <h1 className="text-3xl sm:text-4xl font-black tracking-tighter drop-shadow-xl text-white">
+                  {tenant.name}
+                </h1>
+                {menuTitle && (
+                  <div className="flex items-center justify-center sm:justify-start gap-3 mt-1">
+                    <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase tracking-[0.3em]">
+                      {menuTitle}
+                    </p>
+                    <div className="hidden sm:block h-px w-8 bg-white/20" />
+                  </div>
+                )}
               </div>
+            </div>
+
+            {menuDescription && (
+              <p className="text-sm sm:text-base font-medium text-white/60 max-w-lg mx-auto text-center leading-relaxed">
+                {menuDescription}
+              </p>
             )}
-            <div className="text-center">
-              <h1 className="text-xl font-bold leading-tight">{tenant.name}</h1>
-              {menuTitle && <p className="text-sm opacity-90 mt-0.5">{menuTitle}</p>}
-              {menuDescription && <p className="text-xs opacity-75 mt-0.5">{menuDescription}</p>}
+
+
+            {/* Contact & Location Info */}
+            <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-8 pt-4">
               {settings?.address && (
                 <a
                   href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-1 text-sm opacity-75 hover:opacity-100 transition-opacity mt-0.5"
+                  className="group flex items-center gap-3 text-xs font-bold text-white/80 hover:text-white transition-all"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                  </svg>
-                  {settings.address}
+                  <div className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center ring-1 ring-white/20 group-hover:bg-white/20 group-hover:ring-white/40 transition-all shadow-lg">
+                    <MapPin className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="max-w-[200px] text-left line-clamp-1 border-b border-white/10 group-hover:border-white/40 pb-0.5">{settings.address}</span>
                 </a>
               )}
               {settings?.phone && (
                 <a
                   href={`tel:${settings.phone}`}
-                  className="inline-flex items-center justify-center gap-1 text-sm opacity-75 hover:opacity-100 transition-opacity mt-0.5 ml-3"
+                  className="group flex items-center gap-3 text-xs font-bold text-white/80 hover:text-white transition-all"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1-9.4 0-17-7.6-17-17 0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/>
-                  </svg>
-                  {settings.phone}
+                  <div className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center ring-1 ring-white/20 group-hover:bg-white/20 group-hover:ring-white/40 transition-all shadow-lg">
+                    <Phone className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="border-b border-white/10 group-hover:border-white/40 pb-0.5">{settings.phone}</span>
                 </a>
               )}
-              {hasHours && (
-                <div className="mt-3">
+            </div>
+
+            {/* Premium Hours Button */}
+            {hasHours && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.4 }}
+                className="pt-6"
+              >
                 <button
                   onClick={() => setShowHoursModal(true)}
-                  aria-label={ui.hoursBtn}
-                  className="inline-flex items-center justify-center gap-1 text-sm opacity-75 hover:opacity-100 transition-opacity px-3 py-1 rounded-full border border-white/40 bg-white/10 hover:bg-white/20"
+                  className="inline-flex items-center gap-3 px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-xs font-black uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-xl"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
-                  </svg>
+                  <Clock className="w-4 h-4 text-white/80" />
                   {ui.hoursBtn}
                 </button>
-                </div>
-              )}
+              </motion.div>
+            )}
+          </motion.div>
+        </div>
+
+        {/* Language Switcher */}
+        {supportedLanguages.length > 1 && (
+          <div className="absolute top-6 right-6 z-20">
+            <div className="flex items-center gap-1.5 p-1.5 bg-black/40 backdrop-blur-2xl rounded-lg border border-white/10 shadow-2xl">
+              {supportedLanguages.map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => {
+                    setSelectedLanguage(lang)
+                    const url = new URL(window.location.href)
+                    url.searchParams.set('lang', lang)
+                    window.history.replaceState({}, '', url.toString())
+                  }}
+                  className={`text-[10px] font-black px-3 py-2 rounded-full transition-all duration-300 ${
+                    selectedLanguage === lang 
+                      ? 'bg-white text-zinc-900 shadow-xl scale-105' 
+                      : 'text-white/50 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {lang.toUpperCase()}
+                </button>
+              ))}
             </div>
           </div>
-          {supportedLanguages.length > 1 && (
-            <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-3">
-              <div className="flex items-center gap-2 flex-wrap">
-                {supportedLanguages.map((lang) => (
-                  <button
-                    key={lang}
-                    onClick={() => {
-                      setSelectedLanguage(lang)
-                      const url = new URL(window.location.href)
-                      url.searchParams.set('lang', lang)
-                      window.history.replaceState({}, '', url.toString())
-                    }}
-                    className={`text-xs px-3 py-1 rounded-full border transition-colors ${selectedLanguage === lang ? 'bg-white text-zinc-900 border-white' : 'bg-white/10 text-white border-white/30 hover:bg-white/20'}`}
-                  >
-                    {lang.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </header>
+        )}
+      </motion.header>
 
-      {/* Category filter */}
+      {/* Modern Category Filter */}
       {categories.length > 0 && (
-        <div className="sticky top-0 z-20 bg-white border-b border-zinc-200 shadow-sm supports-backdrop-blur:bg-white/95 supports-backdrop-blur:backdrop-blur-sm">
-          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
-            <div ref={categoryFilterRef} className="flex gap-2 justify-center items-center overflow-x-auto py-3 scrollbar-hide">
+        <div className="sticky top-0 z-30 bg-zinc-50/80 backdrop-blur-xl border-b border-zinc-200 shadow-sm">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div ref={categoryFilterRef} className="flex gap-2 justify-center items-center overflow-x-auto py-4 scrollbar-hide no-scrollbar">
               <button
                 onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
-                aria-label={showSearch ? 'Close search' : 'Open search'}
-                className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full bg-zinc-100 text-zinc-600 hover:bg-zinc-200 transition-colors"
+                className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${
+                  showSearch ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300 shadow-sm'
+                }`}
               >
-                {showSearch
-                  ? <span aria-hidden="true" className="text-xs font-medium leading-none">✕</span>
-                  : <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                }
+                {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
               </button>
-              {showSearch ? (
-                <input
-                  autoFocus
-                  type="search"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search..."
-                  className="w-64 sm:w-80 px-3 py-1 rounded-full border border-zinc-300 text-sm text-zinc-900 focus:outline-none focus:ring-1 transition-all"
-                />
-              ) : (
-                <>
-                  <button
-                    onClick={() => setActiveCategory(null)}
-                    style={!activeCategory && !visibleCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                    className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${!activeCategory && !visibleCategory ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+              
+              <AnimatePresence mode="wait">
+                {showSearch ? (
+                  <motion.div
+                    key="search-input"
+                    initial={{ width: 0, opacity: 0 }}
+                    animate={{ width: 'auto', opacity: 1 }}
+                    exit={{ width: 0, opacity: 0 }}
+                    className="overflow-hidden"
                   >
-                    {ui.all}
-                  </button>
-                  {categories.map(cat => (
+                    <input
+                      autoFocus
+                      type="search"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Find something delicious..."
+                      className="w-64 sm:w-96 px-6 py-2.5 rounded-full bg-white border border-zinc-200 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="categories-list"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="flex gap-2"
+                  >
                     <button
-                      key={cat.id}
-                      ref={el => { categoryButtonRefs.current[cat.id] = el }}
-                      onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
-                      style={activeCategory === cat.id || visibleCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                      className={`flex-shrink-0 text-sm px-4 py-1.5 rounded-full font-medium transition-colors ${activeCategory === cat.id || visibleCategory === cat.id ? '' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
+                      onClick={() => setActiveCategory(null)}
+                      style={!activeCategory && !visibleCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
+                      className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-6 py-3 rounded-full transition-all shadow-sm ${
+                        !activeCategory && !visibleCategory ? 'shadow-md scale-105' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300'
+                      }`}
                     >
-                      {cat.name}
+                      {ui.all}
                     </button>
-                  ))}
-                </>
-              )}
+                    {categories.map(cat => (
+                      <button
+                        key={cat.id}
+                        ref={el => { categoryButtonRefs.current[cat.id] = el }}
+                        onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
+                        style={activeCategory === cat.id || visibleCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
+                        className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-6 py-3 rounded-full transition-all shadow-sm ${
+                          activeCategory === cat.id || visibleCategory === cat.id ? 'shadow-md scale-105' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
         </div>
-      )}
-
-      {showSearch && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={() => { setShowSearch(false); setSearch('') }}
-        />
       )}
 
       <main
-        className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6 sm:py-8 lg:py-10 space-y-8 sm:space-y-10"
-        style={hasFixedFooter ? { paddingBottom: `${footerHeight + 24}px` } : undefined}
+        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-16"
+        style={hasFixedFooter ? { paddingBottom: `${footerHeight + 40}px` } : undefined}
       >
-        {/* Featured */}
+        {/* Featured Section */}
         {featured.length > 0 && !search && !activeCategory && (
-          <section>
-            <h2 className="text-base font-bold text-zinc-900 mb-3">⭐ {ui.featured}</h2>
-            <div className="-mx-4 sm:-mx-6 lg:-mx-8 xl:-mx-12 overflow-hidden pb-2">
+          <section className="relative">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-2xl font-black text-zinc-900 tracking-tight flex items-center gap-3">
+                <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
+                {ui.featured}
+              </h2>
+            </div>
+            
+            <div className="-mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden pb-4">
               <div
                 onMouseEnter={() => setPauseFeaturedAutoScroll(true)}
                 onMouseLeave={() => setPauseFeaturedAutoScroll(false)}
-                className={`flex gap-3 sm:gap-4 w-max ${pauseFeaturedAutoScroll ? 'animate-marquee-paused' : 'animate-marquee'}`}
+                className={`flex gap-6 w-max px-4 sm:px-8 ${pauseFeaturedAutoScroll ? 'animate-marquee-paused' : 'animate-marquee'}`}
               >
                 {[...featuredBase, ...featuredBase].map((p, idx) => (
-                  <button key={`${p.id}-${idx}`} onClick={() => setSelectedProduct(p)}
-                    className="flex-shrink-0 w-40 sm:w-48 lg:w-56 bg-white rounded-xl border border-zinc-200 overflow-hidden text-left hover:shadow-md active:scale-[0.97] transition-all duration-200 ease-out">
-                    <div className="relative w-full aspect-video bg-zinc-100 overflow-hidden">
+                  <motion.button 
+                    key={`${p.id}-${idx}`} 
+                    onClick={() => setSelectedProduct(p)}
+                    whileHover={{ y: -8 }}
+                    className="flex-shrink-0 w-64 sm:w-80 bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-lg shadow-zinc-200/50 hover:shadow-xl transition-all duration-500"
+                  >
+                    <div className="relative w-full aspect-[4/3] bg-zinc-50 overflow-hidden">
                       {getProductImages(p)[0]
-                        ? <Image src={getProductImages(p)[0]} alt={p.name} fill className="object-cover" sizes="(max-width: 640px) 160px, (max-width: 1024px) 192px, 224px" />
-                        : <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>}
+                        ? <Image src={getProductImages(p)[0]} alt={p.name} fill className="object-cover transition-transform duration-700 hover:scale-110" sizes="320px" />
+                        : <div className="w-full h-full flex items-center justify-center text-4xl">🍽️</div>}
+                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm">
+                         <span style={{ color: accentColor }} className="text-sm font-black tracking-tight">{formatPrice(p.price, currency)}</span>
+                      </div>
                     </div>
-                    <div className="p-2">
-                      <p className="text-xs font-semibold text-zinc-900 truncate">{p.name}</p>
-                      <p style={{ color: accentColor }} className="text-sm font-bold mt-0.5">{formatPrice(p.price, currency)}</p>
+                    <div className="p-6">
+                      <h3 className="text-lg font-black text-zinc-900 leading-tight mb-2 truncate">{p.name}</h3>
+                      <p className="text-xs text-zinc-500 font-medium line-clamp-2 leading-relaxed">
+                        {p.description || "No description available."}
+                      </p>
+                      <div className="mt-4 flex items-center text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                        View Details <ChevronRight className="w-3 h-3 ml-1" />
+                      </div>
                     </div>
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
@@ -484,87 +578,119 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         )}
 
         {filtered.length === 0 && (
-          <div className="text-center py-16 text-zinc-400">
-            <p className="text-4xl mb-3">🔍</p>
-            <p className="font-medium">{ui.noItems}</p>
-            <p className="text-sm mt-1">{ui.tryAnother}</p>
+          <div className="text-center py-24 bg-white rounded-xl border border-zinc-100 shadow-sm">
+            <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Search className="w-10 h-10 text-zinc-300" />
+            </div>
+            <h3 className="text-xl font-black text-zinc-900 tracking-tight">{ui.noItems}</h3>
+            <p className="text-zinc-500 mt-2 font-medium">{ui.tryAnother}</p>
           </div>
         )}
 
-        {groupedByCategory.map(({ category, items }) => (
+        {/* Regular Sections */}
+        {groupedByCategory.map(({ category, items }, catIdx) => (
           <section
             key={category.id}
             ref={el => { categoryRefs.current[category.id] = el }}
             data-category-id={category.id}
+            className="space-y-8"
           >
-            <h2 className="text-base font-bold text-zinc-900 mb-3">{category.name}</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {items.map(p => (
-                <ProductCard key={p.id} product={p} accentColor={accentColor} currency={currency} lang={selectedLanguage} onClick={() => setSelectedProduct(p)} />
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-black text-zinc-900 tracking-tight whitespace-nowrap">
+                {category.name}
+              </h2>
+              <div className="h-px w-full bg-zinc-100" />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
+              {items.map((p, pIdx) => (
+                <ProductCard 
+                  key={p.id} 
+                  product={p} 
+                  accentColor={accentColor} 
+                  currency={currency} 
+                  lang={selectedLanguage} 
+                  onClick={() => setSelectedProduct(p)} 
+                />
               ))}
             </div>
           </section>
         ))}
 
         {uncategorized.length > 0 && (
-          <section>
-            <h2 className="text-base font-bold text-zinc-900 mb-3">{ui.other}</h2>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <section className="space-y-8">
+            <div className="flex items-center gap-4">
+              <h2 className="text-2xl font-black text-zinc-900 tracking-tight whitespace-nowrap">{ui.other}</h2>
+              <div className="h-px w-full bg-zinc-100" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
               {uncategorized.map(p => (
                 <ProductCard key={p.id} product={p} accentColor={accentColor} currency={currency} lang={selectedLanguage} onClick={() => setSelectedProduct(p)} />
               ))}
             </div>
           </section>
         )}
-
       </main>
 
+      {/* Floating Cart Button */}
+      {directOrdersEnabled && cart.length > 0 && !showCartModal && (
+        <motion.button
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          onClick={() => setShowCartModal(true)}
+          className="fixed bottom-8 right-8 z-40 bg-zinc-900 text-white pl-6 pr-4 py-4 rounded-lg shadow-2xl shadow-zinc-950/20 flex items-center gap-4 hover:bg-zinc-800 transition-all hover:scale-105 active:scale-95"
+        >
+          <div className="flex flex-col items-start leading-none">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">My Order</span>
+            <span className="text-lg font-black">{formatPrice(cartTotal, currency)}</span>
+          </div>
+          <div className="relative bg-white/10 p-3 rounded-lg">
+            <ShoppingBag className="w-5 h-5" />
+            <div className="absolute -top-1.5 -right-1.5 bg-indigo-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900">{cartCount}</div>
+          </div>
+        </motion.button>
+      )}
+
+      {/* Footer */}
       {hasFixedFooter && (
-        <footer ref={footerRef} className={`fixed bottom-0 inset-x-0 z-40 border-t border-zinc-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 transition-all duration-300 ${showFooterAtEnd ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
-          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-3">
-            {hasContact && (
-              <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm text-zinc-700 text-center">
-                {settings?.phone && (
-                  <a href={`tel:${settings.phone}`} className="hover:text-zinc-900">
-                    📞 {settings.phone}
-                  </a>
-                )}
-                {settings?.whatsapp && (
-                  <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900">
-                    💬 WhatsApp
-                  </a>
-                )}
-                {settings?.instagram && (
-                  <a href={`https://instagram.com/${settings.instagram}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900">
-                    📸 @{settings.instagram}
-                  </a>
-                )}
-                {email && (
-                  <a href={`mailto:${email}`} className="hover:text-zinc-900">
-                    ✉️ {email}
-                  </a>
-                )}
-                {settings?.address && (
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-zinc-600 hover:text-zinc-900 transition-colors"
-                  >
-                    📍 {settings.address}
-                  </a>
-                )}
-              </div>
-            )}
-            {footerBrand && (
-              <div className="mt-1 text-xs text-zinc-500 text-center">
-                Digital menu by <a href="/" className="font-semibold hover:text-zinc-700 transition-colors">{footerBrand}</a>
-              </div>
-            )}
+        <footer ref={footerRef} className={`fixed bottom-0 inset-x-0 z-40 border-t border-zinc-100 bg-white/90 backdrop-blur-2xl transition-all duration-500 ${showFooterAtEnd ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+              {hasContact && (
+                <div className="flex flex-wrap items-center justify-center gap-8 text-xs font-bold text-zinc-500">
+                  {settings?.phone && (
+                    <a href={`tel:${settings.phone}`} className="hover:text-zinc-900 flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5" /> {settings.phone}
+                    </a>
+                  )}
+                  {settings?.whatsapp && (
+                    <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 flex items-center gap-2 text-green-600">
+                      <MessageCircle className="w-3.5 h-3.5 fill-green-600/10" /> WhatsApp
+                    </a>
+                  )}
+                  {settings?.instagram && (
+                    <a href={`https://instagram.com/${settings.instagram}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 flex items-center gap-2 text-pink-600">
+                      <Instagram className="w-3.5 h-3.5" /> @{settings.instagram}
+                    </a>
+                  )}
+                  {email && (
+                    <a href={`mailto:${email}`} className="hover:text-zinc-900 flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5" /> {email}
+                    </a>
+                  )}
+                </div>
+              )}
+              {footerBrand && (
+                <div className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.3em]">
+                  Powered by <a href="/" className="text-zinc-900 hover:text-indigo-600 transition-colors">{footerBrand}</a>
+                </div>
+              )}
+            </div>
           </div>
         </footer>
       )}
 
+      {/* Modals */}
       {selectedProduct && (
         <ProductModal
           product={selectedProduct}
@@ -587,41 +713,39 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         />
       )}
 
-      {directOrdersEnabled && cart.length > 0 && !showCartModal && (
-        <button
-          onClick={() => setShowCartModal(true)}
-          className="fixed bottom-20 right-4 z-40 bg-zinc-900 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-2 hover:bg-zinc-800 transition-colors"
-        >
-          <span>🛒</span>
-          <span className="font-semibold">{formatPrice(cartTotal, currency)}</span>
-          {cartCount > 0 && (
-            <span className="bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">{cartCount}</span>
-          )}
-        </button>
-      )}
-
-      {showHoursModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={() => setShowHoursModal(false)}>
-          <div className="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="p-5 sm:p-6 border-b border-zinc-200 flex items-center justify-between">
-              <h3 className="text-base font-bold text-zinc-900">{ui.hoursTitle}</h3>
-              <button onClick={() => setShowHoursModal(false)} className="text-zinc-400 hover:text-zinc-600 text-xl leading-none">✕</button>
-            </div>
-            <div className="p-5 sm:p-6 space-y-2">
-              {Object.entries(DAYS).map(([key, label]) => {
-                const value = hours?.[key as keyof typeof hours]
-                if (!value) return null
-                return (
-                  <div key={key} className="flex justify-between text-sm">
-                    <span className="text-zinc-500">{label}</span>
-                    <span className="text-zinc-900 font-medium">{value}</span>
-                  </div>
-                )
-              })}
-            </div>
+      <AnimatePresence>
+        {showHoursModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm" onClick={() => setShowHoursModal(false)}>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-full max-w-sm rounded-lg shadow-2xl overflow-hidden" 
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
+                <h3 className="text-xl font-black text-zinc-900 tracking-tight flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-indigo-500" />
+                  {ui.hoursTitle}
+                </h3>
+                <button onClick={() => setShowHoursModal(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
+              </div>
+              <div className="p-8 space-y-4">
+                {Object.entries(DAYS).map(([key, label]) => {
+                  const value = hours?.[key as keyof typeof hours]
+                  if (!value) return null
+                  return (
+                    <div key={key} className="flex justify-between items-center py-2 border-b border-zinc-50 last:border-0">
+                      <span className="text-sm font-bold text-zinc-500">{label}</span>
+                      <span className="text-sm font-black text-zinc-900">{value}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {showCartModal && (
         <CartModal
@@ -660,11 +784,11 @@ const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
 }
 
 const TAG_COLORS: Record<string, string> = {
-  'Vegetarian': 'bg-green-100 text-green-700',
-  'Vegan': 'bg-emerald-100 text-emerald-700',
-  'Gluten-Free': 'bg-amber-100 text-amber-700',
-  'Spicy': 'bg-red-100 text-red-700',
-  'Chef\'s special': 'bg-purple-100 text-purple-700',
+  'Vegetarian': 'bg-green-50 text-green-700 ring-1 ring-green-100',
+  'Vegan': 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
+  'Gluten-Free': 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
+  'Spicy': 'bg-red-50 text-red-700 ring-1 ring-red-100',
+  'Chef\'s special': 'bg-purple-50 text-purple-700 ring-1 ring-purple-100',
 }
 
 function translateTag(tag: string, lang: string): string {
@@ -672,39 +796,58 @@ function translateTag(tag: string, lang: string): string {
 }
 
 function getTagStyle(tag: string): string {
-  return TAG_COLORS[tag] ?? 'bg-zinc-100 text-zinc-600'
+  return TAG_COLORS[tag] ?? 'bg-zinc-50 text-zinc-600 ring-1 ring-zinc-100'
 }
 
 function ProductCard({ product, accentColor, currency, lang, onClick }: { product: Product; accentColor: string; currency: string; lang: string; onClick: () => void }) {
   const images = getProductImages(product)
   return (
-    <button onClick={onClick}
-      className="w-full bg-white rounded-xl border border-zinc-200 overflow-hidden text-left hover:shadow-md hover:scale-[1.03] active:scale-[0.97] transition-all duration-200 ease-out">
-      <div className="relative w-full aspect-video bg-zinc-100 overflow-hidden">
+    <motion.button 
+      onClick={onClick}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      className="group w-full bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-sm hover:shadow-xl hover:shadow-zinc-200/40 transition-all duration-300"
+    >
+      <div className="relative w-full aspect-square bg-zinc-50 overflow-hidden">
         {images[0]
-          ? <Image src={images[0]} alt={product.name} fill className="object-cover" sizes="(max-width: 768px) 50vw, 25vw" />
-          : <div className="w-full h-full flex items-center justify-center text-3xl">🍽️</div>}
-      </div>
-      <div className="p-2">
-        <div className="flex items-start gap-1 flex-wrap">
-          <p className="text-sm font-semibold text-zinc-900 truncate">{product.name}</p>
-          {product.is_featured && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium">Featured</span>}
+          ? <Image src={images[0]} alt={product.name} fill className="object-cover transition-transform duration-700 group-hover:scale-110" sizes="(max-width: 768px) 50vw, 25vw" />
+          : <div className="w-full h-full flex items-center justify-center text-4xl bg-zinc-50">🍽️</div>}
+        
+        {product.is_featured && (
+          <div className="absolute top-4 left-4 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
+            <Star className="w-3 h-3 fill-white" /> Featured
+          </div>
+        )}
+
+        <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg shadow-sm border border-white/20">
+           <span style={{ color: accentColor }} className="text-sm font-black tracking-tight">{formatPrice(product.price, currency)}</span>
         </div>
+      </div>
+
+      <div className="p-6">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <h3 className="text-base font-black text-zinc-900 leading-tight line-clamp-1">{product.name}</h3>
+        </div>
+        
         {product.tags?.length > 0 && (
-          <div className="flex gap-1 mt-1 flex-wrap">
+          <div className="flex gap-1.5 mb-3 flex-wrap">
             {product.tags.map(tag => {
               const translated = translateTag(tag, lang)
-              return <span key={tag} className={`text-xs px-1.5 py-0.5 rounded ${getTagStyle(translated)}`}>{translated}</span>
+              return <span key={tag} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-sm ${getTagStyle(translated)}`}>{translated}</span>
             })}
           </div>
         )}
-        {product.description && <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{product.description}</p>}
-        <div className="flex items-center gap-2 mt-1.5">
-          {product.original_price && <span className="text-xs text-zinc-400 line-through">{formatPrice(product.original_price, currency)}</span>}
-          <span style={{ color: accentColor }} className="text-sm font-bold">{formatPrice(product.price, currency)}</span>
+
+        {product.description && (
+          <p className="text-xs text-zinc-500 font-medium line-clamp-2 leading-relaxed mb-4">
+            {product.description}
+          </p>
+        )}
+        
+        <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-zinc-300 group-hover:text-zinc-900 transition-colors">
+          Order Now <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
         </div>
       </div>
-    </button>
+    </motion.button>
   )
 }
-

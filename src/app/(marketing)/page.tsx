@@ -8,7 +8,7 @@ export default function LandingPage() {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: 'XmartMenu',
-    url: 'https://xmartmenu.skale.club',
+    url: 'https://xmartmenu.com',
     description: 'Digital menu platform for restaurants via QR code',
     sameAs: [],
   }

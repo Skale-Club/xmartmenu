@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderItem } from '@/types/database'
 import { useElapsedTime } from './useElapsedTime'
-import { Bell, BellOff, LayoutGrid, List, MessageSquare } from 'lucide-react'
+import { Bell, BellOff, LayoutGrid, List, MessageSquare, Package, Clock, CheckCircle2, XCircle, AlertCircle, Play, Check, X, Info, ChevronRight, Plus } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 type OrderWithItems = Order & { order_items: OrderItem[] }
 
@@ -13,12 +14,13 @@ const STATUS_COLORS: Record<string, {
   bg: string
   badge: string
   label: string
+  icon: any
 }> = {
-  pending:   { border: 'border-l-blue-500',   bg: 'bg-blue-50',   badge: 'bg-blue-100 text-blue-800',    label: 'Pending' },
-  preparing: { border: 'border-l-yellow-500', bg: 'bg-yellow-50', badge: 'bg-yellow-100 text-yellow-800', label: 'Preparing' },
-  ready:     { border: 'border-l-green-500',  bg: 'bg-green-50',  badge: 'bg-green-100 text-green-800',   label: 'Ready' },
-  done:      { border: 'border-l-zinc-400',   bg: 'bg-zinc-50',   badge: 'bg-zinc-100 text-zinc-600',     label: 'Done' },
-  cancelled: { border: 'border-l-red-500',    bg: 'bg-red-50',    badge: 'bg-red-100 text-red-800',       label: 'Cancelled' },
+  pending:   { border: 'border-blue-500',   bg: 'bg-blue-50/30',   badge: 'bg-blue-100 text-blue-800',    label: 'Pending', icon: Clock },
+  preparing: { border: 'border-amber-500', bg: 'bg-amber-50/30', badge: 'bg-amber-100 text-amber-800', label: 'Preparing', icon: Play },
+  ready:     { border: 'border-green-500',  bg: 'bg-green-50/30',  badge: 'bg-green-100 text-green-800',   label: 'Ready', icon: CheckCircle2 },
+  done:      { border: 'border-zinc-400',   bg: 'bg-zinc-50/30',   badge: 'bg-zinc-100 text-zinc-600',     label: 'Done', icon: Check },
+  cancelled: { border: 'border-red-500',    bg: 'bg-red-50/30',    badge: 'bg-red-100 text-red-800',       label: 'Cancelled', icon: XCircle },
 }
 
 const NEXT_STATUS: Record<string, string | null> = {
@@ -42,7 +44,7 @@ const KDS_MUTE_KEY    = (tenantId: string) => `kds_mute_${tenantId}`
 type FilterValue = 'active' | 'pending' | 'preparing' | 'ready' | 'all'
 
 const FILTER_CHIPS: { value: FilterValue; label: string }[] = [
-  { value: 'active',    label: 'Active' },      // pending + preparing (default)
+  { value: 'active',    label: 'Active' },
   { value: 'pending',   label: 'Pending' },
   { value: 'preparing', label: 'Preparing' },
   { value: 'ready',     label: 'Ready' },
@@ -65,6 +67,7 @@ function OrderCard({
   onCancel,
   amberMinutes,
   redMinutes,
+  onClick,
 }: {
   order: OrderWithItems
   loadingId: string | null
@@ -72,95 +75,94 @@ function OrderCard({
   onCancel: (id: string) => void
   amberMinutes: number
   redMinutes: number
+  onClick: () => void
 }) {
   const { minutes, chipClass } = useElapsedTime(order.created_at, amberMinutes, redMinutes)
   const colors = STATUS_COLORS[order.status] ?? STATUS_COLORS['pending']
   const nextStatus = NEXT_STATUS[order.status]
   const isLoading = loadingId === order.id
+  const StatusIcon = colors.icon
 
   return (
-    <div className={`rounded-lg border border-zinc-200 border-l-4 ${colors.border} ${colors.bg} p-4 flex flex-col gap-3`}>
-      {/* Header: ID + status badge */}
+    <div className={cn(
+      "group relative bg-white border border-zinc-100 rounded-[1.25rem] p-6 transition-all duration-500 hover:border-primary hover:shadow-2xl hover:shadow-primary/10 flex flex-col gap-6",
+      order.status === 'ready' && "ring-2 ring-green-100"
+    )}>
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <span className="font-mono text-xs text-zinc-500">#{order.id.slice(0, 8)}</span>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${colors.badge}`}>
+        <div className="flex items-center gap-3">
+          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center transition-colors", colors.bg)}>
+            <StatusIcon className={cn("w-5 h-5", colors.badge.split(' ')[1])} />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Order ID</p>
+            <p className="text-sm font-black text-zinc-950 font-mono tracking-tight">#{order.id.slice(0, 8)}</p>
+          </div>
+        </div>
+        <div className={cn("px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm", colors.badge)}>
           {colors.label}
-        </span>
+        </div>
       </div>
 
       {/* Customer */}
-      <div>
-        <p className="text-sm font-semibold text-zinc-900">{order.customer_name}</p>
-        <p className="text-xs text-zinc-500">{order.customer_phone}</p>
+      <div onClick={onClick} className="cursor-pointer space-y-1">
+        <h3 className="text-xl font-black text-zinc-950 tracking-tight leading-tight group-hover:text-primary transition-colors">{order.customer_name}</h3>
+        <p className="text-xs font-bold text-zinc-500">{order.customer_phone}</p>
       </div>
 
-      {/* Items summary */}
-      <ul className="text-xs text-zinc-700 space-y-0.5">
+      {/* Items */}
+      <div className="flex-1 space-y-3">
         {order.order_items.map((item, i) => (
-          <li key={i} className="flex flex-col gap-0.5">
-            <span>{item.quantity}x {item.product_name}</span>
-            {item.notes && (
-              <span className="text-xs text-zinc-500 italic flex items-center gap-1">
-                <MessageSquare size={10} className="flex-shrink-0" />
-                {item.notes}
-              </span>
-            )}
-            {item.ingredient_modifications && (() => {
-              const mods = item.ingredient_modifications
-              const hasAny =
-                mods.removed.length > 0 || mods.extras.length > 0 || mods.added.length > 0
-              if (!hasAny) return null
-              return (
-                <span className="flex flex-col gap-0.5 mt-0.5">
-                  {mods.removed.map(r => (
-                    <span key={r.ingredient_id} className="text-xs text-red-600 line-through">
-                      NO {r.name}
-                    </span>
-                  ))}
-                  {mods.extras.map(e => (
-                    <span key={e.ingredient_id} className="text-xs text-amber-600">
-                      +{e.qty} {e.name}
-                    </span>
-                  ))}
-                  {mods.added.map(a => (
-                    <span key={a.ingredient_id} className="text-xs text-green-600">
-                      +{a.qty} {a.name}
-                    </span>
-                  ))}
-                </span>
-              )
-            })()}
-          </li>
+          <div key={i} className="flex gap-3">
+            <span className="shrink-0 w-6 h-6 rounded-lg bg-zinc-50 flex items-center justify-center text-[10px] font-black text-zinc-950 border border-zinc-100">
+              {item.quantity}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-zinc-800 leading-tight truncate">{item.product_name}</p>
+              {item.notes && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <MessageSquare size={12} className="text-primary shrink-0" />
+                  <p className="text-[11px] font-medium text-zinc-500 italic truncate">{item.notes}</p>
+                </div>
+              )}
+            </div>
+          </div>
         ))}
-      </ul>
-
-      {/* Footer: total + elapsed-time chip */}
-      <div className="flex items-center justify-between mt-auto pt-2 border-t border-zinc-200">
-        <span className="text-sm font-bold text-zinc-900">R$ {order.total.toFixed(2)}</span>
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${chipClass}`}>
-          {minutes}min
-        </span>
       </div>
 
-      {/* Actions | advance button + cancel */}
-      {nextStatus && (
-        <button
-          onClick={() => onAdvance(order.id, nextStatus)}
-          disabled={isLoading}
-          className="w-full px-3 py-2 bg-zinc-900 text-white rounded-lg text-sm font-medium hover:bg-zinc-700 disabled:opacity-50"
-        >
-          {isLoading ? '...' : ADVANCE_LABEL[order.status]}
-        </button>
-      )}
-      {(order.status === 'pending' || order.status === 'preparing') && (
-        <button
-          onClick={() => onCancel(order.id)}
-          disabled={isLoading}
-          className="w-full text-xs text-red-600 hover:underline disabled:opacity-50"
-        >
-          Cancel
-        </button>
-      )}
+      {/* Footer */}
+      <div className="pt-6 border-t border-zinc-50 flex items-center justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-0.5">Total</p>
+          <p className="text-xl font-black text-zinc-950 tracking-tighter">R$ {order.total.toFixed(2)}</p>
+        </div>
+        <div className={cn("px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm border", chipClass)}>
+          <Clock className="w-3.5 h-3.5" />
+          <span className="text-xs font-black tracking-widest">{minutes}m</span>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="space-y-2">
+        {nextStatus && (
+          <button
+            onClick={() => onAdvance(order.id, nextStatus)}
+            disabled={isLoading}
+            className="w-full py-4 bg-zinc-950 text-white rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-zinc-950/10"
+          >
+            {isLoading ? 'Processing...' : ADVANCE_LABEL[order.status]}
+          </button>
+        )}
+        {(order.status === 'pending' || order.status === 'preparing') && (
+          <button
+            onClick={() => onCancel(order.id)}
+            disabled={isLoading}
+            className="w-full py-2 text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-red-500 transition-colors disabled:opacity-50"
+          >
+            Cancel Order
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -169,25 +171,18 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
-  // view toggle state | persisted to localStorage per tenant
   const [view, setView] = useState<'grid' | 'list'>('grid')
-  // filter chips | default shows pending + preparing (one active chip, mutually exclusive)
   const [activeFilter, setActiveFilter] = useState<FilterValue>(DEFAULT_FILTER)
-  // mute state | persisted to localStorage per tenant
   const [muted, setMuted] = useState(false)
-  // lazy AudioContext ref | created on first user interaction to satisfy browser autoplay policy
   const audioCtxRef = useRef<AudioContext | null>(null)
-  // mutedRef mirrors muted state so Realtime closure reads current value without re-subscribing
   const mutedRef = useRef(false)
   const supabase = createClient()
 
-  // SSR-safe: read saved view preference on mount
   useEffect(() => {
     const saved = localStorage.getItem(KDS_VIEW_KEY(tenantId))
     if (saved === 'grid' || saved === 'list') setView(saved)
   }, [tenantId])
 
-  // SSR-safe: restore active filter from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem(KDS_FILTER_KEY(tenantId))
     if (saved === 'pending' || saved === 'preparing' || saved === 'ready' || saved === 'all') {
@@ -195,18 +190,15 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     }
   }, [tenantId])
 
-  // SSR-safe: restore muted state from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem(KDS_MUTE_KEY(tenantId))
     if (saved === 'true') setMuted(true)
   }, [tenantId])
 
-  // Keep mutedRef in sync with muted state so Realtime closure reads current value
   useEffect(() => {
     mutedRef.current = muted
   }, [muted])
 
-  // Beep via Web Audio API | oscillator at 880Hz for 0.1s
   function playBeep() {
     try {
       if (!audioCtxRef.current) {
@@ -223,13 +215,9 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1)
       osc.start(ctx.currentTime)
       osc.stop(ctx.currentTime + 0.1)
-    } catch {
-      // AudioContext creation may fail in non-interactive contexts | ignore silently
-    }
+    } catch {}
   }
 
-  // Realtime subscription | primary path for KDS-06
-  // KDS-12: beep fires only on INSERT of pending orders (not status updates)
   useEffect(() => {
     const channel = supabase
       .channel(`orders-realtime-${tenantId}`)
@@ -242,7 +230,6 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
           filter: `tenant_id=eq.${tenantId}`,
         },
         async (payload) => {
-          // Pitfall 1: payload.new does NOT include order_items | must fetch full order
           const { data: fullOrder } = await supabase
             .from('orders')
             .select('*, order_items(*)')
@@ -250,11 +237,9 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
             .single()
           if (fullOrder) {
             setOrders((prev) => {
-              // Idempotent: ignore if already present (handles polling race)
               if (prev.some((o) => o.id === fullOrder.id)) return prev
               return [fullOrder as OrderWithItems, ...prev]
             })
-            // KDS-12: beep only for new pending orders; check muted via ref to avoid stale closure
             const newOrder = fullOrder as OrderWithItems
             if (newOrder.status === 'pending' && !mutedRef.current) {
               playBeep()
@@ -269,7 +254,6 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     }
   }, [tenantId, supabase])
 
-  // Polling fallback | 15s safety net covers Realtime gaps and status refreshes
   useEffect(() => {
     const id = setInterval(async () => {
       const res = await fetch(`/api/orders?tenant_id=${tenantId}`)
@@ -297,7 +281,6 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     localStorage.setItem(KDS_MUTE_KEY(tenantId), String(next))
   }
 
-  // KDS-10: filter applied locally; 'active' = pending+preparing (default); 'all' = everything
   const filteredOrders = activeFilter === 'all'
     ? orders
     : activeFilter === 'active'
@@ -324,54 +307,69 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-zinc-900">Orders</h1>
-        <div className="flex items-center gap-3">
-          <p className="text-sm text-zinc-500">
-            {filteredOrders.length !== orders.length
-              ? `${filteredOrders.length} / ${orders.length} order(s)`
-              : `${orders.length} order(s)`}
-          </p>
-          {/* KDS-13: mute/unmute button */}
+    <div className="p-8 w-full space-y-8">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b border-zinc-100">
+        <div>
+          <div className="flex items-center gap-2 mb-2">
+            <Package className="w-5 h-5 text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Kitchen Display</span>
+          </div>
+          <h1 className="text-4xl font-black text-zinc-950 tracking-tight">Orders Queue</h1>
+          <p className="text-sm font-bold text-zinc-500 mt-1">Real-time order management and fulfillment</p>
+        </div>
+        <div className="flex items-center gap-4 shrink-0">
+          <div className="text-right mr-2 hidden sm:block">
+            <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Volume</p>
+            <p className="text-lg font-black text-zinc-950">{filteredOrders.length} active</p>
+          </div>
           <button
             onClick={toggleMute}
-            className={`p-1.5 rounded-lg border border-zinc-200 ${muted ? 'text-zinc-400 hover:text-zinc-600' : 'text-zinc-700 hover:text-zinc-900'}`}
-            aria-label={muted ? 'Enable sound' : 'Mute sound'}
-            title={muted ? 'Sound muted | click to enable' : 'Sound on | click to mute'}
+            className={cn(
+              "p-4 rounded-xl border transition-all duration-300",
+              muted 
+                ? "bg-zinc-50 text-zinc-400 border-zinc-100" 
+                : "bg-primary/10 text-primary border-primary/20 shadow-lg shadow-primary/5"
+            )}
+            title={muted ? 'Enable notification sound' : 'Mute notifications'}
           >
-            {muted ? <BellOff size={16} /> : <Bell size={16} />}
+            {muted ? <BellOff className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
           </button>
-          <div className="flex items-center gap-1 rounded-lg border border-zinc-200 p-0.5">
+          <div className="flex items-center gap-1 bg-zinc-50 border border-zinc-100 p-1.5 rounded-[0.75rem] shadow-sm">
             <button
               onClick={() => toggleView('grid')}
-              className={`p-1.5 rounded ${view === 'grid' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'}`}
-              aria-label="Grid view"
+              className={cn(
+                "p-2.5 rounded-xl transition-all",
+                view === 'grid' ? "bg-zinc-950 text-white shadow-lg" : "text-zinc-400 hover:text-zinc-900"
+              )}
             >
-              <LayoutGrid size={16} />
+              <LayoutGrid className="w-5 h-5" />
             </button>
             <button
               onClick={() => toggleView('list')}
-              className={`p-1.5 rounded ${view === 'list' ? 'bg-zinc-900 text-white' : 'text-zinc-500 hover:text-zinc-900'}`}
-              aria-label="List view"
+              className={cn(
+                "p-2.5 rounded-xl transition-all",
+                view === 'list' ? "bg-zinc-950 text-white shadow-lg" : "text-zinc-400 hover:text-zinc-900"
+              )}
             >
-              <List size={16} />
+              <List className="w-5 h-5" />
             </button>
           </div>
         </div>
       </div>
 
-      {/* KDS-10: filter chips | mutually exclusive, default pending */}
-      <div className="flex items-center gap-2 mb-6">
+      {/* Filter Chips */}
+      <div className="flex gap-2 pb-2 overflow-x-auto no-scrollbar">
         {FILTER_CHIPS.map((chip) => (
           <button
             key={chip.value}
             onClick={() => selectFilter(chip.value)}
-            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              activeFilter === chip.value
-                ? 'bg-zinc-900 text-white border-zinc-900'
-                : 'bg-white text-zinc-600 border-zinc-300 hover:border-zinc-500 hover:text-zinc-900'
-            }`}
+            className={cn(
+              "flex-shrink-0 text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-full border transition-all active:scale-95",
+              activeFilter === chip.value 
+                ? "bg-zinc-950 text-white border-zinc-950 shadow-lg shadow-zinc-950/10" 
+                : "bg-white border-zinc-100 text-zinc-400 hover:border-zinc-300"
+            )}
           >
             {chip.label}
           </button>
@@ -379,11 +377,15 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
       </div>
 
       {filteredOrders.length === 0 ? (
-        <div className="text-center py-12 text-zinc-500">
-          {orders.length === 0 ? 'No orders yet' : 'No orders match this filter'}
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50 rounded-[1.5rem] border border-dashed border-zinc-200">
+          <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-6">
+            <Package className="w-10 h-10 text-zinc-200" />
+          </div>
+          <h3 className="text-xl font-black text-zinc-950 mb-2">Queue is clear</h3>
+          <p className="text-sm text-zinc-500 max-w-xs mx-auto font-medium">All caught up! New orders will appear here automatically.</p>
         </div>
       ) : view === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
           {filteredOrders.map((order) => (
             <OrderCard
               key={order.id}
@@ -393,146 +395,175 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
               onCancel={(id) => updateStatus(id, 'cancelled')}
               amberMinutes={amberThreshold}
               redMinutes={redThreshold}
+              onClick={() => setSelectedOrder(order)}
             />
           ))}
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-zinc-200 overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-zinc-50 border-b border-zinc-200">
-              <tr>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">ID</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Customer</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Phone</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Items</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Total</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-zinc-500 uppercase">Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200">
-              {filteredOrders.map((order) => (
-                <tr
-                  key={order.id}
-                  className="hover:bg-zinc-50 cursor-pointer"
-                  onClick={() => setSelectedOrder(order)}
-                >
-                  <td className="px-4 py-3 text-xs text-zinc-500 font-mono">{order.id.slice(0, 8)}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-900">{order.customer_name}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-600">{order.customer_phone}</td>
-                  <td className="px-4 py-3 text-sm text-zinc-600">
-                    {(order.order_items?.length ?? 0) === 1
-                      ? '1 item'
-                      : `${order.order_items?.length ?? 0} items`}
-                  </td>
-                  <td className="px-4 py-3 text-sm text-zinc-900 font-medium">R$ {order.total.toFixed(2)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[order.status]?.badge}`}>
-                      {STATUS_COLORS[order.status]?.label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-zinc-500">
-                    {new Date(order.created_at).toLocaleDateString('en-US', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
-                  </td>
+        <div className="bg-white border border-zinc-100 rounded-[1.5rem] overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-zinc-50 border-b border-zinc-100">
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Order ID</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Customer</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-center">Volume</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Total</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Status</th>
+                  <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-zinc-50">
+                {filteredOrders.map((order) => {
+                  const colors = STATUS_COLORS[order.status] ?? STATUS_COLORS['pending']
+                  const StatusIcon = colors.icon
+                  return (
+                    <tr
+                      key={order.id}
+                      className="group hover:bg-zinc-50/50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedOrder(order)}
+                    >
+                      <td className="px-8 py-6">
+                        <span className="font-mono text-xs font-black text-zinc-400 group-hover:text-primary transition-colors">#{order.id.slice(0, 8)}</span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <p className="text-sm font-black text-zinc-950 tracking-tight">{order.customer_name}</p>
+                        <p className="text-[10px] font-bold text-zinc-500">{order.customer_phone}</p>
+                      </td>
+                      <td className="px-8 py-6 text-center">
+                        <span className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-zinc-100 text-xs font-black text-zinc-950">
+                          {order.order_items?.length ?? 0}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <span className="text-sm font-black text-zinc-950 tracking-tight">R$ {order.total.toFixed(2)}</span>
+                      </td>
+                      <td className="px-8 py-6">
+                        <div className={cn("inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest", colors.badge)}>
+                          <StatusIcon className="w-3 h-3" />
+                          {colors.label}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <button className="p-3 rounded-full bg-zinc-950 text-white hover:bg-primary hover:text-zinc-950 transition-all shadow-lg shadow-zinc-950/10">
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* Order Details Modal */}
+      {/* Details Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedOrder(null)}>
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
-            <div className="p-4 border-b border-zinc-200 flex items-center justify-between">
-              <h2 className="font-semibold text-zinc-900">Order Details</h2>
-              <button onClick={() => setSelectedOrder(null)} className="text-zinc-400 hover:text-zinc-600">✕</button>
-            </div>
-            <div className="p-4 space-y-4">
-              <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Customer</p>
-                <p className="text-zinc-900">{selectedOrder.customer_name}</p>
-              </div>
-              <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Phone</p>
-                <p className="text-zinc-900">{selectedOrder.customer_phone}</p>
-              </div>
-              {selectedOrder.notes && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4" onClick={() => setSelectedOrder(null)}>
+          <div className="w-full max-w-2xl bg-white rounded-[1.5rem] border border-zinc-200 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-10 py-8 border-b border-zinc-100 bg-zinc-50/50">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-[1.25rem] bg-zinc-950 flex items-center justify-center text-primary shadow-xl shadow-zinc-950/10">
+                  <Package className="w-6 h-6" />
+                </div>
                 <div>
-                  <p className="text-xs text-zinc-500 uppercase mb-1">Notes</p>
-                  <p className="text-sm text-zinc-700">{selectedOrder.notes}</p>
+                  <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Order Details</h2>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-0.5">Reference #{selectedOrder.id.slice(0, 8)}</p>
+                </div>
+              </div>
+              <button onClick={() => setSelectedOrder(null)} className="p-3 hover:bg-zinc-100 rounded-full transition-colors"><X className="w-6 h-6 text-zinc-400" /></button>
+            </div>
+            
+            <div className="p-10 space-y-10 max-h-[70vh] overflow-y-auto custom-scrollbar">
+              <div className="grid grid-cols-2 gap-10">
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 block">Customer</label>
+                    <p className="text-lg font-black text-zinc-950 tracking-tight">{selectedOrder.customer_name}</p>
+                    <p className="text-xs font-bold text-zinc-500">{selectedOrder.customer_phone}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 block">Timeline</label>
+                    <div className="flex items-center gap-2 text-sm font-bold text-zinc-600">
+                      <Clock className="w-4 h-4" />
+                      {new Date(selectedOrder.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-6">
+                  <div>
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 block">Status</label>
+                    <div className={cn("inline-flex items-center gap-2 px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm", STATUS_COLORS[selectedOrder.status]?.badge)}>
+                      {selectedOrder.status}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 block">Total Value</label>
+                    <p className="text-2xl font-black text-zinc-950 tracking-tighter">R$ {selectedOrder.total.toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
+
+              {selectedOrder.notes && (
+                <div className="bg-amber-50 border border-amber-100 rounded-[1rem] p-6 flex gap-4">
+                  <AlertCircle className="w-6 h-6 text-amber-500 shrink-0" />
+                  <div>
+                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Global Instructions</p>
+                    <p className="text-sm font-medium text-amber-900 leading-relaxed">{selectedOrder.notes}</p>
+                  </div>
                 </div>
               )}
-              <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Items</p>
-                <div className="space-y-2">
+
+              <div className="space-y-4">
+                <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 block">Order Composition</label>
+                <div className="space-y-3">
                   {selectedOrder.order_items?.map((item, idx) => (
-                    <div key={idx} className="flex flex-col gap-0.5">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-zinc-700">{item.quantity}x {item.product_name}</span>
-                        <span className="text-zinc-900 font-medium">R$ {(item.unit_price * item.quantity).toFixed(2)}</span>
+                    <div key={idx} className="bg-zinc-50 rounded-[1rem] p-6 border border-zinc-100 group hover:border-primary/30 transition-all">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex items-center gap-3">
+                          <span className="w-8 h-8 rounded-xl bg-white border border-zinc-200 flex items-center justify-center text-xs font-black text-zinc-950">{item.quantity}x</span>
+                          <span className="text-base font-black text-zinc-950 tracking-tight">{item.product_name}</span>
+                        </div>
+                        <span className="text-sm font-black text-zinc-950 tracking-tight">R$ {(item.unit_price * item.quantity).toFixed(2)}</span>
                       </div>
-                      {item.selected_options &&
-                        typeof item.selected_options === 'object' &&
-                        Object.keys(item.selected_options).length > 0 && (
-                          <span className="text-xs text-zinc-500">
-                            {Object.values(item.selected_options as Record<string, unknown>)
-                              .filter(Boolean)
-                              .join(' · ')}
-                          </span>
-                        )}
+                      
                       {item.notes && (
-                        <span className="text-xs text-zinc-500 italic flex items-center gap-1 mt-0.5">
-                          <MessageSquare size={10} className="flex-shrink-0" />
-                          {item.notes}
-                        </span>
+                        <div className="flex items-start gap-2 bg-white rounded-xl p-3 border border-zinc-100 mb-3">
+                          <MessageSquare className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                          <p className="text-[11px] font-medium text-zinc-500 italic">{item.notes}</p>
+                        </div>
                       )}
+
                       {item.ingredient_modifications && (() => {
                         const mods = item.ingredient_modifications
-                        const hasAny =
-                          mods.removed.length > 0 || mods.extras.length > 0 || mods.added.length > 0
-                        if (!hasAny) return null
+                        if (mods.removed.length === 0 && mods.extras.length === 0 && mods.added.length === 0) return null
                         return (
-                          <span className="flex flex-col gap-0.5 mt-0.5">
+                          <div className="flex flex-wrap gap-2 pt-2">
                             {mods.removed.map(r => (
-                              <span key={r.ingredient_id} className="text-xs text-red-600 line-through">
-                                NO {r.name}
-                              </span>
+                              <span key={r.ingredient_id} className="text-[9px] font-black uppercase px-2.5 py-1 bg-red-50 text-red-600 rounded-lg border border-red-100 flex items-center gap-1.5"><X className="w-3 h-3" /> NO {r.name}</span>
                             ))}
                             {mods.extras.map(e => (
-                              <span key={e.ingredient_id} className="text-xs text-amber-600">
-                                +{e.qty} {e.name}
-                              </span>
+                              <span key={e.ingredient_id} className="text-[9px] font-black uppercase px-2.5 py-1 bg-amber-50 text-amber-600 rounded-lg border border-amber-100 flex items-center gap-1.5"><Plus className="w-3 h-3" /> {e.qty}x {e.name}</span>
                             ))}
                             {mods.added.map(a => (
-                              <span key={a.ingredient_id} className="text-xs text-green-600">
-                                +{a.qty} {a.name}
-                              </span>
+                              <span key={a.ingredient_id} className="text-[9px] font-black uppercase px-2.5 py-1 bg-green-50 text-green-600 rounded-lg border border-green-100 flex items-center gap-1.5"><Check className="w-3 h-3" /> ADD {a.name}</span>
                             ))}
-                          </span>
+                          </div>
                         )
                       })()}
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="border-t border-zinc-200 pt-3 flex justify-between">
-                <span className="font-semibold text-zinc-900">Total</span>
-                <span className="font-bold text-zinc-900">R$ {selectedOrder.total.toFixed(2)}</span>
-              </div>
-              <div>
-                <p className="text-xs text-zinc-500 uppercase mb-1">Status</p>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[selectedOrder.status]?.badge}`}>
-                  {STATUS_COLORS[selectedOrder.status]?.label}
-                </span>
-              </div>
-              <div className="flex gap-2 pt-2">
+            </div>
+
+            <div className="p-10 bg-zinc-50/50 border-t border-zinc-100 flex gap-4">
+              <div className="flex-1 flex gap-3">
                 {selectedOrder.status === 'pending' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'preparing')}
-                    disabled={loadingId === selectedOrder.id}
-                    className="flex-1 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                    className="flex-1 py-5 bg-zinc-950 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all shadow-xl shadow-zinc-950/10"
                   >
                     Start preparing
                   </button>
@@ -540,31 +571,26 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                 {selectedOrder.status === 'preparing' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'ready')}
-                    disabled={loadingId === selectedOrder.id}
-                    className="flex-1 px-3 py-2 bg-yellow-500 text-white rounded-lg text-sm font-medium hover:bg-yellow-600 disabled:opacity-50"
+                    className="flex-1 py-5 bg-primary text-zinc-950 rounded-full text-sm font-black uppercase tracking-widest hover:bg-zinc-950 hover:text-white transition-all shadow-xl shadow-primary/20"
                   >
-                    Mark ready
+                    Mark as ready
                   </button>
                 )}
                 {selectedOrder.status === 'ready' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'done')}
-                    disabled={loadingId === selectedOrder.id}
-                    className="flex-1 px-3 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-50"
+                    className="flex-1 py-5 bg-green-500 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-xl shadow-green-500/20"
                   >
-                    Complete
-                  </button>
-                )}
-                {(selectedOrder.status === 'pending' || selectedOrder.status === 'preparing') && (
-                  <button
-                    onClick={() => updateStatus(selectedOrder.id, 'cancelled')}
-                    disabled={loadingId === selectedOrder.id}
-                    className="flex-1 px-3 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-                  >
-                    Cancel
+                    Complete Fulfillment
                   </button>
                 )}
               </div>
+              <button 
+                onClick={() => updateStatus(selectedOrder.id, 'cancelled')}
+                className="px-10 py-5 rounded-full text-sm font-black uppercase tracking-widest text-zinc-400 hover:bg-red-50 hover:text-red-500 transition-all"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         </div>

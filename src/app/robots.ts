@@ -23,6 +23,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: 'https://xmartmenu.skale.club/sitemap.xml',
+    sitemap: 'https://xmartmenu.com/sitemap.xml',
   }
 }

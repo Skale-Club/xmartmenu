@@ -1,6 +1,21 @@
 'use client'
 
 import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { 
+  Settings, 
+  Globe, 
+  Palette, 
+  Layout, 
+  ListChecks, 
+  Star, 
+  Zap, 
+  MousePointer2, 
+  ExternalLink,
+  Save,
+  CheckCircle2,
+  XCircle
+} from 'lucide-react'
 
 const DEFAULT_LANDING = {
   hero: { badge: 'Digital menu for restaurants', heading: 'Your menu on your phone', heading_highlight: 'with a QR Code', subheading: 'Run a digital menu built for restaurant service, QR codes, and WhatsApp ordering. No app, no hassle.', cta_primary: 'Get started free', cta_secondary: 'See how it works' },
@@ -73,48 +88,59 @@ export default function SettingsClient({ settings }: Props) {
     setPricing({ ...pricing, plans })
   }
 
-  const input = 'w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900'
-  const textarea = input + ' resize-none'
-  const label = 'block text-xs font-medium text-zinc-600 mb-1'
-  const section = 'bg-white border border-zinc-200 rounded-xl p-5 space-y-4'
-  const sectionTitle = 'text-sm font-semibold text-zinc-900 pb-2 border-b border-zinc-100'
+  const input = 'w-full px-4 py-2.5 bg-white border border-zinc-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-zinc-400'
+  const textarea = input + ' resize-none min-h-[100px]'
+  const label = 'block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5 ml-1'
+  const section = 'bg-white border border-zinc-200 rounded-3xl p-8 shadow-sm space-y-6'
+  const sectionTitle = 'flex items-center gap-2 text-lg font-bold text-zinc-900'
 
   return (
-    <div className="p-8 max-w-3xl">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-zinc-900">Platform settings</h1>
-        <p className="text-sm text-zinc-500 mt-1">Manage text, colors and landing page content</p>
-      </div>
+    <div className="p-8 max-w-7xl mx-auto">
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-10"
+      >
+        <div className="flex items-center gap-3 mb-1">
+          <Settings className="w-5 h-5 text-indigo-600" />
+          <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Platform Settings</h1>
+        </div>
+        <p className="text-sm text-zinc-500 font-medium">Global configuration and landing page content management</p>
+      </motion.div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-6 text-sm text-red-700 flex items-center justify-between">
-          {error}<button onClick={() => setError(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
+        <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-4 mb-8 text-sm text-red-700 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-3">
+            <XCircle className="w-5 h-5" />
+            {error}
+          </div>
+          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4">✕</button>
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-6">
+      <form onSubmit={handleSave} className="space-y-10">
 
         {/* Plataforma */}
         <div className={section}>
-          <h2 className={sectionTitle}>Platform</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>App name</label><input className={input} value={platform.app_name} onChange={e => setPlatform({ ...platform, app_name: e.target.value })} /></div>
-            <div><label className={label}>Brand name</label><input className={input} value={platform.brand_name} onChange={e => setPlatform({ ...platform, brand_name: e.target.value })} /></div>
-            <div><label className={label}>Public menu footer</label><input className={input} value={platform.menu_footer_brand} onChange={e => setPlatform({ ...platform, menu_footer_brand: e.target.value })} /></div>
+          <h2 className={sectionTitle}><Globe className="w-5 h-5 text-indigo-500" /> Core Platform</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div><label className={label}>App Name</label><input className={input} value={platform.app_name} onChange={e => setPlatform({ ...platform, app_name: e.target.value })} /></div>
+            <div><label className={label}>Brand Name</label><input className={input} value={platform.brand_name} onChange={e => setPlatform({ ...platform, brand_name: e.target.value })} /></div>
+            <div><label className={label}>Menu Footer Text</label><input className={input} value={platform.menu_footer_brand} onChange={e => setPlatform({ ...platform, menu_footer_brand: e.target.value })} /></div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={label}>Default primary color (new tenants)</label>
-              <div className="flex items-center gap-3">
-                <input type="color" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} className="w-10 h-10 rounded-lg border border-zinc-300 cursor-pointer p-0.5" />
-                <input className={input} value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-zinc-50">
+            <div className="space-y-3">
+              <label className={label}>Default Primary Color</label>
+              <div className="flex items-center gap-3 bg-zinc-50 p-2 rounded-2xl border border-zinc-100">
+                <input type="color" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 bg-transparent" />
+                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} />
               </div>
             </div>
-            <div>
-              <label className={label}>Default accent color (new tenants)</label>
-              <div className="flex items-center gap-3">
-                <input type="color" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} className="w-10 h-10 rounded-lg border border-zinc-300 cursor-pointer p-0.5" />
-                <input className={input} value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} />
+            <div className="space-y-3">
+              <label className={label}>Default Accent Color</label>
+              <div className="flex items-center gap-3 bg-zinc-50 p-2 rounded-2xl border border-zinc-100">
+                <input type="color" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 bg-transparent" />
+                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} />
               </div>
             </div>
           </div>
@@ -122,53 +148,61 @@ export default function SettingsClient({ settings }: Props) {
 
         {/* Hero */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page | Hero</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Badge (top)</label><input className={input} value={hero.badge} onChange={e => setHero({ ...hero, badge: e.target.value })} /></div>
-            <div><label className={label}>Gradient highlight</label><input className={input} value={hero.heading_highlight} onChange={e => setHero({ ...hero, heading_highlight: e.target.value })} /></div>
+          <div className="flex items-center justify-between border-b border-zinc-100 pb-4 mb-2">
+            <h2 className={sectionTitle}><Layout className="w-5 h-5 text-blue-500" /> Hero Section</h2>
+            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest bg-zinc-50 px-3 py-1 rounded-full">Landing Page</span>
           </div>
-          <div><label className={label}>Main heading</label><input className={input} value={hero.heading} onChange={e => setHero({ ...hero, heading: e.target.value })} /></div>
-          <div><label className={label}>Subheading</label><textarea rows={2} className={textarea} value={hero.subheading} onChange={e => setHero({ ...hero, subheading: e.target.value })} /></div>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Primary button</label><input className={input} value={hero.cta_primary} onChange={e => setHero({ ...hero, cta_primary: e.target.value })} /></div>
-            <div><label className={label}>Secondary button</label><input className={input} value={hero.cta_secondary} onChange={e => setHero({ ...hero, cta_secondary: e.target.value })} /></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div><label className={label}>Top Badge Text</label><input className={input} value={hero.badge} onChange={e => setHero({ ...hero, badge: e.target.value })} /></div>
+            <div><label className={label}>Gradient Highlight</label><input className={input} value={hero.heading_highlight} onChange={e => setHero({ ...hero, heading_highlight: e.target.value })} /></div>
+          </div>
+          <div><label className={label}>Main Headline</label><input className={input} value={hero.heading} onChange={e => setHero({ ...hero, heading: e.target.value })} /></div>
+          <div><label className={label}>Subheadline Description</label><textarea rows={3} className={textarea} value={hero.subheading} onChange={e => setHero({ ...hero, subheading: e.target.value })} /></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div><label className={label}>Primary CTA Button</label><input className={input} value={hero.cta_primary} onChange={e => setHero({ ...hero, cta_primary: e.target.value })} /></div>
+            <div><label className={label}>Secondary CTA Button</label><input className={input} value={hero.cta_secondary} onChange={e => setHero({ ...hero, cta_secondary: e.target.value })} /></div>
           </div>
         </div>
 
         {/* Como funciona */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page | How it works</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Section title</label><input className={input} value={howItWorks.title} onChange={e => setHowItWorks({ ...howItWorks, title: e.target.value })} /></div>
-            <div><label className={label}>Subtitle</label><input className={input} value={howItWorks.subtitle} onChange={e => setHowItWorks({ ...howItWorks, subtitle: e.target.value })} /></div>
+          <h2 className={sectionTitle}><ListChecks className="w-5 h-5 text-green-500" /> Workflow Section</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-zinc-50">
+            <div><label className={label}>Section Headline</label><input className={input} value={howItWorks.title} onChange={e => setHowItWorks({ ...howItWorks, title: e.target.value })} /></div>
+            <div><label className={label}>Section Subtitle</label><input className={input} value={howItWorks.subtitle} onChange={e => setHowItWorks({ ...howItWorks, subtitle: e.target.value })} /></div>
           </div>
-          {howItWorks.steps.map((step: any, i: number) => (
-            <div key={i} className="bg-zinc-50 rounded-lg p-4 space-y-2">
-              <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Step {step.step}</p>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className={label}>Icon (emoji)</label><input className={input} value={step.icon} onChange={e => updateStep(i, 'icon', e.target.value)} /></div>
-                <div><label className={label}>Title</label><input className={input} value={step.title} onChange={e => updateStep(i, 'title', e.target.value)} /></div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {howItWorks.steps.map((step: any, i: number) => (
+              <div key={i} className="bg-zinc-50/50 border border-zinc-100 rounded-2xl p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xl font-black text-zinc-200">0{i+1}</span>
+                  <input className="w-12 text-center bg-white border border-zinc-200 rounded-lg py-1 text-sm" value={step.icon} onChange={e => updateStep(i, 'icon', e.target.value)} />
+                </div>
+                <div><label className={label}>Step Title</label><input className={input} value={step.title} onChange={e => updateStep(i, 'title', e.target.value)} /></div>
+                <div><label className={label}>Step Description</label><textarea rows={2} className={textarea} value={step.desc} onChange={e => updateStep(i, 'desc', e.target.value)} /></div>
               </div>
-              <div><label className={label}>Description</label><textarea rows={2} className={textarea} value={step.desc} onChange={e => updateStep(i, 'desc', e.target.value)} /></div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         {/* Funcionalidades */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page | Features</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Section title</label><input className={input} value={features.title} onChange={e => setFeatures({ ...features, title: e.target.value })} /></div>
-            <div><label className={label}>Subtitle</label><input className={input} value={features.subtitle} onChange={e => setFeatures({ ...features, subtitle: e.target.value })} /></div>
+          <h2 className={sectionTitle}><Star className="w-5 h-5 text-amber-500" /> Features Grid</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-zinc-50">
+            <div><label className={label}>Grid Title</label><input className={input} value={features.title} onChange={e => setFeatures({ ...features, title: e.target.value })} /></div>
+            <div><label className={label}>Grid Subtitle</label><input className={input} value={features.subtitle} onChange={e => setFeatures({ ...features, subtitle: e.target.value })} /></div>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {features.items.map((item: any, i: number) => (
-              <div key={i} className="bg-zinc-50 rounded-lg p-3 space-y-2">
-                <div className="grid grid-cols-3 gap-2">
-                  <div><label className={label}>Icon</label><input className={input} value={item.icon} onChange={e => updateFeature(i, 'icon', e.target.value)} /></div>
-                  <div className="col-span-2"><label className={label}>Title</label><input className={input} value={item.title} onChange={e => updateFeature(i, 'title', e.target.value)} /></div>
+              <div key={i} className="bg-white border border-zinc-100 rounded-2xl p-5 space-y-3 hover:border-amber-200 transition-colors group">
+                <div className="flex items-center gap-3">
+                  <input className="w-10 text-center bg-zinc-50 border border-zinc-100 rounded-xl py-1.5 text-sm group-hover:bg-amber-50 transition-colors" value={item.icon} onChange={e => updateFeature(i, 'icon', e.target.value)} />
+                  <div className="flex-1">
+                    <label className={label}>Title</label>
+                    <input className={input} value={item.title} onChange={e => updateFeature(i, 'title', e.target.value)} />
+                  </div>
                 </div>
-                <div><label className={label}>Description</label><input className={input} value={item.desc} onChange={e => updateFeature(i, 'desc', e.target.value)} /></div>
+                <div><label className={label}>Short Description</label><input className={input} value={item.desc} onChange={e => updateFeature(i, 'desc', e.target.value)} /></div>
               </div>
             ))}
           </div>
@@ -176,25 +210,31 @@ export default function SettingsClient({ settings }: Props) {
 
         {/* Planos */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page | Pricing</h2>
-          <div className="grid grid-cols-2 gap-4">
-            <div><label className={label}>Section title</label><input className={input} value={pricing.title} onChange={e => setPricing({ ...pricing, title: e.target.value })} /></div>
-            <div><label className={label}>Subtitle</label><input className={input} value={pricing.subtitle} onChange={e => setPricing({ ...pricing, subtitle: e.target.value })} /></div>
+          <h2 className={sectionTitle}><Zap className="w-5 h-5 text-purple-500" /> Pricing Architecture</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-6 border-b border-zinc-50">
+            <div><label className={label}>Section Header</label><input className={input} value={pricing.title} onChange={e => setPricing({ ...pricing, title: e.target.value })} /></div>
+            <div><label className={label}>Section Subtext</label><input className={input} value={pricing.subtitle} onChange={e => setPricing({ ...pricing, subtitle: e.target.value })} /></div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {pricing.plans.map((plan: any, i: number) => (
-              <div key={i} className="bg-zinc-50 rounded-lg p-4 space-y-2">
-                <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">{plan.name}</p>
-                <div><label className={label}>Name</label><input className={input} value={plan.name} onChange={e => updatePlan(i, 'name', e.target.value)} /></div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div><label className={label}>Price</label><input className={input} value={plan.price} onChange={e => updatePlan(i, 'price', e.target.value)} /></div>
-                  <div><label className={label}>Period</label><input className={input} value={plan.period} onChange={e => updatePlan(i, 'period', e.target.value)} /></div>
+              <div key={i} className={`rounded-3xl p-8 space-y-6 border transition-all ${plan.highlight ? 'bg-zinc-900 text-white border-zinc-800 shadow-xl' : 'bg-zinc-50/50 border-zinc-100 text-zinc-900'}`}>
+                <div className="flex items-center justify-between">
+                  <p className={`text-[10px] font-black uppercase tracking-[0.2em] ${plan.highlight ? 'text-indigo-400' : 'text-zinc-400'}`}>{plan.name} Tier</p>
+                  <input type="checkbox" checked={plan.highlight} onChange={e => updatePlan(i, 'highlight', e.target.checked)} className="rounded text-indigo-600 focus:ring-indigo-500" />
                 </div>
-                <div><label className={label}>Description</label><input className={input} value={plan.desc} onChange={e => updatePlan(i, 'desc', e.target.value)} /></div>
-                <div><label className={label}>Button text</label><input className={input} value={plan.cta} onChange={e => updatePlan(i, 'cta', e.target.value)} /></div>
-                <div>
-                  <label className={label}>Features (one per line)</label>
-                  <textarea rows={5} className={textarea} value={plan.features.join('\n')} onChange={e => updatePlan(i, 'features', e.target.value.split('\n').filter(Boolean))} />
+                
+                <div className="space-y-4">
+                  <div><label className={label}>Plan Name</label><input className={`${input} ${plan.highlight ? 'bg-zinc-800 border-zinc-700 text-white' : ''}`} value={plan.name} onChange={e => updatePlan(i, 'name', e.target.value)} /></div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div><label className={label}>Price</label><input className={`${input} ${plan.highlight ? 'bg-zinc-800 border-zinc-700 text-white' : ''}`} value={plan.price} onChange={e => updatePlan(i, 'price', e.target.value)} /></div>
+                    <div><label className={label}>Period</label><input className={`${input} ${plan.highlight ? 'bg-zinc-800 border-zinc-700 text-white' : ''}`} value={plan.period} onChange={e => updatePlan(i, 'period', e.target.value)} /></div>
+                  </div>
+                  <div><label className={label}>Internal Desc</label><input className={`${input} ${plan.highlight ? 'bg-zinc-800 border-zinc-700 text-white' : ''}`} value={plan.desc} onChange={e => updatePlan(i, 'desc', e.target.value)} /></div>
+                  <div><label className={label}>CTA Text</label><input className={`${input} ${plan.highlight ? 'bg-zinc-800 border-zinc-700 text-white' : ''}`} value={plan.cta} onChange={e => updatePlan(i, 'cta', e.target.value)} /></div>
+                  <div>
+                    <label className={label}>Key Features (Enter separated)</label>
+                    <textarea rows={5} className={`${textarea} ${plan.highlight ? 'bg-zinc-800 border-zinc-700 text-white' : ''}`} value={plan.features.join('\n')} onChange={e => updatePlan(i, 'features', e.target.value.split('\n').filter(Boolean))} />
+                  </div>
                 </div>
               </div>
             ))}
@@ -203,24 +243,41 @@ export default function SettingsClient({ settings }: Props) {
 
         {/* CTA Final */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page | Final CTA</h2>
-          <div><label className={label}>Heading</label><input className={input} value={cta.heading} onChange={e => setCta({ ...cta, heading: e.target.value })} /></div>
-          <div><label className={label}>Text</label><input className={input} value={cta.text} onChange={e => setCta({ ...cta, text: e.target.value })} /></div>
-          <div><label className={label}>Button</label><input className={input} value={cta.button} onChange={e => setCta({ ...cta, button: e.target.value })} /></div>
+          <h2 className={sectionTitle}><MousePointer2 className="w-5 h-5 text-orange-500" /> Final Call to Action</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2"><label className={label}>Main Headline</label><input className={input} value={cta.heading} onChange={e => setCta({ ...cta, heading: e.target.value })} /></div>
+            <div><label className={label}>Supportive Text</label><input className={input} value={cta.text} onChange={e => setCta({ ...cta, text: e.target.value })} /></div>
+            <div><label className={label}>Button Label</label><input className={input} value={cta.button} onChange={e => setCta({ ...cta, button: e.target.value })} /></div>
+          </div>
         </div>
 
         {/* Footer */}
         <div className={section}>
-          <h2 className={sectionTitle}>Landing Page | Footer</h2>
-          <div><label className={label}>Copyright text (use {'{year}'} for the year)</label><input className={input} value={footer.copyright} onChange={e => setFooter({ ...footer, copyright: e.target.value })} /></div>
+          <h2 className={sectionTitle}><ExternalLink className="w-5 h-5 text-zinc-400" /> Platform Footer</h2>
+          <div><label className={label}>Copyright Text (Use {'{year}'} for dynamic year)</label><input className={input} value={footer.copyright} onChange={e => setFooter({ ...footer, copyright: e.target.value })} /></div>
         </div>
 
-        <div className="sticky bottom-0 bg-white border-t border-zinc-100 -mx-8 px-8 py-4 flex items-center gap-4">
-          <button type="submit" disabled={loading}
-            className="bg-zinc-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors">
-            {loading ? 'Saving...' : saved ? '✓ Saved!' : 'Save settings'}
-          </button>
-          {saved && <p className="text-sm text-green-600">Changes saved successfully.</p>}
+        <div className="sticky bottom-8 left-0 right-0 flex justify-center pb-8 pointer-events-none">
+          <div className="bg-white/80 backdrop-blur-md border border-zinc-200 rounded-3xl p-3 shadow-2xl flex items-center gap-4 pointer-events-auto">
+            <button type="submit" disabled={loading}
+              className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-sm font-bold transition-all shadow-lg shadow-indigo-100 ${
+                saved ? 'bg-green-600 text-white' : 'bg-zinc-900 text-white hover:bg-zinc-800'
+              }`}>
+              {loading ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : saved ? (
+                <CheckCircle2 className="w-4 h-4" />
+              ) : (
+                <Save className="w-4 h-4" />
+              )}
+              {loading ? 'Saving...' : saved ? 'Changes Saved!' : 'Save All Settings'}
+            </button>
+            {saved && (
+              <p className="text-xs font-bold text-green-600 pr-4 animate-in fade-in slide-in-from-left-2">
+                Deployment successful
+              </p>
+            )}
+          </div>
         </div>
       </form>
     </div>

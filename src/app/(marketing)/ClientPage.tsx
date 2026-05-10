@@ -86,16 +86,16 @@ function Nav() {
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className="fixed top-0 inset-x-0 z-50 h-16 border-b border-white/10 bg-zinc-950/50 backdrop-blur-xl flex items-center px-4 sm:px-6"
     >
-      <div className="max-w-5xl mx-auto w-full flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-            <UtensilsCrossed className="w-4 h-4 text-white" />
-          </div>
-          <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-400">XmartMenu</span>
+      <div className="w-full px-8 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <a href="/" className="flex items-center gap-3">
+            <img src="/icon.png" alt="XmartMenu Logo" className="w-8 h-8 object-cover" />
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">XmartMenu</span>
+          </a>
         </div>
         <a
           href="/auth/login"
-          className="relative group overflow-hidden bg-white text-zinc-950 px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2"
+          className="relative group overflow-hidden bg-primary text-zinc-950 px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2"
         >
           <span className="relative z-10">Sign In</span>
           <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
@@ -107,18 +107,18 @@ function Nav() {
 
 function Hero() {
   return (
-    <section className="relative pt-32 pb-24 px-4 overflow-hidden min-h-[90vh] flex flex-col justify-center">
+    <section className="relative pt-8 pb-4 px-4 overflow-hidden min-h-[20vh] flex flex-col justify-center">
       {/* Background Glows */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-500/20 rounded-full blur-[120px] opacity-50 pointer-events-none" />
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-purple-500/10 rounded-full blur-[100px] opacity-30 pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] opacity-40 pointer-events-none" />
+      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-yellow-400/5 rounded-full blur-[100px] opacity-30 pointer-events-none" />
       
-      <div className="max-w-4xl mx-auto text-center relative z-10">
+      <div className="w-full px-8 pt-32 pb-20 relative z-10 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-indigo-300 text-sm font-medium mb-8">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-primary text-sm font-medium mb-8">
             <Sparkles className="w-4 h-4" />
             The future of dining is here
           </span>
@@ -131,7 +131,7 @@ function Hero() {
           className="text-5xl sm:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6"
         >
           Your restaurant menu, <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-yellow-200 to-white">
             built for service.
           </span>
         </motion.h1>
@@ -153,7 +153,7 @@ function Hero() {
         >
           <a
             href="/auth/login"
-            className="w-full sm:w-auto inline-flex items-center justify-center bg-white text-zinc-950 px-8 py-4 rounded-full text-lg font-bold hover:bg-zinc-200 transition-colors shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.3)]"
+            className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-zinc-950 px-8 py-4 rounded-full text-lg font-bold hover:bg-white transition-all hover:scale-105"
           >
             Sign in to dashboard
           </a>
@@ -164,14 +164,6 @@ function Hero() {
             See how it works
           </a>
         </motion.div>
-        <motion.p 
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
-          className="mt-6 text-sm text-zinc-500"
-        >
-          No credit card required. Free during beta.
-        </motion.p>
       </div>
     </section>
   )
@@ -180,7 +172,7 @@ function Hero() {
 function HowItWorks() {
   return (
     <section id="how-it-works" className="py-24 px-4 relative">
-      <div className="max-w-5xl mx-auto">
+      <div className="w-full px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -202,9 +194,9 @@ function HowItWorks() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.2 }}
-              className="relative bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-8 rounded-3xl hover:bg-zinc-900 transition-colors group"
+              className="relative bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-8 rounded-[1.25rem] hover:bg-zinc-900 transition-colors group"
             >
-              <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center text-xl font-bold mb-6 mx-auto md:mx-0 group-hover:scale-110 group-hover:bg-indigo-500 group-hover:text-white transition-all duration-300">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xl font-bold mb-6 mx-auto md:mx-0 group-hover:scale-110 group-hover:bg-primary group-hover:text-zinc-950 transition-all duration-300">
                 <Icon className="w-8 h-8" />
               </div>
               <p className="text-2xl font-bold text-white mt-4 mb-3 text-center md:text-left">{title}</p>
@@ -221,7 +213,7 @@ function FeatureBlocks() {
   return (
     <section className="py-24 px-4 relative">
       <div className="absolute inset-0 bg-zinc-950" />
-      <div className="max-w-5xl mx-auto relative z-10">
+      <div className="w-full px-8 relative z-10">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -243,14 +235,14 @@ function FeatureBlocks() {
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
               whileHover={{ y: -5 }}
-              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 relative overflow-hidden group"
+              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[1.25rem] p-8 relative overflow-hidden group"
             >
               {/* Hover gradient effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
               
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-6">
-                  <Icon className="w-6 h-6 text-white" />
+                  <Icon className="w-6 h-6 text-primary" />
                 </div>
                 <h3 className="text-2xl font-bold text-white mb-3">{title}</h3>
                 <p className="text-lg text-zinc-400 leading-relaxed">{body}</p>
@@ -266,7 +258,7 @@ function FeatureBlocks() {
 function FAQ() {
   return (
     <section className="py-24 px-4">
-      <div className="max-w-3xl mx-auto">
+      <div className="w-full px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -286,9 +278,9 @@ function FAQ() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group bg-white/5 border border-white/10 rounded-2xl overflow-hidden [&_summary::-webkit-details-marker]:hidden"
+              className="group bg-white/5 border border-white/10 rounded-xl overflow-hidden [&_summary::-webkit-details-marker]:hidden"
             >
-              <summary className="p-6 text-lg font-bold text-white cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+              <summary className="p-6 text-lg font-bold text-white cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 {q}
                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-open:rotate-180 transition-transform duration-300 shrink-0 ml-4">
                   <ChevronDown className="w-4 h-4 text-white" />
@@ -307,11 +299,11 @@ function FAQ() {
 
 function FooterCTABand() {
   return (
-    <section className="py-24 px-4 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/50 to-purple-900/50" />
+    <section className="py-24 px-8 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-zinc-950" />
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       
-      <div className="max-w-4xl mx-auto text-center relative z-10 bg-zinc-950/40 backdrop-blur-xl border border-white/10 p-12 sm:p-20 rounded-[3rem]">
+      <div className="w-full relative z-10 bg-zinc-950/40 backdrop-blur-xl border border-white/10 p-12 sm:p-20 rounded-[2rem] text-center">
         <motion.h2 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -337,7 +329,7 @@ function FooterCTABand() {
         >
           <a
             href="/auth/login"
-            className="inline-flex items-center justify-center bg-white text-zinc-950 px-10 py-5 rounded-full text-xl font-bold hover:bg-zinc-200 transition-transform hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:shadow-[0_0_60px_rgba(255,255,255,0.3)]"
+            className="inline-flex items-center justify-center bg-primary text-zinc-950 px-10 py-5 rounded-full text-xl font-bold hover:bg-white transition-all hover:scale-105 active:scale-95"
           >
             Sign in now
           </a>
@@ -350,14 +342,12 @@ function FooterCTABand() {
 function Footer() {
   return (
     <footer className="border-t border-white/10 bg-zinc-950 px-4 pt-16 pb-8">
-      <div className="max-w-5xl mx-auto">
+      <div className="w-full px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Logo + tagline */}
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-6 h-6 rounded bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
-                <UtensilsCrossed className="w-3 h-3 text-white" />
-              </div>
+            <div className="flex items-center gap-3 mb-4">
+               <img src="/icon.png" alt="XmartMenu Logo" className="w-6 h-6 object-cover" />
               <span className="text-lg font-bold text-white">XmartMenu</span>
             </div>
             <p className="text-zinc-400 text-base max-w-sm">
@@ -368,14 +358,14 @@ function Footer() {
               <a
                 href="#"
                 aria-label="Instagram"
-                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-primary hover:border-primary/50 transition-colors"
               >
                 <Camera className="w-5 h-5" />
               </a>
               <a
                 href="#"
                 aria-label="WhatsApp"
-                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-primary hover:border-primary/50 transition-colors"
               >
                 <MessageCircle className="w-5 h-5" />
               </a>
@@ -412,7 +402,7 @@ function Footer() {
 
 export default function ClientLandingPage() {
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-indigo-500/30">
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30">
       <Nav />
       <main>
         <Hero />

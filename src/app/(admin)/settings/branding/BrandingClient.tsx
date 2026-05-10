@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { getInitials } from '@/lib/utils'
 import type { TenantSettings } from '@/types/database'
+import { Palette, ExternalLink, Camera, Image as ImageIcon, Share2, MessageCircle, Instagram, ShoppingBag, CheckCircle2, AlertCircle, Save, Info } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 interface Props {
   settings: TenantSettings | null
@@ -38,8 +40,6 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
     const ext = file.name.split('.').pop()
     const filename = `${tenantId}/${type}.${ext}`
 
-    // NOTE: Direct Supabase Storage upload. When migrating to S3,
-    // replace with POST to /api/admin/branding/upload (see src/lib/storage/index.ts).
     const { data, error } = await supabase.storage
       .from('tenant-assets')
       .upload(filename, file, { upsert: true })
@@ -57,7 +57,6 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
     setLoading(true)
 
     const payload = { ...form, logo_url: logoUrl || null, banner_url: bannerUrl || null, tenant_id: tenantId }
-    console.log('Saving payload:', payload)
     
     const { data: existing } = await supabase
       .from('tenant_settings')
@@ -79,12 +78,11 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
         .select()
     }
     
-    const { data, error } = result
-    console.log('Save result:', { data, error })
+    const { error } = result
     
     if (error) {
-      console.error('Error saving tenant settings:', error?.message, error?.code, error?.details, error)
-      alert('Error saving: ' + (error.message ?? JSON.stringify(error)))
+      console.error('Error saving tenant settings:', error)
+      alert('Error saving settings')
       setLoading(false)
       return
     }
@@ -94,149 +92,265 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
     setLoading(false)
   }
 
-  return (
-    <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold text-zinc-900 mb-1">Branding</h1>
-      <p className="text-sm text-zinc-500 mb-6">Customize the visual identity of your menu</p>
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const labelClassName = "block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1"
 
-      <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4 mb-6 text-sm flex items-center justify-between">
+  return (
+    <div className="p-8 w-full space-y-10">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b border-zinc-100">
         <div>
-          <p className="text-zinc-500">Public menu link:</p>
-          <a href={publicMenuUrl} target="_blank" rel="noopener noreferrer" className="text-zinc-900 font-medium hover:underline">{publicMenuUrl}</a>
+          <div className="flex items-center gap-2 mb-2">
+            <Palette className="w-5 h-5 text-primary" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Identity</span>
+          </div>
+          <h1 className="text-4xl font-black text-zinc-950 tracking-tight">Branding</h1>
+          <p className="text-sm font-bold text-zinc-500 mt-1">Define the visual DNA of your digital menu</p>
+        </div>
+      </div>
+
+      {/* Public Link Card */}
+      <div className="bg-zinc-950 rounded-lg p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-[80px] -mr-32 -mt-32 transition-opacity group-hover:opacity-100 opacity-50" />
+        <div className="relative z-10">
+          <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-2">Live Public Menu</p>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-white/5 rounded-lg border border-white/10">
+              <Share2 className="w-5 h-5 text-zinc-400" />
+            </div>
+            <div>
+              <p className="text-lg font-black text-white tracking-tight leading-tight">{publicMenuUrl}</p>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Your unique gateway</p>
+            </div>
+          </div>
         </div>
         <a href={publicMenuUrl} target="_blank" rel="noopener noreferrer"
-          className="text-xs px-3 py-1.5 bg-zinc-900 text-white rounded-lg hover:bg-zinc-700 transition-colors flex-shrink-0 ml-4">
-          View menu
+          className="relative z-10 bg-primary text-zinc-950 px-10 py-5 rounded-full text-sm font-black hover:bg-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-lg shadow-primary/20 shrink-0">
+          <ExternalLink className="w-4 h-4" />
+          Preview Live
         </a>
       </div>
 
-      <form onSubmit={handleSave} className="space-y-6">
-        {/* Logo */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Restaurant logo</h2>
-          <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-xl border border-zinc-200 bg-zinc-50 flex items-center justify-center overflow-hidden flex-shrink-0">
-              {logoUrl ? (
-                <Image src={logoUrl} alt="Logo" width={80} height={80} className="object-contain" />
-              ) : (
-                <span className="text-xl font-bold tracking-wide text-zinc-700">{getInitials(tenantName)}</span>
-              )}
-            </div>
+      <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        <div className="space-y-10">
+          {/* Logo & Banner */}
+          <div className="bg-white border border-zinc-100 rounded-lg p-10 space-y-10 shadow-sm">
             <div>
-              <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo')}
-                className="text-sm text-zinc-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200" />
-              {uploading === 'logo' && <p className="text-xs text-zinc-400 mt-1">Uploading...</p>}
-              {logoUrl && uploading !== 'logo' && (
-                <button type="button" onClick={() => setLogoUrl('')} className="text-xs text-red-500 hover:text-red-700 mt-1 block">Remove logo</button>
-              )}
-              <p className="text-xs text-zinc-400 mt-1">PNG or SVG recommended. Max 2MB.</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Banner */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Menu banner</h2>
-          {bannerUrl && (
-            <div className="relative w-full h-28 rounded-xl border border-zinc-200 overflow-hidden mb-3">
-              <Image src={bannerUrl} alt="Banner" fill sizes="100vw" className="object-cover" />
-            </div>
-          )}
-          <input type="file" accept="image/*" onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'banner')}
-            className="text-sm text-zinc-600 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-zinc-100 file:text-zinc-700 hover:file:bg-zinc-200" />
-          {uploading === 'banner' && <p className="text-xs text-zinc-400 mt-1">Uploading...</p>}
-          {bannerUrl && uploading !== 'banner' && (
-            <button type="button" onClick={() => setBannerUrl('')} className="text-xs text-red-500 hover:text-red-700 mt-1 block">Remove banner</button>
-          )}
-          <p className="text-xs text-zinc-400 mt-1">Appears just below the header in the menu. 3:1 ratio recommended.</p>
-        </div>
-
-        {/* Cores */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Colors</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { key: 'primary_color', label: 'Primary color (header)' },
-              { key: 'accent_color', label: 'Accent color (prices)' },
-            ].map(field => (
-              <div key={field.key}>
-                <label className="block text-sm text-zinc-600 mb-2">{field.label}</label>
-                <div className="flex items-center gap-3">
-                  <input type="color" value={(form as any)[field.key]}
-                    onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                    className="w-10 h-10 rounded-lg border border-zinc-300 cursor-pointer p-0.5" />
-                  <input type="text" value={(form as any)[field.key]}
-                    onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                    className="flex-1 px-3 py-2 border border-zinc-300 rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-zinc-900" />
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Camera className="w-4 h-4 text-primary" />
+                </div>
+                <h2 className="text-xl font-black text-zinc-950 tracking-tight">Logotype</h2>
+              </div>
+              <div className="flex items-center gap-8">
+                <div className="w-32 h-32 rounded-sm border border-zinc-100 bg-zinc-50 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-inner group relative">
+                  {logoUrl ? (
+                    <Image src={logoUrl} alt="Logo" width={128} height={128} className="object-contain" />
+                  ) : (
+                    <span className="text-3xl font-black tracking-tighter text-zinc-300">{getInitials(tenantName)}</span>
+                  )}
+                  {uploading === 'logo' && <div className="absolute inset-0 bg-zinc-950/40 backdrop-blur-sm flex items-center justify-center text-[10px] text-white font-black uppercase tracking-widest">Uploading...</div>}
+                </div>
+                <div className="flex-1 space-y-4">
+                  <input 
+                    type="file" 
+                    id="logo-upload"
+                    accept="image/*" 
+                    onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo')}
+                    className="hidden" 
+                  />
+                  <label htmlFor="logo-upload" className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-950 text-white rounded-lg text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-primary hover:text-zinc-950 transition-all shadow-lg shadow-zinc-950/10">
+                    Choose Logo
+                  </label>
+                  {logoUrl && (
+                    <button type="button" onClick={() => setLogoUrl('')} className="block text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition-colors ml-1">Remove Asset</button>
+                  )}
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2 leading-relaxed">PNG or SVG · 1:1 Aspect · Max 2MB</p>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Social & Ordering */}
-        <div className="bg-white border border-zinc-200 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-zinc-900 mb-4">Social & ordering</h2>
-          <div className="space-y-3">
-            {[
-              { key: 'whatsapp', label: 'WhatsApp (full number)', placeholder: '15550000000' },
-              { key: 'instagram', label: 'Instagram (without @)', placeholder: 'myrestaurant' },
-            ].map(field => (
-              <div key={field.key}>
-                <label className="block text-sm text-zinc-600 mb-1">{field.label}</label>
-                <input value={(form as any)[field.key]}
-                  onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
-                  placeholder={field.placeholder}
-                  className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900" />
+            <div className="pt-10 border-t border-zinc-50">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <ImageIcon className="w-4 h-4 text-primary" />
+                </div>
+                <h2 className="text-xl font-black text-zinc-950 tracking-tight">Hero Banner</h2>
               </div>
-            ))}
-          </div>
-          {/* General orders toggle */}
-          <div className="mt-4 pt-4 border-t border-zinc-100 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-zinc-800">Enable orders</p>
-              <p className="text-xs text-zinc-400 mt-0.5">Show all order buttons on the public menu</p>
+              {bannerUrl && (
+                <div className="relative w-full h-40 rounded-sm border border-zinc-100 overflow-hidden mb-6 shadow-md group">
+                  <Image src={bannerUrl} alt="Banner" fill sizes="100vw" className="object-cover group-hover:scale-105 transition-transform duration-700" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/40 to-transparent" />
+                </div>
+              )}
+              <div className="flex items-center gap-4">
+                <input 
+                  type="file" 
+                  id="banner-upload"
+                  accept="image/*" 
+                  onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'banner')}
+                  className="hidden" 
+                />
+                <label htmlFor="banner-upload" className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-50 text-zinc-950 border border-zinc-200 rounded-lg text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-zinc-100 transition-all">
+                  Change Banner
+                </label>
+                {bannerUrl && (
+                  <button type="button" onClick={() => setBannerUrl('')} className="text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition-colors">Delete Banner</button>
+                )}
+              </div>
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4 leading-relaxed">3:1 Aspect recommended for optimal display on mobile devices.</p>
             </div>
-            <button type="button" onClick={() => setForm(f => ({ ...f, orders_enabled: !f.orders_enabled }))}
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.orders_enabled ? 'bg-zinc-900' : 'bg-zinc-200'}`}>
-              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${form.orders_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
           </div>
-          {/* WhatsApp orders toggle */}
-          <div className="mt-3 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-zinc-800">Enable WhatsApp orders</p>
-              <p className="text-xs text-zinc-400 mt-0.5">Show the "Order via WhatsApp" button on the public menu</p>
+
+          {/* Colors */}
+          <div className="bg-white border border-zinc-100 rounded-lg p-10 shadow-sm">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Palette className="w-4 h-4 text-primary" />
+              </div>
+              <h2 className="text-xl font-black text-zinc-950 tracking-tight">Color Palette</h2>
             </div>
-            <button
-              type="button"
-              onClick={() => setForm(f => ({ ...f, whatsapp_orders_enabled: !f.whatsapp_orders_enabled }))}
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.whatsapp_orders_enabled ? 'bg-zinc-900' : 'bg-zinc-200'}`}
-            >
-              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${form.whatsapp_orders_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
-          </div>
-          {/* Direct orders toggle */}
-          <div className="mt-3 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-zinc-800">Enable direct orders</p>
-              <p className="text-xs text-zinc-400 mt-0.5">Allow customers to order directly from the menu</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              {[
+                { key: 'primary_color', label: 'Primary Brand Color', desc: 'Used for headers and core UI' },
+                { key: 'accent_color', label: 'Interactive Accent', desc: 'Used for prices and highlights' },
+              ].map(field => (
+                <div key={field.key} className="space-y-3">
+                  <label className={labelClassName}>{field.label}</label>
+                  <div className="flex items-center gap-4">
+                    <div className="relative group">
+                      <input 
+                        type="color" 
+                        value={(form as any)[field.key]}
+                        onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                        className="w-14 h-14 rounded-lg border-2 border-zinc-100 cursor-pointer p-1.5 bg-white shadow-sm transition-transform group-hover:scale-105" 
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <input 
+                        type="text" 
+                        value={(form as any)[field.key]}
+                        onChange={e => setForm(f => ({ ...f, [field.key]: e.target.value }))}
+                        className={cn(inputClassName, "font-mono uppercase text-[10px] py-2.5")} 
+                      />
+                      <p className="text-[9px] font-medium text-zinc-400 mt-1.5 ml-1">{field.desc}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-            <button
-              type="button"
-              onClick={() => setForm(f => ({ ...f, direct_orders_enabled: !f.direct_orders_enabled }))}
-              className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${form.direct_orders_enabled ? 'bg-zinc-900' : 'bg-zinc-200'}`}
-            >
-              <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${form.direct_orders_enabled ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
           </div>
-          <p className="text-xs text-zinc-400 mt-3">Address and phone are managed in <a href="/settings/store" className="underline hover:text-zinc-600">Store Settings</a>.</p>
         </div>
 
-        <button type="submit" disabled={loading}
-          className="bg-zinc-900 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors">
-          {loading ? 'Saving...' : saved ? '✓ Saved!' : 'Save settings'}
-        </button>
+        <div className="space-y-10">
+          {/* Social & Ordering */}
+          <div className="bg-white border border-zinc-100 rounded-lg p-10 shadow-sm">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Share2 className="w-4 h-4 text-primary" />
+              </div>
+              <h2 className="text-xl font-black text-zinc-950 tracking-tight">Connections</h2>
+            </div>
+            <div className="space-y-8">
+              <div className="space-y-4">
+                <div className="relative">
+                  <label className={labelClassName}>WhatsApp Integration</label>
+                  <div className="absolute left-5 top-11 text-zinc-400">
+                    <MessageCircle className="w-5 h-5" />
+                  </div>
+                  <input 
+                    value={form.whatsapp}
+                    onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
+                    placeholder="e.g. 15550000000"
+                    className={cn(inputClassName, "pl-14")} 
+                  />
+                  <p className="text-[9px] font-medium text-zinc-400 mt-2 ml-1 flex items-center gap-1.5">
+                    <Info className="w-3 h-3" />
+                    Format: Country Code + Area Code + Number
+                  </p>
+                </div>
+
+                <div className="relative">
+                  <label className={labelClassName}>Instagram Handle</label>
+                  <div className="absolute left-5 top-11 text-zinc-400">
+                    <Instagram className="w-5 h-5" />
+                  </div>
+                  <div className="relative">
+                    <span className="absolute left-11 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">@</span>
+                    <input 
+                      value={form.instagram}
+                      onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))}
+                      placeholder="username"
+                      className={cn(inputClassName, "pl-14")} 
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-8 border-t border-zinc-50 space-y-6">
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <ShoppingBag className="w-4 h-4 text-primary" />
+                  </div>
+                  <h2 className="text-xl font-black text-zinc-950 tracking-tight">Ordering System</h2>
+                </div>
+
+                {[
+                  { key: 'orders_enabled', label: 'Master Order Control', desc: 'Global switch to enable/disable all order features' },
+                  { key: 'whatsapp_orders_enabled', label: 'Direct WhatsApp Checkout', desc: 'Let customers send their cart details via WhatsApp message' },
+                  { key: 'direct_orders_enabled', label: 'Native Ordering System', desc: 'Enable full checkout and payment processing (Add-on)' },
+                ].map(field => (
+                  <div key={field.key} className="flex items-center justify-between group p-4 rounded-lg hover:bg-zinc-50 transition-all cursor-pointer" onClick={() => setForm(f => ({ ...f, [field.key]: !(f as any)[field.key] }))}>
+                    <div className="max-w-[70%]">
+                      <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">{(field as any).label}</p>
+                      <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">{(field as any).desc}</p>
+                    </div>
+                    <button 
+                      type="button" 
+                      className={cn(
+                        "relative inline-flex h-7 w-12 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-300 focus:outline-none",
+                        (form as any)[field.key] ? "bg-primary" : "bg-zinc-200"
+                      )}
+                    >
+                      <span className={cn(
+                        "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
+                        (form as any)[field.key] ? "translate-x-5" : "translate-x-0"
+                      )} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Sticky/Bottom Save Bar */}
+          <div className="bg-zinc-950 rounded-lg p-8 shadow-2xl flex items-center justify-between gap-6 border border-white/5">
+            <div className="hidden sm:block">
+              <p className="text-white font-black tracking-tight text-lg">Ready to sync?</p>
+              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Changes are updated in real-time.</p>
+            </div>
+            <button 
+              type="submit" 
+              disabled={loading}
+              className={cn(
+                "flex-1 sm:flex-none bg-primary text-zinc-950 px-12 py-5 rounded-full text-lg font-black transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-primary/20",
+                saved ? "bg-green-500 text-white" : "hover:bg-white"
+              )}
+            >
+              {loading ? 'Processing...' : saved ? (
+                <>
+                  <CheckCircle2 className="w-6 h-6" />
+                  Settings Updated
+                </>
+              ) : (
+                <>
+                  <Save className="w-6 h-6" />
+                  Deploy Changes
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   )

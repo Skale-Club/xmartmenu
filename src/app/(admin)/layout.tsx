@@ -62,11 +62,11 @@ export default async function AdminLayout({
     ])
 
     return (
-      <div className="flex h-screen bg-zinc-50">
-        <div className="flex flex-col w-60 flex-shrink-0">
-          <div className="bg-amber-500 text-white text-xs text-center py-1.5 font-medium">
-            Viewing: {tenant.name}
-            <a href="/api/admin/exit-preview" className="ml-2 underline">Exit</a>
+      <div className="flex h-screen bg-zinc-950">
+        <div className="flex flex-col w-64 flex-shrink-0 border-r border-zinc-800">
+          <div className="bg-primary text-zinc-950 text-[10px] py-2 font-black uppercase tracking-widest flex items-center justify-center gap-2">
+            <span>Viewing: {tenant.name}</span>
+            <a href="/api/admin/exit-preview" className="px-2 py-0.5 rounded-sm bg-zinc-950 text-white text-[9px] hover:bg-zinc-800 transition-colors no-underline">Exit</a>
           </div>
           <div className="flex-1">
             <AdminSidebar
@@ -79,8 +79,8 @@ export default async function AdminLayout({
               ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
             />
           </div>
-        </div>
-        <main className="flex-1 overflow-y-auto">{children}</main>
+         </div>
+         <main className="flex-1 overflow-y-auto bg-zinc-100">{children}</main>
       </div>
     )
   }
@@ -101,7 +101,7 @@ export default async function AdminLayout({
   ])
 
   return (
-    <div className="flex h-screen bg-zinc-50">
+    <div className="flex h-screen bg-zinc-950">
       <AdminSidebar
         tenantName={profile.tenants?.name ?? 'My Restaurant'}
         tenantSlug={(profile.tenants as any)?.slug}
@@ -111,9 +111,9 @@ export default async function AdminLayout({
         activeMenuId={activeMenu?.id ?? null}
         ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
       />
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
+       <main className="flex-1 overflow-y-auto bg-zinc-100">
+         {children}
+       </main>
     </div>
   )
 }

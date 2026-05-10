@@ -1,23 +1,16 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import '../globals.css'
-
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  preload: true,
-})
 
 export const metadata: Metadata = {
   title: 'XmartMenu | Digital menus built for service',
   description:
     'Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.',
-  metadataBase: new URL('https://xmartmenu.skale.club'),
+  metadataBase: new URL('https://xmartmenu.com'),
   openGraph: {
     title: 'XmartMenu | Digital menus built for service',
     description:
       'Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.',
-    url: 'https://xmartmenu.skale.club',
+    url: 'https://xmartmenu.com',
     siteName: 'XmartMenu',
     locale: 'en_US',
     type: 'website',
@@ -45,8 +38,8 @@ export default function MarketingLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className="h-full antialiased">
-      <body className={`${inter.className} min-h-full bg-white`}>
+    <html lang="en">
+      <body className="min-h-full bg-white">
         {children}
       </body>
     </html>
