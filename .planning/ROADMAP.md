@@ -12,7 +12,8 @@
 - ✅ **v1.7 Customization** — Phases 23-25 (shipped 2026-05-08)
 - ✅ **v1.8 KDS+** — Phases 26-27 (shipped 2026-05-08)
 - ✅ **v1.9 Performance Gaps** — Phases 28-29 (shipped 2026-05-08)
-- ✅ **v2.0 Monetization** — SEED-009 (shipped 2026-05-09)
+- ✅ **v2.0 Monetization** — Phases 30-34 (shipped 2026-05-09)
+- ⏳ **v2.1 Custom Domains** — Phase 35 (in progress)
 
 ## Completed Milestones
 
@@ -117,3 +118,33 @@ Key Requirements:
 - MON-05: Webhook handlers with idempotency
 
 </details>
+
+---
+
+## Phases
+
+- [ ] **Phase 35: Custom Domain Infrastructure** — DB migration + middleware hostname routing + admin UI + DNS instructions
+
+---
+
+## Phase Details
+
+### Phase 35: Custom Domain Infrastructure
+
+**Goal:** Allow tenants to use their own custom domain (e.g., `sitedocliente.com`) instead of platform subdomain (`xmartmenu.skale.club/nomedocliente`)
+
+**Depends on:** Phase 34 (previous milestone complete)
+
+**Requirements:** DOM-01.1, DOM-01.2, DOM-01.3, DOM-01.4, DOM-01.5, DOM-01.6
+
+**Success Criteria** (what must be TRUE):
+
+1. Tenant can enter a custom domain in admin settings and save it to database
+2. Middleware resolves tenant by `host` header when it matches a registered custom_domain
+3. Customers accessing `customdomain.com` see the tenant's menu without requiring slug prefix in URL
+4. Admin UI displays CNAME instructions telling tenant to point their domain to the platform
+5. System validates custom domain resolves to platform before allowing activation
+
+**Plans**: TBD
+
+**UI hint**: yes
