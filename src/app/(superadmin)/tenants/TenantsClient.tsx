@@ -4,15 +4,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  ExternalLink, 
-  LayoutDashboard, 
-  Settings, 
-  Users, 
-  Menu as MenuIcon, 
-  Trash2, 
-  Edit3, 
-  ChevronDown, 
+import {
+  LayoutDashboard,
+  Users,
+  Menu as MenuIcon,
+  Trash2,
+  Edit3,
+  ChevronDown,
   ChevronUp,
   Mail,
   Globe,
@@ -518,19 +516,12 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                     >
                       <MenuIcon className="w-4 h-4" />
                     </a>
-                    <a 
+                    <a
                       href={`/api/admin/enter-preview?tenant=${client.id}`}
                       title="Admin Dashboard"
                       className="p-2 text-zinc-600 hover:text-zinc-900 hover:bg-white rounded-lg transition-all"
                     >
                       <LayoutDashboard className="w-4 h-4" />
-                    </a>
-                    <a 
-                      href={`/customize/${client.id}`}
-                      title="Customize Appearance"
-                      className="p-2 text-zinc-600 hover:text-zinc-900 hover:bg-white rounded-lg transition-all"
-                    >
-                      <Settings className="w-4 h-4" />
                     </a>
                   </div>
 
