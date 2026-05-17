@@ -2,40 +2,40 @@
 gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Custom Domains
-status: in_progress
-stopped_at: v2.1 roadmap created — awaiting phase planning
-last_updated: "2026-05-10T12:00:00.000Z"
-last_activity: 2026-05-10
+status: completed
+stopped_at: v2.1 shipped + audit remediation (commits 1851b25, 0bfb9d1, 533cd8b, 7cb5d18) — awaiting next milestone
+last_updated: "2026-05-17T05:30:00.000Z"
+last_activity: 2026-05-17
 progress:
   total_phases: 1
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  completed_phases: 1
+  total_plans: 1
+  completed_plans: 1
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-08)
+See: .planning/PROJECT.md (updated 2026-05-17)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v2.0 Monetization shipped — awaiting next milestone
+**Current focus:** v2.1 Custom Domains shipped — awaiting next milestone
 
 ## Current Position
 
-Phase: 35 (in progress)
-Plan: 01 (implementing)
-Status: Phase 35: Custom Domain Infrastructure — implementing
-Last activity: 2026-05-10
+Phase: — (no active phase)
+Plan: — (no active plan)
+Status: All seeds completed (SEED-001 → SEED-010). v2.1 shipped 2026-05-10. Full-system audit + remediation shipped 2026-05-17 (11/11 P0, 8/9 P1, 5/12 P2, 3/6 P3 fixed; migration 032 applied & repaired in supabase_migrations).
+Last activity: 2026-05-17
 
 ## Milestone Overview
 
-v2.1: Custom Domains — SEED-010
+v2.1: Custom Domains — SEED-010 (shipped)
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 35 | Custom Domain Infrastructure | DOM-01.1 through DOM-01.6 | In progress |
+| 35 | Custom Domain Infrastructure | DOM-01.1 through DOM-01.6 | Shipped (commit 6781d06) |
 
 ## Performance Metrics
 
@@ -247,7 +247,11 @@ Recent decisions affecting current work:
 - [Phase 33]: Webhook returns 200 immediately — async processing for slow ops
 ### Pending Todos
 
-Nenhum — todos os seeds implementados, todos os milestones shipados.
+Nenhum — todos os seeds implementados, todos os milestones shipados, auditoria full-system aplicada.
+
+Deferred (não bloqueia): P1-03/P1-04 rate-limiting (Vercel/Upstash setup, agendado para v2.2);
+2 vulns moderate `postcss` transitivas via Next.js (esperando upstream fix);
+P2 cosméticos (lint warnings, `<img>` → `next/image`).
 
 ### Blockers/Concerns
 
@@ -255,16 +259,17 @@ Nenhum.
 
 ## Session Continuity
 
-Last session: 2026-05-10T12:00:00.000Z
-Stopped at: v2.1 roadmap created — awaiting phase planning
+Last session: 2026-05-17T05:30:00.000Z
+Stopped at: v2.1 shipped + full-system audit remediation pushed to main; CI green; supabase migration history sincronizado.
 
 ---
 
-**Project Status: IN DEVELOPMENT**
+**Project Status: IDLE (all milestones shipped — ready for next seed/milestone)**
 
 | Item | Status |
 |------|--------|
-| Seeds | 9 completed (SEED-010: Custom Domains) |
-| Milestones | 11 shipped (v1.0 → v2.0), 1 in progress (v2.1) |
-| Phases | 34 shipped, 1 in progress (Phase 35) |
+| Seeds | 10 completed (SEED-001 → SEED-010) |
+| Milestones | 12 shipped (v1.0 → v2.1) |
+| Phases | 35 shipped |
+| Audit | Full system audit 2026-05-17 — 11/11 P0, 8/9 P1, 5/12 P2, 3/6 P3 fixed |
 | Blockers | None |

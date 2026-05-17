@@ -28,22 +28,26 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v2.1 Custom Domains
+## Current Milestone: — (idle, awaiting next seed/milestone)
 
-**Goal:** Permitir que cada cliente cadastre seu próprio domínio customizado — o menu deixa de viver em `xmartmenu.skale.club/nomedocliente` e passa a ser acessado diretamente no domínio do cliente (ex: `sitedocliente.com`).
-
-**Target features:**
-- Campo `custom_domain` na tabela `tenants` via migração
-- Middleware resolve tenant pelo `host` header em vez do pathname
-- Tela no admin do cliente para cadastrar/validar domínio customizado
-- Instruções DNS (CNAME) exibidas no painel
-- Bypass do slug no pathname para tenants com domínio customizado
+All 10 seeds (SEED-001 → SEED-010) completed. Last shipped milestone: v2.1 Custom Domains (2026-05-10).
+Full-system audit + remediation shipped 2026-05-17: 11/11 P0, 8/9 P1, 5/12 P2, 3/6 P3 fixed.
 
 ## Current State
 
-**v2.1 Custom Domains in progress** — SEED-010: custom domain routing
+**v2.1 Custom Domains shipped (2026-05-10)** — SEED-010: custom domain routing
 
 v2.1 delivers custom domain support per tenant: `sitedocliente.com` instead of `xmartmenu.skale.club/nomedocliente`.
+
+Key deliverables:
+- `tenants.custom_domain` (UNIQUE, nullable) + `custom_domain_verified` flag — migration 031
+- Middleware resolves tenant by `host` header with 60s in-process cache (`resolveTenantSlugFromHost`)
+- Admin custom-domain page with CNAME-based verification endpoint
+- Reserved-paths list dual-enforced in middleware + onboarding API
+
+**Full-system audit remediation shipped (2026-05-17)** — debug session `full-system-audit-2026-05-17`
+
+Closed 11 P0s including the entire Stripe Connect schema drift (migration 032), 6 broken-auth API routes, the `force_verified` domain-hijack, and the unsigned OAuth state. Also rebumped `next@16.2.6` for the high-severity npm-audit fix. Full report: `.planning/debug/full-system-audit-2026-05-17.md`.
 
 **v2.0 Monetization shipped (2026-05-09)** — SEED-009: Plans, Pricing & Stripe Connect Monetization
 
@@ -270,4 +274,4 @@ Key changes in v1.5:
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-10 — v2.1 Custom Domains started*
+*Last updated: 2026-05-17 — v2.1 Custom Domains shipped + full-system audit remediation applied*

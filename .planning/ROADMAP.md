@@ -13,7 +13,7 @@
 - ✅ **v1.8 KDS+** — Phases 26-27 (shipped 2026-05-08)
 - ✅ **v1.9 Performance Gaps** — Phases 28-29 (shipped 2026-05-08)
 - ✅ **v2.0 Monetization** — Phases 30-34 (shipped 2026-05-09)
-- ⏳ **v2.1 Custom Domains** — Phase 35 (in progress)
+- ✅ **v2.1 Custom Domains** — Phase 35 (shipped 2026-05-10)
 
 ## Completed Milestones
 
@@ -123,7 +123,7 @@ Key Requirements:
 
 ## Phases
 
-- [ ] **Phase 35: Custom Domain Infrastructure** — DB migration + middleware hostname routing + admin UI + DNS instructions
+- [x] **Phase 35: Custom Domain Infrastructure** — DB migration + middleware hostname routing + admin UI + DNS instructions (shipped 2026-05-10, commit 6781d06)
 
 ---
 
