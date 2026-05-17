@@ -10,6 +10,11 @@ export async function GET(request: Request) {
   if (!supabase) return NextResponse.redirect(`${origin}/auth/login`)
 
   const response = NextResponse.redirect(`${origin}/dashboard`)
-  response.cookies.set('preview_tenant_id', tenantId, { path: '/', httpOnly: true, sameSite: 'lax' })
+  response.cookies.set('preview_tenant_id', tenantId, {
+    path: '/',
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+  })
   return response
 }

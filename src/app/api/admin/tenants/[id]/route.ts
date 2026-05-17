@@ -15,17 +15,16 @@ export async function PATCH(
   }
 
   const body = await request.json()
-  const { custom_domain, custom_domain_verified, force_verified } = body
+  const { custom_domain } = body
 
   const updates: Record<string, unknown> = {}
 
   if (typeof custom_domain === 'string') {
     updates.custom_domain = custom_domain.trim() === '' ? null : custom_domain.trim().toLowerCase()
+    // Always reset verification when the domain is (re-)set. Verification is
+    // only ever flipped to true server-side from the /verify-domain endpoint
+    // after a real DNS check — never via this body.
     updates.custom_domain_verified = false
-  }
-
-  if (typeof custom_domain_verified === 'boolean' || force_verified === true) {
-    updates.custom_domain_verified = true
   }
 
   if (Object.keys(updates).length === 0) {

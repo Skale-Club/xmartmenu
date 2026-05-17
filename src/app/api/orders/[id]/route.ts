@@ -1,26 +1,56 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 
-export async function PATCH(request: Request) {
-  try {
-    const body = await request.json()
-    const { order_id, status } = body
+const VALID_STATUSES = ['pending', 'preparing', 'ready', 'done', 'cancelled'] as const
 
-    if (!order_id?.trim()) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // P0-06 fix: require authenticated tenant user, verify order belongs to
+    // that tenant, take id from URL not body.
+    const effective = await getEffectiveTenant()
+    if (!effective) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (effective.role === 'customer') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { id: orderId } = await params
+    if (!orderId?.trim()) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 })
     }
 
-    const validStatuses = ['pending', 'preparing', 'ready', 'done', 'cancelled']
-    if (!validStatuses.includes(status)) {
+    const body = await request.json()
+    const { status } = body
+
+    if (!VALID_STATUSES.includes(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
     const service = await createServiceClient()
 
-    const { data: order, error: error } = await service
+    // Verify the order belongs to the effective tenant before mutating
+    const { data: existing, error: existingError } = await service
+      .from('orders')
+      .select('id, tenant_id')
+      .eq('id', orderId)
+      .single()
+
+    if (existingError || !existing) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 })
+    }
+    if (existing.tenant_id !== effective.tenantId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { data: order, error } = await service
       .from('orders')
       .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', order_id)
+      .eq('id', orderId)
       .select()
       .single()
 

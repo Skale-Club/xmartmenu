@@ -46,5 +46,5 @@ export async function assertSuperadmin() {
     .select('role')
     .eq('id', user.id)
     .single()
-  return profile?.role === 'superadmin' ? supabase : null
+  return normalizeRole(profile?.role) === 'superadmin' ? supabase : null
 }

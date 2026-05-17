@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { assertSuperadmin } from '@/lib/superadmin-auth'
 
 interface RouteParams {
   params: Promise<{ id: string }>
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
+  if (!(await assertSuperadmin())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const { id: tenantId } = await params
   const service = await createServiceClient()
 
@@ -45,6 +49,9 @@ export async function GET(request: Request, { params }: RouteParams) {
 }
 
 export async function PUT(request: Request, { params }: RouteParams) {
+  if (!(await assertSuperadmin())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const { id: tenantId } = await params
   const service = await createServiceClient()
 

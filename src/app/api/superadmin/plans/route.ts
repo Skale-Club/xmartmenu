@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { assertSuperadmin } from '@/lib/superadmin-auth'
 
 export async function GET() {
-  const supabase = await createClient()
+  if (!(await assertSuperadmin())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const supabase = await createServiceClient()
 
   const { data, error } = await supabase
     .from('plans')
@@ -18,7 +22,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const supabase = await createClient()
+  if (!(await assertSuperadmin())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  const supabase = await createServiceClient()
 
   let body: {
     name: string
