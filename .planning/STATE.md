@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v2.1
 milestone_name: Custom Domains
 status: completed
-stopped_at: v2.1 shipped + audit remediation (commits 1851b25, 0bfb9d1, 533cd8b, 7cb5d18) — awaiting next milestone
-last_updated: "2026-05-17T05:30:00.000Z"
+stopped_at: v2.1 + round-1 + round-2 audit remediation shipped (commits 1851b25, 0bfb9d1, 533cd8b, 7cb5d18, 5f571ba, 2be27a8, c0e03e8, 38f3504) — awaiting next milestone
+last_updated: "2026-05-17T07:00:00.000Z"
 last_activity: 2026-05-17
 progress:
   total_phases: 1
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-17)
 
 Phase: — (no active phase)
 Plan: — (no active plan)
-Status: All seeds completed (SEED-001 → SEED-010). v2.1 shipped 2026-05-10. Full-system audit + remediation shipped 2026-05-17 (11/11 P0, 8/9 P1, 5/12 P2, 3/6 P3 fixed; migration 032 applied & repaired in supabase_migrations).
+Status: All seeds completed (SEED-001 → SEED-010). v2.1 shipped 2026-05-10. Full-system audit rounds 1+2 remediation shipped 2026-05-17 — round 1: 11/11 P0, 8/9 P1, 5/12 P2 fixed; round 2: 8/8 P0 (including a regression in round-1 Wave 4), 6/9 P1; migrations 032+033 applied & repaired.
 Last activity: 2026-05-17
 
 ## Milestone Overview
@@ -271,5 +271,6 @@ Stopped at: v2.1 shipped + full-system audit remediation pushed to main; CI gree
 | Seeds | 10 completed (SEED-001 → SEED-010) |
 | Milestones | 12 shipped (v1.0 → v2.1) |
 | Phases | 35 shipped |
-| Audit | Full system audit 2026-05-17 — 11/11 P0, 8/9 P1, 5/12 P2, 3/6 P3 fixed |
+| Audit round 1 | 11/11 P0, 8/9 P1, 5/12 P2, 3/6 P3 fixed |
+| Audit round 2 | 8/8 P0, 6/9 P1 fixed (incl. round-1 Wave 4 middleware regression hotfix) |
 | Blockers | None |
