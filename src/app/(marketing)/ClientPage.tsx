@@ -86,7 +86,7 @@ function Nav() {
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className="fixed top-0 inset-x-0 z-50 h-16 border-b border-white/10 bg-zinc-950/50 backdrop-blur-xl flex items-center px-4 sm:px-6"
     >
-      <div className="max-w-[1320px] mx-auto px-8 flex items-center justify-between">
+      <div className="w-full max-w-[1320px] mx-auto px-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
             <img src="/icon.png" alt="XmartMenu Logo" className="w-8 h-8 object-cover" />
