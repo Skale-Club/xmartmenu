@@ -28,10 +28,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 })
     }
 
-    // 3. Fetch order and verify ownership
+    // 3. Fetch order. `total` is NUMERIC dollars in DB; converted to cents
+    // for Stripe via Math.round below.
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, tenant_id, status, total_cents')
+      .select('id, tenant_id, status, total, payment_intent_id')
       .eq('id', order_id)
       .single()
 
@@ -42,6 +43,26 @@ export async function POST(request: NextRequest) {
     // 4. Verify order status is pending
     if (order.status !== 'pending') {
       return NextResponse.json({ error: 'Order is not in pending status' }, { status: 400 })
+    }
+
+    // 4b. P1-02 fix: if the order already has a payment_intent_id, only
+    // re-issue when the same authenticated user holds an admin/staff role
+    // on the order's tenant. Anonymous callers (the QR-customer flow)
+    // would just hit the existing intent, but we still want to prevent
+    // griefing by a random authenticated tenant trying to wrap somebody
+    // else's order. The simplest defensible check: require either no
+    // existing intent yet, OR caller's profile.tenant_id matches the order.
+    if (order.payment_intent_id) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('tenant_id, role')
+        .eq('id', user.id)
+        .single()
+      const sameTenant = profile?.tenant_id === order.tenant_id
+      const isSuperadmin = profile?.role === 'superadmin' || profile?.role === 'super-admin'
+      if (!sameTenant && !isSuperadmin) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
     }
 
     // 5. Check tenant plan includes payments feature
@@ -57,10 +78,17 @@ export async function POST(request: NextRequest) {
     }
 
     // 7. Create PaymentIntent
+    // P0-03 fix: orders.total is NUMERIC dollars in the DB. Convert to cents
+    // for Stripe's smallest-unit API.
+    const amountCents = Math.round(Number(order.total) * 100)
+    if (!Number.isFinite(amountCents) || amountCents < 50) {
+      // Stripe requires a minimum charge amount (~R$0.50 for BRL).
+      return NextResponse.json({ error: 'Order total is below minimum charge amount' }, { status: 400 })
+    }
     const { clientSecret, paymentIntentId } = await createPaymentIntent({
       tenantId: order.tenant_id,
       orderId: order.id,
-      amount: Math.floor(order.total_cents),
+      amount: amountCents,
       currency: 'brl',
     })
 

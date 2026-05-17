@@ -53,7 +53,7 @@ export default async function ConfirmationPage({
                 <p className="text-sm text-gray-500 mb-2">Order Details</p>
                 <p className="font-semibold text-gray-900">{order.tenants?.name}</p>
                 <p className="text-sm text-gray-600">
-                  Total: R$ {(order.total_cents / 100).toFixed(2).replace('.', ',')}
+                  Total: R$ {Number(order.total).toFixed(2).replace('.', ',')}
                 </p>
                 <p className="text-xs text-gray-400 mt-2">Order ID: {order.id.slice(0, 8)}...</p>
               </div>
@@ -62,18 +62,12 @@ export default async function ConfirmationPage({
             <div className="space-y-3">
               {order?.tenants?.slug && (
                 <Link
-                  href={`/menu/${order.tenants.slug}`}
+                  href={`/${order.tenants.slug}`}
                   className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
                 >
                   Return to Menu
                 </Link>
               )}
-              <Link
-                href={`/confirmation/${orderId}`}
-                className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-colors"
-              >
-                View Order Details
-              </Link>
             </div>
           </div>
         </div>
@@ -184,12 +178,6 @@ export default async function ConfirmationPage({
               Return to Menu
             </Link>
           )}
-          <Link
-            href={`/confirmation/${orderId}`}
-            className="block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-colors"
-          >
-            View Order Details
-          </Link>
         </div>
       </div>
     </div>

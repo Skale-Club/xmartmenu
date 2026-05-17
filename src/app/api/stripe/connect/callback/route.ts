@@ -1,15 +1,18 @@
 /**
  * Stripe Connect OAuth callback endpoint
- * 
+ *
  * Phase 32: Handles OAuth callback from Stripe
  * GET /api/stripe/connect/callback?code=xxx&state=yyy
  */
 
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
+import { verifyOAuthState } from '@/lib/stripe-oauth-state'
 
-const STATE_EXPIRY_MS = 15 * 60 * 1000 // 15 minutes
+function getBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -17,8 +20,7 @@ export async function GET(request: Request) {
   const error = searchParams.get('error')
   const state = searchParams.get('state')
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-  const redirectUrl = `${baseUrl}/admin/settings/store`
+  const redirectUrl = `${getBaseUrl()}/settings/store`
 
   // 1. Check for Stripe error (user denied)
   if (error === 'access_denied') {
@@ -30,26 +32,19 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`${redirectUrl}?stripe=missing_code`))
   }
 
-  // 3. Validate and decode state
+  // 3. Verify HMAC-signed state. P1-01: prior implementation accepted any
+  // base64-encoded JSON, which let attackers forge a state for a victim's
+  // tenant_id and capture the OAuth flow.
   if (!state) {
     return NextResponse.redirect(new URL(`${redirectUrl}?stripe=invalid_state`))
   }
-
-  let stateData: { tenantId: string; timestamp: number }
-  try {
-    stateData = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'))
-  } catch {
+  const verified = verifyOAuthState(state)
+  if (!verified) {
     return NextResponse.redirect(new URL(`${redirectUrl}?stripe=invalid_state`))
   }
+  const tenantId = verified.tenantId
 
-  // 4. Check state expiry (15 min window)
-  if (Date.now() - stateData.timestamp > STATE_EXPIRY_MS) {
-    return NextResponse.redirect(new URL(`${redirectUrl}?stripe=invalid_state`))
-  }
-
-  const tenantId = stateData.tenantId
-
-  // 5. Exchange code for Stripe account
+  // 4. Exchange code for Stripe account
   let stripeAccountId: string
   try {
     const tokenResponse = await stripe.oauth.token({
@@ -67,8 +62,10 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`${redirectUrl}?stripe=exchange_failed`))
   }
 
-  // 6. Upsert Stripe connection
-  const supabase = await createClient()
+  // 5. Upsert Stripe connection using the service client. The user's cookie
+  // session is irrelevant here — we already validated the tenantId via
+  // signed state.
+  const supabase = await createServiceClient()
   const { error: upsertError } = await supabase
     .from('stripe_connections')
     .upsert({
@@ -76,6 +73,7 @@ export async function GET(request: Request) {
       stripe_account_id: stripeAccountId,
       scope: 'read_write',
       connected_at: new Date().toISOString(),
+      disconnected_at: null,
       is_active: true,
     }, { onConflict: 'tenant_id' })
 
@@ -84,6 +82,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`${redirectUrl}?stripe=db_error`))
   }
 
-  // 7. Success - redirect to settings
+  // 6. Success — redirect to settings
   return NextResponse.redirect(new URL(`${redirectUrl}?stripe=connected`))
 }

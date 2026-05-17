@@ -9,13 +9,18 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getTenantPlan } from '@/lib/tenant-plan'
+import { signOAuthState } from '@/lib/stripe-oauth-state'
+
+function getBaseUrl(): string {
+  return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
+}
 
 export async function GET() {
   // 1. Authenticate and get tenant
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
-    return NextResponse.redirect(new URL('/login', process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'))
+    return NextResponse.redirect(new URL('/auth/login', getBaseUrl()))
   }
 
   const effective = await getEffectiveTenant()
@@ -26,8 +31,7 @@ export async function GET() {
   // 2. Verify tenant has stripe-connect feature
   const plan = await getTenantPlan(effective.tenantId)
   if (!plan || !plan.features.includes('stripe-connect')) {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-    return NextResponse.redirect(new URL(`${baseUrl}/admin/settings/store?stripe=feature_not_available`))
+    return NextResponse.redirect(new URL(`${getBaseUrl()}/settings/store?stripe=feature_not_available`))
   }
 
   // 3. Check if already connected
@@ -39,8 +43,7 @@ export async function GET() {
     .single()
 
   if (existingConnection) {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-    return NextResponse.redirect(new URL(`${baseUrl}/admin/settings/store?stripe=already_connected`))
+    return NextResponse.redirect(new URL(`${getBaseUrl()}/settings/store?stripe=already_connected`))
   }
 
   // 4. Check required env vars
@@ -52,14 +55,11 @@ export async function GET() {
   }
 
   // 5. Build OAuth URL
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
-  const redirectUri = `${baseUrl}/api/stripe/connect/callback`
-  
-  // State contains tenantId and timestamp for validation
-  const state = Buffer.from(JSON.stringify({
-    tenantId: effective.tenantId,
-    timestamp: Date.now(),
-  })).toString('base64')
+  const redirectUri = `${getBaseUrl()}/api/stripe/connect/callback`
+
+  // P1-01 fix: state is now HMAC-signed and timestamp-bound. The callback
+  // verifies the signature before trusting the tenantId.
+  const state = signOAuthState(effective.tenantId)
 
   const params = new URLSearchParams({
     response_type: 'code',
