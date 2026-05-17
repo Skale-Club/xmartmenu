@@ -108,8 +108,12 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     }
   }
 
-  // Record scan (fire-and-forget)
-  supabase.from('scan_events').insert({ tenant_id: tenant.id }).then(() => {})
+  // Record scan (fire-and-forget). Wrap to swallow rejections — Supabase
+  // queries don't expose a real Promise so a Supabase-side error would
+  // otherwise throw unhandled.
+  void (async () => {
+    try { await supabase.from('scan_events').insert({ tenant_id: tenant.id }) } catch {}
+  })()
 
   return (
     <MenuPage

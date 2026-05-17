@@ -5,12 +5,12 @@ export const metadata: Metadata = {
   title: 'XmartMenu | Digital menus built for service',
   description:
     'Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.',
-  metadataBase: new URL('https://xmartmenu.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://xmartmenu.skale.club'),
   openGraph: {
     title: 'XmartMenu | Digital menus built for service',
     description:
       'Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.',
-    url: 'https://xmartmenu.com',
+    url: process.env.NEXT_PUBLIC_APP_URL || 'https://xmartmenu.skale.club',
     siteName: 'XmartMenu',
     locale: 'en_US',
     type: 'website',

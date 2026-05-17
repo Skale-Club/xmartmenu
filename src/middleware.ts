@@ -1,9 +1,15 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from './lib/supabase/middleware'
 
+// P2-03: keep this list in sync with src/lib/marketing/reserved-paths.ts.
+// We don't import from reserved-paths.ts here because the middleware runs
+// in the Edge runtime and we keep imports minimal (per Phase 12-01).
 const BLOCKED_TENANT_SLUGS = new Set([
-  'pricing', 'features', 'about', 'faq', 'blog', 'help', 'support',
+  'pricing', 'features', 'about', 'faq', 'blog', 'demo', 'help', 'support',
   'pt', 'en', 'legal', 'privacy', 'terms', 'contact', 'careers',
+  'auth', 'api', 'onboarding', 'dashboard', 'menu', 'settings',
+  'overview', 'tenants', 'users', 'admin', 'superadmin',
+  'sitemap', 'robots',
 ])
 
 const customDomainCache = new Map<string, { slug: string; expires: number }>()

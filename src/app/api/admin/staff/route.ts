@@ -13,7 +13,14 @@ async function assertStoreAdmin() {
   return { supabase, tenantId: effective.tenantId }
 }
 
-const DEFAULT_STAFF_PASSWORD = process.env.DEFAULT_STAFF_PASSWORD?.trim() || 'Staff@12345'
+// P1-05 fix: generate a fresh per-staff random password on create. Previously
+// fell back to literal 'Staff@12345' across every install, which is a
+// predictable credential. The plaintext is returned only once in the API
+// response so the admin can hand it to the new staff member.
+const PASSWORD_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
+function generateStaffPassword() {
+  return Array.from({ length: 12 }, () => PASSWORD_CHARS[Math.floor(Math.random() * PASSWORD_CHARS.length)]).join('')
+}
 
 export async function GET() {
   const ctx = await assertStoreAdmin()
@@ -27,15 +34,19 @@ export async function GET() {
     .eq('role', 'store-staff')
     .order('created_at', { ascending: false })
 
-  // Fetch emails from auth.users
-  const ids = (data ?? []).map(p => p.id)
-  const staffWithEmail = await Promise.all(
-    ids.map(async (id) => {
-      const { data: u } = await service.auth.admin.getUserById(id)
-      const profile = data!.find(p => p.id === id)!
-      return { ...profile, email: u.user?.email ?? null }
-    })
-  )
+  // P2-06 fix: one listUsers call instead of N getUserById round-trips.
+  const ids = new Set((data ?? []).map(p => p.id))
+  const emailById = new Map<string, string>()
+  if (ids.size > 0) {
+    const { data: usersPage } = await service.auth.admin.listUsers({ perPage: 1000 })
+    for (const u of usersPage?.users ?? []) {
+      if (ids.has(u.id) && u.email) emailById.set(u.id, u.email)
+    }
+  }
+  const staffWithEmail = (data ?? []).map((profile) => ({
+    ...profile,
+    email: emailById.get(profile.id) ?? null,
+  }))
 
   return NextResponse.json(staffWithEmail)
 }
@@ -53,9 +64,10 @@ export async function POST(request: Request) {
   }
 
   const service = await createServiceClient()
+  const staffPassword = generateStaffPassword()
   const { data: userData, error: userError } = await service.auth.admin.createUser({
     email,
-    password: DEFAULT_STAFF_PASSWORD,
+    password: staffPassword,
     email_confirm: true,
     user_metadata: { full_name: name.trim() },
   })
@@ -90,6 +102,6 @@ export async function POST(request: Request) {
       email,
       full_name: name.trim(),
     },
-    credentials: { email, password: DEFAULT_STAFF_PASSWORD },
+    credentials: { email, password: staffPassword },
   }, { status: 201 })
 }

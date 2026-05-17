@@ -1,4 +1,4 @@
--- Migration 029: custom_domain on tenants
+-- Migration 031: custom_domain on tenants
 -- Adds unique nullable TEXT column + verified flag for tenant-owned custom domains
 -- Idempotent: drops and re-adds constraints/columns if re-running
 
