@@ -2,13 +2,9 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { checkPasswordChangeRequired } from '@/lib/auth/password-guard'
+import { generatePassword } from '@/lib/auth/password-gen'
 
 interface Props { params: Promise<{ id: string }> }
-const PASSWORD_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-
-function generatePassword() {
-  return Array.from({ length: 12 }, () => PASSWORD_CHARS[Math.floor(Math.random() * PASSWORD_CHARS.length)]).join('')
-}
 
 async function assertStaffOwnership(staffId: string) {
   const supabase = await createClient()
@@ -84,7 +80,13 @@ export async function DELETE(_req: Request, { params }: Props) {
   const ctx = await assertStaffOwnership(id)
   if ('error' in ctx) return ctx.error
 
-  await ctx.service.from('profiles').update({ role: 'customer', tenant_id: null }).eq('id', id)
+  const { error: demoteError } = await ctx.service
+    .from('profiles')
+    .update({ role: 'customer', tenant_id: null })
+    .eq('id', id)
+  if (demoteError) {
+    return NextResponse.json({ error: demoteError.message }, { status: 500 })
+  }
 
   return NextResponse.json({ ok: true })
 }

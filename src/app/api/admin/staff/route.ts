@@ -13,14 +13,10 @@ async function assertStoreAdmin() {
   return { supabase, tenantId: effective.tenantId }
 }
 
-// P1-05 fix: generate a fresh per-staff random password on create. Previously
-// fell back to literal 'Staff@12345' across every install, which is a
-// predictable credential. The plaintext is returned only once in the API
-// response so the admin can hand it to the new staff member.
-const PASSWORD_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-function generateStaffPassword() {
-  return Array.from({ length: 12 }, () => PASSWORD_CHARS[Math.floor(Math.random() * PASSWORD_CHARS.length)]).join('')
-}
+// Round-1 P1-05 + round-2 P1-01: generate a fresh per-staff cryptographically
+// secure password on create. Plaintext returned once in the response so the
+// admin can hand it to the new staff member.
+import { generatePassword as generateStaffPassword } from '@/lib/auth/password-gen'
 
 export async function GET() {
   const ctx = await assertStoreAdmin()

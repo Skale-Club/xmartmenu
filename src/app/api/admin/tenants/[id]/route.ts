@@ -8,9 +8,10 @@ export async function PATCH(
 ) {
   const { id } = await params
   const effective = await getEffectiveTenant()
-  const { tenantId } = effective!
-
-  if (tenantId !== id) {
+  if (!effective) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  if (effective.tenantId !== id) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

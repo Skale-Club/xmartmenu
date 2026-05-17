@@ -50,6 +50,7 @@ export interface TenantSubscription {
   stripe_subscription_id: string | null
   current_period_start: string | null
   current_period_end: string | null
+  cancel_at_period_end: boolean
   created_at: string
   updated_at: string
   // Joined fields
@@ -64,11 +65,15 @@ export interface StripeConnection {
   scope: string
   connected_at: string
   is_active: boolean
+  disconnected_at: string | null
+  created_at: string
+  updated_at: string
 }
 
 // Webhook idempotency tracking
 export interface ProcessedStripeEvent {
-  stripe_event_id: string
+  event_id: string
+  event_type: string
   processed_at: string
 }
 
@@ -213,8 +218,9 @@ export interface Order {
   tenant_id: string
   customer_name: string
   customer_phone: string
-  status: 'pending' | 'preparing' | 'ready' | 'done' | 'cancelled'
+  status: 'pending' | 'paid' | 'payment_failed' | 'preparing' | 'ready' | 'done' | 'cancelled'
   total: number
+  payment_intent_id: string | null
   notes: string | null
   created_at: string
   updated_at: string
