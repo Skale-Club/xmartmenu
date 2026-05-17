@@ -52,7 +52,7 @@ const features = [
 const faqs = [
   {
     q: 'Is it free?',
-    a: "Yes, xmartmenu is free during beta. We'll announce pricing changes with advance notice.",
+    a: "Yes, XmartMenu is free during beta. We'll announce pricing changes with advance notice.",
   },
   {
     q: 'Do I need a developer?',
@@ -86,7 +86,7 @@ function Nav() {
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className="fixed top-0 inset-x-0 z-50 h-16 border-b border-white/10 bg-zinc-950/50 backdrop-blur-xl flex items-center px-4 sm:px-6"
     >
-      <div className="w-full px-8 flex items-center justify-between">
+      <div className="max-w-[1320px] mx-auto px-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
             <img src="/icon.png" alt="XmartMenu Logo" className="w-8 h-8 object-cover" />
@@ -112,7 +112,7 @@ function Hero() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] opacity-40 pointer-events-none" />
       <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-yellow-400/5 rounded-full blur-[100px] opacity-30 pointer-events-none" />
       
-      <div className="w-full px-8 pt-32 pb-20 relative z-10 text-center">
+      <div className="max-w-[1320px] mx-auto px-8 pt-32 pb-20 relative z-10 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -172,7 +172,7 @@ function Hero() {
 function HowItWorks() {
   return (
     <section id="how-it-works" className="py-24 px-4 relative">
-      <div className="w-full px-8">
+      <div className="max-w-[1320px] mx-auto px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -213,7 +213,7 @@ function FeatureBlocks() {
   return (
     <section className="py-24 px-4 relative">
       <div className="absolute inset-0 bg-zinc-950" />
-      <div className="w-full px-8 relative z-10">
+      <div className="max-w-[1320px] mx-auto px-8 relative z-10">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -258,7 +258,7 @@ function FeatureBlocks() {
 function FAQ() {
   return (
     <section className="py-24 px-4">
-      <div className="w-full px-8">
+      <div className="max-w-[1320px] mx-auto px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -303,7 +303,7 @@ function FooterCTABand() {
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-zinc-950" />
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
       
-      <div className="w-full relative z-10 bg-zinc-950/40 backdrop-blur-xl border border-white/10 p-12 sm:p-20 rounded-[2rem] text-center">
+      <div className="max-w-[1320px] mx-auto relative z-10 bg-zinc-950/40 backdrop-blur-xl border border-white/10 p-12 sm:p-20 rounded-[2rem] text-center">
         <motion.h2 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -319,7 +319,7 @@ function FooterCTABand() {
           transition={{ delay: 0.1 }}
           className="text-xl text-zinc-300 mb-10 max-w-2xl mx-auto"
         >
-          Join the first restaurants using xmartmenu and transform your customer experience today.
+          Join the first restaurants using XmartMenu and transform your customer experience today.
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -342,7 +342,7 @@ function FooterCTABand() {
 function Footer() {
   return (
     <footer className="border-t border-white/10 bg-zinc-950 px-4 pt-16 pb-8">
-      <div className="w-full px-8">
+      <div className="max-w-[1320px] mx-auto px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Logo + tagline */}
           <div>
@@ -390,7 +390,7 @@ function Footer() {
         </div>
         <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-zinc-500">
-            © 2026 xmartmenu. All rights reserved.
+            © 2026 XmartMenu. All rights reserved.
           </p>
         </div>
       </div>
