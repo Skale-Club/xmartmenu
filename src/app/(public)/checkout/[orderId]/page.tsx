@@ -138,7 +138,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
       <div className="max-w-xl mx-auto">
         {/* Back link */}
         <Link
-          href={`/menu/${order.tenants.slug}`}
+          href={`/${order.tenants.slug}`}
           className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />

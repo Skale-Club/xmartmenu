@@ -2,7 +2,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 
-const VALID_STATUSES = ['pending', 'preparing', 'ready', 'done', 'cancelled'] as const
+const VALID_STATUSES = [
+  'pending', 'paid', 'payment_failed', 'preparing', 'ready', 'done', 'cancelled',
+] as const
 
 export async function PATCH(
   request: Request,

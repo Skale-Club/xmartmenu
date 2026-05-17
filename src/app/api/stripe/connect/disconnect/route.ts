@@ -6,11 +6,12 @@
  */
 
 import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 
 export async function POST() {
-  // 1. Authenticate and get tenant
+  // 1. Authenticate and get tenant (cookie client, used only for the
+  // identity check).
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) {
@@ -22,8 +23,12 @@ export async function POST() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // 2. Soft-delete the Stripe connection (set is_active = false)
-  const { data, error } = await supabase
+  // 2. Soft-delete via the service client. Round-2 P0-07: stripe_connections
+  // has only SELECT policies — there is no UPDATE policy for authenticated
+  // role, so the previous cookie-client write was silently denied by RLS.
+  // The tenant ownership check above already authorized this action.
+  const service = await createServiceClient()
+  const { data, error } = await service
     .from('stripe_connections')
     .update({
       is_active: false,
