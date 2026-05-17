@@ -153,6 +153,38 @@ export async function POST(request: Request) {
         console.error('onboarding.update_profile_error', profileUpsertError)
         return NextResponse.json({ error: 'Failed to update user profile' }, { status: 500 })
       }
+
+      // 3b. Create default tenant_subscriptions row pointing at the
+      // entry-level plan (slug 'menu', "Digital Menu"). Round-2 P1-03:
+      // without this, getTenantPlan() returned null for the new tenant and
+      // every feature gate (orders, payments, stripe-connect) defaulted off
+      // even after the tenant had paid.
+      //
+      // tenants.plan ('free') stays as a legacy denormalized snapshot until
+      // a future phase drops the column entirely. tenant_subscriptions is
+      // now the canonical source of truth.
+      const { data: entryPlan, error: entryPlanError } = await service
+        .from('plans')
+        .select('id')
+        .eq('slug', 'menu')
+        .eq('is_active', true)
+        .single()
+      if (entryPlanError || !entryPlan) {
+        console.error('onboarding.lookup_entry_plan_error', entryPlanError)
+        return NextResponse.json({ error: 'Failed to assign default plan' }, { status: 500 })
+      }
+      const { error: subscriptionError } = await service
+        .from('tenant_subscriptions')
+        .insert({
+          tenant_id: tenant.id,
+          plan_id: entryPlan.id,
+          billing_cycle: 'monthly',
+          status: 'active',
+        })
+      if (subscriptionError) {
+        console.error('onboarding.create_subscription_error', subscriptionError)
+        return NextResponse.json({ error: 'Failed to create subscription' }, { status: 500 })
+      }
     }
 
     // 4. Create default menu
