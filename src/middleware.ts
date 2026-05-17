@@ -1,15 +1,17 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from './lib/supabase/middleware'
 
-// P2-03: keep this list in sync with src/lib/marketing/reserved-paths.ts.
-// We don't import from reserved-paths.ts here because the middleware runs
-// in the Edge runtime and we keep imports minimal (per Phase 12-01).
+// Named App Router routes (auth/, api/, dashboard/, menu/, settings/,
+// onboarding/, overview/, tenants/, users/, admin/, superadmin/) self-resolve
+// via the file system and never reach `[slug]` — only add slugs here that
+// have NO named file. Consistency with `RESERVED_PATHS` (which prevents new
+// tenants from registering those slugs) is intentionally NOT shared as a
+// single list: the two have opposite purposes.
+// Regression: round-1 Wave 4 (commit 533cd8b) unified the lists and broke
+// every admin/api URL with 404. Reverted in this commit.
 const BLOCKED_TENANT_SLUGS = new Set([
-  'pricing', 'features', 'about', 'faq', 'blog', 'demo', 'help', 'support',
+  'pricing', 'features', 'about', 'faq', 'blog', 'help', 'support',
   'pt', 'en', 'legal', 'privacy', 'terms', 'contact', 'careers',
-  'auth', 'api', 'onboarding', 'dashboard', 'menu', 'settings',
-  'overview', 'tenants', 'users', 'admin', 'superadmin',
-  'sitemap', 'robots',
 ])
 
 const customDomainCache = new Map<string, { slug: string; expires: number }>()
