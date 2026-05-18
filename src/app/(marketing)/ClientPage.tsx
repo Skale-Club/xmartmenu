@@ -3,6 +3,20 @@
 import { motion } from 'framer-motion'
 import { Globe, QrCode, Sparkles, ShoppingCart, ChevronDown, Camera, MessageCircle, UserPlus, UtensilsCrossed, ArrowRight } from 'lucide-react'
 
+// ─── Platform settings shape (hero only) ────────────────────────────────────
+interface HeroSettings {
+  badge?: string
+  heading?: string
+  heading_highlight?: string
+  subheading?: string
+  cta_primary?: string
+  cta_secondary?: string
+  bg_type?: 'color' | 'image' | 'video'
+  bg_color?: string
+  bg_image_url?: string
+  bg_video_url?: string
+}
+
 // ─── Section data ───────
 
 const steps = [
@@ -105,13 +119,57 @@ function Nav() {
   )
 }
 
-function Hero() {
+function Hero({ s }: { s: HeroSettings }) {
+  const bgType = s.bg_type ?? 'color'
+  const bgColor = s.bg_color ?? '#09090b'
+  const bgImage = s.bg_image_url ?? ''
+  const bgVideo = s.bg_video_url ?? ''
+
+  const badge    = s.badge            ?? 'The future of dining is here'
+  const heading  = s.heading          ?? 'Your restaurant menu,'
+  const highlight = s.heading_highlight ?? 'built for service.'
+  const sub      = s.subheading       ?? 'Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.'
+  const ctaPrimary   = s.cta_primary   ?? 'Sign in to dashboard'
+  const ctaSecondary = s.cta_secondary ?? 'See how it works'
+
   return (
-    <section className="relative pt-8 pb-4 px-4 overflow-hidden min-h-[20vh] flex flex-col justify-center">
-      {/* Background Glows */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] opacity-40 pointer-events-none" />
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-yellow-400/5 rounded-full blur-[100px] opacity-30 pointer-events-none" />
-      
+    <section
+      className="relative pt-8 pb-4 px-4 overflow-hidden min-h-[20vh] flex flex-col justify-center"
+      style={bgType === 'color' ? { backgroundColor: bgColor } : undefined}
+    >
+      {/* Video background */}
+      {bgType === 'video' && bgVideo && (
+        <>
+          <video
+            autoPlay muted loop playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+            src={bgVideo}
+            poster={bgImage || undefined}
+          />
+          {/* Dark overlay for readability */}
+          <div className="absolute inset-0 bg-black/50" />
+        </>
+      )}
+
+      {/* Image background */}
+      {bgType === 'image' && bgImage && (
+        <>
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${bgImage})` }}
+          />
+          <div className="absolute inset-0 bg-black/50" />
+        </>
+      )}
+
+      {/* Default glows (only when not using image/video) */}
+      {bgType === 'color' && (
+        <>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] opacity-40 pointer-events-none" />
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-yellow-400/5 rounded-full blur-[100px] opacity-30 pointer-events-none" />
+        </>
+      )}
+
       <div className="max-w-[1320px] mx-auto px-8 pt-32 pb-20 relative z-10 text-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -120,32 +178,32 @@ function Hero() {
         >
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-primary text-sm font-medium mb-8">
             <Sparkles className="w-4 h-4" />
-            The future of dining is here
+            {badge}
           </span>
         </motion.div>
-        
-        <motion.h1 
+
+        <motion.h1
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
           className="text-5xl sm:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6"
         >
-          Your restaurant menu, <br className="hidden sm:block" />
+          {heading} <br className="hidden sm:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-yellow-200 to-white">
-            built for service.
+            {highlight}
           </span>
         </motion.h1>
-        
-        <motion.p 
+
+        <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
           className="text-xl sm:text-2xl text-zinc-400 mb-10 max-w-2xl mx-auto leading-relaxed"
         >
-          Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.
+          {sub}
         </motion.p>
-        
-        <motion.div 
+
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5 }}
@@ -155,13 +213,13 @@ function Hero() {
             href="/auth/login"
             className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-zinc-950 px-8 py-4 rounded-full text-lg font-bold hover:bg-white transition-all hover:scale-105"
           >
-            Sign in to dashboard
+            {ctaPrimary}
           </a>
           <a
             href="#how-it-works"
             className="w-full sm:w-auto inline-flex items-center justify-center bg-white/5 border border-white/10 text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-white/10 transition-colors"
           >
-            See how it works
+            {ctaSecondary}
           </a>
         </motion.div>
       </div>
@@ -400,12 +458,14 @@ function Footer() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ClientLandingPage() {
+export default function ClientLandingPage({ platformLanding }: { platformLanding?: any }) {
+  const heroSettings: HeroSettings = platformLanding?.hero ?? {}
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30">
       <Nav />
       <main>
-        <Hero />
+        <Hero s={heroSettings} />
         <HowItWorks />
         <FeatureBlocks />
         <FAQ />

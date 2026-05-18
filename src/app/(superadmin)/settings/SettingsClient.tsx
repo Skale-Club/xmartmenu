@@ -1,24 +1,141 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { 
-  Settings, 
-  Globe, 
-  Palette, 
-  Layout, 
-  ListChecks, 
-  Star, 
-  Zap, 
-  MousePointer2, 
+import {
+  Settings,
+  Globe,
+  Palette,
+  Layout,
+  ListChecks,
+  Star,
+  Zap,
+  MousePointer2,
   ExternalLink,
   Save,
   CheckCircle2,
-  XCircle
+  XCircle,
+  Upload,
+  ImageIcon,
+  Video,
+  Loader2,
+  RefreshCw,
+  Trash2,
 } from 'lucide-react'
 
+type BgType = 'color' | 'image' | 'video'
+
+interface HeroAssetUploaderProps {
+  type: 'image' | 'video'
+  url: string
+  onUpload: (url: string) => void
+}
+
+function HeroAssetUploader({ type, url, onUpload }: HeroAssetUploaderProps) {
+  const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  async function handleFile(file: File) {
+    setUploading(true)
+    setUploadError(null)
+    const form = new FormData()
+    form.append('file', file)
+    form.append('type', type)
+    const res = await fetch('/api/superadmin/platform/upload', { method: 'POST', body: form })
+    const data = await res.json()
+    setUploading(false)
+    if (!res.ok) { setUploadError(data.error ?? 'Upload failed'); return }
+    onUpload(data.url)
+  }
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (file) handleFile(file)
+    e.target.value = ''
+  }
+
+  const accept = type === 'image' ? 'image/jpeg,image/png,image/webp' : 'video/mp4,video/webm,video/quicktime'
+
+  return (
+    <div className="space-y-3">
+      <input ref={inputRef} type="file" accept={accept} className="hidden" onChange={handleChange} />
+
+      {/* Preview */}
+      {url ? (
+        <div className="relative rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-50 group">
+          {type === 'image' ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt="Hero background" className="w-full h-40 object-cover" />
+          ) : (
+            <video src={url} className="w-full h-40 object-cover" muted playsInline preload="metadata" />
+          )}
+          {/* Overlay actions */}
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={uploading}
+              className="flex items-center gap-2 bg-white text-zinc-900 px-4 py-2 rounded-xl text-xs font-bold hover:bg-zinc-100 transition-colors"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {uploading ? 'Uploading...' : `Replace ${type}`}
+            </button>
+            <button
+              type="button"
+              onClick={() => onUpload('')}
+              className="flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-700 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" /> Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* Drop zone */
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={uploading}
+          className="w-full border-2 border-dashed border-zinc-200 rounded-2xl p-8 flex flex-col items-center gap-3 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group"
+        >
+          {uploading ? (
+            <>
+              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+              <p className="text-sm font-medium text-zinc-500">Uploading...</p>
+            </>
+          ) : (
+            <>
+              {type === 'image'
+                ? <ImageIcon className="w-8 h-8 text-zinc-300 group-hover:text-indigo-400 transition-colors" />
+                : <Video className="w-8 h-8 text-zinc-300 group-hover:text-indigo-400 transition-colors" />
+              }
+              <div className="text-center">
+                <p className="text-sm font-semibold text-zinc-600">
+                  Click to upload {type === 'image' ? 'image' : 'video'}
+                </p>
+                <p className="text-xs text-zinc-400 mt-1">
+                  {type === 'image' ? 'PNG, JPG, WebP · max 5MB' : 'MP4, WebM · max 50MB'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold">
+                <Upload className="w-3.5 h-3.5" /> Choose {type === 'image' ? 'Image' : 'Video'}
+              </div>
+            </>
+          )}
+        </button>
+      )}
+
+      {uploadError && (
+        <p className="text-xs text-red-600 font-medium flex items-center gap-1">
+          <XCircle className="w-3.5 h-3.5" /> {uploadError}
+        </p>
+      )}
+    </div>
+  )
+}
+
 const DEFAULT_LANDING = {
-  hero: { badge: 'Digital menu for restaurants', heading: 'Your menu on your phone', heading_highlight: 'with a QR Code', subheading: 'Run a digital menu built for restaurant service, QR codes, and WhatsApp ordering. No app, no hassle.', cta_primary: 'Get started free', cta_secondary: 'See how it works' },
+  hero: { badge: 'Digital menu for restaurants', heading: 'Your menu on your phone', heading_highlight: 'with a QR Code', subheading: 'Run a digital menu built for restaurant service, QR codes, and WhatsApp ordering. No app, no hassle.', cta_primary: 'Get started free', cta_secondary: 'See how it works', bg_type: 'color' as BgType, bg_color: '#09090b', bg_image_url: '', bg_video_url: '' },
   how_it_works: { title: 'How it works', subtitle: 'Up and running in 3 simple steps', steps: [{ step: '01', icon: '📋', title: 'Build your menu', desc: 'Create categories and add your products with photos, descriptions and prices in the dashboard.' }, { step: '02', icon: '🎨', title: 'Customize the look', desc: 'Add your logo, restaurant colors and contact information to make it your own.' }, { step: '03', icon: '📱', title: 'Generate & print the QR Code', desc: 'Generate your unique QR Code with one click. Place it on tables and let customers access it instantly.' }] },
   features: { title: 'Everything you need', subtitle: 'Features designed for restaurants', items: [{ icon: '🔗', title: 'Unique link per restaurant', desc: 'Each customer has their own digital menu address.' }, { icon: '📲', title: 'Order via WhatsApp', desc: 'Customers tap a product and WhatsApp opens ready to order.' }, { icon: '🎨', title: 'Custom branding', desc: 'Logo, colors and visual identity for your restaurant.' }, { icon: '📊', title: 'Scan counter', desc: 'See how many times your QR Code has been scanned.' }, { icon: '🔍', title: 'Menu search', desc: 'Customers find any product in seconds.' }, { icon: '⚡', title: 'No app required', desc: 'Everything opens directly in the phone browser, zero friction.' }] },
   pricing: { title: 'Simple plans', subtitle: 'Start free, scale when you need', plans: [{ name: 'Free', price: '$0', period: '/mo', desc: 'To get started', features: ['Digital menu', 'QR Code generated', 'Up to 20 products', 'Basic branding'], cta: 'Get started free', highlight: false }, { name: 'Pro', price: '$49', period: '/mo', desc: 'To grow', features: ['Everything in Free', 'Unlimited products', 'Full branding', 'Scan analytics', 'Priority support'], cta: 'Subscribe to Pro', highlight: true }, { name: 'Enterprise', price: '$149', period: '/mo', desc: 'For chains', features: ['Everything in Pro', 'Multiple locations', 'Custom domain', 'Dedicated onboarding', 'Guaranteed SLA'], cta: 'Talk to sales', highlight: false }] },
@@ -161,6 +278,90 @@ export default function SettingsClient({ settings }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div><label className={label}>Primary CTA Button</label><input className={input} value={hero.cta_primary} onChange={e => setHero({ ...hero, cta_primary: e.target.value })} /></div>
             <div><label className={label}>Secondary CTA Button</label><input className={input} value={hero.cta_secondary} onChange={e => setHero({ ...hero, cta_secondary: e.target.value })} /></div>
+          </div>
+
+          {/* Hero Background */}
+          <div className="space-y-4 border-t border-zinc-100 pt-6">
+            <div className="flex items-center gap-2">
+              <Palette className="w-4 h-4 text-zinc-400" />
+              <span className={label} style={{ marginBottom: 0, marginLeft: 0 }}>Hero Background</span>
+            </div>
+
+            {/* Type selector */}
+            <div className="flex items-center gap-2">
+              {(['color', 'image', 'video'] as BgType[]).map(t => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setHero({ ...hero, bg_type: t })}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                    hero.bg_type === t
+                      ? 'bg-zinc-900 text-white shadow-sm'
+                      : 'bg-zinc-50 text-zinc-500 hover:bg-zinc-100 border border-zinc-200'
+                  }`}
+                >
+                  {t === 'color' && <Palette className="w-3.5 h-3.5" />}
+                  {t === 'image' && <ImageIcon className="w-3.5 h-3.5" />}
+                  {t === 'video' && <Video className="w-3.5 h-3.5" />}
+                  {t.charAt(0).toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {/* Color */}
+            {hero.bg_type === 'color' && (
+              <div className="space-y-2">
+                <label className={label}>Background Color</label>
+                <div className="flex items-center gap-3 bg-zinc-50 p-2 rounded-2xl border border-zinc-100">
+                  <input
+                    type="color"
+                    value={hero.bg_color ?? '#09090b'}
+                    onChange={e => setHero({ ...hero, bg_color: e.target.value })}
+                    className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 bg-transparent"
+                  />
+                  <input
+                    className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase"
+                    value={hero.bg_color ?? '#09090b'}
+                    onChange={e => setHero({ ...hero, bg_color: e.target.value })}
+                  />
+                  {/* Preview swatch */}
+                  <div
+                    className="w-20 h-10 rounded-xl border border-zinc-200"
+                    style={{ background: hero.bg_color ?? '#09090b' }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Image */}
+            {hero.bg_type === 'image' && (
+              <HeroAssetUploader
+                type="image"
+                url={hero.bg_image_url ?? ''}
+                onUpload={url => setHero({ ...hero, bg_image_url: url })}
+              />
+            )}
+
+            {/* Video */}
+            {hero.bg_type === 'video' && (
+              <div className="space-y-3">
+                <HeroAssetUploader
+                  type="video"
+                  url={hero.bg_video_url ?? ''}
+                  onUpload={url => setHero({ ...hero, bg_video_url: url })}
+                />
+                {hero.bg_video_url && (
+                  <div className="space-y-2">
+                    <label className={label}>Image Fallback (for browsers that can't play video)</label>
+                    <HeroAssetUploader
+                      type="image"
+                      url={hero.bg_image_url ?? ''}
+                      onUpload={url => setHero({ ...hero, bg_image_url: url })}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
