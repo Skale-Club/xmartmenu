@@ -382,51 +382,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             )}
 
 
-            {/* Contact & Location Info */}
-            <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-8 pt-4">
-              {settings?.address && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center gap-3 text-xs font-bold text-white/80 hover:text-white transition-all"
-                >
-                  <div className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center ring-1 ring-white/20 group-hover:bg-white/20 group-hover:ring-white/40 transition-all shadow-lg">
-                    <MapPin className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="max-w-[200px] text-left line-clamp-1 border-b border-white/10 group-hover:border-white/40 pb-0.5">{settings.address}</span>
-                </a>
-              )}
-              {settings?.phone && (
-                <a
-                  href={`tel:${settings.phone}`}
-                  className="group flex items-center gap-3 text-xs font-bold text-white/80 hover:text-white transition-all"
-                >
-                  <div className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center ring-1 ring-white/20 group-hover:bg-white/20 group-hover:ring-white/40 transition-all shadow-lg">
-                    <Phone className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="border-b border-white/10 group-hover:border-white/40 pb-0.5">{settings.phone}</span>
-                </a>
-              )}
-            </div>
 
-            {/* Premium Hours Button */}
-            {hasHours && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="pt-6"
-              >
-                <button
-                  onClick={() => setShowHoursModal(true)}
-                  className="inline-flex items-center gap-3 px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-xs font-black uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-xl"
-                >
-                  <Clock className="w-4 h-4 text-white/80" />
-                  {ui.hoursBtn}
-                </button>
-              </motion.div>
-            )}
           </motion.div>
         </div>
 
@@ -462,6 +418,15 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         <div className="sticky top-0 z-30 bg-zinc-50/80 backdrop-blur-xl border-b border-zinc-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div ref={categoryFilterRef} className="flex gap-2 justify-center items-center overflow-x-auto py-4 scrollbar-hide no-scrollbar">
+              {hasHours && (
+                <button
+                  onClick={() => setShowHoursModal(true)}
+                  className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 shadow-sm text-xs font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  {ui.hoursBtn}
+                </button>
+              )}
               <button
                 onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
                 className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${
@@ -505,7 +470,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                     >
                       {ui.all}
                     </button>
-                    {categories.map(cat => (
+                    {categories.filter(cat => cat.name?.trim()).map(cat => (
                       <button
                         key={cat.id}
                         ref={el => { categoryButtonRefs.current[cat.id] = el }}
@@ -658,6 +623,11 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               {hasContact && (
                 <div className="flex flex-wrap items-center justify-center gap-8 text-xs font-bold text-zinc-500">
+                  {settings?.address && (
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5" /> <span className="max-w-[220px] line-clamp-1">{settings.address}</span>
+                    </a>
+                  )}
                   {settings?.phone && (
                     <a href={`tel:${settings.phone}`} className="hover:text-zinc-900 flex items-center gap-2">
                       <Phone className="w-3.5 h-3.5" /> {settings.phone}
