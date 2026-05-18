@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   LayoutDashboard,
   Users,
+  ExternalLink,
   Menu as MenuIcon,
   Trash2,
   Edit3,
@@ -514,7 +515,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                       title="View Public Menu"
                       className="p-2 text-zinc-600 hover:text-zinc-900 hover:bg-white rounded-lg transition-all"
                     >
-                      <MenuIcon className="w-4 h-4" />
+                      <ExternalLink className="w-4 h-4" />
                     </a>
                     <a
                       href={`/api/admin/enter-preview?tenant=${client.id}`}
