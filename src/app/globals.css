@@ -46,7 +46,6 @@ input[type="file"] {
 .animate-marquee {
   animation: marquee 22s linear infinite;
 }
-.animate-marquee-paused {
-  animation: marquee 22s linear infinite;
+.animate-marquee:hover {
   animation-play-state: paused;
 }
