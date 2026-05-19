@@ -269,7 +269,12 @@ Plans:
 3. Every order record in the database stores its order type and delivery address; KDS cards display a fulfillment badge indicating the type
 4. Admin orders view includes a filter control that narrows the list to a specific order type
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 39-01-PLAN.md — Migration 035 (order_type + delivery_address on orders) + API POST update + Order interface update
+- [ ] 39-02-PLAN.md — CartModal order type chips + delivery address input + fee display; MenuPage state + POST body
+- [ ] 39-03-PLAN.md — OrderCard fulfillment badge + OrdersClient order type filter row
 
 **UI hint**: yes
 
