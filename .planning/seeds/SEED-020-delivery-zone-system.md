@@ -1,8 +1,10 @@
 ---
 id: SEED-020
-status: dormant
+status: completed
 planted: 2026-05-19
 planted_during: v2.2-milestone-execution
+completed: 2026-05-19
+completed_in: phase-47-delivery-zone-system
 trigger_when: restaurant activates delivery mode (SEED-013) and needs zone-based pricing and structured address management
 scope: large
 ---

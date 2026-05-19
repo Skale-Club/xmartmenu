@@ -155,6 +155,12 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     }
   }
 
+  // Fetch active delivery zones for zone-based checkout pricing
+  const deliveryEnabled = (tenant.tenant_settings as any)?.delivery_enabled ?? false
+  const { data: deliveryZones } = deliveryEnabled
+    ? await supabase.from('delivery_zones').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
+    : { data: [] }
+
   // P0-08 round 2: this page is `revalidate=60` ISR. A server-side insert
   // here would fire at most once per cache window. Scan recording is done
   // from the client via <ScanRecorder /> below so each visit is captured.
@@ -184,6 +190,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
         initialLanguage={lang}
         ingredientCustomizationEnabled={ingredientCustomizationEnabled}
         productIngredientsByProductId={productIngredientsByProductId}
+        deliveryZones={(deliveryZones ?? []) as any}
       />
     </>
   )

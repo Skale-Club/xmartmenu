@@ -1,8 +1,10 @@
 ---
 id: SEED-019
-status: dormant
+status: completed
 planted: 2026-05-19
 planted_during: v2.2-milestone-execution
+completed: 2026-05-19
+completed_in: phase-46-public-private-menu
 trigger_when: restaurant wants different prices for online vs in-store, or wants to gate the in-store menu behind phone login
 scope: medium
 ---

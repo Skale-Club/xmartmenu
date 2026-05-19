@@ -1,12 +1,21 @@
 'use client'
 
 import Image from 'next/image'
+import { useState } from 'react'
 import { X, ShoppingCart, User, Phone, ChevronLeft, ChevronRight, CheckCircle, UtensilsCrossed, Package, Truck, MapPin } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import type { UICopyEntry, CartItem } from './menu-utils'
 import { getProductImages } from './menu-utils'
+import type { DeliveryZone } from '@/types/database'
 
-export default function CartModal({ cart, confirmedCart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, ui, accentColor, orderTypeConfig, orderType, deliveryAddress, onOrderTypeChange, onDeliveryAddressChange, onClose, onCustomerNameChange, onCustomerPhoneChange, onRemove, onUpdateQuantity, onSubmit }: {
+function findMatchingZone(zipcode: string | undefined, zones: DeliveryZone[] | undefined): DeliveryZone | null {
+  if (!zipcode || !zones || zones.length === 0) return null
+  const clean = zipcode.trim().replace(/\D/g, '')
+  if (!clean) return null
+  return zones.find(z => z.is_active && z.zipcode_prefixes.some(p => clean.startsWith(p))) ?? null
+}
+
+export default function CartModal({ cart, confirmedCart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, ui, accentColor, orderTypeConfig, orderType, deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, deliveryZones, tipsEnabled, tipPercentages, tipCents, onTipChange, onOrderTypeChange, onDeliveryFieldChange, onClose, onCustomerNameChange, onCustomerPhoneChange, onRemove, onUpdateQuantity, onSubmit }: {
   cart: CartItem[]
   confirmedCart: CartItem[]
   currency: string
@@ -20,9 +29,18 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
   accentColor?: string
   orderTypeConfig?: { dineIn: boolean; pickup: boolean; delivery: boolean; deliveryFeeCents: number }
   orderType?: string
-  deliveryAddress?: string
+  deliveryStreet?: string
+  deliveryComplement?: string
+  deliveryZipcode?: string
+  deliveryCity?: string
+  deliveryNotes?: string
+  deliveryZones?: DeliveryZone[]
+  tipsEnabled?: boolean
+  tipPercentages?: [number, number, number]
+  tipCents?: number
+  onTipChange?: (cents: number) => void
   onOrderTypeChange?: (t: string) => void
-  onDeliveryAddressChange?: (a: string) => void
+  onDeliveryFieldChange?: (field: 'street' | 'complement' | 'zipcode' | 'city' | 'notes', value: string) => void
   onClose: () => void
   onCustomerNameChange: (name: string) => void
   onCustomerPhoneChange: (phone: string) => void
@@ -30,9 +48,47 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
   onUpdateQuantity: (itemCartKey: string, quantity: number) => void
   onSubmit: () => void
 }) {
+  const [selectedTipKey, setSelectedTipKey] = useState<'pct1' | 'pct2' | 'pct3' | 'custom' | null>(null)
+  const [customTipValue, setCustomTipValue] = useState('')
+
   const total = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const confirmedTotal = confirmedCart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const accent = accentColor ?? '#09090b'
+  const tipDollars = (tipCents ?? 0) / 100
+  const matchedZone = findMatchingZone(deliveryZipcode, deliveryZones)
+  const deliveryFeeCents = orderType === 'delivery'
+    ? (matchedZone != null ? matchedZone.fee_cents : (orderTypeConfig?.deliveryFeeCents ?? 0))
+    : 0
+  const grandTotal = total + deliveryFeeCents / 100 + tipDollars
+
+  function handleTipPct(key: 'pct1' | 'pct2' | 'pct3', pct: number) {
+    if (selectedTipKey === key) {
+      setSelectedTipKey(null)
+      onTipChange?.(0)
+      return
+    }
+    setSelectedTipKey(key)
+    setCustomTipValue('')
+    const subtotalCents = Math.round(total * 100)
+    onTipChange?.(Math.round(subtotalCents * pct / 100))
+  }
+
+  function handleCustomTip() {
+    if (selectedTipKey === 'custom') {
+      setSelectedTipKey(null)
+      setCustomTipValue('')
+      onTipChange?.(0)
+      return
+    }
+    setSelectedTipKey('custom')
+    onTipChange?.(0)
+  }
+
+  function handleCustomTipInput(value: string) {
+    setCustomTipValue(value)
+    const dollars = parseFloat(value)
+    onTipChange?.(isNaN(dollars) ? 0 : Math.max(0, Math.round(dollars * 100)))
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-0 sm:px-4" onClick={onClose}>
@@ -188,15 +244,104 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
 
             {/* Delivery address — shown only when delivery selected */}
             {orderType === 'delivery' && (
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Delivery Address</p>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 w-4 h-4 text-zinc-500 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={deliveryStreet ?? ''}
+                    onChange={e => onDeliveryFieldChange?.('street', e.target.value)}
+                    placeholder="Street and number *"
+                    className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                  />
+                </div>
                 <input
                   type="text"
-                  value={deliveryAddress ?? ''}
-                  onChange={e => onDeliveryAddressChange?.(e.target.value)}
-                  placeholder="Street address, city..."
-                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                  value={deliveryComplement ?? ''}
+                  onChange={e => onDeliveryFieldChange?.('complement', e.target.value)}
+                  placeholder="Apt, floor... (optional)"
+                  className="w-full px-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
                 />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={deliveryZipcode ?? ''}
+                    onChange={e => onDeliveryFieldChange?.('zipcode', e.target.value)}
+                    placeholder="Zipcode"
+                    className="w-2/5 px-3 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                  />
+                  <input
+                    type="text"
+                    value={deliveryCity ?? ''}
+                    onChange={e => onDeliveryFieldChange?.('city', e.target.value)}
+                    placeholder="City"
+                    className="w-3/5 px-3 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={deliveryNotes ?? ''}
+                  onChange={e => onDeliveryFieldChange?.('notes', e.target.value)}
+                  placeholder="Delivery notes (optional)"
+                  className="w-full px-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                />
+                {deliveryZones && deliveryZones.length > 0 && deliveryZipcode && (
+                  matchedZone ? (
+                    <p className="text-[10px] font-bold text-green-400 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {matchedZone.name} — {formatPrice(matchedZone.fee_cents / 100, currency)}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] font-bold text-amber-400">No delivery zone for this zipcode — flat fee applies</p>
+                  )
+                )}
+              </div>
+            )}
+
+            {/* Tip selector */}
+            {tipsEnabled && tipPercentages && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Add a Tip</p>
+                <div className="flex gap-1.5 flex-wrap">
+                  {(['pct1', 'pct2', 'pct3'] as const).map((key, i) => {
+                    const pct = tipPercentages[i]
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => handleTipPct(key, pct)}
+                        className={selectedTipKey === key
+                          ? "px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-[#e8eaf0] text-zinc-900 border border-[#e8eaf0] cursor-pointer"
+                          : "px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-zinc-600 text-zinc-400 bg-transparent hover:border-zinc-400 transition-all cursor-pointer"
+                        }
+                      >
+                        {pct}%
+                      </button>
+                    )
+                  })}
+                  <button
+                    type="button"
+                    onClick={handleCustomTip}
+                    className={selectedTipKey === 'custom'
+                      ? "px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-[#e8eaf0] text-zinc-900 border border-[#e8eaf0] cursor-pointer"
+                      : "px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-zinc-600 text-zinc-400 bg-transparent hover:border-zinc-400 transition-all cursor-pointer"
+                    }
+                  >
+                    Custom
+                  </button>
+                </div>
+                {selectedTipKey === 'custom' && (
+                  <input
+                    type="number"
+                    min={0}
+                    step={0.01}
+                    placeholder="Enter tip amount"
+                    value={customTipValue}
+                    onChange={e => handleCustomTipInput(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                  />
+                )}
               </div>
             )}
 
@@ -211,27 +356,30 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
                   </div>
                 ))}
               </div>
-              {orderType === 'delivery' && orderTypeConfig && orderTypeConfig.deliveryFeeCents > 0 ? (
-                <>
-                  <div className="border-t border-zinc-300 mt-3 pt-2 flex items-center justify-between">
+              <div className="border-t border-zinc-300 mt-3 pt-2 space-y-1">
+                {(deliveryFeeCents > 0 || tipDollars > 0) && (
+                  <div className="flex items-center justify-between">
                     <span className="text-xs text-zinc-500">Subtotal</span>
                     <span className="text-xs font-bold text-zinc-700">{formatPrice(total, currency)}</span>
                   </div>
-                  <div className="flex items-center justify-between mt-1">
+                )}
+                {deliveryFeeCents > 0 && (
+                  <div className="flex items-center justify-between">
                     <span className="text-xs text-zinc-500">Delivery fee</span>
-                    <span className="text-xs font-bold text-zinc-700">{formatPrice(orderTypeConfig.deliveryFeeCents / 100, currency)}</span>
+                    <span className="text-xs font-bold text-zinc-700">{formatPrice(deliveryFeeCents / 100, currency)}</span>
                   </div>
-                  <div className="border-t border-zinc-300 mt-2 pt-2 flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">Total</span>
-                    <span className="text-base font-black" style={{ color: accent }}>{formatPrice(total + orderTypeConfig.deliveryFeeCents / 100, currency)}</span>
+                )}
+                {tipDollars > 0 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">Tip</span>
+                    <span className="text-xs font-bold text-zinc-700">{formatPrice(tipDollars, currency)}</span>
                   </div>
-                </>
-              ) : (
-                <div className="border-t border-zinc-300 mt-3 pt-3 flex items-center justify-between">
+                )}
+                <div className="border-t border-zinc-300 pt-2 flex items-center justify-between">
                   <span className="text-xs text-zinc-500">Total</span>
-                  <span className="text-base font-black" style={{ color: accent }}>{formatPrice(total, currency)}</span>
+                  <span className="text-base font-black" style={{ color: accent }}>{formatPrice(grandTotal, currency)}</span>
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Customer fields */}

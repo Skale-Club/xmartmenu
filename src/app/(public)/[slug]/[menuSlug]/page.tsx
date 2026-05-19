@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import MenuPage from '@/components/menu/MenuPage'
 import ScanRecorder from '@/components/menu/ScanRecorder'
+import PrivateMenuWrapper from '@/components/menu/PrivateMenuWrapper'
 import type { Metadata } from 'next'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import type { ProductIngredientWithIngredient } from '@/types/database'
@@ -164,6 +165,12 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
     }
   }
 
+  // Fetch active delivery zones for zone-based checkout pricing
+  const deliveryEnabled = (tenant.tenant_settings as any)?.delivery_enabled ?? false
+  const { data: deliveryZones } = deliveryEnabled
+    ? await supabase.from('delivery_zones').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
+    : { data: [] }
+
   // P0-08 round 2: scan recording moved client-side via <ScanRecorder /> —
   // this page is ISR-cached so a server insert here only fires per cache miss.
 
@@ -174,14 +181,38 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
   const currency = (tenant.tenant_settings as any)?.currency ?? 'USD'
 
+  // SEED-019: apply price multiplier from private/in-store menu
+  const priceMultiplier = (menu as any)?.price_multiplier ?? 1
+  const displayProducts = priceMultiplier !== 1 && priceMultiplier > 0
+    ? (products ?? []).map(p => ({ ...p, price: Math.round(p.price * priceMultiplier * 100) / 100 }))
+    : (products ?? [])
+
+  const isPrivate = (menu as any)?.is_private ?? false
+
   const parentUrl = getCanonicalUrl(tenant, '/')
   // SEO-08: when rendering a branch, use branch-specific LocalBusiness with branchOf
   const localBusinessLd = location
     ? buildBranchJsonLd(location, canonicalUrl, parentUrl)
     : buildLocalBusinessJsonLd(tenant, tenant.tenant_settings as any, parentUrl)
-  const menuLd = menu
-    ? buildMenuJsonLd(menu.name, canonicalUrl, categories ?? [], products ?? [], currency)
+  // Do not index private menus
+  const menuLd = (menu && !isPrivate)
+    ? buildMenuJsonLd(menu.name, canonicalUrl, categories ?? [], displayProducts, currency)
     : null
+
+  const menuPageEl = (
+    <MenuPage
+      tenant={tenant}
+      categories={categories ?? []}
+      products={displayProducts}
+      menu={menu}
+      location={location ? { id: location.id, name: location.name } : null}
+      initialLanguage={lang}
+      optionGroupsByProductId={optionGroupsByProductId}
+      ingredientCustomizationEnabled={ingredientCustomizationEnabled}
+      productIngredientsByProductId={productIngredientsByProductId}
+      deliveryZones={(deliveryZones ?? []) as any}
+    />
+  )
 
   return (
     <>
@@ -189,17 +220,11 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       <JsonLdScript data={localBusinessLd} />
       {menuLd && <JsonLdScript data={menuLd} />}
       <ScanRecorder tenantId={tenant.id} />
-      <MenuPage
-        tenant={tenant}
-        categories={categories ?? []}
-        products={products ?? []}
-        menu={menu}
-        location={location ? { id: location.id, name: location.name } : null}
-        initialLanguage={lang}
-        optionGroupsByProductId={optionGroupsByProductId}
-        ingredientCustomizationEnabled={ingredientCustomizationEnabled}
-        productIngredientsByProductId={productIngredientsByProductId}
-      />
+      {isPrivate ? (
+        <PrivateMenuWrapper slug={slug} menuSlug={menuSlug} primaryColor={primaryColor}>
+          {menuPageEl}
+        </PrivateMenuWrapper>
+      ) : menuPageEl}
     </>
   )
 }

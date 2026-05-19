@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { getTenantPlan } from '@/lib/tenant-plan'
 import StoreClient from './StoreClient'
 
 export default async function StorePage() {
@@ -9,24 +10,19 @@ export default async function StorePage() {
   const effective = await getEffectiveTenant()
   const { tenantId } = effective!
 
-  const { data: settings } = await supabase
-    .from('tenant_settings')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .single()
+  const [
+    { data: settings },
+    { data: stripeConnection },
+    { data: tenant },
+    plan,
+  ] = await Promise.all([
+    supabase.from('tenant_settings').select('*').eq('tenant_id', tenantId).single(),
+    supabase.from('stripe_connections').select('*').eq('tenant_id', tenantId).eq('is_active', true).single(),
+    supabase.from('tenants').select('custom_domain, custom_domain_verified').eq('id', tenantId).single(),
+    getTenantPlan(tenantId),
+  ])
 
-  const { data: stripeConnection } = await supabase
-    .from('stripe_connections')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .eq('is_active', true)
-    .single()
+  const isPaymentsPlan = plan?.features.includes('payments') ?? false
 
-  const { data: tenant } = await supabase
-    .from('tenants')
-    .select('custom_domain, custom_domain_verified')
-    .eq('id', tenantId)
-    .single()
-
-  return <StoreClient settings={settings} tenantId={tenantId} stripeConnection={stripeConnection} tenant={tenant} />
+  return <StoreClient settings={settings} tenantId={tenantId} stripeConnection={stripeConnection} tenant={tenant} isPaymentsPlan={isPaymentsPlan} />
 }

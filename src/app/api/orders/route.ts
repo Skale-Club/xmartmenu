@@ -20,7 +20,14 @@ interface CreateOrderRequest {
   items: OrderItem[]
   order_type?: string
   delivery_address?: string
+  delivery_street?: string
+  delivery_complement?: string
+  delivery_zipcode?: string
+  delivery_city?: string
+  delivery_notes?: string
   location_id?: string | null
+  tip_cents?: number
+  menu_id?: string | null
 }
 
 function sanitizeNote(raw: string | undefined | null): string | null {
@@ -66,7 +73,7 @@ function computeItemUnitPrice(
 export async function POST(request: Request) {
   try {
     const body: CreateOrderRequest = await request.json()
-    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, location_id: rawLocationId } = body
+    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId } = body
 
     if (!tenant_id?.trim()) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 })
@@ -87,9 +94,12 @@ export async function POST(request: Request) {
       ? rawOrderType as OrderType
       : 'dine_in'
 
-    const deliveryAddress = rawDeliveryAddress?.trim() || null
+    const deliveryStreet = rawDeliveryStreet?.trim() || null
+    const deliveryAddress = deliveryStreet
+      ? [rawDeliveryStreet?.trim(), rawDeliveryZipcode?.trim(), rawDeliveryCity?.trim()].filter(Boolean).join(', ')
+      : (rawDeliveryAddress?.trim() || null)
 
-    if (orderType === 'delivery' && !deliveryAddress) {
+    if (orderType === 'delivery' && !deliveryStreet && !deliveryAddress) {
       return NextResponse.json({ error: 'Delivery address is required for delivery orders' }, { status: 400 })
     }
 
@@ -128,17 +138,55 @@ export async function POST(request: Request) {
     }
     const priceById = new Map(dbProducts.map((p) => [p.id, p.price]))
 
+    // SEED-019: apply price multiplier from private/in-store menu
+    let priceMultiplier = 1
+    if (rawMenuId) {
+      const { data: menuRow } = await service
+        .from('menus')
+        .select('price_multiplier, tenant_id')
+        .eq('id', rawMenuId)
+        .eq('tenant_id', tenant_id)
+        .single()
+      if (menuRow?.price_multiplier && menuRow.price_multiplier > 0) {
+        priceMultiplier = Number(menuRow.price_multiplier)
+      }
+    }
+
     const trustedItems = items.map((item) => {
-      const trustedUnit = computeItemUnitPrice({ price: priceById.get(item.product_id) ?? 0 }, item)
+      const baseUnit = computeItemUnitPrice({ price: priceById.get(item.product_id) ?? 0 }, item)
+      const trustedUnit = priceMultiplier !== 1
+        ? Math.round(baseUnit * priceMultiplier * 100) / 100
+        : baseUnit
       return { ...item, unit_price: trustedUnit }
     })
 
     const total = trustedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
 
-    const deliveryFeeCents = orderType === 'delivery'
+    let deliveryFeeCents = orderType === 'delivery'
       ? Number((settings as any)?.delivery_fee_cents ?? 0)
       : 0
-    const orderTotal = Number((total + deliveryFeeCents / 100).toFixed(2))
+    let resolvedZoneId: string | null = null
+
+    if (orderType === 'delivery' && rawDeliveryZipcode) {
+      const cleanZip = rawDeliveryZipcode.trim().replace(/\D/g, '')
+      if (cleanZip) {
+        const { data: activeZones } = await service
+          .from('delivery_zones')
+          .select('id, fee_cents, zipcode_prefixes')
+          .eq('tenant_id', tenant_id)
+          .eq('is_active', true)
+        const matched = (activeZones ?? []).find(z =>
+          (z.zipcode_prefixes as string[]).some(p => cleanZip.startsWith(p))
+        )
+        if (matched) {
+          deliveryFeeCents = matched.fee_cents
+          resolvedZoneId = matched.id
+        }
+      }
+    }
+
+    const tipCents = Math.max(0, Math.floor(Number(rawTipCents ?? 0)))
+    const orderTotal = Number((total + deliveryFeeCents / 100 + tipCents / 100).toFixed(2))
 
     const locationId = rawLocationId ?? null
 
@@ -152,7 +200,14 @@ export async function POST(request: Request) {
         total: orderTotal,
         order_type: orderType,
         delivery_address: deliveryAddress,
+        delivery_street: orderType === 'delivery' ? (deliveryStreet || null) : null,
+        delivery_complement: orderType === 'delivery' ? (rawDeliveryComplement?.trim() || null) : null,
+        delivery_zipcode: orderType === 'delivery' ? (rawDeliveryZipcode?.trim() || null) : null,
+        delivery_city: orderType === 'delivery' ? (rawDeliveryCity?.trim() || null) : null,
+        delivery_notes: orderType === 'delivery' ? (rawDeliveryNotes?.trim() || null) : null,
+        delivery_zone_id: resolvedZoneId,
         location_id: locationId,
+        tip_cents: tipCents,
       })
       .select()
       .single()

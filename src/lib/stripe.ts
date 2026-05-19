@@ -124,6 +124,7 @@ export async function createPaymentIntent(params: {
   tenantId: string
   orderId: string
   amount: number
+  tipCents?: number
   currency?: string
 }): Promise<PaymentIntentResult> {
   const { createClient } = await import('@/lib/supabase/server')
@@ -150,7 +151,8 @@ export async function createPaymentIntent(params: {
   }
 
   const feePct = plan.transaction_fee_pct || 0.005
-  const applicationFeeAmount = Math.floor(params.amount * feePct)
+  const feeableAmount = params.amount - (params.tipCents ?? 0)
+  const applicationFeeAmount = Math.floor(Math.max(0, feeableAmount) * feePct)
 
   // 3. Create PaymentIntent on tenant's connected account
   const paymentIntent = await stripe.paymentIntents.create({

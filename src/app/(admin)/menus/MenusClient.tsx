@@ -3,7 +3,7 @@ import { type Dispatch, type ReactNode, type SetStateAction, useState } from 're
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import { Plus, LayoutDashboard, Globe, Settings, Trash2, Eye, Edit3, CheckCircle2, ChevronRight, X, ArrowRight } from 'lucide-react'
+import { Plus, LayoutDashboard, Globe, Settings, Trash2, Eye, Edit3, CheckCircle2, ChevronRight, X, ArrowRight, Lock, Unlock } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const PURPOSES = ['restaurant', 'bar', 'cafe', 'hotel', 'salon', 'retail', 'other']
@@ -25,6 +25,8 @@ interface Menu {
   description: string | null
   is_active: boolean
   is_default: boolean
+  is_private: boolean
+  price_multiplier: number
   position: number
 }
 
@@ -35,6 +37,8 @@ interface MenuDraft {
   translations: Record<string, { name: string; description: string }>
   purpose: string
   description: string
+  is_private: boolean
+  price_multiplier: number
 }
 
 const EMPTY_DRAFT: MenuDraft = {
@@ -44,6 +48,8 @@ const EMPTY_DRAFT: MenuDraft = {
   translations: {},
   purpose: 'restaurant',
   description: '',
+  is_private: false,
+  price_multiplier: 1.00,
 }
 
 function toDraft(menu?: Menu): MenuDraft {
@@ -67,6 +73,8 @@ function toDraft(menu?: Menu): MenuDraft {
     translations: nextTranslations,
     purpose: menu.purpose,
     description: menu.description ?? '',
+    is_private: menu.is_private ?? false,
+    price_multiplier: menu.price_multiplier ?? 1.00,
   }
 }
 
@@ -180,6 +188,52 @@ function MenuFormFields({
             )
           })}
         </div>
+      </div>
+
+      {/* Privacy & Pricing */}
+      <div className="border-t border-zinc-100 pt-6 space-y-4">
+        <div className="flex items-center gap-3">
+          {draft.is_private ? <Lock className="w-4 h-4 text-amber-500" /> : <Unlock className="w-4 h-4 text-zinc-400" />}
+          <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Access & Pricing</span>
+        </div>
+        <div
+          className="flex items-center justify-between p-4 rounded-lg bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
+          onClick={() => setDraft(f => ({ ...f, is_private: !f.is_private }))}
+        >
+          <div>
+            <p className="text-sm font-black text-zinc-950">Private Menu</p>
+            <p className="text-[10px] text-zinc-500 font-medium mt-0.5">Requires phone OTP login to access. Use for in-store pricing.</p>
+          </div>
+          <button
+            type="button"
+            className={cn(
+              "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none flex-shrink-0",
+              draft.is_private ? "bg-amber-400" : "bg-zinc-200"
+            )}
+          >
+            <span className={cn(
+              "inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200",
+              draft.is_private ? "translate-x-5" : "translate-x-0.5"
+            )} />
+          </button>
+        </div>
+        {draft.is_private && (
+          <div className="space-y-2 px-4">
+            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest">Price Multiplier</label>
+            <input
+              type="number"
+              min={1.0}
+              max={5.0}
+              step={0.05}
+              value={draft.price_multiplier}
+              onChange={e => setDraft(f => ({ ...f, price_multiplier: Math.max(1, Number(Number(e.target.value).toFixed(2))) }))}
+              className={inputClassName}
+            />
+            <p className="text-[10px] font-medium text-zinc-400 ml-1">
+              1.00 = no change · 1.15 = 15% higher than public prices
+            </p>
+          </div>
+        )}
       </div>
 
       {supported.filter(lang => lang !== draft.language).map(lang => (
@@ -381,6 +435,7 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
                     {menu.is_default && <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-950 text-white px-2.5 py-1 rounded-full">Default</span>}
                     {isEditing && <span className="text-[9px] font-black uppercase tracking-widest bg-primary text-zinc-950 px-2.5 py-1 rounded-full">Editing</span>}
                     {!menu.is_active && <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-100 text-zinc-400 px-2.5 py-1 rounded-full">Off</span>}
+                    {menu.is_private && <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full flex items-center gap-1"><Lock className="w-2.5 h-2.5" />Private</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-4 text-xs font-bold text-zinc-400">

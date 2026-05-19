@@ -40,7 +40,9 @@
       "Bash(grep -n \"revalidatePath\\(\\\\`/\\\\${tenantSlug}\\\\`\\)\" \"src/app/api/revalidate/route.ts\")",
       "Skill(gsd-plan-phase)",
       "Skill(gsd-plan-phase:*)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "mcp__d88cf9af-d861-4f07-ab05-e7b707960682__list_projects",
+      "mcp__d88cf9af-d861-4f07-ab05-e7b707960682__list_tables"
     ]
   }
 }

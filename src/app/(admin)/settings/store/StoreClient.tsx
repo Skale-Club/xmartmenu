@@ -5,14 +5,16 @@ import { createClient } from '@/lib/supabase/client'
 import type { TenantSettings } from '@/types/database'
 import type { Tenant } from '@/types/database'
 import type { StripeConnection } from '@/lib/stripe'
-import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle, UtensilsCrossed } from 'lucide-react'
+import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle, UtensilsCrossed, Percent } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import DeliveryZonesSection from './DeliveryZonesSection'
 
 interface Props {
   settings: TenantSettings | null
   tenantId: string
   stripeConnection: StripeConnection | null
   tenant: Pick<Tenant, 'custom_domain' | 'custom_domain_verified'> | null
+  isPaymentsPlan?: boolean
 }
 
 const CURRENCIES = [
@@ -47,7 +49,7 @@ const DAYS = [
   { key: 'sun', label: 'Sunday' },
 ]
 
-export default function StoreClient({ settings, tenantId, stripeConnection, tenant }: Props) {
+export default function StoreClient({ settings, tenantId, stripeConnection, tenant, isPaymentsPlan = false }: Props) {
   const hours = (settings?.business_hours ?? {}) as Record<string, string>
 
   const [form, setForm] = useState({
@@ -63,6 +65,10 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
     delivery_enabled: settings?.delivery_enabled ?? false,
     pickup_eta_minutes: settings?.pickup_eta_minutes ?? 20,
     delivery_fee_cents: settings?.delivery_fee_cents ?? 0,
+    tips_enabled: settings?.tips_enabled ?? false,
+    tip_percentage_1: settings?.tip_percentage_1 ?? 15,
+    tip_percentage_2: settings?.tip_percentage_2 ?? 18,
+    tip_percentage_3: settings?.tip_percentage_3 ?? 20,
   })
   const [businessHours, setBusinessHours] = useState<Record<string, string>>(
     Object.fromEntries(DAYS.map(d => [d.key, hours[d.key] ?? '']))
@@ -465,7 +471,7 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
             {/* Delivery fee field — shown only when delivery_enabled */}
             {form.delivery_enabled && (
               <div className="space-y-2 mt-4 px-5 pb-2">
-                <label className={labelClassName}>Delivery Fee</label>
+                <label className={labelClassName}>Flat Delivery Fee (fallback)</label>
                 <input
                   type="number"
                   min={0}
@@ -475,10 +481,73 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
                   onChange={e => setForm(f => ({ ...f, delivery_fee_cents: Math.round(Number(e.target.value) * 100) }))}
                   className={cn(inputClassName, "font-black text-lg")}
                 />
-                <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">Displayed as currency to customer</p>
+                <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">Used when no delivery zone matches the customer's zipcode</p>
+              </div>
+            )}
+
+            {/* Delivery Zones — shown only when delivery_enabled */}
+            {form.delivery_enabled && (
+              <div className="mt-6 px-5 pb-2">
+                <DeliveryZonesSection />
               </div>
             )}
           </div>
+
+          {/* Tips — payments plan only */}
+          {isPaymentsPlan && (
+            <div className="bg-white border border-zinc-100 rounded-[1.25rem] p-10 space-y-4 shadow-sm">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Percent className="w-4 h-4 text-primary" />
+                </div>
+                <h2 className="text-xl font-black text-zinc-950 tracking-tight">Tips</h2>
+              </div>
+
+              <div
+                className="flex items-center justify-between group p-5 rounded-[1rem] bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
+                onClick={() => setForm(f => ({ ...f, tips_enabled: !f.tips_enabled }))}
+              >
+                <div className="max-w-[70%]">
+                  <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">Enable Tips at Checkout</p>
+                  <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Customers can add a gratuity when placing an order. Tips go 100% to your restaurant.</p>
+                </div>
+                <button
+                  type="button"
+                  className={cn(
+                    "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
+                    form.tips_enabled ? "bg-primary" : "bg-zinc-200"
+                  )}
+                >
+                  <span className={cn(
+                    "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
+                    form.tips_enabled ? "translate-x-5" : "translate-x-1"
+                  )} />
+                </button>
+              </div>
+
+              {form.tips_enabled && (
+                <div className="space-y-2 mt-4 px-5 pb-2">
+                  <label className={labelClassName}>Tip Presets (%)</label>
+                  <div className="grid grid-cols-3 gap-4">
+                    {(['tip_percentage_1', 'tip_percentage_2', 'tip_percentage_3'] as const).map((key, i) => (
+                      <div key={key} className="space-y-1">
+                        <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Option {i + 1}</label>
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={form[key]}
+                          onChange={e => setForm(f => ({ ...f, [key]: Math.min(100, Math.max(1, Number(e.target.value))) }))}
+                          className={cn(inputClassName, "font-black text-lg")}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">A "Custom" option is always available to customers</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Custom Domain */}
           <div className="bg-white border border-zinc-100 rounded-[1.25rem] p-10 space-y-8 shadow-sm">
