@@ -364,17 +364,17 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                 <Link2 className="w-4 h-4 text-primary" />
               </div>
-              <h2 className="text-xl font-black text-zinc-950 tracking-tight">Domínio Personalizado</h2>
+              <h2 className="text-xl font-black text-zinc-950 tracking-tight">Custom Domain</h2>
             </div>
             <div className="space-y-4">
               <div>
-                <label className={labelClassName}>Seu domínio</label>
+                <label className={labelClassName}>Your domain</label>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={customDomain}
                     onChange={e => setCustomDomain(e.target.value)}
-                    placeholder="sitedocliente.com"
+                    placeholder="yourdomain.com"
                     className={inputClassName}
                   />
                   <button
@@ -383,10 +383,10 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
                     disabled={savingDomain || !customDomain.trim()}
                     className="px-5 py-3 bg-primary text-zinc-950 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50 shrink-0"
                   >
-                    {savingDomain ? '...' : 'Salvar'}
+                    {savingDomain ? '...' : 'Save Domain'}
                   </button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Sem https:// — ex: sitedocliente.com</p>
+                <p className="text-xs text-muted-foreground mt-1">No https:// — e.g. yourdomain.com</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -396,15 +396,15 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
                   disabled={verifying || !customDomain.trim()}
                   className="px-4 py-2 border border-zinc-200 text-zinc-600 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-zinc-50 transition-all disabled:opacity-50"
                 >
-                  {verifying ? 'Verificando...' : 'Verificar DNS'}
+                  {verifying ? 'Verifying...' : 'Verify DNS'}
                 </button>
                 {domainVerified ? (
                   <span className="flex items-center gap-1 text-xs font-bold text-green-600">
-                    <CheckCircle2 className="w-4 h-4" /> Ativo
+                    <CheckCircle2 className="w-4 h-4" /> Active
                   </span>
                 ) : customDomain && verifyResult ? (
                   <span className="flex items-center gap-1 text-xs font-bold text-red-500">
-                    <XCircle className="w-4 h-4" /> Não verificado
+                    <XCircle className="w-4 h-4" /> Not verified
                   </span>
                 ) : null}
               </div>
@@ -417,21 +417,21 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
                     : "bg-red-50 border border-red-100 text-red-700"
                 )}>
                   {verifyResult.verified
-                    ? 'Domínio verificado! Seu site está acessível em ' + customDomain
-                    : `Verificação falhou: ${verifyResult.reason ?? 'verifique o DNS'}`}
+                    ? 'Domain verified! Your site is live at ' + customDomain
+                    : `Verification failed: ${verifyResult.reason ?? 'check your DNS settings'}`}
                 </div>
               )}
 
               {customDomain && (
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl space-y-2">
-                  <h4 className="font-semibold text-blue-900 text-sm">Configurar DNS</h4>
-                  <p className="text-xs text-blue-700">No painel do seu registrador de domínio, crie um registro CNAME:</p>
+                  <h4 className="font-semibold text-blue-900 text-sm">Configure DNS</h4>
+                  <p className="text-xs text-blue-700">In your domain registrar's panel, create a CNAME record:</p>
                   <div className="bg-blue-100 rounded p-3 font-mono text-xs space-y-1">
-                    <div><span className="font-semibold text-blue-800">Tipo:</span> CNAME</div>
+                    <div><span className="font-semibold text-blue-800">Type:</span> CNAME</div>
                     <div><span className="font-semibold text-blue-800">Host:</span> @ (ou vazio)</div>
-                    <div><span className="font-semibold text-blue-800">Destino:</span> xmartmenu.skale.club</div>
+                    <div><span className="font-semibold text-blue-800">Target:</span> xmartmenu.skale.club</div>
                   </div>
-                  <p className="text-xs text-blue-600">A propagação pode levar até 24 horas.</p>
+                  <p className="text-xs text-blue-600">DNS propagation may take up to 24 hours.</p>
                 </div>
               )}
             </div>
