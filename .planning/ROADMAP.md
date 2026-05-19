@@ -14,6 +14,7 @@
 - ✅ **v1.9 Performance Gaps** — Phases 28-29 (shipped 2026-05-08)
 - ✅ **v2.0 Monetization** — Phases 30-34 (shipped 2026-05-09)
 - ✅ **v2.1 Custom Domains** — Phase 35 (shipped 2026-05-10)
+- 🚧 **v2.2 Restaurant Growth Platform** — Phases 36+ (in progress — Phase 36 English Conversion complete 2026-05-19)
 
 ## Completed Milestones
 
@@ -124,10 +125,29 @@ Key Requirements:
 ## Phases
 
 - [x] **Phase 35: Custom Domain Infrastructure** — DB migration + middleware hostname routing + admin UI + DNS instructions (shipped 2026-05-10, commit 6781d06)
+- [x] **Phase 36: English Conversion** — All 17 operator-facing files converted to English; ENGL-01 through ENGL-06 certified (shipped 2026-05-19, Plans 01+02)
 
 ---
 
 ## Phase Details
+
+### Phase 36: English Conversion
+
+**Goal:** Convert all operator-facing UI text from Portuguese to English across admin panel, superadmin panel, KDS, onboarding wizard, settings pages, and API error messages.
+
+**Depends on:** Phase 35
+
+**Requirements:** ENGL-01, ENGL-02, ENGL-03, ENGL-04, ENGL-05, ENGL-06
+
+**Status:** Shipped 2026-05-19
+
+**Plans:**
+| # | Plan | Description | Status |
+|---|------|-------------|--------|
+| 01 | Admin Settings + Superadmin Panel | 15 Custom Domain strings + 7 error strings/comments | 2/2 ✅ |
+| 02 | Verification Scan | Full grep scan confirms zero Portuguese strings | 2/2 ✅ |
+
+---
 
 ### Phase 35: Custom Domain Infrastructure
 

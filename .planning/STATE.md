@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Custom Domains
-status: completed
-stopped_at: v2.1 + round-1 + round-2 audit remediation shipped (commits 1851b25, 0bfb9d1, 533cd8b, 7cb5d18, 5f571ba, 2be27a8, c0e03e8, 38f3504) — awaiting next milestone
-last_updated: "2026-05-17T07:00:00.000Z"
-last_activity: 2026-05-17
+milestone: v2.2
+milestone_name: Restaurant Growth Platform
+status: in-progress
+stopped_at: Phase 36 Plan 02 complete — English conversion certified across all 17 operator-facing files
+last_updated: "2026-05-19T13:43:07Z"
+last_activity: 2026-05-19
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
-  total_plans: 1
-  completed_plans: 1
+  total_plans: 3
+  completed_plans: 3
 ---
 
 # Project State
@@ -20,16 +20,22 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-17)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v2.1 Custom Domains shipped — awaiting next milestone
+**Current focus:** Phase 36 English Conversion complete (ENGL-01 through ENGL-06 certified)
 
 ## Current Position
 
-Phase: — (no active phase)
-Plan: — (no active plan)
-Status: All seeds completed (SEED-001 → SEED-010). v2.1 shipped 2026-05-10. Full-system audit rounds 1+2 remediation shipped 2026-05-17 — round 1: 11/11 P0, 8/9 P1, 5/12 P2 fixed; round 2: 8/8 P0 (including a regression in round-1 Wave 4), 6/9 P1; migrations 032+033 applied & repaired.
-Last activity: 2026-05-17
+Phase: 36-english-conversion (complete)
+Plan: 36-02 (complete — 2/2 plans done)
+Status: All seeds completed (SEED-001 → SEED-010). v2.1 shipped 2026-05-10. Full-system audit rounds 1+2 remediation shipped 2026-05-17. Phase 36 English Conversion (Plans 01+02) complete 2026-05-19 — all 17 operator-facing files certified English-only.
+Last activity: 2026-05-19
 
 ## Milestone Overview
+
+v2.2: Restaurant Growth Platform — in progress
+
+| Phase | Name | Requirements | Status |
+|-------|------|--------------|--------|
+| 36 | English Conversion | ENGL-01 through ENGL-06 | Complete (2026-05-19) |
 
 v2.1: Custom Domains — SEED-010 (shipped)
 
@@ -96,6 +102,8 @@ v2.1: Custom Domains — SEED-010 (shipped)
 | Phase 32 P01 | 275 | 6 tasks | 6 files |
 | Phase 33 P01 | 15 | 8 tasks | 8 files |
 | Phase 34 P34 | ~8min | 4 tasks | 4 files |
+| Phase 36 P01 | 3min | 2 tasks | 4 files |
+| Phase 36 P02 | 2min | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -247,30 +255,34 @@ Recent decisions affecting current work:
 - [Phase 33]: Webhook returns 200 immediately — async processing for slow ops
 ### Pending Todos
 
-Nenhum — todos os seeds implementados, todos os milestones shipados, auditoria full-system aplicada.
-
-Deferred (não bloqueia): P1-03/P1-04 rate-limiting (Vercel/Upstash setup, agendado para v2.2);
-2 vulns moderate `postcss` transitivas via Next.js (esperando upstream fix);
-P2 cosméticos (lint warnings, `<img>` → `next/image`).
+Deferred (non-blocking): P1-03/P1-04 rate-limiting (Vercel/Upstash setup, scheduled for v2.2);
+2 vulns moderate `postcss` transitive via Next.js (waiting upstream fix);
+P2 cosmetics (lint warnings, `<img>` → `next/image`).
 
 ### Blockers/Concerns
 
-Nenhum.
+None.
+
+### Decisions
+
+- [Phase 36-02]: Pure verification plan — no file modifications required; Plan 01 changes were already complete and correct
+- [Phase 36-02]: Middle dots (U+00B7) in BrandingClient.tsx English placeholder text are not Portuguese — excluded from fix scope
 
 ## Session Continuity
 
-Last session: 2026-05-17T05:30:00.000Z
-Stopped at: v2.1 shipped + full-system audit remediation pushed to main; CI green; supabase migration history sincronizado.
+Last session: 2026-05-19T13:43:07Z
+Stopped at: Phase 36 Plan 02 complete — English conversion certified across all 17 operator-facing files. ENGL-01 through ENGL-06 all satisfied.
 
 ---
 
-**Project Status: IDLE (all milestones shipped — ready for next seed/milestone)**
+**Project Status: IN PROGRESS — Phase 36 complete, v2.2 milestone ongoing**
 
 | Item | Status |
 |------|--------|
 | Seeds | 10 completed (SEED-001 → SEED-010) |
-| Milestones | 12 shipped (v1.0 → v2.1) |
-| Phases | 35 shipped |
+| Milestones | v2.1 shipped, v2.2 in progress |
+| Phases | 36 shipped (35 + Phase 36 English Conversion) |
 | Audit round 1 | 11/11 P0, 8/9 P1, 5/12 P2, 3/6 P3 fixed |
 | Audit round 2 | 8/8 P0, 6/9 P1 fixed (incl. round-1 Wave 4 middleware regression hotfix) |
+| Phase 36 | ENGL-01 through ENGL-06 certified — zero Portuguese UI strings |
 | Blockers | None |
