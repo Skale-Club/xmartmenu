@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 39-order-types-customer-operational-39-03-PLAN.md
+stopped_at: Completed phase-40-multi-location-schema-admin-crud
 last_updated: "2026-05-19T15:20:40.494Z"
 last_activity: 2026-05-19
 progress:
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 40 — Multi-Location — Schema & Admin CRUD
+**Current focus:** Phase 41 — Multi-Location — Routing, QR Codes & Menu Toggle
 
 ## Current Position
 
-Phase: 40 (Multi-Location — Schema & Admin CRUD) — PLANNING
+Phase: 41 (Multi-Location — Routing, QR Codes & Menu Toggle) — PLANNING
 Plan: 0 of ?
-Status: Phase 39 complete — ready to plan Phase 40
+Status: Phase 40 complete — ready to plan Phase 41
 Last activity: 2026-05-19
 
 ## Milestone Overview

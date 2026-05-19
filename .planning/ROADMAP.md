@@ -375,7 +375,7 @@ Plans:
 | 37. Color Theming | 2/2 | Complete    | 2026-05-19 |
 | 38. Order Types — Admin & Schema | 2/2 | Complete    | 2026-05-19 |
 | 39. Order Types — Customer & Operational | 3/3 | Complete    | 2026-05-19 |
-| 40. Multi-Location — Schema & Admin CRUD | 0/? | Not started | - |
+| 40. Multi-Location — Schema & Admin CRUD | 1/1 | Complete    | 2026-05-19 |
 | 41. Multi-Location — Routing, QR Codes & Menu Toggle | 0/? | Not started | - |
 | 42. SEO — Platform & Per-Tenant | 0/? | Not started | - |
 | 43. SEO — Per-Branch Local SEO | 0/? | Not started | - |
