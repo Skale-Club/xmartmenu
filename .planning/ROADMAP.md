@@ -145,7 +145,7 @@ Key accomplishments:
 - [x] **Phase 35: Custom Domain Infrastructure** — DB migration + middleware hostname routing + admin UI + DNS instructions
 - [x] **Phase 36: English Conversion** — Migrate all operator-facing UI text from Portuguese to English across admin, superadmin, onboarding, KDS, settings, and error messages (completed 2026-05-19)
 - [x] **Phase 37: Color Theming** — DB migration + server-side CSS injection + admin color picker + smart defaults for new tenants (completed 2026-05-19)
-- [ ] **Phase 38: Order Types — Admin & Schema** — DB migration for order type flags and config + admin settings UI (dine-in/pick-up/delivery toggles + fee/time fields)
+- [x] **Phase 38: Order Types — Admin & Schema** — DB migration for order type flags and config + admin settings UI (dine-in/pick-up/delivery toggles + fee/time fields) (completed 2026-05-19)
 - [ ] **Phase 39: Order Types — Customer & Operational** — Customer order type selector + delivery address field + fee in cart total + KDS fulfillment badges + orders filter
 - [ ] **Phase 40: Multi-Location — Schema & Admin CRUD** — DB migration for branches table + admin branch management UI (create/edit/deactivate)
 - [ ] **Phase 41: Multi-Location — Routing, QR Codes & Menu Toggle** — Slug-based branch routing + root branch picker + per-branch QR codes + shared/independent menu toggle + KDS/orders branch filter
@@ -368,7 +368,7 @@ Plans:
 | 35. Custom Domain Infrastructure | 1/1 | Done | 2026-05-10 |
 | 36. English Conversion | 1/2 | Complete    | 2026-05-19 |
 | 37. Color Theming | 2/2 | Complete    | 2026-05-19 |
-| 38. Order Types — Admin & Schema | 1/2 | In Progress|  |
+| 38. Order Types — Admin & Schema | 2/2 | Complete    | 2026-05-19 |
 | 39. Order Types — Customer & Operational | 0/? | Not started | - |
 | 40. Multi-Location — Schema & Admin CRUD | 0/? | Not started | - |
 | 41. Multi-Location — Routing, QR Codes & Menu Toggle | 0/? | Not started | - |
