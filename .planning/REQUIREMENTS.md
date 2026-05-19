@@ -15,8 +15,8 @@
 
 - [x] **THEME-01**: Tenant admin can set primary and secondary colors via a color picker in branding settings
 - [x] **THEME-02**: Public menu page injects tenant colors as CSS custom properties server-side with no flash of unstyled content
-- [ ] **THEME-03**: All public menu interactive elements (buttons, category pills, cart badge, CTAs, modal headers) use `var(--color-primary)` and `var(--color-secondary)`
-- [ ] **THEME-04**: New tenants receive a default color palette based on their cuisine or business type
+- [x] **THEME-03**: All public menu interactive elements (buttons, category pills, cart badge, CTAs, modal headers) use `var(--color-primary)` and `var(--color-secondary)`
+- [x] **THEME-04**: New tenants receive a default color palette based on their cuisine or business type
 
 ### Order Types (SEED-013)
 
@@ -81,8 +81,8 @@
 | ENGL-06 | Phase 36 | Complete |
 | THEME-01 | Phase 37 | Complete |
 | THEME-02 | Phase 37 | Complete |
-| THEME-03 | Phase 37 | Pending |
-| THEME-04 | Phase 37 | Pending |
+| THEME-03 | Phase 37 | Complete |
+| THEME-04 | Phase 37 | Complete |
 | ORD-01 | Phase 38 | Pending |
 | ORD-02 | Phase 38 | Pending |
 | ORD-03 | Phase 38 | Pending |

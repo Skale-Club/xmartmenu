@@ -144,7 +144,7 @@ Key accomplishments:
 
 - [x] **Phase 35: Custom Domain Infrastructure** — DB migration + middleware hostname routing + admin UI + DNS instructions
 - [x] **Phase 36: English Conversion** — Migrate all operator-facing UI text from Portuguese to English across admin, superadmin, onboarding, KDS, settings, and error messages (completed 2026-05-19)
-- [ ] **Phase 37: Color Theming** — DB migration + server-side CSS injection + admin color picker + smart defaults for new tenants
+- [x] **Phase 37: Color Theming** — DB migration + server-side CSS injection + admin color picker + smart defaults for new tenants (completed 2026-05-19)
 - [ ] **Phase 38: Order Types — Admin & Schema** — DB migration for order type flags and config + admin settings UI (dine-in/pick-up/delivery toggles + fee/time fields)
 - [ ] **Phase 39: Order Types — Customer & Operational** — Customer order type selector + delivery address field + fee in cart total + KDS fulfillment badges + orders filter
 - [ ] **Phase 40: Multi-Location — Schema & Admin CRUD** — DB migration for branches table + admin branch management UI (create/edit/deactivate)
@@ -223,7 +223,7 @@ Plans:
 
 Plans:
 - [x] 37-01-PLAN.md — color-utils.ts luminance util + globals.css --accent vars + server-side CSS injection in both public page.tsx routes + BrandingClient preset chips
-- [ ] 37-02-PLAN.md — MenuPage/CartModal hardcoded color audit + onboarding API smart default palette
+- [x] 37-02-PLAN.md — MenuPage/CartModal hardcoded color audit + onboarding API smart default palette
 
 **UI hint**: yes
 
@@ -363,7 +363,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 35. Custom Domain Infrastructure | 1/1 | Done | 2026-05-10 |
 | 36. English Conversion | 1/2 | Complete    | 2026-05-19 |
-| 37. Color Theming | 1/2 | In Progress|  |
+| 37. Color Theming | 2/2 | Complete   | 2026-05-19 |
 | 38. Order Types — Admin & Schema | 0/? | Not started | - |
 | 39. Order Types — Customer & Operational | 0/? | Not started | - |
 | 40. Multi-Location — Schema & Admin CRUD | 0/? | Not started | - |
