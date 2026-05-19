@@ -8,7 +8,7 @@
  *
  * Ciphertext format: base64(iv | authTag | ciphertext)  (12 | 16 | n bytes)
  */
-import { randomBytes, createCipheriv, createDecipheriv } from 'crypto'
+import { randomBytes, createCipheriv, createDecipheriv, createHash } from 'crypto'
 
 const ALGO = 'aes-256-gcm'
 const IV_LEN = 12
@@ -63,7 +63,6 @@ export function maskApiKey(key: string): string {
 
 /** SHA-256 hash a phone number scoped to a tenant. */
 export function hashPhone(phone: string, tenantId: string): string {
-  const { createHash } = require('crypto') as typeof import('crypto')
   return createHash('sha256').update(`${tenantId}:${phone}`).digest('hex')
 }
 
