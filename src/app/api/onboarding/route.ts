@@ -4,6 +4,14 @@ import { slugify } from '@/lib/utils'
 import { normalizeRole } from '@/lib/auth/role-utils'
 import { RESERVED_PATHS } from '@/lib/marketing/reserved-paths'
 
+const CUISINE_PALETTES: Record<string, { primary: string; accent: string }> = {
+  pizza:        { primary: '#E74C3C', accent: '#FFFFFF' },
+  japanese:     { primary: '#C0392B', accent: '#1A1A1A' },
+  burger:       { primary: '#F39C12', accent: '#2C3E50' },
+  cafe:         { primary: '#6F4E37', accent: '#FDF5E6' },
+  churrascaria: { primary: '#27AE60', accent: '#F39C12' },
+}
+
 const ALLOWED_MENU_PURPOSES = new Set(['restaurant', 'bar', 'cafe', 'hotel', 'salon', 'retail', 'other'])
 const MENU_PURPOSE_ALIASES: Record<string, string> = {
   pizzaria: 'restaurant',
@@ -54,6 +62,7 @@ export async function POST(request: Request) {
       product_price,
     } = body
     const safeMenuPurpose = sanitizeMenuPurpose(business_type)
+    const defaultPalette = CUISINE_PALETTES[business_type?.trim().toLowerCase() ?? ''] ?? { primary: '#EEFF00', accent: '#09090b' }
 
     if (!company_name?.trim()) return NextResponse.json({ error: 'Company name is required' }, { status: 400 })
     if (!menu_name?.trim()) return NextResponse.json({ error: 'Menu name is required' }, { status: 400 })
@@ -135,6 +144,8 @@ export async function POST(request: Request) {
         tenant_id: tenant.id,
         phone: phone?.trim() || null,
         address: address?.trim() || null,
+        primary_color: defaultPalette.primary,
+        accent_color: defaultPalette.accent,
       })
       if (tenantSettingsError) {
         console.error('onboarding.create_tenant_settings_error', tenantSettingsError)
