@@ -247,7 +247,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 38-01-PLAN.md — Migration 034 (5 columns on tenant_settings with IF NOT EXISTS guards) + apply-migration-034.mjs runner + TenantSettings TypeScript interface update
+- [x] 38-01-PLAN.md — Migration 034 (5 columns on tenant_settings with IF NOT EXISTS guards) + apply-migration-034.mjs runner + TenantSettings TypeScript interface update
 - [ ] 38-02-PLAN.md — StoreClient.tsx "Order Types" section (3 toggles + conditional ETA/fee fields + all-off validation)
 
 **UI hint**: yes
@@ -368,7 +368,7 @@ Plans:
 | 35. Custom Domain Infrastructure | 1/1 | Done | 2026-05-10 |
 | 36. English Conversion | 1/2 | Complete    | 2026-05-19 |
 | 37. Color Theming | 2/2 | Complete    | 2026-05-19 |
-| 38. Order Types — Admin & Schema | 0/2 | Not started | - |
+| 38. Order Types — Admin & Schema | 1/2 | In Progress|  |
 | 39. Order Types — Customer & Operational | 0/? | Not started | - |
 | 40. Multi-Location — Schema & Admin CRUD | 0/? | Not started | - |
 | 41. Multi-Location — Routing, QR Codes & Menu Toggle | 0/? | Not started | - |

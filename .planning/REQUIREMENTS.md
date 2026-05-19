@@ -20,9 +20,9 @@
 
 ### Order Types (SEED-013)
 
-- [ ] **ORD-01**: Restaurant admin can independently enable or disable dine-in, pick-up, and delivery modes; at least one mode must remain active
-- [ ] **ORD-02**: Admin can configure estimated pick-up time in minutes when pick-up is enabled
-- [ ] **ORD-03**: Admin can configure a delivery fee when delivery is enabled
+- [x] **ORD-01**: Restaurant admin can independently enable or disable dine-in, pick-up, and delivery modes; at least one mode must remain active
+- [x] **ORD-02**: Admin can configure estimated pick-up time in minutes when pick-up is enabled
+- [x] **ORD-03**: Admin can configure a delivery fee when delivery is enabled
 - [ ] **ORD-04**: Customer sees an order type selector only when two or more modes are active; dine-in is selected by default; selector is hidden when only dine-in is active
 - [ ] **ORD-05**: Delivery mode reveals a required delivery address field and adds the delivery fee to the cart total
 - [ ] **ORD-06**: Each order stores its `order_type` and `delivery_address`; KDS cards display a fulfillment badge per type
@@ -83,9 +83,9 @@
 | THEME-02 | Phase 37 | Complete |
 | THEME-03 | Phase 37 | Complete |
 | THEME-04 | Phase 37 | Complete |
-| ORD-01 | Phase 38 | Pending |
-| ORD-02 | Phase 38 | Pending |
-| ORD-03 | Phase 38 | Pending |
+| ORD-01 | Phase 38 | Complete |
+| ORD-02 | Phase 38 | Complete |
+| ORD-03 | Phase 38 | Complete |
 | ORD-04 | Phase 39 | Pending |
 | ORD-05 | Phase 39 | Pending |
 | ORD-06 | Phase 39 | Pending |

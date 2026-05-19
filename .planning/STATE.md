@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 37-color-theming/37-02-PLAN.md
-last_updated: "2026-05-19T14:50:09.082Z"
+status: executing
+stopped_at: Completed 38-order-types-admin-schema-38-01-PLAN.md
+last_updated: "2026-05-19T15:20:40.494Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 9
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 4
+  total_plans: 7
+  completed_plans: 5
 ---
 
 # Project State
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 37 — Color Theming
+**Current focus:** Phase 38 — Order Types — Admin & Schema
 
 ## Current Position
 
-Phase: 38
-Plan: Not started
-Status: Phase complete — ready for verification
+Phase: 38 (Order Types — Admin & Schema) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-05-19
 
 ## Milestone Overview
@@ -106,6 +106,7 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | Phase 36-english-conversion P01 | 3 | 2 tasks | 4 files |
 | Phase 37-color-theming P01 | 18min | 3 tasks | 6 files |
 | Phase 37-color-theming P02 | 8min | 2 tasks | 3 files |
+| Phase 38-order-types-admin-schema P01 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -262,6 +263,7 @@ Recent decisions affecting current work:
 - [Phase 37-color-theming]: CUISINE_PRESETS defined at module scope in BrandingClient — stable reference, no re-creation
 - [Phase 37-color-theming]: CUISINE_PALETTES lookup uses raw business_type (lowercased), not safeMenuPurpose — avoids pizza→restaurant mapping losing pizza-specific palette
 - [Phase 37-color-theming]: CartModal accent fallback changed from #6366f1 (indigo placeholder) to #09090b (platform dark) — consistent with globals.css :root --accent default
+- [Phase 38-order-types-admin-schema]: Migration 034: 5 boolean/int columns on tenant_settings with IF NOT EXISTS guards; defaults dine_in=true, pickup/delivery=false, eta=20, fee=0 preserve existing behaviour
 
 ### Pending Todos
 
@@ -273,8 +275,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-19T14:42:11.522Z
-Stopped at: Completed 37-color-theming/37-02-PLAN.md
+Last session: 2026-05-19T15:20:40.465Z
+Stopped at: Completed 38-order-types-admin-schema-38-01-PLAN.md
 
 ---
 
