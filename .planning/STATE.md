@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v2.2
 milestone_name: Restaurant Growth Platform
 status: in_progress
-stopped_at: v2.2 milestone started — defining requirements
+stopped_at: v2.2 roadmap created — ready to plan Phase 36
 last_updated: "2026-05-19T00:00:00.000Z"
 last_activity: 2026-05-19
 progress:
-  total_phases: 0
+  total_phases: 8
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -17,25 +17,32 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-08)
+See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v2.0 Monetization shipped — awaiting next milestone
+**Current focus:** v2.2 Restaurant Growth Platform — roadmap defined, ready to plan Phase 36
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: Phase 36 (next to plan)
 Plan: —
-Status: Defining requirements for v2.2 Restaurant Growth Platform
+Status: Roadmap created — awaiting phase planning
 Last activity: 2026-05-19
 
 ## Milestone Overview
 
-v2.2: Restaurant Growth Platform — SEED-011, SEED-012, SEED-013, SEED-014
+v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEED-016
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| TBD | TBD — roadmap pending | TBD | ○ Pending |
+| 36 | English Conversion | ENGL-01, ENGL-02, ENGL-03, ENGL-04, ENGL-05, ENGL-06 | ○ Pending |
+| 37 | Color Theming | THEME-01, THEME-02, THEME-03, THEME-04 | ○ Pending |
+| 38 | Order Types — Admin & Schema | ORD-01, ORD-02, ORD-03 | ○ Pending |
+| 39 | Order Types — Customer & Operational | ORD-04, ORD-05, ORD-06, ORD-07 | ○ Pending |
+| 40 | Multi-Location — Schema & Admin CRUD | LOC-01, LOC-02 | ○ Pending |
+| 41 | Multi-Location — Routing, QR Codes & Menu Toggle | LOC-03, LOC-04, LOC-05, LOC-06 | ○ Pending |
+| 42 | SEO — Platform & Per-Tenant | SEO-01, SEO-02, SEO-03, SEO-04, SEO-05, SEO-06, SEO-07 | ○ Pending |
+| 43 | SEO — Per-Branch Local SEO | SEO-08 | ○ Pending |
 
 ## Performance Metrics
 
@@ -245,18 +252,19 @@ Recent decisions affecting current work:
 - [Phase 33]: Raw body (request.text()) for webhook signature — not request.json()
 - [Phase 33]: Webhook idempotency upsert + business work in same DB transaction
 - [Phase 33]: Webhook returns 200 immediately — async processing for slow ops
+
 ### Pending Todos
 
-Nenhum — todos os seeds implementados, todos os milestones shipados.
+None — v2.2 roadmap defined, ready to plan Phase 36 (English Conversion).
 
 ### Blockers/Concerns
 
-Nenhum.
+None.
 
 ## Session Continuity
 
-Last session: 2026-05-10T12:00:00.000Z
-Stopped at: v2.1 roadmap created — awaiting phase planning
+Last session: 2026-05-19T00:00:00.000Z
+Stopped at: v2.2 roadmap created — ready to plan Phase 36
 
 ---
 
@@ -264,7 +272,7 @@ Stopped at: v2.1 roadmap created — awaiting phase planning
 
 | Item | Status |
 |------|--------|
-| Seeds | 9 completed (SEED-010: Custom Domains) |
-| Milestones | 11 shipped (v1.0 → v2.0), 1 in progress (v2.1) |
-| Phases | 34 shipped, 1 in progress (Phase 35) |
+| Seeds | 10 completed (SEED-011 through SEED-016 in progress as v2.2) |
+| Milestones | 12 shipped (v1.0 → v2.1), 1 in progress (v2.2) |
+| Phases | 35 shipped, 8 planned (Phases 36-43) |
 | Blockers | None |

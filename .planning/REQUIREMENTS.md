@@ -71,10 +71,36 @@
 
 ## Traceability
 
-| Requirement | Phase |
-|-------------|-------|
-| ENGL-01 through ENGL-06 | TBD |
-| THEME-01 through THEME-04 | TBD |
-| ORD-01 through ORD-07 | TBD |
-| LOC-01 through LOC-06 | TBD |
-| SEO-01 through SEO-08 | TBD |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| ENGL-01 | Phase 36 | Pending |
+| ENGL-02 | Phase 36 | Pending |
+| ENGL-03 | Phase 36 | Pending |
+| ENGL-04 | Phase 36 | Pending |
+| ENGL-05 | Phase 36 | Pending |
+| ENGL-06 | Phase 36 | Pending |
+| THEME-01 | Phase 37 | Pending |
+| THEME-02 | Phase 37 | Pending |
+| THEME-03 | Phase 37 | Pending |
+| THEME-04 | Phase 37 | Pending |
+| ORD-01 | Phase 38 | Pending |
+| ORD-02 | Phase 38 | Pending |
+| ORD-03 | Phase 38 | Pending |
+| ORD-04 | Phase 39 | Pending |
+| ORD-05 | Phase 39 | Pending |
+| ORD-06 | Phase 39 | Pending |
+| ORD-07 | Phase 39 | Pending |
+| LOC-01 | Phase 40 | Pending |
+| LOC-02 | Phase 40 | Pending |
+| LOC-03 | Phase 41 | Pending |
+| LOC-04 | Phase 41 | Pending |
+| LOC-05 | Phase 41 | Pending |
+| LOC-06 | Phase 41 | Pending |
+| SEO-01 | Phase 42 | Pending |
+| SEO-02 | Phase 42 | Pending |
+| SEO-03 | Phase 42 | Pending |
+| SEO-04 | Phase 42 | Pending |
+| SEO-05 | Phase 42 | Pending |
+| SEO-06 | Phase 42 | Pending |
+| SEO-07 | Phase 42 | Pending |
+| SEO-08 | Phase 43 | Pending |
