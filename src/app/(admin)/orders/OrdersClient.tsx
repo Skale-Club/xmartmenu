@@ -16,23 +16,32 @@ const STATUS_COLORS: Record<string, {
   label: string
   icon: any
 }> = {
-  pending:   { border: 'border-blue-500',   bg: 'bg-blue-50/30',   badge: 'bg-blue-100 text-blue-800',    label: 'Pending', icon: Clock },
-  preparing: { border: 'border-amber-500', bg: 'bg-amber-50/30', badge: 'bg-amber-100 text-amber-800', label: 'Preparing', icon: Play },
-  ready:     { border: 'border-green-500',  bg: 'bg-green-50/30',  badge: 'bg-green-100 text-green-800',   label: 'Ready', icon: CheckCircle2 },
-  done:      { border: 'border-zinc-400',   bg: 'bg-zinc-50/30',   badge: 'bg-zinc-100 text-zinc-600',     label: 'Done', icon: Check },
-  cancelled: { border: 'border-red-500',    bg: 'bg-red-50/30',    badge: 'bg-red-100 text-red-800',       label: 'Cancelled', icon: XCircle },
+  pending:        { border: 'border-blue-500',    bg: 'bg-blue-50/30',    badge: 'bg-blue-100 text-blue-800',       label: 'Pending', icon: Clock },
+  paid:           { border: 'border-emerald-500', bg: 'bg-emerald-50/30', badge: 'bg-emerald-100 text-emerald-800', label: 'Paid', icon: CheckCircle2 },
+  payment_failed: { border: 'border-red-500',     bg: 'bg-red-50/30',     badge: 'bg-red-100 text-red-800',         label: 'Payment failed', icon: AlertCircle },
+  preparing:      { border: 'border-amber-500',   bg: 'bg-amber-50/30',   badge: 'bg-amber-100 text-amber-800',     label: 'Preparing', icon: Play },
+  ready:          { border: 'border-green-500',   bg: 'bg-green-50/30',   badge: 'bg-green-100 text-green-800',     label: 'Ready', icon: CheckCircle2 },
+  done:           { border: 'border-zinc-400',    bg: 'bg-zinc-50/30',    badge: 'bg-zinc-100 text-zinc-600',       label: 'Done', icon: Check },
+  cancelled:      { border: 'border-red-500',     bg: 'bg-red-50/30',     badge: 'bg-red-100 text-red-800',         label: 'Cancelled', icon: XCircle },
 }
 
+// Canonical state machine: pending -> paid -> preparing -> ready -> done.
+// payment_failed is a terminal pre-prep state; cancelled is terminal at any
+// point. Kitchen can also start unpaid pending orders directly (cash flow,
+// in-person order).
 const NEXT_STATUS: Record<string, string | null> = {
-  pending:   'preparing',
-  preparing: 'ready',
-  ready:     'done',
-  done:      null,
-  cancelled: null,
+  pending:        'preparing',
+  paid:           'preparing',
+  preparing:      'ready',
+  ready:          'done',
+  done:           null,
+  payment_failed: null,
+  cancelled:      null,
 }
 
 const ADVANCE_LABEL: Record<string, string> = {
   pending:   'Start preparing',
+  paid:      'Start preparing',
   preparing: 'Mark ready',
   ready:     'Complete',
 }
@@ -247,6 +256,31 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
           }
         }
       )
+      // Round-2 P0-06 fix: also listen for UPDATEs so webhook-driven status
+      // transitions (pending -> paid -> payment_failed) reach the KDS without
+      // waiting for the 15s poll.
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        async (payload) => {
+          const updated = payload.new as { id: string; status: string }
+          setOrders((prev) =>
+            prev.map((o) =>
+              o.id === updated.id ? { ...o, ...(updated as Partial<OrderWithItems>) } : o,
+            ),
+          )
+          // Beep on freshly-paid orders the same way we beep on new pending
+          // orders — pay flow is the "real" arrival for paid stores.
+          if (updated.status === 'paid' && !mutedRef.current) {
+            playBeep()
+          }
+        }
+      )
       .subscribe()
 
     return () => {
@@ -255,11 +289,23 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
   }, [tenantId, supabase])
 
   useEffect(() => {
+    // Polling is a safety net behind realtime. Tenant scope is derived
+    // server-side from getEffectiveTenant — the URL no longer needs a
+    // tenant_id query parameter (the route ignores it after round-1 P0-07).
     const id = setInterval(async () => {
-      const res = await fetch(`/api/orders?tenant_id=${tenantId}`)
+      const res = await fetch('/api/orders')
       if (res.ok) {
         const data = await res.json()
-        setOrders(data.orders)
+        // Merge by id rather than replace, so an optimistic status update
+        // isn't reverted if a poll lands between the PATCH and the realtime
+        // UPDATE event.
+        setOrders((prev) => {
+          const byId = new Map<string, OrderWithItems>(prev.map((o) => [o.id, o]))
+          for (const o of data.orders as OrderWithItems[]) byId.set(o.id, o)
+          return Array.from(byId.values()).sort(
+            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+          )
+        })
       }
     }, 15_000)
     return () => clearInterval(id)

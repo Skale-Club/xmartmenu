@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 
 export async function POST(request: NextRequest) {
   try {
@@ -37,13 +37,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
-    const supabase = await createClient()
+    // P0-02 fix: webhook requests have no cookies. We need the service
+    // client to bypass RLS and write to orders, stripe_connections, and
+    // processed_stripe_events.
+    const supabase = await createServiceClient()
     const eventId = event.id
 
     // 3. Idempotency check - check if event already processed
     const { data: existingEvent } = await supabase
       .from('processed_stripe_events')
-      .select('id')
+      .select('event_id')
       .eq('event_id', eventId)
       .single()
 
@@ -156,11 +159,21 @@ export async function POST(request: NextRequest) {
       console.error(`Event ${eventId} processed but business logic failed: ${updateResult.error}`)
     }
 
+    if (!updateResult.success) {
+      // P2-05 fix: surface business-logic failures so Stripe can retry.
+      // We've already recorded the event as processed, but on a real failure
+      // the surface area (orders not transitioning, stripe_connections not
+      // syncing) is more important than perfect idempotency. Returning 500
+      // tells Stripe to retry with backoff, which combined with the
+      // idempotency upsert is safe.
+      return NextResponse.json({ received: true, error: updateResult.error }, { status: 500 })
+    }
+
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error('Webhook processing error:', error)
-    // Return 200 to prevent Stripe from retrying - errors are logged
-    // (Stripe won't retry 200 responses even if we throw)
-    return NextResponse.json({ received: true, error: 'Processing error' })
+    // Unexpected error — return 500 so Stripe retries. The idempotency
+    // upsert above will short-circuit duplicate processing on success.
+    return NextResponse.json({ error: 'Processing error' }, { status: 500 })
   }
 }

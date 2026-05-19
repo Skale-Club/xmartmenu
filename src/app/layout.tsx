@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     default: 'XmartMenu | Digital menu for restaurants',
   },
   description: 'A digital menu platform built for restaurant service, QR code ordering, and menu operations.',
-  metadataBase: new URL('https://xmartmenu.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://xmartmenu.skale.club'),
   openGraph: {
     type: 'website',
     locale: 'en_US',

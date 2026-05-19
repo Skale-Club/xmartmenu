@@ -1,11 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
-
-function generatePassword() {
-  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789'
-  return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
-}
+import { generatePassword } from '@/lib/auth/password-gen'
 
 export async function GET() {
   const supabase = await assertSuperadmin()

@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { normalizeRole } from '@/lib/auth/role-utils'
 import type { UserRole } from '@/types/database'
 
 interface EffectiveTenant {
@@ -22,7 +23,8 @@ export async function getEffectiveTenant(): Promise<EffectiveTenant | null> {
 
   if (!profile) return null
 
-  if (profile.role === 'superadmin') {
+  const normalizedRole = normalizeRole(profile.role)
+  if (normalizedRole === 'superadmin') {
     const cookieStore = await cookies()
     const previewTenantId = cookieStore.get('preview_tenant_id')?.value
     if (!previewTenantId) return null
@@ -42,6 +44,6 @@ export async function getEffectiveTenant(): Promise<EffectiveTenant | null> {
     tenantId: profile.tenant_id,
     slug: t?.slug ?? '',
     name: t?.name ?? '',
-    role: profile.role as UserRole,
+    role: (normalizedRole ?? profile.role) as UserRole,
   }
 }

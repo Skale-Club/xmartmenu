@@ -1,9 +1,12 @@
 'use client'
 
+import Image from 'next/image'
+import { X, ShoppingCart, User, Phone, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import type { UICopyEntry, CartItem } from './menu-utils'
+import { getProductImages } from './menu-utils'
 
-export default function CartModal({ cart, confirmedCart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, ui, onClose, onCustomerNameChange, onCustomerPhoneChange, onRemove, onUpdateQuantity, onSubmit }: {
+export default function CartModal({ cart, confirmedCart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, ui, accentColor, onClose, onCustomerNameChange, onCustomerPhoneChange, onRemove, onUpdateQuantity, onSubmit }: {
   cart: CartItem[]
   confirmedCart: CartItem[]
   currency: string
@@ -14,6 +17,7 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
   orderError: string | null
   orderId: string | null
   ui: UICopyEntry
+  accentColor?: string
   onClose: () => void
   onCustomerNameChange: (name: string) => void
   onCustomerPhoneChange: (phone: string) => void
@@ -23,148 +27,183 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
 }) {
   const total = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const confirmedTotal = confirmedCart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
+  const accent = accentColor ?? '#6366f1'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-md lg:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="p-5 sm:p-6 border-b border-zinc-200 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-zinc-900">Your order</h3>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 text-xl leading-none">✕</button>
-        </div>
-        {orderSuccess && orderId ? (
-          <>
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
-              <div className="text-center py-4">
-                <div className="text-4xl mb-3">&#10003;</div>
-                <h4 className="text-xl font-bold text-zinc-900">{ui.orderPlaced}</h4>
-                <p className="text-sm text-zinc-500 mt-1">{ui.orderThankYou}</p>
-                <p className="text-sm font-mono font-semibold text-zinc-700 mt-2">
-                  {ui.orderNumber} #{orderId.slice(0, 8).toUpperCase()}
-                </p>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-0 sm:px-4" onClick={onClose}>
+      <div
+        className="relative bg-[#b0b8c8] w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl overflow-hidden max-h-[92vh] flex flex-col sm:flex-row shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* X button — top-right corner of the whole modal */}
+        <button onClick={onClose} className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-white/60 hover:bg-white transition-all text-zinc-500 shadow-sm">
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* ── LEFT: Cart items ── */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+          <div className="px-6 pt-6 pb-4">
+            <h3 className="text-lg font-black text-zinc-800 tracking-tight flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5" />
+              Shopping Cart
+            </h3>
+          </div>
+
+          {orderSuccess && orderId ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
-              <div className="border-t border-zinc-100 pt-4 space-y-2">
+              <h4 className="text-xl font-black text-zinc-900">{ui.orderPlaced}</h4>
+              <p className="text-sm text-zinc-500">{ui.orderThankYou}</p>
+              <p className="text-sm font-mono font-bold text-zinc-700 bg-white px-4 py-2 rounded-lg">
+                {ui.orderNumber} #{orderId.slice(0, 8).toUpperCase()}
+              </p>
+              <div className="w-full border-t border-zinc-200 pt-4 space-y-2 text-left">
                 {confirmedCart.map(item => (
-                  <div key={item.cartKey} className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-900">{item.product.name} x {item.quantity}</p>
-                      {Object.keys(item.selectedOptions).length > 0 && (
-                        <p className="text-xs text-zinc-500 mt-0.5">
-                          {Object.entries(item.selectedOptions)
-                            .filter(([, v]) => v)
-                            .map(([k, v]) => `${k}: ${v}`)
-                            .join(', ')}
-                        </p>
-                      )}
-                    </div>
-                    <p className="text-sm font-semibold shrink-0">{formatPrice(item.unitPrice * item.quantity, currency)}</p>
+                  <div key={item.cartKey} className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-zinc-800">{item.product.name} × {item.quantity}</span>
+                    <span className="text-sm font-bold">{formatPrice(item.unitPrice * item.quantity, currency)}</span>
                   </div>
                 ))}
               </div>
-              <div className="border-t border-zinc-200 pt-3 flex items-center justify-between">
-                <span className="font-semibold text-zinc-900">Total</span>
-                <span className="text-lg font-bold text-zinc-900">{formatPrice(confirmedTotal, currency)}</span>
+              <div className="w-full flex items-center justify-between border-t border-zinc-300 pt-3">
+                <span className="font-black text-zinc-900">Total</span>
+                <span className="text-lg font-black text-zinc-900">{formatPrice(confirmedTotal, currency)}</span>
               </div>
-            </div>
-            <div className="p-5 sm:p-6 border-t border-zinc-200 bg-zinc-50">
-              <button
-                onClick={onClose}
-                className="w-full py-3 rounded-xl text-sm font-semibold bg-zinc-900 text-white hover:bg-zinc-800 transition-colors"
-              >
+              <button onClick={onClose} className="w-full py-3 rounded-xl text-sm font-black bg-zinc-900 text-white hover:bg-zinc-700 transition-all mt-2">
                 Close
               </button>
             </div>
-          </>
-        ) : (
-          <>
-            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
-              {cart.length === 0 ? (
-                <p className="text-center text-zinc-400 py-8">Your cart is empty</p>
-              ) : (
-                <>
-                  {cart.map(item => (
-                    <div key={item.cartKey} className="flex items-center gap-3 py-2 border-b border-zinc-100 last:border-0">
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-zinc-900 truncate">{item.product.name}</p>
-                        {Object.keys(item.selectedOptions).length > 0 && (
-                          <p className="text-xs text-zinc-500 mt-0.5 truncate">
-                            {Object.entries(item.selectedOptions)
-                              .filter(([, v]) => v)
-                              .map(([k, v]) => `${k}: ${v}`)
-                              .join(', ')}
-                          </p>
-                        )}
-                        <p className="text-sm text-zinc-500">{formatPrice(item.unitPrice, currency)} each</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => onUpdateQuantity(item.cartKey, item.quantity - 1)}
-                          className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-600"
-                        >
-                          -
-                        </button>
-                        <span className="w-8 text-center font-medium">{item.quantity}</span>
-                        <button
-                          onClick={() => onUpdateQuantity(item.cartKey, item.quantity + 1)}
-                          className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 flex items-center justify-center text-zinc-600"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <p className="w-20 text-right font-semibold">{formatPrice(item.unitPrice * item.quantity, currency)}</p>
-                      <button
-                        onClick={() => onRemove(item.cartKey)}
-                        className="text-red-500 hover:text-red-700 text-sm"
-                      >
-                        ✕
-                      </button>
-                    </div>
-                  ))}
-                </>
-              )}
+          ) : (
+            <>
+              {/* Items list */}
+              <div className="flex-1 overflow-y-auto px-6 space-y-3 pb-4">
+                {cart.length === 0 ? (
+                  <p className="text-center text-zinc-400 py-12 text-sm font-medium">Your cart is empty</p>
+                ) : (
+                  cart.map(item => {
+                    const img = getProductImages(item.product)[0]
+                    return (
+                      <div key={item.cartKey} className="flex items-center gap-4 bg-white/60 rounded-xl px-4 py-3">
+                        {/* Circular image */}
+                        <div className="w-12 h-12 rounded-full overflow-hidden bg-zinc-100 flex-shrink-0 shadow-sm">
+                          {img
+                            ? <Image src={img} alt={item.product.name} width={48} height={48} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full flex items-center justify-center text-lg">🍽️</div>}
+                        </div>
 
-              {cart.length > 0 && (
-                <div className="pt-4 border-t border-zinc-200 space-y-4">
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={customerName}
-                      onChange={e => onCustomerNameChange(e.target.value)}
-                      placeholder="Your name"
-                      className="flex-1 px-4 py-2.5 border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="tel"
-                      value={customerPhone}
-                      onChange={e => onCustomerPhoneChange(e.target.value)}
-                      placeholder="Your phone number"
-                      className="flex-1 px-4 py-2.5 border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                    />
-                  </div>
+                        {/* Name + options */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-black text-zinc-900 truncate">{item.product.name}</p>
+                          {Object.keys(item.selectedOptions).length > 0 && (
+                            <p className="text-[10px] text-zinc-400 truncate">
+                              {Object.entries(item.selectedOptions).filter(([, v]) => v).map(([k, v]) => `${k}: ${v}`).join(', ')}
+                            </p>
+                          )}
+                        </div>
 
-                  {orderError && (
-                    <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{orderError}</p>
-                  )}
-                </div>
-              )}
-            </div>
-            {cart.length > 0 && (
-              <div className="p-5 sm:p-6 border-t border-zinc-200 bg-zinc-50">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-semibold text-zinc-900">Total</span>
-                  <span className="text-xl font-bold text-zinc-900">{formatPrice(total, currency)}</span>
-                </div>
-                <button
-                  onClick={onSubmit}
-                  disabled={submittingOrder}
-                  className="w-full py-3 rounded-xl text-sm font-semibold transition-colors bg-zinc-900 text-white hover:bg-zinc-800 disabled:opacity-50"
-                >
-                  {submittingOrder ? 'Submitting...' : 'Confirm order'}
-                </button>
+                        {/* Quantity controls */}
+                        <div className="flex items-center rounded-full border border-zinc-200 bg-white shadow-sm overflow-hidden flex-shrink-0">
+                          <button
+                            onClick={() => onUpdateQuantity(item.cartKey, item.quantity - 1)}
+                            className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all"
+                          >
+                            <ChevronLeft className="w-3.5 h-3.5 text-zinc-500" />
+                          </button>
+                          <span className="text-sm font-black min-w-[1.25rem] text-center text-zinc-900 px-1">{item.quantity}</span>
+                          <button
+                            onClick={() => onUpdateQuantity(item.cartKey, item.quantity + 1)}
+                            className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5 text-zinc-500" />
+                          </button>
+                        </div>
+
+                        {/* Price */}
+                        <span className="text-sm font-black text-zinc-800 w-16 text-right flex-shrink-0">
+                          {formatPrice(item.unitPrice * item.quantity, currency)}
+                        </span>
+
+                        {/* Remove */}
+                        <button onClick={() => onRemove(item.cartKey)} className="text-zinc-300 hover:text-red-400 transition-colors flex-shrink-0">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )
+                  })
+                )}
               </div>
+
+              {/* Subtotal */}
+              {cart.length > 0 && (
+                <div className="px-6 pb-6 flex items-center justify-end gap-2">
+                  <span className="text-sm font-bold text-zinc-500">Subtotal</span>
+                  <span className="text-2xl font-black text-zinc-900">{formatPrice(total, currency)}</span>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        {/* ── RIGHT: Order details ── */}
+        {!orderSuccess && cart.length > 0 && (
+          <div className="sm:w-64 bg-zinc-800 flex flex-col rounded-b-2xl sm:rounded-r-2xl sm:rounded-bl-none p-6 gap-5">
+            <h3 className="text-sm font-black text-zinc-300 uppercase tracking-widest pt-6 sm:pt-0">Order Details</h3>
+
+            {/* Visual order summary card — now light */}
+            <div className="bg-[#e8eaf0] rounded-xl p-4 shadow-lg">
+              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Your order</p>
+              <div className="space-y-1.5 max-h-28 overflow-y-auto">
+                {cart.map(item => (
+                  <div key={item.cartKey} className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-zinc-600 truncate flex-1">{item.product.name} ×{item.quantity}</span>
+                    <span className="text-xs font-bold text-zinc-900 flex-shrink-0">{formatPrice(item.unitPrice * item.quantity, currency)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="border-t border-zinc-300 mt-3 pt-3 flex items-center justify-between">
+                <span className="text-xs text-zinc-500">Total</span>
+                <span className="text-base font-black" style={{ color: accent }}>{formatPrice(total, currency)}</span>
+              </div>
+            </div>
+
+            {/* Customer fields */}
+            <div className="space-y-3">
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={e => onCustomerNameChange(e.target.value)}
+                  placeholder="Your name"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                />
+              </div>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={e => onCustomerPhoneChange(e.target.value)}
+                  placeholder="Phone number"
+                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                />
+              </div>
+            </div>
+
+            {orderError && (
+              <p className="text-xs text-red-400 bg-red-900/30 rounded-lg px-3 py-2">{orderError}</p>
             )}
-          </>
+
+            <button
+              onClick={onSubmit}
+              disabled={submittingOrder}
+              className="mt-auto w-full py-3.5 rounded-xl text-sm font-black text-zinc-900 bg-[#e8eaf0] hover:bg-white transition-all active:scale-95 disabled:opacity-50 shadow-lg"
+            >
+              {submittingOrder ? 'Placing order...' : 'Check Out'}
+            </button>
+          </div>
         )}
       </div>
     </div>

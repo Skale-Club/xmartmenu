@@ -1,9 +1,22 @@
-export const dynamic = 'force-static'
+export const revalidate = 60
 
 import type { WithContext, Organization, SoftwareApplication } from 'schema-dts'
+import { createServiceClient } from '@/lib/supabase/server'
 import ClientLandingPage from './ClientPage'
 
-export default function LandingPage() {
+async function getPlatformSettings() {
+  try {
+    const service = createServiceClient()
+    const { data } = await service.from('platform_settings').select('landing').single()
+    return data?.landing ?? null
+  } catch {
+    return null
+  }
+}
+
+export default async function LandingPage() {
+  const platformLanding = await getPlatformSettings()
+
   const organization: WithContext<Organization> = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -44,7 +57,7 @@ export default function LandingPage() {
           __html: JSON.stringify(software).replace(/</g, '\\u003c'),
         }}
       />
-      <ClientLandingPage />
+      <ClientLandingPage platformLanding={platformLanding} />
     </>
   )
 }

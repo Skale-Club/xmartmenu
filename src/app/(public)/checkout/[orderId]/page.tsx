@@ -64,7 +64,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Order Status</h1>
           <p className="text-gray-600 mb-6">{message}</p>
           <Link
-            href={`/confirmation/${order.id}`}
+            href={`/checkout/${order.id}/confirmation`}
             className="inline-flex items-center text-indigo-600 hover:text-indigo-700"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -89,7 +89,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
             Please contact the restaurant to complete your order.
           </p>
           <Link
-            href={`/menu/${order.tenants.slug}`}
+            href={`/${order.tenants.slug}`}
             className="inline-flex items-center text-indigo-600 hover:text-indigo-700"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -101,12 +101,14 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
   }
 
   // Create or get PaymentIntent
+  // P0-03: orders.total is dollars; convert to cents for Stripe.
+  const amountCents = Math.round(Number(order.total) * 100)
   let clientSecret: string
   try {
     const result = await getOrCreatePaymentIntent({
       tenantId: order.tenant_id,
       orderId: order.id,
-      amount: Math.floor(order.total_cents),
+      amount: amountCents,
       currency: 'brl',
     })
     clientSecret = result.clientSecret
@@ -118,7 +120,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Payment Error</h1>
           <p className="text-gray-600 mb-6">Failed to initialize payment. Please try again later.</p>
           <Link
-            href={`/menu/${order.tenants.slug}`}
+            href={`/${order.tenants.slug}`}
             className="inline-flex items-center text-indigo-600 hover:text-indigo-700"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -136,7 +138,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
       <div className="max-w-xl mx-auto">
         {/* Back link */}
         <Link
-          href={`/menu/${order.tenants.slug}`}
+          href={`/${order.tenants.slug}`}
           className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
         >
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -180,7 +182,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between items-center">
             <span className="text-lg font-bold text-gray-900">Total</span>
             <span className="text-lg font-bold text-indigo-600">
-              R$ {(order.total_cents / 100).toFixed(2).replace('.', ',')}
+              R$ {Number(order.total).toFixed(2).replace('.', ',')}
             </span>
           </div>
         </div>

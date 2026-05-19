@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 import type { IngredientModifications } from '@/types/database'
 
@@ -9,7 +10,7 @@ interface OrderItem {
   unit_price: number
   notes?: string
   selected_options?: Record<string, unknown>
-  ingredient_modifications?: IngredientModifications | null  // INGR-09: ADD
+  ingredient_modifications?: IngredientModifications | null
 }
 
 interface CreateOrderRequest {
@@ -21,11 +22,42 @@ interface CreateOrderRequest {
 
 function sanitizeNote(raw: string | undefined | null): string | null {
   if (!raw) return null
-  // Strip control chars (0x00-0x08, 0x0B-0x1F, 0x7F) | preserve tab (0x09) and newline (0x0A)
   const stripped = raw.replace(/[\x00-\x08\x0B-\x1F\x7F]/g, '')
   const trimmed = stripped.trim()
   if (!trimmed) return null
   return trimmed.slice(0, 140)
+}
+
+function computeItemUnitPrice(
+  product: { price: number | null },
+  item: OrderItem,
+): number {
+  // Server-side trusted unit price: base product price + sum of option
+  // price_modifiers + sum of ingredient extras/adds. Client-supplied
+  // unit_price is ignored — the client can only choose quantities and
+  // which options/ingredients to apply.
+  let unit = Number(product.price ?? 0)
+
+  if (item.selected_options) {
+    for (const v of Object.values(item.selected_options)) {
+      if (v && typeof v === 'object' && 'price_modifier' in v) {
+        unit += Number((v as { price_modifier?: number }).price_modifier ?? 0)
+      } else if (v && typeof v === 'object' && 'base_price' in v) {
+        // Absolute price options (single, half_and_half) replace base
+        unit = Number((v as { base_price?: number }).base_price ?? unit)
+      }
+    }
+  }
+
+  if (item.ingredient_modifications) {
+    const mods = item.ingredient_modifications
+    const sumDelta = (list: { qty?: number; unit_price?: number }[] | undefined) =>
+      (list ?? []).reduce((s, m) => s + (Number(m.qty ?? 0) * Number(m.unit_price ?? 0)), 0)
+    unit += sumDelta(mods.extras)
+    unit += sumDelta(mods.added)
+  }
+
+  return Math.max(0, Number(unit.toFixed(2)))
 }
 
 export async function POST(request: Request) {
@@ -48,7 +80,6 @@ export async function POST(request: Request) {
 
     const service = await createServiceClient()
 
-    // SEC-01: Validate tenant exists, is active, and has orders enabled
     const { data: tenantSettings, error: tenantError } = await service
       .from('tenants')
       .select('id, is_active, tenant_settings(orders_enabled)')
@@ -64,7 +95,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Orders not enabled for this tenant' }, { status: 403 })
     }
 
-    const total = items.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
+    // P2-07 fix: resolve canonical product prices server-side and ignore
+    // client-supplied unit_price.
+    const productIds = Array.from(new Set(items.map((i) => i.product_id)))
+    const { data: dbProducts, error: productsError } = await service
+      .from('products')
+      .select('id, price, tenant_id')
+      .in('id', productIds)
+      .eq('tenant_id', tenant_id)
+
+    if (productsError || !dbProducts) {
+      console.error('orders.products_fetch_error', productsError)
+      return NextResponse.json({ error: 'Failed to validate products' }, { status: 500 })
+    }
+    if (dbProducts.length !== productIds.length) {
+      return NextResponse.json({ error: 'One or more products not found for this tenant' }, { status: 400 })
+    }
+    const priceById = new Map(dbProducts.map((p) => [p.id, p.price]))
+
+    const trustedItems = items.map((item) => {
+      const trustedUnit = computeItemUnitPrice({ price: priceById.get(item.product_id) ?? 0 }, item)
+      return { ...item, unit_price: trustedUnit }
+    })
+
+    const total = trustedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
 
     const { data: order, error: orderError } = await service
       .from('orders')
@@ -83,7 +137,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
     }
 
-    const orderItems = items.map((item) => ({
+    const orderItems = trustedItems.map((item) => ({
       order_id: order.id,
       product_id: item.product_id,
       product_name: item.product_name,
@@ -91,7 +145,7 @@ export async function POST(request: Request) {
       unit_price: item.unit_price,
       notes: sanitizeNote(item.notes),
       selected_options: item.selected_options || null,
-      ingredient_modifications: item.ingredient_modifications || null,  // INGR-09
+      ingredient_modifications: item.ingredient_modifications || null,
     }))
 
     const { error: itemsError } = await service
@@ -111,21 +165,23 @@ export async function POST(request: Request) {
   }
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url)
-    const tenantId = searchParams.get('tenant_id')
-
-    if (!tenantId) {
-      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 })
+    // P0-07 fix: require auth, derive tenant from session, never trust query
+    // string. Forbid customer-role accounts.
+    const effective = await getEffectiveTenant()
+    if (!effective) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+    if (effective.role === 'customer') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
     const service = await createServiceClient()
-
     const { data: orders, error: ordersError } = await service
       .from('orders')
       .select('*, order_items(*)')
-      .eq('tenant_id', tenantId)
+      .eq('tenant_id', effective.tenantId)
       .order('created_at', { ascending: false })
 
     if (ordersError) {

@@ -4,6 +4,7 @@ import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import MenuPage from '@/components/menu/MenuPage'
+import ScanRecorder from '@/components/menu/ScanRecorder'
 import type { Metadata } from 'next'
 import type { ProductIngredientWithIngredient } from '@/types/database'
 
@@ -108,18 +109,22 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     }
   }
 
-  // Record scan (fire-and-forget)
-  supabase.from('scan_events').insert({ tenant_id: tenant.id }).then(() => {})
+  // P0-08 round 2: this page is `revalidate=60` ISR. A server-side insert
+  // here would fire at most once per cache window. Scan recording is done
+  // from the client via <ScanRecorder /> below so each visit is captured.
 
   return (
-    <MenuPage
-      tenant={tenant}
-      categories={categories}
-      products={products}
-      menu={resolvedMenu ?? null}
-      initialLanguage={lang}
-      ingredientCustomizationEnabled={ingredientCustomizationEnabled}
-      productIngredientsByProductId={productIngredientsByProductId}
-    />
+    <>
+      <ScanRecorder tenantId={tenant.id} />
+      <MenuPage
+        tenant={tenant}
+        categories={categories}
+        products={products}
+        menu={resolvedMenu ?? null}
+        initialLanguage={lang}
+        ingredientCustomizationEnabled={ingredientCustomizationEnabled}
+        productIngredientsByProductId={productIngredientsByProductId}
+      />
+    </>
   )
 }

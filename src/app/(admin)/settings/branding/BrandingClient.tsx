@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { getInitials } from '@/lib/utils'
 import type { TenantSettings } from '@/types/database'
-import { Palette, ExternalLink, Camera, Image as ImageIcon, Share2, MessageCircle, Instagram, ShoppingBag, CheckCircle2, AlertCircle, Save, Info } from 'lucide-react'
+import { Palette, ExternalLink, Camera, Image as ImageIcon, Share2, MessageCircle, Instagram, ShoppingBag, CheckCircle2, AlertCircle, Save, Info, Type } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -24,6 +24,7 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
     whatsapp_orders_enabled: settings?.whatsapp_orders_enabled ?? false,
     orders_enabled: settings?.orders_enabled ?? true,
     direct_orders_enabled: settings?.direct_orders_enabled ?? false,
+    tagline: settings?.tagline ?? '',
   })
   const [logoUrl, setLogoUrl] = useState(settings?.logo_url ?? '')
   const [bannerUrl, setBannerUrl] = useState(settings?.banner_url ?? '')
@@ -200,6 +201,29 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
               </div>
               <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4 leading-relaxed">3:1 Aspect recommended for optimal display on mobile devices.</p>
             </div>
+          </div>
+
+          {/* Tagline */}
+          <div className="bg-white border border-zinc-100 rounded-lg p-10 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <Type className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-zinc-950 tracking-tight">Tagline</h2>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">Shown on your public menu below the restaurant name</p>
+              </div>
+            </div>
+            <label className={labelClassName}>Description</label>
+            <input
+              type="text"
+              value={form.tagline}
+              onChange={e => setForm(f => ({ ...f, tagline: e.target.value }))}
+              placeholder="e.g. Italian restaurant · Wood-fired oven · Great wine"
+              maxLength={120}
+              className={inputClassName}
+            />
+            <p className="text-[9px] font-medium text-zinc-400 mt-2 ml-1">Use · to separate descriptors. Keep it under 80 characters for best display.</p>
           </div>
 
           {/* Colors */}

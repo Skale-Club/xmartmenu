@@ -1,5 +1,6 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { randomSuffix } from '@/lib/auth/password-gen'
 
 function getSafeRedirect(value: unknown) {
   if (typeof value !== 'string') return '/'
@@ -7,7 +8,8 @@ function getSafeRedirect(value: unknown) {
 }
 
 function generateCustomerCredentials() {
-  const suffix = `${Date.now()}${Math.random().toString(36).slice(2, 8)}`
+  // Round-2 P1-01: replace Math.random suffix with crypto.randomBytes.
+  const suffix = `${Date.now()}${randomSuffix(6)}`
   const email = `customer.${suffix}@xmartmenu.local`
   const password = `${crypto.randomUUID()}Aa1!`
   return { email, password }

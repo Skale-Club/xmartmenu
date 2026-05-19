@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { assertSuperadmin } from '@/lib/superadmin-auth'
 
 interface RouteParams {
   params: Promise<{ id: string }>
 }
 
 export async function GET(request: Request, { params }: RouteParams) {
+  if (!(await assertSuperadmin())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const { id: tenantId } = await params
   const service = await createServiceClient()
 
@@ -45,6 +49,9 @@ export async function GET(request: Request, { params }: RouteParams) {
 }
 
 export async function PUT(request: Request, { params }: RouteParams) {
+  if (!(await assertSuperadmin())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const { id: tenantId } = await params
   const service = await createServiceClient()
 
@@ -123,35 +130,13 @@ export async function PUT(request: Request, { params }: RouteParams) {
     data = result.data
     error = result.error
   } else {
-    // Need at least a plan_id to create subscription
-    // Get any existing plan or return error
-    const { data: tenantData } = await service
-      .from('tenants')
-      .select('plan')
-      .eq('id', tenantId)
-      .single()
-
-    if (!tenantData?.plan) {
-      return NextResponse.json({ error: 'Tenant has no plan. Please assign a plan first.' }, { status: 400 })
-    }
-
-    // Create new subscription
-    const result = await service
-      .from('tenant_subscriptions')
-      .insert({
-        tenant_id: tenantId,
-        plan_id: tenantData.plan,
-        billing_cycle: billing_cycle ?? 'monthly',
-        status: 'active',
-        override_monthly_price: override_monthly_price ?? null,
-        override_annual_price: override_annual_price ?? null,
-        override_transaction_fee_pct: override_transaction_fee_pct ?? null,
-        override_notes: override_notes ?? null,
-      })
-      .select('*, plan:plans(*)')
-      .single()
-    data = result.data
-    error = result.error
+    // No subscription yet — caller must pick a plan first via the plans endpoint.
+    // We can't derive plan_id from the legacy text `tenants.plan` field (free/pro/enterprise),
+    // since plan_id is a UUID FK to the canonical `plans` table (slugs: menu/orders/payments).
+    return NextResponse.json(
+      { error: 'No subscription exists for this tenant. Assign a plan before editing billing details.' },
+      { status: 400 }
+    )
   }
 
   if (error) {

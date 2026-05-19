@@ -1,4 +1,4 @@
--- Migration 029: Plans, Subscriptions, and Stripe Connect Schema
+-- Migration 030: Plans, Subscriptions, and Stripe Connect Schema
 -- Phase A of SEED-009 (Plans, Pricing & Stripe Connect Monetization)
 -- Created: 2026-05-09
 

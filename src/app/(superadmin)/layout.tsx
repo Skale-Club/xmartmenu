@@ -71,10 +71,12 @@ export default async function SuperadminLayout({ children }: { children: React.R
         </nav>
 
         <div className="p-4 border-t border-zinc-800/50">
-          <a href="/api/auth/signout" className="group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all">
-            <LogOut className="w-4 h-4" />
-            Sign out
-          </a>
+          <form action="/api/auth/signout" method="post">
+            <button type="submit" className="w-full group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all">
+              <LogOut className="w-4 h-4" />
+              Sign out
+            </button>
+          </form>
         </div>
       </aside>
       <main className="flex-1 overflow-y-auto">{children}</main>

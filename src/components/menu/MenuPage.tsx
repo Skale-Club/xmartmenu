@@ -8,13 +8,14 @@ import { formatPrice, getInitials } from '@/lib/utils'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { UI_COPY, type CartItem, buildCartKey, getProductImages } from './menu-utils'
-import { 
-  MapPin, 
-  Phone, 
-  Clock, 
-  Search, 
-  X, 
-  ChevronRight, 
+import {
+  MapPin,
+  Phone,
+  Clock,
+  Search,
+  X,
+  ChevronRight,
+  ChevronLeft,
   Star,
   Instagram,
   MessageCircle,
@@ -335,10 +336,10 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             transition={{ delay: 0.2 }}
             className="flex flex-col items-center gap-6"
           >
-            {/* Title Group with Logo and Name in same line */}
-            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
+            {/* Title Group — logo above name on all screen sizes */}
+            <div className="flex flex-col items-center gap-4">
               {/* Logo with Glassmorphism */}
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ type: "spring", damping: 15 }}
@@ -360,73 +361,28 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                 )}
               </motion.div>
 
-              <div className="text-center sm:text-left">
+              <div className="text-center">
                 <h1 className="text-3xl sm:text-4xl font-black tracking-tighter drop-shadow-xl text-white">
                   {tenant.name}
                 </h1>
                 {menuTitle && (
-                  <div className="flex items-center justify-center sm:justify-start gap-3 mt-1">
+                  <div className="flex items-center justify-center gap-3 mt-1">
                     <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase tracking-[0.3em]">
                       {menuTitle}
                     </p>
-                    <div className="hidden sm:block h-px w-8 bg-white/20" />
                   </div>
                 )}
               </div>
             </div>
 
-            {menuDescription && (
+            {settings?.tagline && (
               <p className="text-sm sm:text-base font-medium text-white/60 max-w-lg mx-auto text-center leading-relaxed">
-                {menuDescription}
+                {settings.tagline}
               </p>
             )}
 
 
-            {/* Contact & Location Info */}
-            <div className="flex flex-wrap items-center justify-center gap-y-4 gap-x-8 pt-4">
-              {settings?.address && (
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group flex items-center gap-3 text-xs font-bold text-white/80 hover:text-white transition-all"
-                >
-                  <div className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center ring-1 ring-white/20 group-hover:bg-white/20 group-hover:ring-white/40 transition-all shadow-lg">
-                    <MapPin className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="max-w-[200px] text-left line-clamp-1 border-b border-white/10 group-hover:border-white/40 pb-0.5">{settings.address}</span>
-                </a>
-              )}
-              {settings?.phone && (
-                <a
-                  href={`tel:${settings.phone}`}
-                  className="group flex items-center gap-3 text-xs font-bold text-white/80 hover:text-white transition-all"
-                >
-                  <div className="w-9 h-9 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center ring-1 ring-white/20 group-hover:bg-white/20 group-hover:ring-white/40 transition-all shadow-lg">
-                    <Phone className="w-4 h-4 text-white" />
-                  </div>
-                  <span className="border-b border-white/10 group-hover:border-white/40 pb-0.5">{settings.phone}</span>
-                </a>
-              )}
-            </div>
 
-            {/* Premium Hours Button */}
-            {hasHours && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="pt-6"
-              >
-                <button
-                  onClick={() => setShowHoursModal(true)}
-                  className="inline-flex items-center gap-3 px-8 py-3.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-xl border border-white/20 text-xs font-black uppercase tracking-[0.2em] transition-all hover:scale-105 active:scale-95 shadow-xl"
-                >
-                  <Clock className="w-4 h-4 text-white/80" />
-                  {ui.hoursBtn}
-                </button>
-              </motion.div>
-            )}
           </motion.div>
         </div>
 
@@ -462,15 +418,16 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
         <div className="sticky top-0 z-30 bg-zinc-50/80 backdrop-blur-xl border-b border-zinc-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div ref={categoryFilterRef} className="flex gap-2 justify-center items-center overflow-x-auto py-4 scrollbar-hide no-scrollbar">
-              <button
-                onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
-                className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${
-                  showSearch ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300 shadow-sm'
-                }`}
-              >
-                {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
-              </button>
-              
+              {hasHours && (
+                <button
+                  onClick={() => setShowHoursModal(true)}
+                  className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 shadow-sm text-xs font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  {ui.hoursBtn}
+                </button>
+              )}
+
               <AnimatePresence mode="wait">
                 {showSearch ? (
                   <motion.div
@@ -499,20 +456,20 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                     <button
                       onClick={() => setActiveCategory(null)}
                       style={!activeCategory && !visibleCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                      className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-6 py-3 rounded-full transition-all shadow-sm ${
-                        !activeCategory && !visibleCategory ? 'shadow-md scale-105' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300'
+                      className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
+                        !activeCategory && !visibleCategory ? 'shadow-md scale-105' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:scale-105'
                       }`}
                     >
                       {ui.all}
                     </button>
-                    {categories.map(cat => (
+                    {categories.filter(cat => cat.name?.trim()).map(cat => (
                       <button
                         key={cat.id}
                         ref={el => { categoryButtonRefs.current[cat.id] = el }}
                         onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
                         style={activeCategory === cat.id || visibleCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                        className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-6 py-3 rounded-full transition-all shadow-sm ${
-                          activeCategory === cat.id || visibleCategory === cat.id ? 'shadow-md scale-105' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300'
+                        className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
+                          activeCategory === cat.id || visibleCategory === cat.id ? 'shadow-md scale-105' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:scale-105'
                         }`}
                       >
                         {cat.name}
@@ -521,61 +478,89 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              <button
+                onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
+                className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${
+                  showSearch ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300 shadow-sm'
+                }`}
+              >
+                {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+              </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Featured Section — full viewport width, outside max-w container */}
+      {featured.length > 0 && !search && !activeCategory && (
+        <section className="relative w-full pt-10 sm:pt-16 pb-0">
+          <div className="w-full overflow-hidden pb-4">
+            <div className="absolute top-3 sm:top-5 left-4 sm:left-6 lg:left-8 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-100">
+              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+              <span className="text-xs font-black text-zinc-900 uppercase tracking-widest">{ui.featured}</span>
+            </div>
+            <div className="flex gap-6 w-max px-4 sm:px-6 lg:px-8 animate-marquee">
+              {[...featuredBase, ...featuredBase].map((p, idx) => (
+                <motion.button
+                  key={`${p.id}-${idx}`}
+                  onClick={() => setSelectedProduct(p)}
+                  whileHover={{ y: -8 }}
+                  className="flex-shrink-0 w-64 sm:w-80 bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-lg shadow-zinc-200/50 hover:shadow-xl transition-all duration-500"
+                >
+                  <div className="relative w-full aspect-[4/3] bg-zinc-50 overflow-hidden">
+                    {getProductImages(p)[0]
+                      ? <Image src={getProductImages(p)[0]} alt={p.name} fill className="object-cover transition-transform duration-700 hover:scale-110" sizes="320px" />
+                      : <div className="w-full h-full flex items-center justify-center text-4xl">🍽️</div>}
+                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm">
+                      <span style={{ color: accentColor }} className="text-sm font-black tracking-tight">{formatPrice(p.price, currency)}</span>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-lg font-black text-zinc-900 leading-tight mb-2 truncate">{p.name}</h3>
+                    <p className="text-xs text-zinc-500 font-medium line-clamp-2 leading-relaxed">
+                      {p.description || "No description available."}
+                    </p>
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                        View Details <ChevronRight className="w-3 h-3 ml-1" />
+                      </div>
+                      {directOrdersEnabled && (() => {
+                        const cartKey = buildCartKey(p.id, {})
+                        const qty = cart.find(i => i.cartKey === cartKey)?.quantity ?? 0
+                        return qty === 0 ? (
+                          <button
+                            onClick={e => { e.stopPropagation(); addToCart(p, {}, p.price) }}
+                            style={{ backgroundColor: primaryColor }}
+                            className="w-9 h-9 rounded-full text-white flex items-center justify-center hover:opacity-80 active:scale-90 transition-all flex-shrink-0 shadow-md"
+                          >
+                            <ShoppingBag className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <div onClick={e => e.stopPropagation()} className="flex items-center rounded-full border border-zinc-200 shadow-sm overflow-hidden">
+                            <button onClick={() => updateCartQuantity(cartKey, qty - 1)} className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all flex items-center justify-center">
+                              <ChevronLeft className="w-3.5 h-3.5 text-zinc-600" />
+                            </button>
+                            <span className="text-sm font-black min-w-[1.25rem] text-center text-zinc-900 px-1">{qty}</span>
+                            <button onClick={() => updateCartQuantity(cartKey, qty + 1)} className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all flex items-center justify-center">
+                              <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+                            </button>
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+        </section>
       )}
 
       <main
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-16"
         style={hasFixedFooter ? { paddingBottom: `${footerHeight + 40}px` } : undefined}
       >
-        {/* Featured Section */}
-        {featured.length > 0 && !search && !activeCategory && (
-          <section className="relative">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="text-2xl font-black text-zinc-900 tracking-tight flex items-center gap-3">
-                <Star className="w-6 h-6 text-amber-500 fill-amber-500" />
-                {ui.featured}
-              </h2>
-            </div>
-            
-            <div className="-mx-4 sm:-mx-6 lg:-mx-8 overflow-hidden pb-4">
-              <div
-                onMouseEnter={() => setPauseFeaturedAutoScroll(true)}
-                onMouseLeave={() => setPauseFeaturedAutoScroll(false)}
-                className={`flex gap-6 w-max px-4 sm:px-8 ${pauseFeaturedAutoScroll ? 'animate-marquee-paused' : 'animate-marquee'}`}
-              >
-                {[...featuredBase, ...featuredBase].map((p, idx) => (
-                  <motion.button 
-                    key={`${p.id}-${idx}`} 
-                    onClick={() => setSelectedProduct(p)}
-                    whileHover={{ y: -8 }}
-                    className="flex-shrink-0 w-64 sm:w-80 bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-lg shadow-zinc-200/50 hover:shadow-xl transition-all duration-500"
-                  >
-                    <div className="relative w-full aspect-[4/3] bg-zinc-50 overflow-hidden">
-                      {getProductImages(p)[0]
-                        ? <Image src={getProductImages(p)[0]} alt={p.name} fill className="object-cover transition-transform duration-700 hover:scale-110" sizes="320px" />
-                        : <div className="w-full h-full flex items-center justify-center text-4xl">🍽️</div>}
-                      <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm">
-                         <span style={{ color: accentColor }} className="text-sm font-black tracking-tight">{formatPrice(p.price, currency)}</span>
-                      </div>
-                    </div>
-                    <div className="p-6">
-                      <h3 className="text-lg font-black text-zinc-900 leading-tight mb-2 truncate">{p.name}</h3>
-                      <p className="text-xs text-zinc-500 font-medium line-clamp-2 leading-relaxed">
-                        {p.description || "No description available."}
-                      </p>
-                      <div className="mt-4 flex items-center text-[10px] font-black uppercase tracking-widest text-indigo-600">
-                        View Details <ChevronRight className="w-3 h-3 ml-1" />
-                      </div>
-                    </div>
-                  </motion.button>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
 
         {filtered.length === 0 && (
           <div className="text-center py-24 bg-white rounded-xl border border-zinc-100 shadow-sm">
@@ -603,16 +588,27 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-              {items.map((p, pIdx) => (
-                <ProductCard 
-                  key={p.id} 
-                  product={p} 
-                  accentColor={accentColor} 
-                  currency={currency} 
-                  lang={selectedLanguage} 
-                  onClick={() => setSelectedProduct(p)} 
-                />
-              ))}
+              {items.map((p) => {
+                const cartKey = buildCartKey(p.id, {})
+                const qty = cart.find(i => i.cartKey === cartKey)?.quantity ?? 0
+                return (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    accentColor={accentColor}
+                    primaryColor={primaryColor}
+                    currency={currency}
+                    lang={selectedLanguage}
+                    onClick={() => setSelectedProduct(p)}
+                    {...(directOrdersEnabled ? {
+                      cartQuantity: qty,
+                      onAdd: () => addToCart(p, {}, p.price),
+                      onIncrement: () => updateCartQuantity(cartKey, qty + 1),
+                      onDecrement: () => updateCartQuantity(cartKey, qty - 1),
+                    } : {})}
+                  />
+                )
+              })}
             </div>
           </section>
         ))}
@@ -624,9 +620,27 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
               <div className="h-px w-full bg-zinc-100" />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-              {uncategorized.map(p => (
-                <ProductCard key={p.id} product={p} accentColor={accentColor} currency={currency} lang={selectedLanguage} onClick={() => setSelectedProduct(p)} />
-              ))}
+              {uncategorized.map(p => {
+                const cartKey = buildCartKey(p.id, {})
+                const qty = cart.find(i => i.cartKey === cartKey)?.quantity ?? 0
+                return (
+                  <ProductCard
+                    key={p.id}
+                    product={p}
+                    accentColor={accentColor}
+                    primaryColor={primaryColor}
+                    currency={currency}
+                    lang={selectedLanguage}
+                    onClick={() => setSelectedProduct(p)}
+                    {...(directOrdersEnabled ? {
+                      cartQuantity: qty,
+                      onAdd: () => addToCart(p, {}, p.price),
+                      onIncrement: () => updateCartQuantity(cartKey, qty + 1),
+                      onDecrement: () => updateCartQuantity(cartKey, qty - 1),
+                    } : {})}
+                  />
+                )
+              })}
             </div>
           </section>
         )}
@@ -658,6 +672,11 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               {hasContact && (
                 <div className="flex flex-wrap items-center justify-center gap-8 text-xs font-bold text-zinc-500">
+                  {settings?.address && (
+                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5" /> <span className="max-w-[220px] line-clamp-1">{settings.address}</span>
+                    </a>
+                  )}
                   {settings?.phone && (
                     <a href={`tel:${settings.phone}`} className="hover:text-zinc-900 flex items-center gap-2">
                       <Phone className="w-3.5 h-3.5" /> {settings.phone}
@@ -759,6 +778,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           orderError={orderError}
           orderId={orderId}
           ui={ui}
+          accentColor={accentColor}
           onClose={() => {
             setShowCartModal(false)
             setOrderSuccess(false)
@@ -799,10 +819,13 @@ function getTagStyle(tag: string): string {
   return TAG_COLORS[tag] ?? 'bg-zinc-50 text-zinc-600 ring-1 ring-zinc-100'
 }
 
-function ProductCard({ product, accentColor, currency, lang, onClick }: { product: Product; accentColor: string; currency: string; lang: string; onClick: () => void }) {
+function ProductCard({ product, accentColor, primaryColor, currency, lang, onClick, cartQuantity, onAdd, onIncrement, onDecrement }: {
+  product: Product; accentColor: string; primaryColor: string; currency: string; lang: string; onClick: () => void
+  cartQuantity?: number; onAdd?: () => void; onIncrement?: () => void; onDecrement?: () => void
+}) {
   const images = getProductImages(product)
   return (
-    <motion.button 
+    <motion.button
       onClick={onClick}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
@@ -812,7 +835,7 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
         {images[0]
           ? <Image src={images[0]} alt={product.name} fill className="object-cover transition-transform duration-700 group-hover:scale-110" sizes="(max-width: 768px) 50vw, 25vw" />
           : <div className="w-full h-full flex items-center justify-center text-4xl bg-zinc-50">🍽️</div>}
-        
+
         {product.is_featured && (
           <div className="absolute top-4 left-4 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
             <Star className="w-3 h-3 fill-white" /> Featured
@@ -820,7 +843,7 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
         )}
 
         <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg shadow-sm border border-white/20">
-           <span style={{ color: accentColor }} className="text-sm font-black tracking-tight">{formatPrice(product.price, currency)}</span>
+          <span style={{ color: accentColor }} className="text-sm font-black tracking-tight">{formatPrice(product.price, currency)}</span>
         </div>
       </div>
 
@@ -828,7 +851,7 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="text-base font-black text-zinc-900 leading-tight line-clamp-1">{product.name}</h3>
         </div>
-        
+
         {product.tags?.length > 0 && (
           <div className="flex gap-1.5 mb-3 flex-wrap">
             {product.tags.map(tag => {
@@ -843,9 +866,31 @@ function ProductCard({ product, accentColor, currency, lang, onClick }: { produc
             {product.description}
           </p>
         )}
-        
-        <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-zinc-300 group-hover:text-zinc-900 transition-colors">
-          Order Now <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-zinc-300 group-hover:text-zinc-900 transition-colors">
+            Order Now <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
+          </div>
+          {onAdd && (cartQuantity ?? 0) === 0 && (
+            <button
+              onClick={e => { e.stopPropagation(); onAdd() }}
+              style={{ backgroundColor: primaryColor }}
+              className="w-9 h-9 rounded-full text-white flex items-center justify-center hover:opacity-80 active:scale-90 transition-all flex-shrink-0 shadow-md"
+            >
+              <ShoppingBag className="w-4 h-4" />
+            </button>
+          )}
+          {onIncrement && onDecrement && (cartQuantity ?? 0) > 0 && (
+            <div onClick={e => e.stopPropagation()} className="flex items-center rounded-full border border-zinc-200 shadow-sm overflow-hidden">
+              <button onClick={onDecrement} className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all flex items-center justify-center">
+                <ChevronLeft className="w-3.5 h-3.5 text-zinc-600" />
+              </button>
+              <span className="text-sm font-black min-w-[1.25rem] text-center text-zinc-900 px-1">{cartQuantity}</span>
+              <button onClick={onIncrement} className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all flex items-center justify-center">
+                <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </motion.button>
