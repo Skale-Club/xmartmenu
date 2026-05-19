@@ -218,6 +218,20 @@ export interface Menu {
   created_at: string
 }
 
+export interface Location {
+  id: string
+  tenant_id: string
+  name: string
+  slug: string
+  address: string | null
+  city: string | null
+  phone: string | null
+  business_hours: Record<string, string> | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Order {
   id: string
   tenant_id: string
