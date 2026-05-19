@@ -3,7 +3,7 @@ id: SEED-019
 status: dormant
 planted: 2026-05-19
 planted_during: v2.2-milestone-execution
-trigger_when: restaurant wants different prices for online vs in-store, or wants to gate in-store menu behind phone login
+trigger_when: restaurant wants different prices for online vs in-store, or wants to gate the in-store menu behind phone login
 scope: medium
 ---
 
@@ -11,21 +11,21 @@ scope: medium
 
 ## Why This Matters
 
-Restaurants frequently have two pricing realities: the price on their website (public, competitive, visible to anyone Googling them) and the price on the in-store menu (which may include service charge, table fee, or simply higher prices to account for operational costs). Today XmartMenu serves one menu to everyone.
+Restaurants frequently operate with two pricing realities: the price shown on their website (public, competitive, visible to anyone searching online) and the price on the in-store menu (which may include a service charge, table fee, or simply higher prices to account for operational costs). Today XmartMenu serves one menu to everyone regardless of context.
 
 **The model:**
-- **Public menu** — accessible to anyone without login; shown at the restaurant's domain; the "website" menu; public prices
-- **Private menu** — accessible only inside the restaurant via QR code; requires phone OTP login (SEED-018); in-store prices (can be different from public)
+- **Public menu** — accessible to anyone without login; the "website" menu; public prices
+- **Private menu** — accessible only inside the restaurant via QR code; requires phone OTP login (SEED-018); in-store prices that can differ from the public menu
 
 **How it works for the customer:**
-- Arriving at `restaurantsite.com` → sees public menu, no login required
-- Scanning the in-store QR code → if private menu is enabled, prompted to enter phone + OTP → logs in → sees private menu with in-store prices
-- If they're already logged in (SEED-018 session), QR scan takes them straight to private menu
+- Visiting `restaurantsite.com` → sees the public menu, no login required
+- Scanning the in-store QR code → if the menu is private, prompted to enter phone + OTP → logs in → sees in-store menu with in-store prices
+- If already logged in (SEED-018 session active), QR scan takes them straight to the private menu
 
 **For the restaurant:**
-- Toggle per menu: Public or Private
-- Same menu catalog, but prices can differ (a separate price field or price_modifier per menu mode)
-- Multiple menus already supported in the data model — private menu is just a menu with `is_private: true` and a different price set
+- A toggle per menu: Public or Private
+- Same product catalog, but prices can differ via a price multiplier on the menu
+- Multiple menus already supported in the data model — a private menu is just a menu with `is_private: true` and an optional `price_multiplier`
 
 ## When to Surface
 
@@ -33,54 +33,54 @@ Restaurants frequently have two pricing realities: the price on their website (p
 
 Surface during `/gsd:new-milestone` when the scope involves:
 - Multi-menu management
-- In-store vs online pricing differentiation
-- Private/members-only menu features
+- Online vs in-store pricing differentiation
+- Private or members-only menu features
 - QR code per menu type
 
 ## Scope Estimate
 
-**Medium** — 3–5 days. Components:
+**Medium** — 3–5 days. Four independent phases:
 
 ### Phase A: Menu privacy flag + admin UI
-- `menus` table: add `is_private BOOLEAN DEFAULT false`
+- `menus` table: add `is_private BOOLEAN DEFAULT false` and `price_multiplier DECIMAL DEFAULT 1.00`
 - Admin menu list: toggle per menu to mark as Public or Private
-- Private menu badge in admin UI
-- Menu URL: public menus accessible without login; private menus redirect to phone login if no session
+- Private menu badge in admin panel
+- Menu URL: public menus accessible without login; private menus redirect to phone login if no session exists
 
 ### Phase B: Routing and auth gate
-- Middleware update: when accessing a menu route, check if `menu.is_private`
-  - If private AND no customer session (SEED-018) → redirect to phone OTP login page
-  - If private AND valid session → serve the menu
-  - If public → serve directly (current behaviour)
-- The login page for private menu access is scoped to the tenant (SEED-018 Phase B)
+- Middleware update: when accessing a menu route, check `menu.is_private`
+  - Private + no customer session → redirect to phone OTP login page (SEED-018)
+  - Private + valid session → serve the menu
+  - Public → serve directly (current behaviour, no change)
+- The login page is scoped to the tenant domain
 
-### Phase C: Per-menu pricing
-- Products can have a price override per menu: new `product_menu_prices` table with `(product_id, menu_id, price_cents)` OR a simpler `menus.price_multiplier DECIMAL` (e.g. 1.15 = 15% markup on all items)
-- v1: `price_multiplier` on the menu — simpler, no per-product price management overhead
-- v2: per-product price overrides — more flexible, higher complexity
-- Start with `price_multiplier` for v1
+### Phase C: Per-menu pricing via multiplier
+- `price_multiplier` on the menu applies to all product prices at render time
+- Example: `price_multiplier = 1.15` means in-store prices are 15% higher than catalog prices
+- No per-product price overrides in v1 — a single multiplier covers the most common use case (uniform markup)
+- Per-product overrides (different price per product per menu) are a future phase when the data complexity is justified
 
 ### Phase D: QR code per menu type
-- Each menu can have its own QR code (already supported via menu slug)
-- Restaurant prints public QR for table tents / door (goes to public menu)
-- Restaurant prints private QR for in-store (goes to private menu → triggers login if needed)
-- Admin QR code generator shows separate QR per menu
+- Each menu already has its own slug and therefore its own URL
+- Admin QR code generator shows a separate QR per menu
+- Restaurant prints the public QR for the website/door sign and the private QR for in-store table tents
+- The private QR URL triggers the auth gate automatically
 
 ## Breadcrumbs
 
-- `supabase/migrations/` — `menus.is_private`, `menus.price_multiplier`, future `product_menu_prices`
+- `supabase/migrations/` — `menus.is_private`, `menus.price_multiplier`
 - `src/types/database.ts` — `Menu` interface receives `is_private`, `price_multiplier`
-- `src/middleware.ts` — route guard for private menu access (check session before serving)
+- `src/middleware.ts` — route guard for private menu access (check customer session before serving)
 - `src/app/(public)/[slug]/[menuSlug]/page.tsx` — private menu auth gate
-- `src/app/(admin)/menus/MenusClient.tsx` — Public/Private toggle per menu
-- `src/lib/get-active-menu.ts` — menu fetch needs to respect `is_private` and apply `price_multiplier`
+- `src/app/(admin)/menus/MenusClient.tsx` — Public/Private toggle + price multiplier input per menu
+- `src/lib/get-active-menu.ts` — apply `price_multiplier` to product prices before rendering
 - `src/app/(public)/[slug]/[menuSlug]/login/` — new route for private menu phone login entry point
 
 ## Notes
 
 - **Depends on SEED-018** — private menu access requires customer phone OTP login. Do not build the auth gate before the OTP system exists.
-- **price_multiplier is the right v1 approach** — "in-store prices are 15% higher than website prices" is the common use case. Per-product overrides are complex to manage (100+ products × 2 menus = 200 price entries). Multiplier covers 90% of cases.
-- **Public menu stays public** — a restaurant with only public menus has zero behaviour change. The feature is purely additive.
-- **Multiple private menus** — a restaurant could have VIP, in-store, and staff menus each as separate private menus with different multipliers. The `is_private` flag + `price_multiplier` model supports this naturally.
-- **QR code on the private menu** — the in-store QR should encode the direct menu URL (e.g. `restaurantsite.com/in-store`). The middleware intercepts and requests login. The URL itself doesn't need to contain auth tokens — the session handles it.
-- **SEED-020 (delivery)** also benefits from the public/private split — a delivery menu (online, public prices) can be distinct from the dine-in menu (in-store, higher prices).
+- **price_multiplier is the right v1 approach** — "in-store prices are 15% higher than website prices" covers the vast majority of restaurant use cases. Per-product overrides require managing 100+ price entries (one per product per menu) and are rarely needed for a flat markup.
+- **Public menu stays public** — a restaurant that never creates a private menu has zero behaviour change. This feature is purely additive.
+- **Multiple private menus are naturally supported** — a restaurant could have a VIP menu, an in-store menu, and a staff menu, each as a separate private menu with different multipliers. The `is_private + price_multiplier` model handles this without extra schema changes.
+- **QR code security** — the private QR URL contains no auth tokens; it just points to the menu route. The middleware intercepts and enforces login. The URL is safe to print on physical materials.
+- **SEED-020 (delivery)** also benefits from this split — a delivery menu (online, public prices) can be a distinct public menu while the dine-in menu is private with in-store pricing.
