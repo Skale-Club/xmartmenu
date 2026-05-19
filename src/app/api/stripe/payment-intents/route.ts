@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     // for Stripe via Math.round below.
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, tenant_id, status, total, payment_intent_id')
+      .select('id, tenant_id, status, total, tip_cents, payment_intent_id')
       .eq('id', order_id)
       .single()
 
@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       tenantId: order.tenant_id,
       orderId: order.id,
       amount: amountCents,
+      tipCents: (order as any).tip_cents ?? 0,
       currency: 'brl',
     })
 

@@ -83,6 +83,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const [confirmedCart, setConfirmedCart] = useState<CartItem[]>([])
   const [orderType, setOrderType] = useState(defaultOrderType)
   const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [tipCents, setTipCents] = useState(0)
   const footerRef = useRef<HTMLElement | null>(null)
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
   const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
@@ -99,6 +100,12 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const deliveryEnabled = settings?.delivery_enabled ?? false
   const deliveryFeeCents = settings?.delivery_fee_cents ?? 0
   const orderTypeConfig = { dineIn: dineInEnabled, pickup: pickupEnabled, delivery: deliveryEnabled, deliveryFeeCents }
+  const tipsEnabled = settings?.tips_enabled ?? false
+  const tipPercentages: [number, number, number] = [
+    settings?.tip_percentage_1 ?? 15,
+    settings?.tip_percentage_2 ?? 18,
+    settings?.tip_percentage_3 ?? 20,
+  ]
   const defaultOrderType = dineInEnabled ? 'dine_in' : pickupEnabled ? 'pickup' : 'delivery'
 
   const featured = products.filter(p => p.is_featured)
@@ -193,6 +200,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           order_type: orderType,
           delivery_address: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
           location_id: location?.id ?? null,
+          tip_cents: tipCents,
           items: cart.map(item => ({
             product_id: item.product.id,
             product_name: item.product.name,
@@ -219,6 +227,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       setCustomerPhone('')
       setDeliveryAddress('')
       setOrderType(defaultOrderType)
+      setTipCents(0)
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : 'Failed to submit order')
     } finally {
@@ -812,6 +821,10 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           deliveryAddress={deliveryAddress}
           onOrderTypeChange={setOrderType}
           onDeliveryAddressChange={setDeliveryAddress}
+          tipsEnabled={tipsEnabled}
+          tipPercentages={tipPercentages}
+          tipCents={tipCents}
+          onTipChange={setTipCents}
         />
       )}
     </div>

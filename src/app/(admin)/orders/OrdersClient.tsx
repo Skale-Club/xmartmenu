@@ -176,6 +176,9 @@ function OrderCard({
         <div>
           <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-0.5">Total</p>
           <p className="text-xl font-black text-zinc-950 tracking-tighter">R$ {order.total.toFixed(2)}</p>
+          {(order as any).tip_cents > 0 && (
+            <p className="text-[10px] font-bold text-zinc-400">tip R$ {((order as any).tip_cents / 100).toFixed(2)}</p>
+          )}
         </div>
         <div className={cn("px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm border", chipClass)}>
           <Clock className="w-3.5 h-3.5" />
@@ -641,6 +644,9 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                   <div>
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 block">Total Value</label>
                     <p className="text-2xl font-black text-zinc-950 tracking-tighter">R$ {selectedOrder.total.toFixed(2)}</p>
+                    {(selectedOrder as any).tip_cents > 0 && (
+                      <p className="text-xs font-bold text-zinc-500 mt-0.5">incl. tip R$ {((selectedOrder as any).tip_cents / 100).toFixed(2)}</p>
+                    )}
                   </div>
                 </div>
               </div>

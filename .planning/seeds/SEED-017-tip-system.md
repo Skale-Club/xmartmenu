@@ -1,8 +1,10 @@
 ---
 id: SEED-017
-status: dormant
+status: completed
 planted: 2026-05-19
 planted_during: v2.2-milestone-execution
+completed: 2026-05-19
+completed_in: phase-44-tip-system
 trigger_when: working on checkout flow, payment features, or expanding the payments-plan tier
 scope: small
 ---

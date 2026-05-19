@@ -116,6 +116,10 @@ export interface TenantSettings {
   delivery_enabled: boolean         // ORD-01: delivery mode flag (migration 034, default false)
   pickup_eta_minutes: number        // ORD-02: estimated pick-up time in minutes (default 20)
   delivery_fee_cents: number        // ORD-03: delivery fee in cents (default 0)
+  tips_enabled: boolean             // SEED-017: tip feature flag (migration 038, default false)
+  tip_percentage_1: number          // SEED-017: first tip preset % (default 15)
+  tip_percentage_2: number          // SEED-017: second tip preset % (default 18)
+  tip_percentage_3: number          // SEED-017: third tip preset % (default 20)
   updated_at: string
   // AI-04: New fields added in migration 022
   business_type: string | null
@@ -244,6 +248,7 @@ export interface Order {
   order_type: 'dine_in' | 'pickup' | 'delivery'   // ORD-06 (migration 035, default 'dine_in')
   delivery_address: string | null                   // ORD-05 (migration 035, null for non-delivery)
   location_id: string | null                        // LOC-06 (migration 037, null = no branch)
+  tip_cents: number                                  // SEED-017 (migration 038, always 0 when no tip)
   notes: string | null
   created_at: string
   updated_at: string
