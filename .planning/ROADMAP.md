@@ -143,7 +143,7 @@ Key accomplishments:
 ## Phases
 
 - [x] **Phase 35: Custom Domain Infrastructure** — DB migration + middleware hostname routing + admin UI + DNS instructions
-- [ ] **Phase 36: English Conversion** — Migrate all operator-facing UI text from Portuguese to English across admin, superadmin, onboarding, KDS, settings, and error messages
+- [x] **Phase 36: English Conversion** — Migrate all operator-facing UI text from Portuguese to English across admin, superadmin, onboarding, KDS, settings, and error messages (completed 2026-05-19)
 - [ ] **Phase 37: Color Theming** — DB migration + server-side CSS injection + admin color picker + smart defaults for new tenants
 - [ ] **Phase 38: Order Types — Admin & Schema** — DB migration for order type flags and config + admin settings UI (dine-in/pick-up/delivery toggles + fee/time fields)
 - [ ] **Phase 39: Order Types — Customer & Operational** — Customer order type selector + delivery address field + fee in cart total + KDS fulfillment badges + orders filter
@@ -358,7 +358,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 35. Custom Domain Infrastructure | 1/1 | Done | 2026-05-10 |
-| 36. English Conversion | 1/2 | In Progress|  |
+| 36. English Conversion | 1/2 | Complete    | 2026-05-19 |
 | 37. Color Theming | 0/? | Not started | - |
 | 38. Order Types — Admin & Schema | 0/? | Not started | - |
 | 39. Order Types — Customer & Operational | 0/? | Not started | - |

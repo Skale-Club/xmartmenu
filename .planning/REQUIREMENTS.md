@@ -6,8 +6,8 @@
 
 - [x] **ENGL-01**: Admin panel navigation, buttons, headings, and form labels are in English
 - [x] **ENGL-02**: Superadmin panel table headers, action buttons, and modal titles are in English
-- [ ] **ENGL-03**: Onboarding wizard step titles, instructions, and CTAs are in English
-- [ ] **ENGL-04**: KDS status labels, filter chips, and time labels are in English
+- [x] **ENGL-03**: Onboarding wizard step titles, instructions, and CTAs are in English
+- [x] **ENGL-04**: KDS status labels, filter chips, and time labels are in English
 - [x] **ENGL-05**: Settings page headings, toggle labels, and field descriptions are in English
 - [x] **ENGL-06**: Error and validation messages across the admin UI are in English
 
@@ -75,8 +75,8 @@
 |-------------|-------|--------|
 | ENGL-01 | Phase 36 | Complete |
 | ENGL-02 | Phase 36 | Complete |
-| ENGL-03 | Phase 36 | Pending |
-| ENGL-04 | Phase 36 | Pending |
+| ENGL-03 | Phase 36 | Complete |
+| ENGL-04 | Phase 36 | Complete |
 | ENGL-05 | Phase 36 | Complete |
 | ENGL-06 | Phase 36 | Complete |
 | THEME-01 | Phase 37 | Pending |
