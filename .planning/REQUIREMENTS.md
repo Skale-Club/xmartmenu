@@ -1,110 +1,80 @@
-# Requirements — v2.1 Custom Domains
+# v2.2 Requirements — Restaurant Growth Platform
+
+## In Scope
+
+### English Conversion (SEED-016)
+
+- [ ] **ENGL-01**: Admin panel navigation, buttons, headings, and form labels are in English
+- [ ] **ENGL-02**: Superadmin panel table headers, action buttons, and modal titles are in English
+- [ ] **ENGL-03**: Onboarding wizard step titles, instructions, and CTAs are in English
+- [ ] **ENGL-04**: KDS status labels, filter chips, and time labels are in English
+- [ ] **ENGL-05**: Settings page headings, toggle labels, and field descriptions are in English
+- [ ] **ENGL-06**: Error and validation messages across the admin UI are in English
+
+### Color Theming (SEED-015)
+
+- [ ] **THEME-01**: Tenant admin can set primary and secondary colors via a color picker in branding settings
+- [ ] **THEME-02**: Public menu page injects tenant colors as CSS custom properties server-side with no flash of unstyled content
+- [ ] **THEME-03**: All public menu interactive elements (buttons, category pills, cart badge, CTAs, modal headers) use `var(--color-primary)` and `var(--color-secondary)`
+- [ ] **THEME-04**: New tenants receive a default color palette based on their cuisine or business type
+
+### Order Types (SEED-013)
+
+- [ ] **ORD-01**: Restaurant admin can independently enable or disable dine-in, pick-up, and delivery modes; at least one mode must remain active
+- [ ] **ORD-02**: Admin can configure estimated pick-up time in minutes when pick-up is enabled
+- [ ] **ORD-03**: Admin can configure a delivery fee when delivery is enabled
+- [ ] **ORD-04**: Customer sees an order type selector only when two or more modes are active; dine-in is selected by default; selector is hidden when only dine-in is active
+- [ ] **ORD-05**: Delivery mode reveals a required delivery address field and adds the delivery fee to the cart total
+- [ ] **ORD-06**: Each order stores its `order_type` and `delivery_address`; KDS cards display a fulfillment badge per type
+- [ ] **ORD-07**: Admin orders view is filterable by order type
+
+### Multi-Location Branches (SEED-011)
+
+- [ ] **LOC-01**: Tenant admin can create, edit, and deactivate branch locations with name, address, city, phone, operating hours, and slug
+- [ ] **LOC-02**: Single-location tenant continues to serve the menu at the root URL (`restaurantsite.com`) — no change from current behavior
+- [ ] **LOC-03**: Multi-location tenant routes each branch at a path segment (`restaurantsite.com/[branch-slug]/`); root URL shows a branch picker instead of the menu
+- [ ] **LOC-04**: Each branch has its own QR code pointing to its path (`restaurantsite.com/branch-slug/`)
+- [ ] **LOC-05**: Admin can configure whether branches share the same menu or each has an independent menu; default is shared
+- [ ] **LOC-06**: Orders store a `location_id`; KDS and orders view are filterable by branch
+
+### SEO (SEED-014)
+
+- [ ] **SEO-01**: Public menu page has a dynamic `<title>` and `<meta description>` sourced from tenant name and description
+- [ ] **SEO-02**: Each tenant has a dynamically generated OG image rendered with the tenant logo and brand colors
+- [ ] **SEO-03**: `LocalBusiness` JSON-LD (schema.org) is injected per tenant with name, address, phone, operating hours, and cuisine type
+- [ ] **SEO-04**: `Menu` and `MenuItem` JSON-LD is generated server-side from the tenant's active menu data
+- [ ] **SEO-05**: Platform-slug pages include a canonical URL pointing to the custom domain when one is active
+- [ ] **SEO-06**: `robots.txt` is served per domain — custom domain gets `Allow: /`; platform slug is disallowed when a custom domain is active
+- [ ] **SEO-07**: Tenant-level `sitemap.xml` lists all indexable URLs for that tenant (root + branch paths when multi-location)
+- [ ] **SEO-08**: Each active branch has its own `LocalBusiness` JSON-LD with a `branchOf` link to the parent tenant (depends on LOC-03)
+
+---
+
+## Future Requirements (deferred)
+
+- Per-branch menu customization (different products or prices per location) — deferred to v3+
+- i18n for admin panel (English-only operator UI for now; non-English localization is a future seed)
+- Delivery address geolocation and map picker — deferred to future milestone
+- Per-branch color overrides — deferred; colors live on tenant, not locations, in v2.2
+- Plan-based location limits (e.g. menu plan = 1 branch, orders = 3, payments = unlimited) — evaluate with SEED-009
+
+---
+
+## Out of Scope
+
+- Public menu language — customer-facing menu language is tenant-controlled; untouched
+- Landing page copy — already in English
+- iFood / Rappi / marketplace delivery integrations — order types seed covers own-operated delivery only
+- Full i18n library (react-intl, next-intl) — over-engineering for a one-time English migration
+
+---
 
 ## Traceability
 
-| Requirement | Description | Phase | Status |
-|-------------|-------------|-------|--------|
-| DOM-01.1 | DB migration: add `custom_domain` column to `tenants` table | 35 | Pending |
-| DOM-01.2 | Middleware: resolve tenant by `host` header instead of pathname | 35 | Pending |
-| DOM-01.3 | Admin UI: tenant settings page for custom domain input and validation | 35 | Pending |
-| DOM-01.4 | DNS instructions: display CNAME configuration in admin panel | 35 | Pending |
-| DOM-01.5 | Routing: bypass slug in pathname for tenants with custom domain | 35 | Pending |
-| DOM-01.6 | Validation: verify custom domain resolves to platform before activation | 35 | Pending |
-
----
-
-## Detail
-
-### DOM-01.1 — DB Migration: custom_domain column
-
-**Type:** Database
-**Category:** Infrastructure
-
-**Description:** Add `custom_domain` column (VARCHAR, unique, nullable) to `tenants` table via DB migration. Column stores the custom domain configured by the tenant (e.g., `sitedocliente.com`).
-
-**Acceptance criteria:**
-- Migration adds `custom_domain` column with appropriate constraints
-- Column is nullable (tenant can exist without custom domain)
-- Column has unique constraint to prevent duplicate domains
-- RLS policies allow tenant owner to read/update their custom_domain
-
----
-
-### DOM-01.2 — Middleware: hostname-based tenant resolution
-
-**Type:** Infrastructure
-**Category:** Routing
-
-**Description:** Update Next.js middleware to resolve tenant by `host` header (e.g., `sitedocliente.com`) instead of pathname (e.g., `/nomedocliente`). Maintain backward compatibility with slug-based URLs for tenants without custom domain.
-
-**Acceptance criteria:**
-- Middleware extracts `host` header from request
-- If `host` matches a tenant's `custom_domain`, resolve tenant from DB
-- If `host` does not match any custom domain, fall back to pathname slug resolution
-- Custom domain lookup is cached to avoid DB query on every request
-
----
-
-### DOM-01.3 — Admin UI: custom domain management
-
-**Type:** Frontend
-**Category:** UI
-
-**Description:** Add UI in tenant admin panel (Settings page) for inputting and managing custom domain. Include field for domain entry and validation status display.
-
-**Acceptance criteria:**
-- Settings page includes "Domínio Personalizado" section
-- Input field accepts domain string (e.g., `sitedocliente.com`)
-- Save button persists value to `tenants.custom_domain`
-- Validation status (pending/verified/failed) displayed after save
-- UI only visible to store-admin role
-
----
-
-### DOM-01.4 — DNS instructions display
-
-**Type:** Frontend
-**Category:** UX
-
-**Description:** Display CNAME configuration instructions in admin panel after tenant saves custom domain. Instructions guide tenant to configure DNS at their domain registrar.
-
-**Acceptance criteria:**
-- After custom domain saved, panel shows CNAME record instructions
-- Instructions display: "Configure um registro CNAME: `@` -> `xmartmenu.skale.club`"
-- Clear copy/paste friendly format
-- Instructions update when custom_domain changes
-
----
-
-### DOM-01.5 — Pathname slug bypass for custom domains
-
-**Type:** Infrastructure
-**Category:** Routing
-
-**Description:** When a request arrives on tenant's custom domain (e.g., `sitedocliente.com/menu`), the middleware should not require the tenant slug in the pathname. Menu pages work directly at root path or with any pathname structure.
-
-**Acceptance criteria:**
-- Request to `sitedocliente.com/` loads tenant's default menu
-- Request to `sitedocliente.com/any-path` loads tenant's menu without requiring `/slug` prefix
-- If tenant has multiple menus, path after domain selects which menu (e.g., `/lunch` → lunch menu)
-- Platform domain (`xmartmenu.skale.club/slug`) continues to work as before
-
----
-
-### DOM-01.6 — Domain validation before activation
-
-**Type:** Backend
-**Category:** Validation
-
-**Description:** Before activating a custom domain, system verifies the domain actually points to the platform (CNAME resolves correctly). Prevent tenants from activating domains they don't control.
-
-**Acceptance criteria:**
-- When tenant clicks "Ativar", system performs DNS lookup on custom_domain
-- Verification passes if CNAME resolves to platform domain
-- Verification fails if domain doesn't resolve or resolves elsewhere
-- Only verified domains become active (customers see custom domain)
-- Manual override available for superadmin to force activation
-
----
-
-*Last updated: 2026-05-10 — v2.1 Custom Domains requirements defined*
+| Requirement | Phase |
+|-------------|-------|
+| ENGL-01 through ENGL-06 | TBD |
+| THEME-01 through THEME-04 | TBD |
+| ORD-01 through ORD-07 | TBD |
+| LOC-01 through LOC-06 | TBD |
+| SEO-01 through SEO-08 | TBD |
