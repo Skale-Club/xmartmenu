@@ -1,12 +1,12 @@
 'use client'
 
 import Image from 'next/image'
-import { X, ShoppingCart, User, Phone, ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react'
+import { X, ShoppingCart, User, Phone, ChevronLeft, ChevronRight, CheckCircle, UtensilsCrossed, Package, Truck, MapPin } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import type { UICopyEntry, CartItem } from './menu-utils'
 import { getProductImages } from './menu-utils'
 
-export default function CartModal({ cart, confirmedCart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, ui, accentColor, onClose, onCustomerNameChange, onCustomerPhoneChange, onRemove, onUpdateQuantity, onSubmit }: {
+export default function CartModal({ cart, confirmedCart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, ui, accentColor, orderTypeConfig, orderType, deliveryAddress, onOrderTypeChange, onDeliveryAddressChange, onClose, onCustomerNameChange, onCustomerPhoneChange, onRemove, onUpdateQuantity, onSubmit }: {
   cart: CartItem[]
   confirmedCart: CartItem[]
   currency: string
@@ -18,6 +18,11 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
   orderId: string | null
   ui: UICopyEntry
   accentColor?: string
+  orderTypeConfig?: { dineIn: boolean; pickup: boolean; delivery: boolean; deliveryFeeCents: number }
+  orderType?: string
+  deliveryAddress?: string
+  onOrderTypeChange?: (t: string) => void
+  onDeliveryAddressChange?: (a: string) => void
   onClose: () => void
   onCustomerNameChange: (name: string) => void
   onCustomerPhoneChange: (phone: string) => void
@@ -151,6 +156,50 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
           <div className="sm:w-64 bg-zinc-800 flex flex-col rounded-b-2xl sm:rounded-r-2xl sm:rounded-bl-none p-6 gap-5">
             <h3 className="text-sm font-black text-zinc-300 uppercase tracking-widest pt-6 sm:pt-0">Order Details</h3>
 
+            {/* Order type selector — shown only when 2+ types active */}
+            {orderTypeConfig && (() => {
+              const activeTypes: { key: string; label: string; Icon: React.ElementType }[] = []
+              if (orderTypeConfig.dineIn)   activeTypes.push({ key: 'dine_in',  label: 'Dine-In',  Icon: UtensilsCrossed })
+              if (orderTypeConfig.pickup)   activeTypes.push({ key: 'pickup',   label: 'Pick-Up',  Icon: Package })
+              if (orderTypeConfig.delivery) activeTypes.push({ key: 'delivery', label: 'Delivery', Icon: Truck })
+              if (activeTypes.length < 2) return null
+              return (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Order Type</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {activeTypes.map(({ key, label, Icon }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => onOrderTypeChange?.(key)}
+                        className={orderType === key
+                          ? "px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest bg-[#e8eaf0] text-zinc-900 border border-[#e8eaf0] cursor-pointer flex items-center gap-1.5"
+                          : "px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest border border-zinc-600 text-zinc-400 bg-transparent hover:border-zinc-400 transition-all cursor-pointer flex items-center gap-1.5"
+                        }
+                      >
+                        <Icon className="w-3 h-3" />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Delivery address — shown only when delivery selected */}
+            {orderType === 'delivery' && (
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input
+                  type="text"
+                  value={deliveryAddress ?? ''}
+                  onChange={e => onDeliveryAddressChange?.(e.target.value)}
+                  placeholder="Street address, city..."
+                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                />
+              </div>
+            )}
+
             {/* Visual order summary card — now light */}
             <div className="bg-[#e8eaf0] rounded-xl p-4 shadow-lg">
               <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Your order</p>
@@ -162,10 +211,27 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
                   </div>
                 ))}
               </div>
-              <div className="border-t border-zinc-300 mt-3 pt-3 flex items-center justify-between">
-                <span className="text-xs text-zinc-500">Total</span>
-                <span className="text-base font-black" style={{ color: accent }}>{formatPrice(total, currency)}</span>
-              </div>
+              {orderType === 'delivery' && orderTypeConfig && orderTypeConfig.deliveryFeeCents > 0 ? (
+                <>
+                  <div className="border-t border-zinc-300 mt-3 pt-2 flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">Subtotal</span>
+                    <span className="text-xs font-bold text-zinc-700">{formatPrice(total, currency)}</span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-xs text-zinc-500">Delivery fee</span>
+                    <span className="text-xs font-bold text-zinc-700">{formatPrice(orderTypeConfig.deliveryFeeCents / 100, currency)}</span>
+                  </div>
+                  <div className="border-t border-zinc-300 mt-2 pt-2 flex items-center justify-between">
+                    <span className="text-xs text-zinc-500">Total</span>
+                    <span className="text-base font-black" style={{ color: accent }}>{formatPrice(total + orderTypeConfig.deliveryFeeCents / 100, currency)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="border-t border-zinc-300 mt-3 pt-3 flex items-center justify-between">
+                  <span className="text-xs text-zinc-500">Total</span>
+                  <span className="text-base font-black" style={{ color: accent }}>{formatPrice(total, currency)}</span>
+                </div>
+              )}
             </div>
 
             {/* Customer fields */}
