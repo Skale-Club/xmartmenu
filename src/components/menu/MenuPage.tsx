@@ -86,8 +86,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
   const categoryFilterRef = useRef<HTMLDivElement | null>(null)
 
   const settings = tenant.tenant_settings
-  const primaryColor = settings?.primary_color ?? '#000000'
-  const accentColor = settings?.accent_color ?? '#FF5722'
+  const primaryColor = settings?.primary_color ?? '#EEFF00'
+  const accentColor = settings?.accent_color ?? '#09090b'
   const ordersEnabled = settings?.orders_enabled ?? true
   const whatsapp = (ordersEnabled && settings?.whatsapp_orders_enabled) ? settings?.whatsapp : null
   const currency = settings?.currency ?? 'USD'
@@ -522,7 +522,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                       {p.description || "No description available."}
                     </p>
                     <div className="mt-4 flex items-center justify-between">
-                      <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                      <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-zinc-500">
                         View Details <ChevronRight className="w-3 h-3 ml-1" />
                       </div>
                       {directOrdersEnabled && (() => {
@@ -660,7 +660,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           </div>
           <div className="relative bg-white/10 p-3 rounded-lg">
             <ShoppingBag className="w-5 h-5" />
-            <div className="absolute -top-1.5 -right-1.5 bg-indigo-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900">{cartCount}</div>
+            <div className="absolute -top-1.5 -right-1.5 text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-primary-foreground" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
           </div>
         </motion.button>
       )}
@@ -701,7 +701,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
               )}
               {footerBrand && (
                 <div className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.3em]">
-                  Powered by <a href="/" className="text-zinc-900 hover:text-indigo-600 transition-colors">{footerBrand}</a>
+                  Powered by <a href="/" className="text-zinc-900 hover:text-primary transition-colors">{footerBrand}</a>
                 </div>
               )}
             </div>
@@ -744,7 +744,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
             >
               <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
                 <h3 className="text-xl font-black text-zinc-900 tracking-tight flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-indigo-500" />
+                  <Clock className="w-5 h-5 text-primary" />
                   {ui.hoursTitle}
                 </h3>
                 <button onClick={() => setShowHoursModal(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>

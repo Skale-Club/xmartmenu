@@ -27,7 +27,7 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
 }) {
   const total = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const confirmedTotal = confirmedCart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
-  const accent = accentColor ?? '#6366f1'
+  const accent = accentColor ?? '#09090b'
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-0 sm:px-4" onClick={onClose}>
