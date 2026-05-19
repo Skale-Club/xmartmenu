@@ -43,7 +43,8 @@ Declared values (must be multiples of 4):
 | 3xl | 64px | Page-level `space-y-10` outer rhythm |
 
 Exceptions:
-- Toggle row uses `p-5` (20px) horizontal padding — matches existing Operations toggle rows exactly.
+- 40px (p-10) — locked project-level carry-over from existing StoreClient section card pattern; exempt from standard-set constraint.
+- 20px (p-5) — locked project-level carry-over from existing Operations toggle row pattern; exempt from standard-set constraint.
 - Conditional field row uses `mt-4` (16px) top margin within the toggle group.
 - Section card border-radius: `rounded-[1.25rem]` (20px) — project-specific, not a standard Tailwind token.
 
@@ -133,7 +134,7 @@ Shown inline below its parent toggle row when that toggle is enabled. Uses `mt-4
 ```
 div.space-y-2.mt-4.px-5.pb-2
   label: text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1
-  input[type=number]: w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl
+  input[type=number]: w-full px-5 py-3 bg-zinc-50 border border-zinc-200 rounded-xl
                       text-sm text-zinc-950 placeholder-zinc-400
                       focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
                       transition-all font-black text-lg
