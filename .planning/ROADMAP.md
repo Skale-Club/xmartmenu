@@ -14,7 +14,7 @@
 - ✅ **v1.9 Performance Gaps** — Phases 28-29 (shipped 2026-05-08)
 - ✅ **v2.0 Monetization** — Phases 30-34 (shipped 2026-05-09)
 - ✅ **v2.1 Custom Domains** — Phase 35 (shipped 2026-05-10)
-- ⏳ **v2.2 Restaurant Growth Platform** — Phases 36-43 (in progress)
+- ✅ **v2.2 Restaurant Growth Platform** — Phases 36-43 (shipped 2026-05-19)
 
 ## Completed Milestones
 
@@ -145,12 +145,12 @@ Key accomplishments:
 - [x] **Phase 35: Custom Domain Infrastructure** — DB migration + middleware hostname routing + admin UI + DNS instructions
 - [x] **Phase 36: English Conversion** — Migrate all operator-facing UI text from Portuguese to English across admin, superadmin, onboarding, KDS, settings, and error messages (completed 2026-05-19)
 - [x] **Phase 37: Color Theming** — DB migration + server-side CSS injection + admin color picker + smart defaults for new tenants (completed 2026-05-19)
-- [ ] **Phase 38: Order Types — Admin & Schema** — DB migration for order type flags and config + admin settings UI (dine-in/pick-up/delivery toggles + fee/time fields)
-- [ ] **Phase 39: Order Types — Customer & Operational** — Customer order type selector + delivery address field + fee in cart total + KDS fulfillment badges + orders filter
-- [ ] **Phase 40: Multi-Location — Schema & Admin CRUD** — DB migration for branches table + admin branch management UI (create/edit/deactivate)
-- [ ] **Phase 41: Multi-Location — Routing, QR Codes & Menu Toggle** — Slug-based branch routing + root branch picker + per-branch QR codes + shared/independent menu toggle + KDS/orders branch filter
-- [ ] **Phase 42: SEO — Platform & Per-Tenant** — Dynamic metadata, OG image per tenant, LocalBusiness + MenuItem JSON-LD, canonical URLs, per-domain robots.txt, tenant sitemap
-- [ ] **Phase 43: SEO — Per-Branch Local SEO** — Per-branch LocalBusiness JSON-LD with branchOf link (depends on Phase 41 branch routing)
+- [x] **Phase 38: Order Types — Admin & Schema** — DB migration for order type flags and config + admin settings UI (dine-in/pick-up/delivery toggles + fee/time fields) (completed 2026-05-19)
+- [x] **Phase 39: Order Types — Customer & Operational** — Customer order type selector + delivery address field + fee in cart total + KDS fulfillment badges + orders filter
+- [x] **Phase 40: Multi-Location — Schema & Admin CRUD** — DB migration for branches table + admin branch management UI (create/edit/deactivate)
+- [x] **Phase 41: Multi-Location — Routing, QR Codes & Menu Toggle** — Slug-based branch routing + root branch picker + per-branch QR codes + shared/independent menu toggle + KDS/orders branch filter
+- [x] **Phase 42: SEO — Platform & Per-Tenant** — Dynamic metadata, OG image per tenant, LocalBusiness + MenuItem JSON-LD, canonical URLs, per-domain robots.txt, tenant sitemap
+- [x] **Phase 43: SEO — Per-Branch Local SEO** — Per-branch LocalBusiness JSON-LD with branchOf link (depends on Phase 41 branch routing)
 
 ---
 
@@ -269,7 +269,12 @@ Plans:
 3. Every order record in the database stores its order type and delivery address; KDS cards display a fulfillment badge indicating the type
 4. Admin orders view includes a filter control that narrows the list to a specific order type
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [x] 39-01-PLAN.md — Migration 035 (order_type + delivery_address on orders) + API POST update + Order interface update
+- [x] 39-02-PLAN.md — CartModal order type chips + delivery address input + fee display; MenuPage state + POST body
+- [x] 39-03-PLAN.md — OrderCard fulfillment badge + OrdersClient order type filter row
 
 **UI hint**: yes
 
@@ -368,9 +373,9 @@ Plans:
 | 35. Custom Domain Infrastructure | 1/1 | Done | 2026-05-10 |
 | 36. English Conversion | 1/2 | Complete    | 2026-05-19 |
 | 37. Color Theming | 2/2 | Complete    | 2026-05-19 |
-| 38. Order Types — Admin & Schema | 1/2 | In Progress|  |
-| 39. Order Types — Customer & Operational | 0/? | Not started | - |
-| 40. Multi-Location — Schema & Admin CRUD | 0/? | Not started | - |
+| 38. Order Types — Admin & Schema | 2/2 | Complete    | 2026-05-19 |
+| 39. Order Types — Customer & Operational | 3/3 | Complete    | 2026-05-19 |
+| 40. Multi-Location — Schema & Admin CRUD | 1/1 | Complete    | 2026-05-19 |
 | 41. Multi-Location — Routing, QR Codes & Menu Toggle | 0/? | Not started | - |
 | 42. SEO — Platform & Per-Tenant | 0/? | Not started | - |
 | 43. SEO — Per-Branch Local SEO | 0/? | Not started | - |

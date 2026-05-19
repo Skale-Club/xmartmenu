@@ -218,6 +218,21 @@ export interface Menu {
   created_at: string
 }
 
+export interface Location {
+  id: string
+  tenant_id: string
+  name: string
+  slug: string
+  address: string | null
+  city: string | null
+  phone: string | null
+  business_hours: Record<string, string> | null
+  menu_id: string | null           // LOC-05: null = shared/default menu (migration 037)
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 export interface Order {
   id: string
   tenant_id: string
@@ -226,6 +241,9 @@ export interface Order {
   status: 'pending' | 'paid' | 'payment_failed' | 'preparing' | 'ready' | 'done' | 'cancelled'
   total: number
   payment_intent_id: string | null
+  order_type: 'dine_in' | 'pickup' | 'delivery'   // ORD-06 (migration 035, default 'dine_in')
+  delivery_address: string | null                   // ORD-05 (migration 035, null for non-delivery)
+  location_id: string | null                        // LOC-06 (migration 037, null = no branch)
   notes: string | null
   created_at: string
   updated_at: string

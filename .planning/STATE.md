@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 38-order-types-admin-schema-38-01-PLAN.md
-last_updated: "2026-05-19T15:20:40.494Z"
+stopped_at: Completed phase-43-per-branch-local-seo
+last_updated: "2026-05-19T18:00:00.000Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 9
@@ -20,13 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 38 — Order Types — Admin & Schema
+**Current focus:** v2.2 milestone COMPLETE
 
 ## Current Position
 
-Phase: 38 (Order Types — Admin & Schema) — EXECUTING
-Plan: 2 of 2
-Status: Ready to execute
+Phase: 43 — COMPLETE (all v2.2 phases done)
+Status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
 Last activity: 2026-05-19
 
 ## Milestone Overview
@@ -40,9 +39,9 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | 38 | Order Types — Admin & Schema | ORD-01, ORD-02, ORD-03 | ○ Pending |
 | 39 | Order Types — Customer & Operational | ORD-04, ORD-05, ORD-06, ORD-07 | ○ Pending |
 | 40 | Multi-Location — Schema & Admin CRUD | LOC-01, LOC-02 | ○ Pending |
-| 41 | Multi-Location — Routing, QR Codes & Menu Toggle | LOC-03, LOC-04, LOC-05, LOC-06 | ○ Pending |
-| 42 | SEO — Platform & Per-Tenant | SEO-01, SEO-02, SEO-03, SEO-04, SEO-05, SEO-06, SEO-07 | ○ Pending |
-| 43 | SEO — Per-Branch Local SEO | SEO-08 | ○ Pending |
+| 41 | Multi-Location — Routing, QR Codes & Menu Toggle | LOC-03, LOC-04, LOC-05, LOC-06 | ✓ Complete |
+| 42 | SEO — Platform & Per-Tenant | SEO-01, SEO-02, SEO-03, SEO-04, SEO-05, SEO-06, SEO-07 | ✓ Complete |
+| 43 | SEO — Per-Branch Local SEO | SEO-08 | ✓ Complete |
 
 ## Performance Metrics
 
@@ -107,6 +106,10 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | Phase 37-color-theming P01 | 18min | 3 tasks | 6 files |
 | Phase 37-color-theming P02 | 8min | 2 tasks | 3 files |
 | Phase 38-order-types-admin-schema P01 | 2min | 2 tasks | 3 files |
+| Phase 38-order-types-admin-schema P02 | 5min | 2 tasks | 1 files |
+| Phase 39-order-types-customer-operational P01 | 5min | 4 tasks | 4 files |
+| Phase 39-order-types-customer-operational P02 | 5min | 2 tasks | 2 files |
+| Phase 39-order-types-customer-operational P03 | 5min | 1 tasks | 1 files |
 
 ## Accumulated Context
 

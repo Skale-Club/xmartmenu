@@ -1,7 +1,9 @@
 ---
 id: SEED-014
-status: dormant
+status: completed
+completed: 2026-05-19
 planted: 2026-05-19
+completed_in: v2.2 (Restaurant Growth Platform — phases 42-43)
 planted_during: post-v2.1-custom-domains
 trigger_when: improving search visibility for XmartMenu's own pages, tenant-owned custom domains, or multi-location branches
 scope: medium

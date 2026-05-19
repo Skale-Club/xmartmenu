@@ -4,10 +4,13 @@ import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import MenuPage from '@/components/menu/MenuPage'
+import BranchPicker from '@/components/menu/BranchPicker'
 import ScanRecorder from '@/components/menu/ScanRecorder'
+import JsonLdScript from '@/components/seo/JsonLdScript'
 import type { Metadata } from 'next'
 import type { ProductIngredientWithIngredient } from '@/types/database'
 import { computePrimaryForeground } from '@/lib/color-utils'
+import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd } from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -31,13 +34,34 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!tenant) return { title: 'Menu' }
 
+  const settings = tenant.tenant_settings as any
+  const title = tenant.name
+  const description: string = settings?.tagline
+    || settings?.about?.slice(0, 160)
+    || `View the full menu of ${tenant.name}`
+  const canonicalUrl = getCanonicalUrl(tenant, '/')
+  const logoUrl: string | null = settings?.logo_url ?? settings?.banner_url ?? null
+  const isCustomDomain = !!(tenant.custom_domain && tenant.custom_domain_verified)
+
   return {
-    title: `Menu | ${tenant.name}`,
-    description: `View the full menu of ${tenant.name}`,
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
-      title: `Menu | ${tenant.name}`,
-      images: [(tenant.tenant_settings as any)?.logo_url ?? ''],
+      type: 'website',
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: tenant.name,
+      ...(logoUrl ? { images: [{ url: logoUrl, alt: tenant.name }] } : {}),
     },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      ...(logoUrl ? { images: [logoUrl] } : {}),
+    },
+    ...(isCustomDomain ? { robots: { index: false, follow: false } } : {}),
   }
 }
 
@@ -49,6 +73,27 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   if (!tenant) notFound()
 
   const supabase = createServiceClient()
+
+  // LOC-03: check active locations — if ≥2 show branch picker
+  const { data: activeLocations } = await supabase
+    .from('locations')
+    .select('id, name, slug, address, city, phone, business_hours')
+    .eq('tenant_id', tenant.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: true })
+
+  if ((activeLocations ?? []).length >= 2) {
+    const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
+    const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
+    const { computePrimaryForeground } = await import('@/lib/color-utils')
+    const primaryForeground = computePrimaryForeground(primaryColor)
+    return (
+      <>
+        <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
+        <BranchPicker tenantName={tenant.name} tenantSlug={slug} locations={activeLocations!} />
+      </>
+    )
+  }
 
   const { data: menu } = await supabase
     .from('menus')
@@ -117,10 +162,19 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
   const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
   const primaryForeground = computePrimaryForeground(primaryColor)
+  const canonicalUrl = getCanonicalUrl(tenant, '/')
+  const currency = (tenant.tenant_settings as any)?.currency ?? 'USD'
+
+  const localBusinessLd = buildLocalBusinessJsonLd(tenant, tenant.tenant_settings as any, canonicalUrl)
+  const menuLd = resolvedMenu
+    ? buildMenuJsonLd(resolvedMenu.name, canonicalUrl, categories, products, currency)
+    : null
 
   return (
     <>
       <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
+      <JsonLdScript data={localBusinessLd} />
+      {menuLd && <JsonLdScript data={menuLd} />}
       <ScanRecorder tenantId={tenant.id} />
       <MenuPage
         tenant={tenant}

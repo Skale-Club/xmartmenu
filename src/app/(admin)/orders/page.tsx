@@ -7,7 +7,7 @@ export default async function OrdersPage() {
   const supabase = await createClient()
   const { tenantId } = (await getEffectiveTenant())!
 
-  const [{ data: orders }, { data: settings }] = await Promise.all([
+  const [{ data: orders }, { data: settings }, { data: locations }] = await Promise.all([
     supabase
       .from('orders')
       .select('*, order_items(*)')
@@ -18,6 +18,12 @@ export default async function OrdersPage() {
       .select('amber_threshold_minutes, red_threshold_minutes')
       .eq('tenant_id', tenantId)
       .single(),
+    supabase
+      .from('locations')
+      .select('id, name, slug')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true }),
   ])
 
   return (
@@ -26,6 +32,7 @@ export default async function OrdersPage() {
       tenantId={tenantId}
       amberThreshold={settings?.amber_threshold_minutes ?? 10}
       redThreshold={settings?.red_threshold_minutes ?? 20}
+      locations={locations ?? []}
     />
   )
 }

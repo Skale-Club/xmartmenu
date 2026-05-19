@@ -7,23 +7,24 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { Menu, UserRole } from '@/types/database'
-import { 
-  LayoutDashboard, 
-  ClipboardList, 
-  FolderOpen, 
-  UtensilsCrossed, 
-  Package, 
-  Store, 
-  CreditCard, 
-  Palette, 
-  QrCode, 
-  Key, 
-  Users, 
+import {
+  LayoutDashboard,
+  ClipboardList,
+  FolderOpen,
+  UtensilsCrossed,
+  Package,
+  Store,
+  CreditCard,
+  Palette,
+  QrCode,
+  Key,
+  Users,
   Settings,
   ChevronDown,
   ExternalLink,
   LogOut,
-  Salad
+  Salad,
+  Building2
 } from 'lucide-react'
 
 const mainItems = [
@@ -36,6 +37,7 @@ const mainItems = [
 
 const adminPanelItems = [
   { href: '/settings/store', label: 'Store', icon: Store },
+  { href: '/settings/locations', label: 'Locations', icon: Building2 },
   { href: '/settings/subscription', label: 'Subscription', icon: CreditCard },
   { href: '/settings/branding', label: 'Branding', icon: Palette },
   { href: '/settings/qrcode', label: 'QR Code', icon: QrCode },

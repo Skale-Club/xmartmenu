@@ -37,6 +37,7 @@ interface Props {
     supported_languages?: string[]
     translations?: Record<string, { name?: string; description?: string }>
   } | null
+  location?: { id: string; name: string } | null
   initialLanguage?: string
   footerBrand?: string
   optionGroupsByProductId?: Record<string, GroupWithOptions[]>
@@ -60,7 +61,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {} }: Props) {
+export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {} }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -80,6 +81,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
   const [orderError, setOrderError] = useState<string | null>(null)
   const [orderId, setOrderId] = useState<string | null>(null)
   const [confirmedCart, setConfirmedCart] = useState<CartItem[]>([])
+  const [orderType, setOrderType] = useState(defaultOrderType)
+  const [deliveryAddress, setDeliveryAddress] = useState('')
   const footerRef = useRef<HTMLElement | null>(null)
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
   const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
@@ -91,6 +94,12 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
   const ordersEnabled = settings?.orders_enabled ?? true
   const whatsapp = (ordersEnabled && settings?.whatsapp_orders_enabled) ? settings?.whatsapp : null
   const currency = settings?.currency ?? 'USD'
+  const dineInEnabled = settings?.dine_in_enabled ?? true
+  const pickupEnabled = settings?.pickup_enabled ?? false
+  const deliveryEnabled = settings?.delivery_enabled ?? false
+  const deliveryFeeCents = settings?.delivery_fee_cents ?? 0
+  const orderTypeConfig = { dineIn: dineInEnabled, pickup: pickupEnabled, delivery: deliveryEnabled, deliveryFeeCents }
+  const defaultOrderType = dineInEnabled ? 'dine_in' : pickupEnabled ? 'pickup' : 'delivery'
 
   const featured = products.filter(p => p.is_featured)
   const featuredBase = featured.length === 1 ? [featured[0], featured[0], featured[0]] : featured
@@ -165,6 +174,10 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
       setOrderError('Your cart is empty')
       return
     }
+    if (orderType === 'delivery' && !deliveryAddress.trim()) {
+      setOrderError('Please enter your delivery address')
+      return
+    }
 
     setSubmittingOrder(true)
     setOrderError(null)
@@ -177,6 +190,9 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           tenant_id: tenant.id,
           customer_name: customerName.trim(),
           customer_phone: customerPhone.trim(),
+          order_type: orderType,
+          delivery_address: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
+          location_id: location?.id ?? null,
           items: cart.map(item => ({
             product_id: item.product.id,
             product_name: item.product.name,
@@ -201,6 +217,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
       setCart([])
       setCustomerName('')
       setCustomerPhone('')
+      setDeliveryAddress('')
+      setOrderType(defaultOrderType)
     } catch (error) {
       setOrderError(error instanceof Error ? error.message : 'Failed to submit order')
     } finally {
@@ -789,6 +807,11 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           onRemove={removeFromCart}
           onUpdateQuantity={updateCartQuantity}
           onSubmit={submitOrder}
+          orderTypeConfig={orderTypeConfig}
+          orderType={orderType}
+          deliveryAddress={deliveryAddress}
+          onOrderTypeChange={setOrderType}
+          onDeliveryAddressChange={setDeliveryAddress}
         />
       )}
     </div>

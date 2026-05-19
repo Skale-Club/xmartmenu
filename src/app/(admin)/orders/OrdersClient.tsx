@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderItem } from '@/types/database'
 import { useElapsedTime } from './useElapsedTime'
-import { Bell, BellOff, LayoutGrid, List, MessageSquare, Package, Clock, CheckCircle2, XCircle, AlertCircle, Play, Check, X, Info, ChevronRight, Plus } from 'lucide-react'
+import { Bell, BellOff, LayoutGrid, List, MessageSquare, Package, Clock, CheckCircle2, XCircle, AlertCircle, Play, Check, X, Info, ChevronRight, Plus, UtensilsCrossed, Truck, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 type OrderWithItems = Order & { order_items: OrderItem[] }
@@ -23,6 +23,12 @@ const STATUS_COLORS: Record<string, {
   ready:          { border: 'border-green-500',   bg: 'bg-green-50/30',   badge: 'bg-green-100 text-green-800',     label: 'Ready', icon: CheckCircle2 },
   done:           { border: 'border-zinc-400',    bg: 'bg-zinc-50/30',    badge: 'bg-zinc-100 text-zinc-600',       label: 'Done', icon: Check },
   cancelled:      { border: 'border-red-500',     bg: 'bg-red-50/30',     badge: 'bg-red-100 text-red-800',         label: 'Cancelled', icon: XCircle },
+}
+
+const ORDER_TYPE_CONFIG: Record<string, { badge: string; label: string; Icon: any }> = {
+  dine_in:  { badge: 'bg-blue-100 text-blue-700 border border-blue-200',     label: 'Dine-In',  Icon: UtensilsCrossed },
+  pickup:   { badge: 'bg-amber-100 text-amber-700 border border-amber-200',   label: 'Pick-Up',  Icon: Package },
+  delivery: { badge: 'bg-purple-100 text-purple-700 border border-purple-200', label: 'Delivery', Icon: Truck },
 }
 
 // Canonical state machine: pending -> paid -> preparing -> ready -> done.
@@ -62,11 +68,18 @@ const FILTER_CHIPS: { value: FilterValue; label: string }[] = [
 
 const DEFAULT_FILTER: FilterValue = 'active'
 
+interface LocationOption {
+  id: string
+  name: string
+  slug: string
+}
+
 interface OrdersClientProps {
   initialOrders: OrderWithItems[]
   tenantId: string
   amberThreshold: number
   redThreshold: number
+  locations?: LocationOption[]
 }
 
 function OrderCard({
@@ -112,6 +125,25 @@ function OrderCard({
           {colors.label}
         </div>
       </div>
+
+      {/* Fulfillment badge */}
+      {(() => {
+        const orderType = (order as any).order_type ?? 'dine_in'
+        const cfg = ORDER_TYPE_CONFIG[orderType]
+        if (!cfg) return null
+        const { badge, label, Icon } = cfg
+        return (
+          <div className="flex items-center gap-2 -mt-3">
+            <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest", badge)}>
+              <Icon className="w-3 h-3" />
+              {label}
+            </span>
+            {orderType === 'delivery' && (order as any).delivery_address && (
+              <span className="text-[10px] text-zinc-400 font-medium truncate max-w-[120px]">{(order as any).delivery_address}</span>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Customer */}
       <div onClick={onClick} className="cursor-pointer space-y-1">
@@ -176,12 +208,14 @@ function OrderCard({
   )
 }
 
-export default function OrdersClient({ initialOrders, tenantId, amberThreshold, redThreshold }: OrdersClientProps) {
+export default function OrdersClient({ initialOrders, tenantId, amberThreshold, redThreshold, locations = [] }: OrdersClientProps) {
   const [orders, setOrders] = useState(initialOrders)
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null)
   const [loadingId, setLoadingId] = useState<string | null>(null)
   const [view, setView] = useState<'grid' | 'list'>('grid')
   const [activeFilter, setActiveFilter] = useState<FilterValue>(DEFAULT_FILTER)
+  const [orderTypeFilter, setOrderTypeFilter] = useState<'all' | 'dine_in' | 'pickup' | 'delivery'>('all')
+  const [locationFilter, setLocationFilter] = useState<'all' | string>('all')
   const [muted, setMuted] = useState(false)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const mutedRef = useRef(false)
@@ -327,11 +361,19 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     localStorage.setItem(KDS_MUTE_KEY(tenantId), String(next))
   }
 
-  const filteredOrders = activeFilter === 'all'
-    ? orders
-    : activeFilter === 'active'
-      ? orders.filter((o) => o.status === 'pending' || o.status === 'preparing')
-      : orders.filter((o) => o.status === activeFilter)
+  const filteredOrders = (() => {
+    const byStatus = activeFilter === 'all'
+      ? orders
+      : activeFilter === 'active'
+        ? orders.filter((o) => o.status === 'pending' || o.status === 'preparing')
+        : orders.filter((o) => o.status === activeFilter)
+    const byType = orderTypeFilter === 'all'
+      ? byStatus
+      : byStatus.filter((o) => (o as any).order_type === orderTypeFilter)
+    return locationFilter === 'all'
+      ? byType
+      : byType.filter((o) => (o as any).location_id === locationFilter)
+  })()
 
   async function updateStatus(orderId: string, status: string) {
     setLoadingId(orderId)
@@ -412,8 +454,8 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
             onClick={() => selectFilter(chip.value)}
             className={cn(
               "flex-shrink-0 text-[10px] font-black uppercase tracking-widest px-6 py-3 rounded-full border transition-all active:scale-95",
-              activeFilter === chip.value 
-                ? "bg-zinc-950 text-white border-zinc-950 shadow-lg shadow-zinc-950/10" 
+              activeFilter === chip.value
+                ? "bg-zinc-950 text-white border-zinc-950 shadow-lg shadow-zinc-950/10"
                 : "bg-white border-zinc-100 text-zinc-400 hover:border-zinc-300"
             )}
           >
@@ -421,6 +463,58 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
           </button>
         ))}
       </div>
+
+      {/* Order type filter */}
+      <div className="flex items-center gap-2 pb-2 overflow-x-auto no-scrollbar">
+        <span className="flex-shrink-0 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Type</span>
+        {(['all', 'dine_in', 'pickup', 'delivery'] as const).map(type => (
+          <button
+            key={type}
+            onClick={() => setOrderTypeFilter(type)}
+            className={cn(
+              "flex-shrink-0 text-[10px] font-black uppercase tracking-widest px-5 py-2 rounded-full border transition-all active:scale-95",
+              orderTypeFilter === type
+                ? "bg-zinc-950 text-white border-zinc-950 shadow-lg shadow-zinc-950/10"
+                : "bg-white border-zinc-100 text-zinc-400 hover:border-zinc-300"
+            )}
+          >
+            {type === 'all' ? 'All' : type === 'dine_in' ? 'Dine-In' : type === 'pickup' ? 'Pick-Up' : 'Delivery'}
+          </button>
+        ))}
+      </div>
+
+      {/* Location filter — only shown when 2+ locations */}
+      {locations.length >= 2 && (
+        <div className="flex items-center gap-2 pb-2 overflow-x-auto no-scrollbar">
+          <Building2 className="flex-shrink-0 w-3.5 h-3.5 text-zinc-400" />
+          <span className="flex-shrink-0 text-[10px] font-black text-zinc-400 uppercase tracking-widest">Branch</span>
+          <button
+            onClick={() => setLocationFilter('all')}
+            className={cn(
+              "flex-shrink-0 text-[10px] font-black uppercase tracking-widest px-5 py-2 rounded-full border transition-all active:scale-95",
+              locationFilter === 'all'
+                ? "bg-zinc-950 text-white border-zinc-950 shadow-lg shadow-zinc-950/10"
+                : "bg-white border-zinc-100 text-zinc-400 hover:border-zinc-300"
+            )}
+          >
+            All
+          </button>
+          {locations.map(loc => (
+            <button
+              key={loc.id}
+              onClick={() => setLocationFilter(loc.id)}
+              className={cn(
+                "flex-shrink-0 text-[10px] font-black uppercase tracking-widest px-5 py-2 rounded-full border transition-all active:scale-95",
+                locationFilter === loc.id
+                  ? "bg-zinc-950 text-white border-zinc-950 shadow-lg shadow-zinc-950/10"
+                  : "bg-white border-zinc-100 text-zinc-400 hover:border-zinc-300"
+              )}
+            >
+              {loc.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {filteredOrders.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center bg-zinc-50 rounded-[1.5rem] border border-dashed border-zinc-200">
