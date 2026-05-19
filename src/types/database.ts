@@ -266,6 +266,13 @@ export interface OrderItem {
   ingredient_modifications: IngredientModifications | null  // INGR-04: structured modifications (migration 026)
 }
 
+export interface CustomerProfile {
+  id: string        // auth user ID
+  phone: string     // E.164 format
+  name: string | null
+  created_at: string
+}
+
 export interface AiUsage {
   id: string
   tenant_id: string

@@ -1,8 +1,10 @@
 ---
 id: SEED-018
-status: dormant
+status: completed
 planted: 2026-05-19
 planted_during: v2.2-milestone-execution
+completed: 2026-05-19
+completed_in: phase-45-customer-phone-otp-login
 trigger_when: building any customer-facing authenticated feature — delivery, private menu, order history, customer panel
 scope: medium
 ---
