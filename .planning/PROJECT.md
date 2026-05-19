@@ -28,22 +28,25 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v2.1 Custom Domains
+## Current Milestone: v2.2 Restaurant Growth Platform
 
-**Goal:** Permitir que cada cliente cadastre seu próprio domínio customizado — o menu deixa de viver em `xmartmenu.skale.club/nomedocliente` e passa a ser acessado diretamente no domínio do cliente (ex: `sitedocliente.com`).
+**Goal:** Turn XmartMenu into a full-featured restaurant platform — multiple locations, complete website presence, order fulfillment modes, and search-engine discoverability.
 
 **Target features:**
-- Campo `custom_domain` na tabela `tenants` via migração
-- Middleware resolve tenant pelo `host` header em vez do pathname
-- Tela no admin do cliente para cadastrar/validar domínio customizado
-- Instruções DNS (CNAME) exibidas no painel
-- Bypass do slug no pathname para tenants com domínio customizado
+- Multi-location branches: each branch has its own address, QR code, hours, and orders scoped per branch (SEED-011)
+- Order type selector: dine-in (default), pick-up, and delivery — each independently toggled by the restaurant (SEED-013)
+- Robust SEO: per-tenant metadata, LocalBusiness + MenuItem JSON-LD schema, dynamic sitemaps, canonical URL strategy (SEED-014)
+- Full tenant website platform: homepage builder, About/Contact/Gallery pages, unified navigation, theme system (SEED-012)
 
 ## Current State
 
-**v2.1 Custom Domains in progress** — SEED-010: custom domain routing
+**v2.2 Restaurant Growth Platform in progress** — SEED-011, SEED-012, SEED-013, SEED-014
 
-v2.1 delivers custom domain support per tenant: `sitedocliente.com` instead of `xmartmenu.skale.club/nomedocliente`.
+v2.2 delivers multi-location branches, order type selection (dine-in/pick-up/delivery), robust per-tenant SEO, and the foundation of a full tenant website platform.
+
+**v2.1 Custom Domains shipped (2026-05-10)** — SEED-010: custom domain routing
+
+v2.1 delivered custom domain support per tenant: `sitedocliente.com` instead of `xmartmenu.skale.club/nomedocliente`.
 
 **v2.0 Monetization shipped (2026-05-09)** — SEED-009: Plans, Pricing & Stripe Connect Monetization
 
@@ -270,4 +273,4 @@ Key changes in v1.5:
 This document evolves at phase transitions and milestone boundaries.
 
 ---
-*Last updated: 2026-05-10 — v2.1 Custom Domains started*
+*Last updated: 2026-05-19 — v2.2 Restaurant Growth Platform started*

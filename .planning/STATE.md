@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.1
-milestone_name: Custom Domains
+milestone: v2.2
+milestone_name: Restaurant Growth Platform
 status: in_progress
-stopped_at: v2.1 roadmap created — awaiting phase planning
-last_updated: "2026-05-10T12:00:00.000Z"
-last_activity: 2026-05-10
+stopped_at: v2.2 milestone started — defining requirements
+last_updated: "2026-05-19T00:00:00.000Z"
+last_activity: 2026-05-19
 progress:
-  total_phases: 1
+  total_phases: 0
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -24,18 +24,18 @@ See: .planning/PROJECT.md (updated 2026-05-08)
 
 ## Current Position
 
-Phase: 35 (in progress)
-Plan: 01 (implementing)
-Status: Phase 35: Custom Domain Infrastructure — implementing
-Last activity: 2026-05-10
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v2.2 Restaurant Growth Platform
+Last activity: 2026-05-19
 
 ## Milestone Overview
 
-v2.1: Custom Domains — SEED-010
+v2.2: Restaurant Growth Platform — SEED-011, SEED-012, SEED-013, SEED-014
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 35 | Custom Domain Infrastructure | DOM-01.1 through DOM-01.6 | In progress |
+| TBD | TBD — roadmap pending | TBD | ○ Pending |
 
 ## Performance Metrics
 
