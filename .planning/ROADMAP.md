@@ -363,7 +363,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 35. Custom Domain Infrastructure | 1/1 | Done | 2026-05-10 |
 | 36. English Conversion | 1/2 | Complete    | 2026-05-19 |
-| 37. Color Theming | 2/2 | Complete   | 2026-05-19 |
+| 37. Color Theming | 2/2 | Complete    | 2026-05-19 |
 | 38. Order Types — Admin & Schema | 0/? | Not started | - |
 | 39. Order Types — Customer & Operational | 0/? | Not started | - |
 | 40. Multi-Location — Schema & Admin CRUD | 0/? | Not started | - |
