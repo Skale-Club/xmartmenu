@@ -15,6 +15,15 @@ interface Props {
   tenantName: string
 }
 
+const CUISINE_PRESETS = [
+  { name: 'Pizza',     primary: '#E74C3C', accent: '#FFFFFF' },
+  { name: 'Japanese',  primary: '#C0392B', accent: '#1A1A1A' },
+  { name: 'Burger',    primary: '#F39C12', accent: '#2C3E50' },
+  { name: 'Cafe',      primary: '#6F4E37', accent: '#FDF5E6' },
+  { name: 'Churrasco', primary: '#27AE60', accent: '#F39C12' },
+  { name: 'Default',   primary: '#EEFF00', accent: '#09090b' },
+]
+
 export default function BrandingClient({ settings, tenantId, tenantSlug, tenantName }: Props) {
   const [form, setForm] = useState({
     primary_color: settings?.primary_color ?? '#000000',
@@ -126,7 +135,7 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
           </div>
         </div>
         <a href={publicMenuUrl} target="_blank" rel="noopener noreferrer"
-          className="relative z-10 bg-primary text-zinc-950 px-10 py-5 rounded-full text-sm font-black hover:bg-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-lg shadow-primary/20 shrink-0">
+          className="relative z-10 bg-primary text-primary-foreground px-10 py-5 rounded-full text-sm font-black hover:bg-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-lg shadow-primary/20 shrink-0">
           <ExternalLink className="w-4 h-4" />
           Preview Live
         </a>
@@ -234,6 +243,42 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
               </div>
               <h2 className="text-xl font-black text-zinc-950 tracking-tight">Color Palette</h2>
             </div>
+
+            {/* Preset chips */}
+            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3">Quick Presets</p>
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-2 mb-6">
+              {CUISINE_PRESETS.map(preset => {
+                const isSelected = form.primary_color === preset.primary && form.accent_color === preset.accent
+                return (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    aria-label={`Apply ${preset.name} palette`}
+                    onClick={() => setForm(f => ({ ...f, primary_color: preset.primary, accent_color: preset.accent }))}
+                    className={cn(
+                      'flex flex-col items-center gap-1.5 p-3 rounded-lg border transition-all active:scale-95 min-w-[56px]',
+                      isSelected
+                        ? 'border-zinc-900 bg-zinc-50'
+                        : 'border-zinc-100 hover:border-zinc-300 hover:bg-zinc-50'
+                    )}
+                  >
+                    <div
+                      aria-hidden="true"
+                      className="w-8 h-8 rounded-full border border-zinc-200 shadow-sm flex-shrink-0"
+                      style={{ backgroundColor: preset.primary }}
+                    />
+                    <span className={cn(
+                      'text-[10px] font-black uppercase tracking-widest whitespace-nowrap',
+                      isSelected ? 'text-zinc-900' : 'text-zinc-500'
+                    )}>
+                      {preset.name}
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+            <div className="border-t border-zinc-100 mb-8" />
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
               {[
                 { key: 'primary_color', label: 'Primary Brand Color', desc: 'Used for headers and core UI' },
@@ -357,7 +402,7 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
               type="submit" 
               disabled={loading}
               className={cn(
-                "flex-1 sm:flex-none bg-primary text-zinc-950 px-12 py-5 rounded-full text-lg font-black transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-primary/20",
+                "flex-1 sm:flex-none bg-primary text-primary-foreground px-12 py-5 rounded-full text-lg font-black transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-primary/20",
                 saved ? "bg-green-500 text-white" : "hover:bg-white"
               )}
             >
