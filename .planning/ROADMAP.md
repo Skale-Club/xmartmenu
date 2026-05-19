@@ -14,7 +14,7 @@
 - ✅ **v1.9 Performance Gaps** — Phases 28-29 (shipped 2026-05-08)
 - ✅ **v2.0 Monetization** — Phases 30-34 (shipped 2026-05-09)
 - ✅ **v2.1 Custom Domains** — Phase 35 (shipped 2026-05-10)
-- ⏳ **v2.2 Restaurant Growth Platform** — Phases 36-43 (in progress)
+- ✅ **v2.2 Restaurant Growth Platform** — Phases 36-43 (shipped 2026-05-19)
 
 ## Completed Milestones
 
@@ -146,11 +146,11 @@ Key accomplishments:
 - [x] **Phase 36: English Conversion** — Migrate all operator-facing UI text from Portuguese to English across admin, superadmin, onboarding, KDS, settings, and error messages (completed 2026-05-19)
 - [x] **Phase 37: Color Theming** — DB migration + server-side CSS injection + admin color picker + smart defaults for new tenants (completed 2026-05-19)
 - [x] **Phase 38: Order Types — Admin & Schema** — DB migration for order type flags and config + admin settings UI (dine-in/pick-up/delivery toggles + fee/time fields) (completed 2026-05-19)
-- [ ] **Phase 39: Order Types — Customer & Operational** — Customer order type selector + delivery address field + fee in cart total + KDS fulfillment badges + orders filter
-- [ ] **Phase 40: Multi-Location — Schema & Admin CRUD** — DB migration for branches table + admin branch management UI (create/edit/deactivate)
-- [ ] **Phase 41: Multi-Location — Routing, QR Codes & Menu Toggle** — Slug-based branch routing + root branch picker + per-branch QR codes + shared/independent menu toggle + KDS/orders branch filter
-- [ ] **Phase 42: SEO — Platform & Per-Tenant** — Dynamic metadata, OG image per tenant, LocalBusiness + MenuItem JSON-LD, canonical URLs, per-domain robots.txt, tenant sitemap
-- [ ] **Phase 43: SEO — Per-Branch Local SEO** — Per-branch LocalBusiness JSON-LD with branchOf link (depends on Phase 41 branch routing)
+- [x] **Phase 39: Order Types — Customer & Operational** — Customer order type selector + delivery address field + fee in cart total + KDS fulfillment badges + orders filter
+- [x] **Phase 40: Multi-Location — Schema & Admin CRUD** — DB migration for branches table + admin branch management UI (create/edit/deactivate)
+- [x] **Phase 41: Multi-Location — Routing, QR Codes & Menu Toggle** — Slug-based branch routing + root branch picker + per-branch QR codes + shared/independent menu toggle + KDS/orders branch filter
+- [x] **Phase 42: SEO — Platform & Per-Tenant** — Dynamic metadata, OG image per tenant, LocalBusiness + MenuItem JSON-LD, canonical URLs, per-domain robots.txt, tenant sitemap
+- [x] **Phase 43: SEO — Per-Branch Local SEO** — Per-branch LocalBusiness JSON-LD with branchOf link (depends on Phase 41 branch routing)
 
 ---
 

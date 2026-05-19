@@ -1,7 +1,9 @@
 ---
 id: SEED-015
-status: dormant
+status: completed
+completed: 2026-05-19
 planted: 2026-05-19
+completed_in: v2.2 (Restaurant Growth Platform — phase 37)
 planted_during: v2.2-milestone-setup
 trigger_when: working on public menu UX or tenant branding customization
 scope: small

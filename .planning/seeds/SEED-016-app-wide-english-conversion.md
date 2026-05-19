@@ -1,7 +1,9 @@
 ---
 id: SEED-016
-status: dormant
+status: completed
+completed: 2026-05-19
 planted: 2026-05-19
+completed_in: v2.2 (Restaurant Growth Platform — phase 36)
 planted_during: v2.2-milestone-setup
 trigger_when: preparing the platform for international users or cleaning up language inconsistencies in the codebase
 scope: small

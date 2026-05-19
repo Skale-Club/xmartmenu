@@ -1,7 +1,9 @@
 ---
 id: SEED-013
-status: dormant
+status: completed
+completed: 2026-05-19
 planted: 2026-05-19
+completed_in: v2.2 (Restaurant Growth Platform — phases 38-39)
 planted_during: post-v2.1-custom-domains
 trigger_when: a tenant wants to offer counter pickup or delivery in addition to dine-in
 scope: small

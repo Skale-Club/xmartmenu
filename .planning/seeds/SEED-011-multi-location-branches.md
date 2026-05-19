@@ -1,7 +1,9 @@
 ---
 id: SEED-011
-status: dormant
+status: completed
+completed: 2026-05-19
 planted: 2026-05-19
+completed_in: v2.2 (Restaurant Growth Platform — phases 40-41)
 planted_during: post-v2.1-custom-domains
 trigger_when: a restaurant owner wants to manage multiple branches or locations under a single account
 scope: medium
