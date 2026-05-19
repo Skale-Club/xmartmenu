@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
 import { getInitials } from '@/lib/utils'
 import type { TenantSettings } from '@/types/database'
-import { Palette, ExternalLink, Camera, Image as ImageIcon, Share2, MessageCircle, Instagram, ShoppingBag, CheckCircle2, AlertCircle, Save, Info, Type } from 'lucide-react'
+import { Palette, ExternalLink, Camera, Image as ImageIcon, Share2, MessageCircle, ShoppingBag, CheckCircle2, AlertCircle, Save, Info, Type } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -342,7 +342,7 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
                 <div className="relative">
                   <label className={labelClassName}>Instagram Handle</label>
                   <div className="absolute left-5 top-11 text-zinc-400">
-                    <Instagram className="w-5 h-5" />
+                    <Camera className="w-5 h-5" />
                   </div>
                   <div className="relative">
                     <span className="absolute left-11 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">@</span>

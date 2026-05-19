@@ -17,7 +17,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Star,
-  Instagram,
+  Camera,
   MessageCircle,
   Mail,
   ShoppingBag
@@ -689,7 +689,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
                   )}
                   {settings?.instagram && (
                     <a href={`https://instagram.com/${settings.instagram}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 flex items-center gap-2 text-pink-600">
-                      <Instagram className="w-3.5 h-3.5" /> @{settings.instagram}
+                      <Camera className="w-3.5 h-3.5" /> @{settings.instagram}
                     </a>
                   )}
                   {email && (
