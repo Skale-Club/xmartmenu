@@ -1,16 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.2
-milestone_name: Restaurant Growth Platform
-status: in_progress
-stopped_at: v2.2 roadmap created — ready to plan Phase 36
-last_updated: "2026-05-19T00:00:00.000Z"
+milestone: v1.0
+milestone_name: milestone
+status: executing
+stopped_at: Completed 36-01-PLAN.md
+last_updated: "2026-05-19T13:37:13.691Z"
 last_activity: 2026-05-19
 progress:
-  total_phases: 8
+  total_phases: 9
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 3
+  completed_plans: 1
 ---
 
 # Project State
@@ -20,13 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v2.2 Restaurant Growth Platform — roadmap defined, ready to plan Phase 36
+**Current focus:** Phase 36 — English Conversion
 
 ## Current Position
 
-Phase: Phase 36 (next to plan)
-Plan: —
-Status: Roadmap created — awaiting phase planning
+Phase: 36 (English Conversion) — EXECUTING
+Plan: 2 of 2
+Status: Ready to execute
 Last activity: 2026-05-19
 
 ## Milestone Overview
@@ -103,6 +103,7 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | Phase 32 P01 | 275 | 6 tasks | 6 files |
 | Phase 33 P01 | 15 | 8 tasks | 8 files |
 | Phase 34 P34 | ~8min | 4 tasks | 4 files |
+| Phase 36-english-conversion P01 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -252,6 +253,8 @@ Recent decisions affecting current work:
 - [Phase 33]: Raw body (request.text()) for webhook signature — not request.json()
 - [Phase 33]: Webhook idempotency upsert + business work in same DB transaction
 - [Phase 33]: Webhook returns 200 immediately — async processing for slow ops
+- [Phase 36-01]: Pure text replacement pattern: zero layout/logic/styling changes to keep English conversion risk-free
+- [Phase 36-01]: replace_all for identical duplicate error strings (two Erro ao excluir in TenantsClient.tsx at lines 177 and 185)
 
 ### Pending Todos
 
@@ -263,8 +266,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-19T00:00:00.000Z
-Stopped at: v2.2 roadmap created — ready to plan Phase 36
+Last session: 2026-05-19T13:37:13.679Z
+Stopped at: Completed 36-01-PLAN.md
 
 ---
 

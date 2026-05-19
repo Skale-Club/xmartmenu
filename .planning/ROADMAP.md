@@ -197,7 +197,7 @@ Key accomplishments:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 36-01-PLAN.md — Convert Custom Domain section (StoreClient) + superadmin error strings (TenantsClient, SettingsClient) + admin layout comments to English
+- [x] 36-01-PLAN.md — Convert Custom Domain section (StoreClient) + superadmin error strings (TenantsClient, SettingsClient) + admin layout comments to English
 - [ ] 36-02-PLAN.md — Full grep verification scan across all 17 operator-facing files; confirm KDS, onboarding, sidebar unchanged
 
 **UI hint**: yes
@@ -358,7 +358,7 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 35. Custom Domain Infrastructure | 1/1 | Done | 2026-05-10 |
-| 36. English Conversion | 0/? | Not started | - |
+| 36. English Conversion | 1/2 | In Progress|  |
 | 37. Color Theming | 0/? | Not started | - |
 | 38. Order Types — Admin & Schema | 0/? | Not started | - |
 | 39. Order Types — Customer & Operational | 0/? | Not started | - |
