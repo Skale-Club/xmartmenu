@@ -16,13 +16,14 @@ const STATUS_COLORS: Record<string, {
   label: string
   icon: any
 }> = {
-  pending:        { border: 'border-blue-500',    bg: 'bg-blue-50/30',    badge: 'bg-blue-100 text-blue-800',       label: 'Pending', icon: Clock },
-  paid:           { border: 'border-emerald-500', bg: 'bg-emerald-50/30', badge: 'bg-emerald-100 text-emerald-800', label: 'Paid', icon: CheckCircle2 },
-  payment_failed: { border: 'border-red-500',     bg: 'bg-red-50/30',     badge: 'bg-red-100 text-red-800',         label: 'Payment failed', icon: AlertCircle },
-  preparing:      { border: 'border-amber-500',   bg: 'bg-amber-50/30',   badge: 'bg-amber-100 text-amber-800',     label: 'Preparing', icon: Play },
-  ready:          { border: 'border-green-500',   bg: 'bg-green-50/30',   badge: 'bg-green-100 text-green-800',     label: 'Ready', icon: CheckCircle2 },
-  done:           { border: 'border-zinc-400',    bg: 'bg-zinc-50/30',    badge: 'bg-zinc-100 text-zinc-600',       label: 'Done', icon: Check },
-  cancelled:      { border: 'border-red-500',     bg: 'bg-red-50/30',     badge: 'bg-red-100 text-red-800',         label: 'Cancelled', icon: XCircle },
+  pending:          { border: 'border-blue-500',    bg: 'bg-blue-50/30',    badge: 'bg-blue-100 text-blue-800',         label: 'Pending', icon: Clock },
+  paid:             { border: 'border-emerald-500', bg: 'bg-emerald-50/30', badge: 'bg-emerald-100 text-emerald-800',   label: 'Paid', icon: CheckCircle2 },
+  payment_failed:   { border: 'border-red-500',     bg: 'bg-red-50/30',     badge: 'bg-red-100 text-red-800',           label: 'Payment failed', icon: AlertCircle },
+  preparing:        { border: 'border-amber-500',   bg: 'bg-amber-50/30',   badge: 'bg-amber-100 text-amber-800',       label: 'Preparing', icon: Play },
+  ready:            { border: 'border-green-500',   bg: 'bg-green-50/30',   badge: 'bg-green-100 text-green-800',       label: 'Ready', icon: CheckCircle2 },
+  out_for_delivery: { border: 'border-indigo-500',  bg: 'bg-indigo-50/30',  badge: 'bg-indigo-100 text-indigo-800',     label: 'Out for Delivery', icon: Truck },
+  done:             { border: 'border-zinc-400',    bg: 'bg-zinc-50/30',    badge: 'bg-zinc-100 text-zinc-600',         label: 'Done', icon: Check },
+  cancelled:        { border: 'border-red-500',     bg: 'bg-red-50/30',     badge: 'bg-red-100 text-red-800',           label: 'Cancelled', icon: XCircle },
 }
 
 const ORDER_TYPE_CONFIG: Record<string, { badge: string; label: string; Icon: any }> = {
@@ -32,24 +33,32 @@ const ORDER_TYPE_CONFIG: Record<string, { badge: string; label: string; Icon: an
 }
 
 // Canonical state machine: pending -> paid -> preparing -> ready -> done.
-// payment_failed is a terminal pre-prep state; cancelled is terminal at any
-// point. Kitchen can also start unpaid pending orders directly (cash flow,
-// in-person order).
+// Delivery orders: ready -> out_for_delivery -> done.
+// payment_failed is terminal pre-prep; cancelled is terminal at any point.
 const NEXT_STATUS: Record<string, string | null> = {
-  pending:        'preparing',
-  paid:           'preparing',
-  preparing:      'ready',
-  ready:          'done',
-  done:           null,
-  payment_failed: null,
-  cancelled:      null,
+  pending:          'preparing',
+  paid:             'preparing',
+  preparing:        'ready',
+  ready:            'done',         // overridden for delivery orders by getNextStatus
+  out_for_delivery: 'done',
+  done:             null,
+  payment_failed:   null,
+  cancelled:        null,
+}
+
+function getNextStatus(order: OrderWithItems): string | null {
+  if (order.status === 'ready' && (order as any).order_type === 'delivery') {
+    return 'out_for_delivery'
+  }
+  return NEXT_STATUS[order.status] ?? null
 }
 
 const ADVANCE_LABEL: Record<string, string> = {
-  pending:   'Start preparing',
-  paid:      'Start preparing',
-  preparing: 'Mark ready',
-  ready:     'Complete',
+  pending:          'Start preparing',
+  paid:             'Start preparing',
+  preparing:        'Mark ready',
+  ready:            'Complete',
+  out_for_delivery: 'Mark delivered',
 }
 
 const KDS_VIEW_KEY    = (tenantId: string) => `kds_view_${tenantId}`
@@ -101,7 +110,7 @@ function OrderCard({
 }) {
   const { minutes, chipClass } = useElapsedTime(order.created_at, amberMinutes, redMinutes)
   const colors = STATUS_COLORS[order.status] ?? STATUS_COLORS['pending']
-  const nextStatus = NEXT_STATUS[order.status]
+  const nextStatus = getNextStatus(order)
   const isLoading = loadingId === order.id
   const StatusIcon = colors.icon
 
@@ -138,9 +147,13 @@ function OrderCard({
               <Icon className="w-3 h-3" />
               {label}
             </span>
-            {orderType === 'delivery' && (order as any).delivery_address && (
-              <span className="text-[10px] text-zinc-400 font-medium truncate max-w-[120px]">{(order as any).delivery_address}</span>
-            )}
+            {orderType === 'delivery' && (() => {
+              const street = (order as any).delivery_street
+              const zip = (order as any).delivery_zipcode
+              const city = (order as any).delivery_city
+              const display = [street, zip, city].filter(Boolean).join(', ') || (order as any).delivery_address
+              return display ? <span className="text-[10px] text-zinc-400 font-medium truncate max-w-[150px]">{display}</span> : null
+            })()}
           </div>
         )
       })()}
@@ -368,7 +381,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
     const byStatus = activeFilter === 'all'
       ? orders
       : activeFilter === 'active'
-        ? orders.filter((o) => o.status === 'pending' || o.status === 'preparing')
+        ? orders.filter((o) => o.status === 'pending' || o.status === 'preparing' || o.status === 'out_for_delivery')
         : orders.filter((o) => o.status === activeFilter)
     const byType = orderTypeFilter === 'all'
       ? byStatus
@@ -633,6 +646,31 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                       {new Date(selectedOrder.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
+                  {(selectedOrder as any).order_type === 'delivery' && (() => {
+                    const street = (selectedOrder as any).delivery_street
+                    const complement = (selectedOrder as any).delivery_complement
+                    const zip = (selectedOrder as any).delivery_zipcode
+                    const city = (selectedOrder as any).delivery_city
+                    const notes = (selectedOrder as any).delivery_notes
+                    const fallback = (selectedOrder as any).delivery_address
+                    if (!street && !fallback) return null
+                    return (
+                      <div>
+                        <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 block">Delivery Address</label>
+                        <div className="space-y-0.5 text-sm font-bold text-zinc-700">
+                          {street ? (
+                            <>
+                              <p>{street}{complement ? `, ${complement}` : ''}</p>
+                              {(zip || city) && <p className="text-xs text-zinc-500">{[zip, city].filter(Boolean).join(' — ')}</p>}
+                            </>
+                          ) : (
+                            <p>{fallback}</p>
+                          )}
+                          {notes && <p className="text-xs text-zinc-400 italic">{notes}</p>}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
                 <div className="space-y-6">
                   <div>
@@ -722,12 +760,28 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                     Mark as ready
                   </button>
                 )}
-                {selectedOrder.status === 'ready' && (
+                {selectedOrder.status === 'ready' && (selectedOrder as any).order_type === 'delivery' && (
+                  <button
+                    onClick={() => updateStatus(selectedOrder.id, 'out_for_delivery')}
+                    className="flex-1 py-5 bg-indigo-600 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-600/20"
+                  >
+                    Out for Delivery
+                  </button>
+                )}
+                {selectedOrder.status === 'ready' && (selectedOrder as any).order_type !== 'delivery' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'done')}
                     className="flex-1 py-5 bg-green-500 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-xl shadow-green-500/20"
                   >
                     Complete Fulfillment
+                  </button>
+                )}
+                {selectedOrder.status === 'out_for_delivery' && (
+                  <button
+                    onClick={() => updateStatus(selectedOrder.id, 'done')}
+                    className="flex-1 py-5 bg-green-500 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-green-600 transition-all shadow-xl shadow-green-500/20"
+                  >
+                    Mark Delivered
                   </button>
                 )}
               </div>

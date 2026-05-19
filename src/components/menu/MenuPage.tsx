@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatPrice, getInitials } from '@/lib/utils'
-import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications } from '@/types/database'
+import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { UI_COPY, type CartItem, buildCartKey, getProductImages } from './menu-utils'
 import {
@@ -44,6 +44,7 @@ interface Props {
   optionGroupsByProductId?: Record<string, GroupWithOptions[]>
   ingredientCustomizationEnabled?: boolean
   productIngredientsByProductId?: Record<string, ProductIngredientWithIngredient[]>
+  deliveryZones?: DeliveryZone[]
 }
 
 const DAYS: Record<string, string> = {
@@ -62,7 +63,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {} }: Props) {
+export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [] }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -83,7 +84,11 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const [orderId, setOrderId] = useState<string | null>(null)
   const [confirmedCart, setConfirmedCart] = useState<CartItem[]>([])
   const [orderType, setOrderType] = useState(defaultOrderType)
-  const [deliveryAddress, setDeliveryAddress] = useState('')
+  const [deliveryStreet, setDeliveryStreet] = useState('')
+  const [deliveryComplement, setDeliveryComplement] = useState('')
+  const [deliveryZipcode, setDeliveryZipcode] = useState('')
+  const [deliveryCity, setDeliveryCity] = useState('')
+  const [deliveryNotes, setDeliveryNotes] = useState('')
   const [tipCents, setTipCents] = useState(0)
   const footerRef = useRef<HTMLElement | null>(null)
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
@@ -182,8 +187,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       setOrderError('Your cart is empty')
       return
     }
-    if (orderType === 'delivery' && !deliveryAddress.trim()) {
-      setOrderError('Please enter your delivery address')
+    if (orderType === 'delivery' && !deliveryStreet.trim()) {
+      setOrderError('Please enter your delivery street address')
       return
     }
 
@@ -199,7 +204,14 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           customer_name: customerName.trim(),
           customer_phone: customerPhone.trim(),
           order_type: orderType,
-          delivery_address: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
+          delivery_street: orderType === 'delivery' ? deliveryStreet.trim() || undefined : undefined,
+          delivery_complement: orderType === 'delivery' && deliveryComplement.trim() ? deliveryComplement.trim() : undefined,
+          delivery_zipcode: orderType === 'delivery' && deliveryZipcode.trim() ? deliveryZipcode.trim() : undefined,
+          delivery_city: orderType === 'delivery' && deliveryCity.trim() ? deliveryCity.trim() : undefined,
+          delivery_notes: orderType === 'delivery' && deliveryNotes.trim() ? deliveryNotes.trim() : undefined,
+          delivery_address: orderType === 'delivery'
+            ? [deliveryStreet, deliveryZipcode, deliveryCity].filter(Boolean).join(', ')
+            : undefined,
           location_id: location?.id ?? null,
           tip_cents: tipCents,
           menu_id: menu?.id ?? null,
@@ -227,7 +239,11 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       setCart([])
       setCustomerName('')
       setCustomerPhone('')
-      setDeliveryAddress('')
+      setDeliveryStreet('')
+      setDeliveryComplement('')
+      setDeliveryZipcode('')
+      setDeliveryCity('')
+      setDeliveryNotes('')
       setOrderType(defaultOrderType)
       setTipCents(0)
     } catch (error) {
@@ -820,9 +836,20 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           onSubmit={submitOrder}
           orderTypeConfig={orderTypeConfig}
           orderType={orderType}
-          deliveryAddress={deliveryAddress}
+          deliveryStreet={deliveryStreet}
+          deliveryComplement={deliveryComplement}
+          deliveryZipcode={deliveryZipcode}
+          deliveryCity={deliveryCity}
+          deliveryNotes={deliveryNotes}
+          deliveryZones={deliveryZones}
           onOrderTypeChange={setOrderType}
-          onDeliveryAddressChange={setDeliveryAddress}
+          onDeliveryFieldChange={(field, value) => {
+            if (field === 'street') setDeliveryStreet(value)
+            else if (field === 'complement') setDeliveryComplement(value)
+            else if (field === 'zipcode') setDeliveryZipcode(value)
+            else if (field === 'city') setDeliveryCity(value)
+            else if (field === 'notes') setDeliveryNotes(value)
+          }}
           tipsEnabled={tipsEnabled}
           tipPercentages={tipPercentages}
           tipCents={tipCents}

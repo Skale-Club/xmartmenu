@@ -6,8 +6,16 @@ import { X, ShoppingCart, User, Phone, ChevronLeft, ChevronRight, CheckCircle, U
 import { formatPrice } from '@/lib/utils'
 import type { UICopyEntry, CartItem } from './menu-utils'
 import { getProductImages } from './menu-utils'
+import type { DeliveryZone } from '@/types/database'
 
-export default function CartModal({ cart, confirmedCart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, ui, accentColor, orderTypeConfig, orderType, deliveryAddress, tipsEnabled, tipPercentages, tipCents, onTipChange, onOrderTypeChange, onDeliveryAddressChange, onClose, onCustomerNameChange, onCustomerPhoneChange, onRemove, onUpdateQuantity, onSubmit }: {
+function findMatchingZone(zipcode: string | undefined, zones: DeliveryZone[] | undefined): DeliveryZone | null {
+  if (!zipcode || !zones || zones.length === 0) return null
+  const clean = zipcode.trim().replace(/\D/g, '')
+  if (!clean) return null
+  return zones.find(z => z.is_active && z.zipcode_prefixes.some(p => clean.startsWith(p))) ?? null
+}
+
+export default function CartModal({ cart, confirmedCart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, ui, accentColor, orderTypeConfig, orderType, deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, deliveryZones, tipsEnabled, tipPercentages, tipCents, onTipChange, onOrderTypeChange, onDeliveryFieldChange, onClose, onCustomerNameChange, onCustomerPhoneChange, onRemove, onUpdateQuantity, onSubmit }: {
   cart: CartItem[]
   confirmedCart: CartItem[]
   currency: string
@@ -21,13 +29,18 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
   accentColor?: string
   orderTypeConfig?: { dineIn: boolean; pickup: boolean; delivery: boolean; deliveryFeeCents: number }
   orderType?: string
-  deliveryAddress?: string
+  deliveryStreet?: string
+  deliveryComplement?: string
+  deliveryZipcode?: string
+  deliveryCity?: string
+  deliveryNotes?: string
+  deliveryZones?: DeliveryZone[]
   tipsEnabled?: boolean
   tipPercentages?: [number, number, number]
   tipCents?: number
   onTipChange?: (cents: number) => void
   onOrderTypeChange?: (t: string) => void
-  onDeliveryAddressChange?: (a: string) => void
+  onDeliveryFieldChange?: (field: 'street' | 'complement' | 'zipcode' | 'city' | 'notes', value: string) => void
   onClose: () => void
   onCustomerNameChange: (name: string) => void
   onCustomerPhoneChange: (phone: string) => void
@@ -42,7 +55,10 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
   const confirmedTotal = confirmedCart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const accent = accentColor ?? '#09090b'
   const tipDollars = (tipCents ?? 0) / 100
-  const deliveryFeeCents = orderType === 'delivery' ? (orderTypeConfig?.deliveryFeeCents ?? 0) : 0
+  const matchedZone = findMatchingZone(deliveryZipcode, deliveryZones)
+  const deliveryFeeCents = orderType === 'delivery'
+    ? (matchedZone != null ? matchedZone.fee_cents : (orderTypeConfig?.deliveryFeeCents ?? 0))
+    : 0
   const grandTotal = total + deliveryFeeCents / 100 + tipDollars
 
   function handleTipPct(key: 'pct1' | 'pct2' | 'pct3', pct: number) {
@@ -228,15 +244,58 @@ export default function CartModal({ cart, confirmedCart, currency, customerName,
 
             {/* Delivery address — shown only when delivery selected */}
             {orderType === 'delivery' && (
-              <div className="relative">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <div className="space-y-2">
+                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Delivery Address</p>
+                <div className="relative">
+                  <MapPin className="absolute left-3 top-3 w-4 h-4 text-zinc-500 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={deliveryStreet ?? ''}
+                    onChange={e => onDeliveryFieldChange?.('street', e.target.value)}
+                    placeholder="Street and number *"
+                    className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                  />
+                </div>
                 <input
                   type="text"
-                  value={deliveryAddress ?? ''}
-                  onChange={e => onDeliveryAddressChange?.(e.target.value)}
-                  placeholder="Street address, city..."
-                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                  value={deliveryComplement ?? ''}
+                  onChange={e => onDeliveryFieldChange?.('complement', e.target.value)}
+                  placeholder="Apt, floor... (optional)"
+                  className="w-full px-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
                 />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={deliveryZipcode ?? ''}
+                    onChange={e => onDeliveryFieldChange?.('zipcode', e.target.value)}
+                    placeholder="Zipcode"
+                    className="w-2/5 px-3 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                  />
+                  <input
+                    type="text"
+                    value={deliveryCity ?? ''}
+                    onChange={e => onDeliveryFieldChange?.('city', e.target.value)}
+                    placeholder="City"
+                    className="w-3/5 px-3 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={deliveryNotes ?? ''}
+                  onChange={e => onDeliveryFieldChange?.('notes', e.target.value)}
+                  placeholder="Delivery notes (optional)"
+                  className="w-full px-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
+                />
+                {deliveryZones && deliveryZones.length > 0 && deliveryZipcode && (
+                  matchedZone ? (
+                    <p className="text-[10px] font-bold text-green-400 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {matchedZone.name} — {formatPrice(matchedZone.fee_cents / 100, currency)}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] font-bold text-amber-400">No delivery zone for this zipcode — flat fee applies</p>
+                  )
+                )}
               </div>
             )}
 

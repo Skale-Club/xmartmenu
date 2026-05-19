@@ -165,6 +165,12 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
     }
   }
 
+  // Fetch active delivery zones for zone-based checkout pricing
+  const deliveryEnabled = (tenant.tenant_settings as any)?.delivery_enabled ?? false
+  const { data: deliveryZones } = deliveryEnabled
+    ? await supabase.from('delivery_zones').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
+    : { data: [] }
+
   // P0-08 round 2: scan recording moved client-side via <ScanRecorder /> —
   // this page is ISR-cached so a server insert here only fires per cache miss.
 
@@ -204,6 +210,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       optionGroupsByProductId={optionGroupsByProductId}
       ingredientCustomizationEnabled={ingredientCustomizationEnabled}
       productIngredientsByProductId={productIngredientsByProductId}
+      deliveryZones={(deliveryZones ?? []) as any}
     />
   )
 

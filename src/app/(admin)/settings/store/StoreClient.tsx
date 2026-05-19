@@ -7,6 +7,7 @@ import type { Tenant } from '@/types/database'
 import type { StripeConnection } from '@/lib/stripe'
 import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle, UtensilsCrossed, Percent } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import DeliveryZonesSection from './DeliveryZonesSection'
 
 interface Props {
   settings: TenantSettings | null
@@ -470,7 +471,7 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
             {/* Delivery fee field — shown only when delivery_enabled */}
             {form.delivery_enabled && (
               <div className="space-y-2 mt-4 px-5 pb-2">
-                <label className={labelClassName}>Delivery Fee</label>
+                <label className={labelClassName}>Flat Delivery Fee (fallback)</label>
                 <input
                   type="number"
                   min={0}
@@ -480,7 +481,14 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
                   onChange={e => setForm(f => ({ ...f, delivery_fee_cents: Math.round(Number(e.target.value) * 100) }))}
                   className={cn(inputClassName, "font-black text-lg")}
                 />
-                <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">Displayed as currency to customer</p>
+                <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">Used when no delivery zone matches the customer's zipcode</p>
+              </div>
+            )}
+
+            {/* Delivery Zones — shown only when delivery_enabled */}
+            {form.delivery_enabled && (
+              <div className="mt-6 px-5 pb-2">
+                <DeliveryZonesSection />
               </div>
             )}
           </div>
