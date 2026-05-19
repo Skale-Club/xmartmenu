@@ -156,7 +156,7 @@ This section is the primary site of Portuguese strings in the admin panel.
 |------|----------|-------------------|---------------------|
 | StoreClient.tsx | Section heading | `Domínio Personalizado` | `Custom Domain` |
 | StoreClient.tsx | Field label | `Seu domínio` | `Your domain` |
-| StoreClient.tsx | Save button | `Salvar` | `Save` |
+| StoreClient.tsx | Save button | `Salvar` | `Save Domain` |
 | StoreClient.tsx | Helper text | `Sem https:// — ex: sitedocliente.com` | `No https:// — e.g. yourdomain.com` |
 | StoreClient.tsx | Verify button | `Verificando...` | `Verifying...` |
 | StoreClient.tsx | Verify button | `Verificar DNS` | `Verify DNS` |
@@ -228,7 +228,7 @@ Already fully in English. No changes required.
 | Superadmin plans — create | Create New Plan |
 | Superadmin plans — launch new | Launch Plan |
 | Store settings — save | Apply Settings |
-| Store settings — custom domain save | Save |
+| Store settings — custom domain save | Save Domain |
 | Store settings — DNS verify | Verify DNS |
 | Onboarding — advance step | Continue |
 | Onboarding — submit | Finish |
