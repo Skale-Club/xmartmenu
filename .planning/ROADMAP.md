@@ -272,9 +272,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 39-01-PLAN.md — Migration 035 (order_type + delivery_address on orders) + API POST update + Order interface update
-- [ ] 39-02-PLAN.md — CartModal order type chips + delivery address input + fee display; MenuPage state + POST body
-- [ ] 39-03-PLAN.md — OrderCard fulfillment badge + OrdersClient order type filter row
+- [x] 39-01-PLAN.md — Migration 035 (order_type + delivery_address on orders) + API POST update + Order interface update
+- [x] 39-02-PLAN.md — CartModal order type chips + delivery address input + fee display; MenuPage state + POST body
+- [x] 39-03-PLAN.md — OrderCard fulfillment badge + OrdersClient order type filter row
 
 **UI hint**: yes
 
@@ -374,7 +374,7 @@ Plans:
 | 36. English Conversion | 1/2 | Complete    | 2026-05-19 |
 | 37. Color Theming | 2/2 | Complete    | 2026-05-19 |
 | 38. Order Types — Admin & Schema | 2/2 | Complete    | 2026-05-19 |
-| 39. Order Types — Customer & Operational | 0/? | Not started | - |
+| 39. Order Types — Customer & Operational | 3/3 | Complete    | 2026-05-19 |
 | 40. Multi-Location — Schema & Admin CRUD | 0/? | Not started | - |
 | 41. Multi-Location — Routing, QR Codes & Menu Toggle | 0/? | Not started | - |
 | 42. SEO — Platform & Per-Tenant | 0/? | Not started | - |
