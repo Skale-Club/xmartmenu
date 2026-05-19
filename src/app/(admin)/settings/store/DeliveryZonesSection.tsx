@@ -39,7 +39,8 @@ export default function DeliveryZonesSection() {
       body: JSON.stringify({ name: draft.name.trim(), fee_cents: draft.fee_cents, zipcode_prefixes: draft.zipcode_prefixes }),
     })
     if (res.ok) {
-      setZones(prev => [...prev, await res.json()])
+      const newZone = await res.json()
+      setZones(prev => [...prev, newZone])
       setMode('idle'); setDraft(EMPTY); setPrefixInput('')
     }
     setSaving(false)
