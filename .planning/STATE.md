@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 36-01-PLAN.md
-last_updated: "2026-05-19T13:50:06.891Z"
+stopped_at: Completed 37-color-theming/37-01-PLAN.md
+last_updated: "2026-05-19T14:35:06.478Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 9
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 2
+  total_plans: 5
+  completed_plans: 3
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 36 — English Conversion
+**Current focus:** Phase 37 — Color Theming
 
 ## Current Position
 
-Phase: 37
-Plan: Not started
+Phase: 37 (Color Theming) — EXECUTING
+Plan: 2 of 2
 Status: Ready to execute
 Last activity: 2026-05-19
 
@@ -104,6 +104,7 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | Phase 33 P01 | 15 | 8 tasks | 8 files |
 | Phase 34 P34 | ~8min | 4 tasks | 4 files |
 | Phase 36-english-conversion P01 | 3 | 2 tasks | 4 files |
+| Phase 37-color-theming P01 | 18min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -255,6 +256,9 @@ Recent decisions affecting current work:
 - [Phase 33]: Webhook returns 200 immediately — async processing for slow ops
 - [Phase 36-01]: Pure text replacement pattern: zero layout/logic/styling changes to keep English conversion risk-free
 - [Phase 36-01]: replace_all for identical duplicate error strings (two Erro ao excluir in TenantsClient.tsx at lines 177 and 185)
+- [Phase 37-color-theming]: computePrimaryForeground threshold L > 0.4 → dark text (#09090b), L ≤ 0.4 → white text (#ffffff) — WCAG luminance
+- [Phase 37-color-theming]: Server-side <style>:root{...}</style> injection before MenuPage in public routes — zero FOUC on ISR pages
+- [Phase 37-color-theming]: CUISINE_PRESETS defined at module scope in BrandingClient — stable reference, no re-creation
 
 ### Pending Todos
 
@@ -266,8 +270,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-19T13:37:13.679Z
-Stopped at: Completed 36-01-PLAN.md
+Last session: 2026-05-19T14:35:06.466Z
+Stopped at: Completed 37-color-theming/37-01-PLAN.md
 
 ---
 

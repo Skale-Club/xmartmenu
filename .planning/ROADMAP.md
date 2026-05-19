@@ -222,7 +222,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 37-01-PLAN.md — color-utils.ts luminance util + globals.css --accent vars + server-side CSS injection in both public page.tsx routes + BrandingClient preset chips
+- [x] 37-01-PLAN.md — color-utils.ts luminance util + globals.css --accent vars + server-side CSS injection in both public page.tsx routes + BrandingClient preset chips
 - [ ] 37-02-PLAN.md — MenuPage/CartModal hardcoded color audit + onboarding API smart default palette
 
 **UI hint**: yes
@@ -363,7 +363,7 @@ Plans:
 |-------|----------------|--------|-----------|
 | 35. Custom Domain Infrastructure | 1/1 | Done | 2026-05-10 |
 | 36. English Conversion | 1/2 | Complete    | 2026-05-19 |
-| 37. Color Theming | 0/2 | Not started | - |
+| 37. Color Theming | 1/2 | In Progress|  |
 | 38. Order Types — Admin & Schema | 0/? | Not started | - |
 | 39. Order Types — Customer & Operational | 0/? | Not started | - |
 | 40. Multi-Location — Schema & Admin CRUD | 0/? | Not started | - |
