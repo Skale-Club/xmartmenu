@@ -65,6 +65,10 @@ function getTranslatedMenuField(
 }
 
 export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {} }: Props) {
+  const defaultOrderType = (tenant.tenant_settings?.dine_in_enabled ?? true) ? 'dine_in'
+    : (tenant.tenant_settings?.pickup_enabled ?? false) ? 'pickup'
+    : 'delivery'
+
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -113,8 +117,6 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     settings?.tip_percentage_2 ?? 18,
     settings?.tip_percentage_3 ?? 20,
   ]
-  const defaultOrderType = dineInEnabled ? 'dine_in' : pickupEnabled ? 'pickup' : 'delivery'
-
   const featured = products.filter(p => p.is_featured)
   const featuredBase = featured.length === 1 ? [featured[0], featured[0], featured[0]] : featured
   const supportedLanguages = menu?.supported_languages?.length ? menu.supported_languages : [menu?.language ?? 'en']
