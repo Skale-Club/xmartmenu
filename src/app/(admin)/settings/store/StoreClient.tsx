@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { TenantSettings } from '@/types/database'
 import type { Tenant } from '@/types/database'
 import type { StripeConnection } from '@/lib/stripe'
-import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle } from 'lucide-react'
+import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -58,6 +58,11 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
     item_notes_enabled: settings?.item_notes_enabled ?? false,
     amber_threshold_minutes: settings?.amber_threshold_minutes ?? 10,
     red_threshold_minutes: settings?.red_threshold_minutes ?? 20,
+    dine_in_enabled: settings?.dine_in_enabled ?? true,
+    pickup_enabled: settings?.pickup_enabled ?? false,
+    delivery_enabled: settings?.delivery_enabled ?? false,
+    pickup_eta_minutes: settings?.pickup_eta_minutes ?? 20,
+    delivery_fee_cents: settings?.delivery_fee_cents ?? 0,
   })
   const [businessHours, setBusinessHours] = useState<Record<string, string>>(
     Object.fromEntries(DAYS.map(d => [d.key, hours[d.key] ?? '']))
@@ -153,6 +158,12 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
     }
     if (form.amber_threshold_minutes >= form.red_threshold_minutes) {
       setError('The amber threshold must be lower than the red threshold')
+      setLoading(false)
+      return
+    }
+
+    if (!form.dine_in_enabled && !form.pickup_enabled && !form.delivery_enabled) {
+      setError('At least one order type must be active.')
       setLoading(false)
       return
     }

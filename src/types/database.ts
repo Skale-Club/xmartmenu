@@ -111,6 +111,11 @@ export interface TenantSettings {
   ingredient_customization_enabled: boolean  // INGR-03: ingredient customization opt-in (migration 026)
   amber_threshold_minutes: number  // KDS-07: amber urgency threshold in minutes (default 10)
   red_threshold_minutes: number    // KDS-07: red urgency threshold in minutes (default 20)
+  dine_in_enabled: boolean          // ORD-01: dine-in mode flag (migration 034, default true)
+  pickup_enabled: boolean           // ORD-01: pick-up mode flag (migration 034, default false)
+  delivery_enabled: boolean         // ORD-01: delivery mode flag (migration 034, default false)
+  pickup_eta_minutes: number        // ORD-02: estimated pick-up time in minutes (default 20)
+  delivery_fee_cents: number        // ORD-03: delivery fee in cents (default 0)
   updated_at: string
   // AI-04: New fields added in migration 022
   business_type: string | null
