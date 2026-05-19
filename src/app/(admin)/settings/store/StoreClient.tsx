@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { TenantSettings } from '@/types/database'
 import type { Tenant } from '@/types/database'
 import type { StripeConnection } from '@/lib/stripe'
-import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle } from 'lucide-react'
+import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle, UtensilsCrossed } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -58,6 +58,11 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
     item_notes_enabled: settings?.item_notes_enabled ?? false,
     amber_threshold_minutes: settings?.amber_threshold_minutes ?? 10,
     red_threshold_minutes: settings?.red_threshold_minutes ?? 20,
+    dine_in_enabled: settings?.dine_in_enabled ?? true,
+    pickup_enabled: settings?.pickup_enabled ?? false,
+    delivery_enabled: settings?.delivery_enabled ?? false,
+    pickup_eta_minutes: settings?.pickup_eta_minutes ?? 20,
+    delivery_fee_cents: settings?.delivery_fee_cents ?? 0,
   })
   const [businessHours, setBusinessHours] = useState<Record<string, string>>(
     Object.fromEntries(DAYS.map(d => [d.key, hours[d.key] ?? '']))
@@ -153,6 +158,11 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
     }
     if (form.amber_threshold_minutes >= form.red_threshold_minutes) {
       setError('The amber threshold must be lower than the red threshold')
+      setLoading(false)
+      return
+    }
+    if (!form.dine_in_enabled && !form.pickup_enabled && !form.delivery_enabled) {
+      setError('At least one order type must be active.')
       setLoading(false)
       return
     }
@@ -356,6 +366,118 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Order Types */}
+          <div className="bg-white border border-zinc-100 rounded-[1.25rem] p-10 space-y-4 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <UtensilsCrossed className="w-4 h-4 text-primary" />
+              </div>
+              <h2 className="text-xl font-black text-zinc-950 tracking-tight">Order Types</h2>
+            </div>
+
+            {/* Dine-In toggle */}
+            <div
+              className="flex items-center justify-between group p-5 rounded-[1rem] bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
+              onClick={() => setForm(f => ({ ...f, dine_in_enabled: !f.dine_in_enabled }))}
+            >
+              <div className="max-w-[70%]">
+                <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">Dine-In</p>
+                <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Customers can order for table service at your restaurant.</p>
+              </div>
+              <button
+                type="button"
+                className={cn(
+                  "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
+                  form.dine_in_enabled ? "bg-primary" : "bg-zinc-200"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
+                  form.dine_in_enabled ? "translate-x-5" : "translate-x-1"
+                )} />
+              </button>
+            </div>
+
+            {/* Pick-Up toggle */}
+            <div
+              className="flex items-center justify-between group p-5 rounded-[1rem] bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
+              onClick={() => setForm(f => ({ ...f, pickup_enabled: !f.pickup_enabled }))}
+            >
+              <div className="max-w-[70%]">
+                <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">Pick-Up</p>
+                <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Customers can place orders for pick-up at your location.</p>
+              </div>
+              <button
+                type="button"
+                className={cn(
+                  "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
+                  form.pickup_enabled ? "bg-primary" : "bg-zinc-200"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
+                  form.pickup_enabled ? "translate-x-5" : "translate-x-1"
+                )} />
+              </button>
+            </div>
+
+            {/* Pick-up ETA field — shown only when pickup_enabled */}
+            {form.pickup_enabled && (
+              <div className="space-y-2 mt-4 px-5 pb-2">
+                <label className={labelClassName}>Estimated Pick-Up Time (Min)</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={form.pickup_eta_minutes}
+                  onChange={e => setForm(f => ({ ...f, pickup_eta_minutes: Number(e.target.value) }))}
+                  className={cn(inputClassName, "font-black text-lg")}
+                />
+                <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">Minutes</p>
+              </div>
+            )}
+
+            {/* Delivery toggle */}
+            <div
+              className="flex items-center justify-between group p-5 rounded-[1rem] bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
+              onClick={() => setForm(f => ({ ...f, delivery_enabled: !f.delivery_enabled }))}
+            >
+              <div className="max-w-[70%]">
+                <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">Delivery</p>
+                <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Customers can request home delivery of their orders.</p>
+              </div>
+              <button
+                type="button"
+                className={cn(
+                  "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
+                  form.delivery_enabled ? "bg-primary" : "bg-zinc-200"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
+                  form.delivery_enabled ? "translate-x-5" : "translate-x-1"
+                )} />
+              </button>
+            </div>
+
+            {/* Delivery fee field — shown only when delivery_enabled */}
+            {form.delivery_enabled && (
+              <div className="space-y-2 mt-4 px-5 pb-2">
+                <label className={labelClassName}>Delivery Fee</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  placeholder="0.00"
+                  value={(form.delivery_fee_cents / 100).toFixed(2)}
+                  onChange={e => setForm(f => ({ ...f, delivery_fee_cents: Math.round(Number(e.target.value) * 100) }))}
+                  className={cn(inputClassName, "font-black text-lg")}
+                />
+                <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">Displayed as currency to customer</p>
+              </div>
+            )}
           </div>
 
           {/* Custom Domain */}
