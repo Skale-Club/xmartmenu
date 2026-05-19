@@ -108,6 +108,63 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case 'checkout.session.completed': {
+        // SEED-024: AI Chat Addon activation
+        const session = event.data.object as {
+          metadata?: { tenant_id?: string; addon?: string }
+          customer?: string | null
+          subscription?: string | null
+        }
+        if (session.metadata?.addon === 'chat' && session.metadata.tenant_id) {
+          const customerId = typeof session.customer === 'string' ? session.customer : null
+          const { error: subErr } = await supabase
+            .from('tenant_subscriptions')
+            .update({
+              chat_addon_active: true,
+              chat_addon_since: new Date().toISOString(),
+              ...(customerId ? { stripe_customer_id: customerId } : {}),
+            })
+            .eq('tenant_id', session.metadata.tenant_id)
+          if (subErr) {
+            console.error('Failed to activate chat addon:', subErr)
+            updateResult = { success: false, error: subErr.message }
+          }
+        }
+        break
+      }
+
+      case 'customer.subscription.updated':
+      case 'customer.subscription.deleted': {
+        // SEED-024: keep chat_addon_active in sync with the addon subscription.
+        const sub = event.data.object as {
+          id: string
+          status: string
+          metadata?: { tenant_id?: string; addon?: string }
+          cancel_at_period_end?: boolean
+        }
+        if (sub.metadata?.addon === 'chat' && sub.metadata.tenant_id) {
+          const stillActive = (event.type === 'customer.subscription.updated')
+            && (sub.status === 'active' || sub.status === 'trialing')
+            && !sub.cancel_at_period_end
+            ? true
+            : event.type === 'customer.subscription.updated' && (sub.status === 'active' || sub.status === 'trialing')
+              ? true
+              : false
+          await supabase
+            .from('tenant_subscriptions')
+            .update({ chat_addon_active: stillActive })
+            .eq('tenant_id', sub.metadata.tenant_id)
+          if (!stillActive) {
+            // Also disable the widget so it disappears immediately
+            await supabase
+              .from('chat_addon_settings')
+              .update({ enabled: false })
+              .eq('tenant_id', sub.metadata.tenant_id)
+          }
+        }
+        break
+      }
+
       case 'account.updated': {
         const account = event.data.object as {
           id: string

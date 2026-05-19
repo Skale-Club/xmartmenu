@@ -310,6 +310,53 @@ export interface RestaurantTable {
   updated_at: string
 }
 
+// ============================================================
+// SEED-024: AI Chat Addon types (migration 044)
+// ============================================================
+
+export interface ChatAddonSettings {
+  tenant_id: string
+  enabled: boolean
+  openrouter_api_key: string | null         // encrypted ciphertext at rest
+  openrouter_model: string
+  audio_enabled: boolean
+  audio_provider: 'whisper' | 'deepgram' | null
+  audio_api_key: string | null              // encrypted ciphertext at rest
+  rate_limit_per_phone_per_day: number
+  created_at: string
+  updated_at: string
+}
+
+export interface ChatConversation {
+  id: string
+  tenant_id: string
+  phone_hash: string
+  started_at: string
+  last_message_at: string
+  message_count: number
+  status: 'active' | 'blocked'
+  admin_note: string | null
+}
+
+export interface ChatMessage {
+  id: string
+  conversation_id: string
+  role: 'user' | 'assistant'
+  content: string
+  created_at: string
+  has_audio: boolean
+  tokens_used: number | null
+}
+
+export interface ChatBlockedPhone {
+  id: string
+  tenant_id: string
+  phone_hash: string
+  blocked_at: string
+  blocked_by: string | null
+  reason: string | null
+}
+
 export interface CustomerProfile {
   id: string        // auth user ID
   phone: string     // E.164 format
