@@ -9,6 +9,8 @@ import type { Metadata } from 'next'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import type { ProductIngredientWithIngredient } from '@/types/database'
 import { computePrimaryForeground } from '@/lib/color-utils'
+import JsonLdScript from '@/components/seo/JsonLdScript'
+import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd } from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string; menuSlug: string }>
@@ -35,7 +37,38 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     supabase.from('locations').select('name').eq('tenant_id', tenant.id).eq('slug', menuSlug).maybeSingle(),
     supabase.from('menus').select('name').eq('tenant_id', tenant.id).eq('slug', menuSlug).maybeSingle(),
   ])
-  return { title: `${loc?.name ?? menu?.name ?? 'Menu'} | ${tenant.name}` }
+
+  const sectionName = loc?.name ?? menu?.name ?? 'Menu'
+  const settings = tenant.tenant_settings as any
+  const title = `${sectionName} | ${tenant.name}`
+  const description: string = settings?.tagline
+    || settings?.about?.slice(0, 160)
+    || `View the ${sectionName} menu of ${tenant.name}`
+  const canonicalPath = `/${menuSlug}`
+  const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
+  const logoUrl: string | null = settings?.logo_url ?? settings?.banner_url ?? null
+  const isCustomDomain = !!(tenant.custom_domain && tenant.custom_domain_verified)
+
+  return {
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: {
+      type: 'website',
+      title,
+      description,
+      url: canonicalUrl,
+      siteName: tenant.name,
+      ...(logoUrl ? { images: [{ url: logoUrl, alt: tenant.name }] } : {}),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      ...(logoUrl ? { images: [logoUrl] } : {}),
+    },
+    ...(isCustomDomain ? { robots: { index: false, follow: false } } : {}),
+  }
 }
 
 export default async function PublicMenuSlugPage({ params, searchParams }: Props) {
@@ -137,10 +170,20 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
   const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
   const primaryForeground = computePrimaryForeground(primaryColor)
+  const canonicalPath = `/${menuSlug}`
+  const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
+  const currency = (tenant.tenant_settings as any)?.currency ?? 'USD'
+
+  const localBusinessLd = buildLocalBusinessJsonLd(tenant, tenant.tenant_settings as any, getCanonicalUrl(tenant, '/'))
+  const menuLd = menu
+    ? buildMenuJsonLd(menu.name, canonicalUrl, categories ?? [], products ?? [], currency)
+    : null
 
   return (
     <>
       <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
+      <JsonLdScript data={localBusinessLd} />
+      {menuLd && <JsonLdScript data={menuLd} />}
       <ScanRecorder tenantId={tenant.id} />
       <MenuPage
         tenant={tenant}
