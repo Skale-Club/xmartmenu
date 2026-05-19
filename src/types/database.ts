@@ -226,6 +226,8 @@ export interface Order {
   status: 'pending' | 'paid' | 'payment_failed' | 'preparing' | 'ready' | 'done' | 'cancelled'
   total: number
   payment_intent_id: string | null
+  order_type: 'dine_in' | 'pickup' | 'delivery'   // ORD-06 (migration 035, default 'dine_in')
+  delivery_address: string | null                   // ORD-05 (migration 035, null for non-delivery)
   notes: string | null
   created_at: string
   updated_at: string

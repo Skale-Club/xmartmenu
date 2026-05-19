@@ -18,6 +18,8 @@ interface CreateOrderRequest {
   customer_name: string
   customer_phone: string
   items: OrderItem[]
+  order_type?: string
+  delivery_address?: string
 }
 
 function sanitizeNote(raw: string | undefined | null): string | null {
@@ -63,7 +65,7 @@ function computeItemUnitPrice(
 export async function POST(request: Request) {
   try {
     const body: CreateOrderRequest = await request.json()
-    const { tenant_id, customer_name, customer_phone, items } = body
+    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress } = body
 
     if (!tenant_id?.trim()) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 })
@@ -78,11 +80,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'At least one item is required' }, { status: 400 })
     }
 
+    const VALID_ORDER_TYPES = ['dine_in', 'pickup', 'delivery'] as const
+    type OrderType = typeof VALID_ORDER_TYPES[number]
+    const orderType: OrderType = (rawOrderType && VALID_ORDER_TYPES.includes(rawOrderType as OrderType))
+      ? rawOrderType as OrderType
+      : 'dine_in'
+
+    const deliveryAddress = rawDeliveryAddress?.trim() || null
+
+    if (orderType === 'delivery' && !deliveryAddress) {
+      return NextResponse.json({ error: 'Delivery address is required for delivery orders' }, { status: 400 })
+    }
+
     const service = await createServiceClient()
 
     const { data: tenantSettings, error: tenantError } = await service
       .from('tenants')
-      .select('id, is_active, tenant_settings(orders_enabled)')
+      .select('id, is_active, tenant_settings(orders_enabled, delivery_fee_cents)')
       .eq('id', tenant_id)
       .eq('is_active', true)
       .single()
@@ -120,6 +134,11 @@ export async function POST(request: Request) {
 
     const total = trustedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
 
+    const deliveryFeeCents = orderType === 'delivery'
+      ? Number((settings as any)?.delivery_fee_cents ?? 0)
+      : 0
+    const orderTotal = Number((total + deliveryFeeCents / 100).toFixed(2))
+
     const { data: order, error: orderError } = await service
       .from('orders')
       .insert({
@@ -127,7 +146,9 @@ export async function POST(request: Request) {
         customer_name: customer_name.trim(),
         customer_phone: customer_phone.trim(),
         status: 'pending',
-        total,
+        total: orderTotal,
+        order_type: orderType,
+        delivery_address: deliveryAddress,
       })
       .select()
       .single()
@@ -158,7 +179,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create order items' }, { status: 500 })
     }
 
-    return NextResponse.json({ id: order.id, status: order.status, total: order.total })
+    return NextResponse.json({ id: order.id, status: order.status, total: order.total, order_type: order.order_type })
   } catch (error) {
     console.error('orders.error', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
