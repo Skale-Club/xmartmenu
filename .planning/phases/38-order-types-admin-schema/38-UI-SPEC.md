@@ -58,9 +58,12 @@ Exceptions:
 | Toggle label | 14px (`text-sm`) | 900 (`font-black`) | 1 |
 | Section heading | 20px (`text-xl`) | 900 (`font-black`) | tight (1.25) |
 | Field label | 10px (`text-[10px]`) | 900 (`font-black`) | 1 — uppercase tracking-widest |
-| Helper/hint text | 9px (`text-[9px]`) | 700 (`font-bold`) | 1 — uppercase tracking-widest |
+| Helper/hint text | 10px (`text-[10px]`) | 500 (`font-medium`) | 1 — uppercase tracking-widest |
 
-Source: Extracted verbatim from existing StoreClient.tsx — `labelClassName`, toggle rows, KDS threshold block.
+Weight scale: 2 weights only — `font-medium` (500) for body/helper/description, `font-black` (900) for labels/headings.
+Size scale: 3 sizes only — 10px (`text-[10px]`), 14px (`text-sm`), 20px (`text-xl`).
+
+Source: Extracted verbatim from existing StoreClient.tsx — `labelClassName`, toggle rows, KDS threshold block. Helper/hint text consolidated from 9px/font-bold to 10px/font-medium to conform to 2-weight maximum.
 
 ---
 
@@ -134,7 +137,7 @@ div.space-y-2.mt-4.px-5.pb-2
                       text-sm text-zinc-950 placeholder-zinc-400
                       focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary
                       transition-all font-black text-lg
-  p: text-[9px] font-bold text-zinc-400 uppercase tracking-widest ml-1  ← helper text
+  p: text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1  ← helper text
 ```
 
 **Pick-up ETA field:**
