@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { name, slug, address, city, phone, business_hours } = body
+  const { name, slug, address, city, phone, business_hours, menu_id } = body
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   if (!slug?.trim()) return NextResponse.json({ error: 'Slug is required' }, { status: 400 })
@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       city: city?.trim() || null,
       phone: phone?.trim() || null,
       business_hours: business_hours || null,
+      menu_id: menu_id ?? null,
     })
     .select()
     .single()

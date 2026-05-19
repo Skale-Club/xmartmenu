@@ -37,6 +37,7 @@ interface Props {
     supported_languages?: string[]
     translations?: Record<string, { name?: string; description?: string }>
   } | null
+  location?: { id: string; name: string } | null
   initialLanguage?: string
   footerBrand?: string
   optionGroupsByProductId?: Record<string, GroupWithOptions[]>
@@ -60,7 +61,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {} }: Props) {
+export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {} }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -191,6 +192,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, in
           customer_phone: customerPhone.trim(),
           order_type: orderType,
           delivery_address: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
+          location_id: location?.id ?? null,
           items: cart.map(item => ({
             product_id: item.product.id,
             product_name: item.product.name,

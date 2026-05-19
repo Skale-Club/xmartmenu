@@ -20,6 +20,7 @@ interface CreateOrderRequest {
   items: OrderItem[]
   order_type?: string
   delivery_address?: string
+  location_id?: string | null
 }
 
 function sanitizeNote(raw: string | undefined | null): string | null {
@@ -65,7 +66,7 @@ function computeItemUnitPrice(
 export async function POST(request: Request) {
   try {
     const body: CreateOrderRequest = await request.json()
-    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress } = body
+    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, location_id: rawLocationId } = body
 
     if (!tenant_id?.trim()) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 })
@@ -139,6 +140,8 @@ export async function POST(request: Request) {
       : 0
     const orderTotal = Number((total + deliveryFeeCents / 100).toFixed(2))
 
+    const locationId = rawLocationId ?? null
+
     const { data: order, error: orderError } = await service
       .from('orders')
       .insert({
@@ -149,6 +152,7 @@ export async function POST(request: Request) {
         total: orderTotal,
         order_type: orderType,
         delivery_address: deliveryAddress,
+        location_id: locationId,
       })
       .select()
       .single()

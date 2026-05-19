@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { MapPin, Plus, Pencil, Building2, ToggleLeft, ToggleRight, AlertCircle, X, Clock } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { MapPin, Plus, Pencil, Building2, ToggleLeft, ToggleRight, AlertCircle, X, Clock, QrCode, Download, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Location } from '@/types/database'
 
@@ -24,6 +24,13 @@ function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
 }
 
+interface MenuOption {
+  id: string
+  name: string
+  slug: string
+  is_default: boolean
+}
+
 interface FormState {
   name: string
   slug: string
@@ -31,12 +38,17 @@ interface FormState {
   city: string
   phone: string
   hours: Record<string, string>
+  menu_id: string | null
 }
 
-const EMPTY_FORM: FormState = { name: '', slug: '', address: '', city: '', phone: '', hours: { ...EMPTY_HOURS } }
+const EMPTY_FORM: FormState = {
+  name: '', slug: '', address: '', city: '', phone: '',
+  hours: { ...EMPTY_HOURS },
+  menu_id: null,
+}
 
 function LocationModal({
-  open, title, form, setForm, loading, error, onClose, onSave,
+  open, title, form, setForm, loading, error, menus, onClose, onSave,
 }: {
   open: boolean
   title: string
@@ -44,6 +56,7 @@ function LocationModal({
   setForm: React.Dispatch<React.SetStateAction<FormState>>
   loading: boolean
   error: string | null
+  menus: MenuOption[]
   onClose: () => void
   onSave: () => void
 }) {
@@ -126,6 +139,31 @@ function LocationModal({
             </div>
           </div>
 
+          {/* Menu assignment */}
+          {menus.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <BookOpen className="w-4 h-4 text-zinc-400" />
+                <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Menu Assignment</span>
+              </div>
+              <select
+                value={form.menu_id ?? ''}
+                onChange={e => setForm(f => ({ ...f, menu_id: e.target.value || null }))}
+                className={inputClassName}
+              >
+                <option value="">Use default menu (shared)</option>
+                {menus.map(m => (
+                  <option key={m.id} value={m.id}>
+                    {m.name}{m.is_default ? ' (default)' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] font-medium text-zinc-400 mt-1 ml-1">
+                Assign a specific menu to this branch or leave shared to use the default
+              </p>
+            </div>
+          )}
+
           {/* Business hours */}
           <div>
             <div className="flex items-center gap-2 mb-3">
@@ -169,9 +207,88 @@ function LocationModal({
   )
 }
 
-export default function LocationsClient({ initialLocations, tenantId }: {
+function QRModal({
+  open, location, tenantSlug, onClose,
+}: {
+  open: boolean
+  location: Location | null
+  tenantSlug: string
+  onClose: () => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [url, setUrl] = useState('')
+
+  useEffect(() => {
+    if (!open || !location) return
+    const origin = typeof window !== 'undefined' ? window.location.origin : ''
+    const qrUrl = `${origin}/${tenantSlug}/${location.slug}`
+    setUrl(qrUrl)
+
+    async function generate() {
+      const QRCode = (await import('qrcode')).default
+      if (canvasRef.current) {
+        await QRCode.toCanvas(canvasRef.current, qrUrl, {
+          width: 320,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' },
+        })
+      }
+    }
+    void generate()
+  }, [open, location, tenantSlug])
+
+  if (!open || !location) return null
+
+  function download() {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const link = document.createElement('a')
+    link.download = `qr-${location!.slug}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-[1.5rem] w-full max-w-sm shadow-2xl overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-8 py-6 border-b border-zinc-100">
+          <div>
+            <h2 className="text-lg font-black text-zinc-950 tracking-tight">QR Code</h2>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">{location.name}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 transition-colors">
+            <X className="w-4 h-4 text-zinc-500" />
+          </button>
+        </div>
+
+        <div className="px-8 py-6 flex flex-col items-center gap-6">
+          <div className="bg-zinc-950 p-6 rounded-[1.25rem]">
+            <canvas ref={canvasRef} className="rounded-xl max-w-full" />
+          </div>
+          <p className="text-[10px] font-mono text-zinc-400 text-center break-all">{url}</p>
+          <button
+            onClick={download}
+            className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-zinc-950 rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all"
+          >
+            <Download className="w-4 h-4" />
+            Download PNG
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function LocationsClient({
+  initialLocations, tenantId, tenantSlug, menus,
+}: {
   initialLocations: Location[]
   tenantId: string
+  tenantSlug: string
+  menus: MenuOption[]
 }) {
   const [locations, setLocations] = useState<Location[]>(initialLocations)
   const [showModal, setShowModal] = useState(false)
@@ -180,6 +297,7 @@ export default function LocationsClient({ initialLocations, tenantId }: {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [qrLocation, setQrLocation] = useState<Location | null>(null)
 
   function openCreate() {
     setEditingId(null)
@@ -197,6 +315,7 @@ export default function LocationsClient({ initialLocations, tenantId }: {
       city: loc.city ?? '',
       phone: loc.phone ?? '',
       hours: { ...EMPTY_HOURS, ...(loc.business_hours ?? {}) },
+      menu_id: loc.menu_id ?? null,
     })
     setError(null)
     setShowModal(true)
@@ -223,6 +342,7 @@ export default function LocationsClient({ initialLocations, tenantId }: {
       city: form.city.trim() || null,
       phone: form.phone.trim() || null,
       business_hours: Object.keys(filteredHours).length > 0 ? filteredHours : null,
+      menu_id: form.menu_id || null,
     }
 
     const url = editingId ? `/api/admin/locations/${editingId}` : '/api/admin/locations'
@@ -265,6 +385,8 @@ export default function LocationsClient({ initialLocations, tenantId }: {
     setTogglingId(null)
   }
 
+  const menuById = new Map(menus.map(m => [m.id, m]))
+
   return (
     <div className="p-8 w-full space-y-10">
       {/* Header */}
@@ -306,74 +428,90 @@ export default function LocationsClient({ initialLocations, tenantId }: {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {locations.map(loc => (
-            <div
-              key={loc.id}
-              className={cn(
-                "bg-white border rounded-[1.25rem] p-8 space-y-4 shadow-sm transition-all",
-                loc.is_active ? "border-zinc-100" : "border-zinc-200 opacity-60"
-              )}
-            >
-              {/* Card header */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                    <Building2 className="w-5 h-5 text-primary" />
+          {locations.map(loc => {
+            const assignedMenu = loc.menu_id ? menuById.get(loc.menu_id) : null
+            return (
+              <div
+                key={loc.id}
+                className={cn(
+                  "bg-white border rounded-[1.25rem] p-8 space-y-4 shadow-sm transition-all",
+                  loc.is_active ? "border-zinc-100" : "border-zinc-200 opacity-60"
+                )}
+              >
+                {/* Card header */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Building2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-zinc-950 tracking-tight">{loc.name}</h3>
+                      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">/{loc.slug}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-base font-black text-zinc-950 tracking-tight">{loc.name}</h3>
-                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">/{loc.slug}</p>
+                  <span className={cn(
+                    "shrink-0 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
+                    loc.is_active ? "bg-green-100 text-green-700" : "bg-zinc-100 text-zinc-500"
+                  )}>
+                    {loc.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div className="space-y-1.5 text-sm text-zinc-500 font-medium">
+                  {(loc.address || loc.city) && (
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-3.5 h-3.5 shrink-0 text-zinc-300" />
+                      <span className="truncate">{[loc.address, loc.city].filter(Boolean).join(', ')}</span>
+                    </div>
+                  )}
+                  {loc.phone && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-zinc-300 text-xs">📞</span>
+                      <span>{loc.phone}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <BookOpen className="w-3.5 h-3.5 shrink-0 text-zinc-300" />
+                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                      {assignedMenu ? assignedMenu.name : 'Default menu'}
+                    </span>
                   </div>
                 </div>
-                <span className={cn(
-                  "shrink-0 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest",
-                  loc.is_active ? "bg-green-100 text-green-700" : "bg-zinc-100 text-zinc-500"
-                )}>
-                  {loc.is_active ? 'Active' : 'Inactive'}
-                </span>
-              </div>
 
-              {/* Details */}
-              <div className="space-y-1.5 text-sm text-zinc-500 font-medium">
-                {(loc.address || loc.city) && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 shrink-0 text-zinc-300" />
-                    <span className="truncate">{[loc.address, loc.city].filter(Boolean).join(', ')}</span>
-                  </div>
-                )}
-                {loc.phone && (
-                  <div className="flex items-center gap-2">
-                    <span className="text-zinc-300 text-xs">📞</span>
-                    <span>{loc.phone}</span>
-                  </div>
-                )}
+                {/* Actions */}
+                <div className="flex gap-2 pt-2 border-t border-zinc-50">
+                  <button
+                    onClick={() => openEdit(loc)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-200 text-xs font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 transition-all"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setQrLocation(loc)}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-zinc-200 text-xs font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 transition-all"
+                    title="QR Code"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => handleToggleActive(loc)}
+                    disabled={togglingId === loc.id}
+                    className={cn(
+                      "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50",
+                      loc.is_active
+                        ? "border-red-100 text-red-500 hover:bg-red-50"
+                        : "border-green-100 text-green-600 hover:bg-green-50"
+                    )}
+                  >
+                    {loc.is_active ? <ToggleLeft className="w-3.5 h-3.5" /> : <ToggleRight className="w-3.5 h-3.5" />}
+                    {loc.is_active ? 'Deactivate' : 'Activate'}
+                  </button>
+                </div>
               </div>
-
-              {/* Actions */}
-              <div className="flex gap-2 pt-2 border-t border-zinc-50">
-                <button
-                  onClick={() => openEdit(loc)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-zinc-200 text-xs font-black uppercase tracking-widest text-zinc-500 hover:bg-zinc-50 transition-all"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleToggleActive(loc)}
-                  disabled={togglingId === loc.id}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50",
-                    loc.is_active
-                      ? "border-red-100 text-red-500 hover:bg-red-50"
-                      : "border-green-100 text-green-600 hover:bg-green-50"
-                  )}
-                >
-                  {loc.is_active ? <ToggleLeft className="w-3.5 h-3.5" /> : <ToggleRight className="w-3.5 h-3.5" />}
-                  {loc.is_active ? 'Deactivate' : 'Activate'}
-                </button>
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -384,8 +522,16 @@ export default function LocationsClient({ initialLocations, tenantId }: {
         setForm={setForm}
         loading={loading}
         error={error}
+        menus={menus}
         onClose={closeModal}
         onSave={handleSave}
+      />
+
+      <QRModal
+        open={!!qrLocation}
+        location={qrLocation}
+        tenantSlug={tenantSlug}
+        onClose={() => setQrLocation(null)}
       />
     </div>
   )

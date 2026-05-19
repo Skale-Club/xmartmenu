@@ -29,12 +29,13 @@ const getTenantBySlug = cache(async (slug: string) => {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, menuSlug } = await params
   const supabase = createServiceClient()
-  const [tenant, { data: menu }] = await Promise.all([
-    getTenantBySlug(slug),
-    supabase.from('menus').select('name').eq('slug', menuSlug).single(),
-  ])
+  const tenant = await getTenantBySlug(slug)
   if (!tenant) return { title: 'Menu' }
-  return { title: `${menu?.name ?? 'Menu'} | ${tenant.name}` }
+  const [{ data: loc }, { data: menu }] = await Promise.all([
+    supabase.from('locations').select('name').eq('tenant_id', tenant.id).eq('slug', menuSlug).maybeSingle(),
+    supabase.from('menus').select('name').eq('tenant_id', tenant.id).eq('slug', menuSlug).maybeSingle(),
+  ])
+  return { title: `${loc?.name ?? menu?.name ?? 'Menu'} | ${tenant.name}` }
 }
 
 export default async function PublicMenuSlugPage({ params, searchParams }: Props) {
@@ -42,17 +43,49 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const { lang } = await searchParams
   const supabase = createServiceClient()
 
-  const [tenant, { data: menuCandidate }] = await Promise.all([
-    getTenantBySlug(slug),
-    supabase.from('menus').select('*').eq('slug', menuSlug).eq('is_active', true).single(),
+  const tenant = await getTenantBySlug(slug)
+  if (!tenant) notFound()
+
+  // LOC-03: check if the second segment is a location slug first
+  const [{ data: locationCandidate }, { data: menuCandidate }] = await Promise.all([
+    supabase.from('locations').select('*').eq('tenant_id', tenant.id).eq('slug', menuSlug).eq('is_active', true).maybeSingle(),
+    supabase.from('menus').select('*').eq('tenant_id', tenant.id).eq('slug', menuSlug).eq('is_active', true).maybeSingle(),
   ])
 
-  if (!tenant || !menuCandidate || menuCandidate.tenant_id !== tenant.id) notFound()
-  const menu = menuCandidate
+  // Resolve which branch/menu to use
+  const location = locationCandidate ?? null
+  let menu: typeof menuCandidate = null
+
+  if (location) {
+    // It's a location slug — resolve its menu (custom or shared default)
+    if (location.menu_id) {
+      const { data: customMenu } = await supabase
+        .from('menus').select('*').eq('id', location.menu_id).eq('is_active', true).maybeSingle()
+      menu = customMenu ?? null
+    }
+    if (!menu) {
+      const { data: defaultMenu } = await supabase
+        .from('menus').select('*').eq('tenant_id', tenant.id).eq('is_active', true).eq('is_default', true).maybeSingle()
+      menu = defaultMenu ?? null
+    }
+    if (!menu) {
+      const { data: fallbackMenu } = await supabase
+        .from('menus').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('position').limit(1).maybeSingle()
+      menu = fallbackMenu ?? null
+    }
+  } else if (menuCandidate) {
+    menu = menuCandidate
+  } else {
+    notFound()
+  }
 
   const [{ data: categories }, { data: products }] = await Promise.all([
-    supabase.from('categories').select('*').eq('menu_id', menu.id).eq('is_active', true).order('position'),
-    supabase.from('products').select('*').eq('menu_id', menu.id).eq('is_available', true).order('position'),
+    menu
+      ? supabase.from('categories').select('*').eq('menu_id', menu.id).eq('is_active', true).order('position')
+      : Promise.resolve({ data: [] }),
+    menu
+      ? supabase.from('products').select('*').eq('menu_id', menu.id).eq('is_available', true).order('position')
+      : Promise.resolve({ data: [] }),
   ])
 
   const directOrdersEnabled = tenant.tenant_settings?.direct_orders_enabled ?? false
@@ -114,6 +147,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
         categories={categories ?? []}
         products={products ?? []}
         menu={menu}
+        location={location ? { id: location.id, name: location.name } : null}
         initialLanguage={lang}
         optionGroupsByProductId={optionGroupsByProductId}
         ingredientCustomizationEnabled={ingredientCustomizationEnabled}

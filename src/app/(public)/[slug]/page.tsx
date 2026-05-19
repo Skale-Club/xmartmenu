@@ -4,6 +4,7 @@ import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import MenuPage from '@/components/menu/MenuPage'
+import BranchPicker from '@/components/menu/BranchPicker'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import type { Metadata } from 'next'
 import type { ProductIngredientWithIngredient } from '@/types/database'
@@ -49,6 +50,27 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   if (!tenant) notFound()
 
   const supabase = createServiceClient()
+
+  // LOC-03: check active locations — if ≥2 show branch picker
+  const { data: activeLocations } = await supabase
+    .from('locations')
+    .select('id, name, slug, address, city, phone, business_hours')
+    .eq('tenant_id', tenant.id)
+    .eq('is_active', true)
+    .order('created_at', { ascending: true })
+
+  if ((activeLocations ?? []).length >= 2) {
+    const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
+    const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
+    const { computePrimaryForeground } = await import('@/lib/color-utils')
+    const primaryForeground = computePrimaryForeground(primaryColor)
+    return (
+      <>
+        <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
+        <BranchPicker tenantName={tenant.name} tenantSlug={slug} locations={activeLocations!} />
+      </>
+    )
+  }
 
   const { data: menu } = await supabase
     .from('menus')
