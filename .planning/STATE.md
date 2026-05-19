@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed phase-41-multi-location-routing-qr-menu-toggle
-last_updated: "2026-05-19T17:00:00.000Z"
+stopped_at: Completed phase-43-per-branch-local-seo
+last_updated: "2026-05-19T18:00:00.000Z"
 last_activity: 2026-05-19
 progress:
   total_phases: 9
@@ -20,13 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 42 — SEO — Platform & Per-Tenant
+**Current focus:** v2.2 milestone COMPLETE
 
 ## Current Position
 
-Phase: 42 (SEO — Platform & Per-Tenant) — READY
-Plan: 0 of ?
-Status: Phase 41 complete — migration 037 pending user apply
+Phase: 43 — COMPLETE (all v2.2 phases done)
+Status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
 Last activity: 2026-05-19
 
 ## Milestone Overview
@@ -41,8 +40,8 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | 39 | Order Types — Customer & Operational | ORD-04, ORD-05, ORD-06, ORD-07 | ○ Pending |
 | 40 | Multi-Location — Schema & Admin CRUD | LOC-01, LOC-02 | ○ Pending |
 | 41 | Multi-Location — Routing, QR Codes & Menu Toggle | LOC-03, LOC-04, LOC-05, LOC-06 | ✓ Complete |
-| 42 | SEO — Platform & Per-Tenant | SEO-01, SEO-02, SEO-03, SEO-04, SEO-05, SEO-06, SEO-07 | ○ Pending |
-| 43 | SEO — Per-Branch Local SEO | SEO-08 | ○ Pending |
+| 42 | SEO — Platform & Per-Tenant | SEO-01, SEO-02, SEO-03, SEO-04, SEO-05, SEO-06, SEO-07 | ✓ Complete |
+| 43 | SEO — Per-Branch Local SEO | SEO-08 | ✓ Complete |
 
 ## Performance Metrics
 

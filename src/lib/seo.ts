@@ -123,6 +123,48 @@ export function buildMenuJsonLd(
   }
 }
 
+// SEO-08 / Phase 43: per-branch LocalBusiness with branchOf link
+export function buildBranchJsonLd(
+  location: {
+    name: string
+    address: string | null
+    city: string | null
+    phone: string | null
+    business_hours: Record<string, string> | null
+  },
+  branchUrl: string,
+  parentUrl: string,
+): object {
+  const ld: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Restaurant',
+    '@id': branchUrl,
+    name: location.name,
+    url: branchUrl,
+    branchOf: {
+      '@type': 'Restaurant',
+      '@id': parentUrl,
+    },
+  }
+
+  if (location.phone) ld.telephone = location.phone
+
+  if (location.address || location.city) {
+    ld.address = {
+      '@type': 'PostalAddress',
+      ...(location.address ? { streetAddress: location.address } : {}),
+      ...(location.city ? { addressLocality: location.city } : {}),
+    }
+  }
+
+  if (location.business_hours) {
+    const specs = buildOpeningHours(location.business_hours)
+    if (specs.length) ld.openingHoursSpecification = specs
+  }
+
+  return ld
+}
+
 function buildMenuItem(p: Product, currency: string): object {
   const item: Record<string, unknown> = {
     '@type': 'MenuItem',

@@ -10,7 +10,7 @@ import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import type { ProductIngredientWithIngredient } from '@/types/database'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import JsonLdScript from '@/components/seo/JsonLdScript'
-import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd } from '@/lib/seo'
+import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd, buildBranchJsonLd } from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string; menuSlug: string }>
@@ -174,7 +174,11 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
   const currency = (tenant.tenant_settings as any)?.currency ?? 'USD'
 
-  const localBusinessLd = buildLocalBusinessJsonLd(tenant, tenant.tenant_settings as any, getCanonicalUrl(tenant, '/'))
+  const parentUrl = getCanonicalUrl(tenant, '/')
+  // SEO-08: when rendering a branch, use branch-specific LocalBusiness with branchOf
+  const localBusinessLd = location
+    ? buildBranchJsonLd(location, canonicalUrl, parentUrl)
+    : buildLocalBusinessJsonLd(tenant, tenant.tenant_settings as any, parentUrl)
   const menuLd = menu
     ? buildMenuJsonLd(menu.name, canonicalUrl, categories ?? [], products ?? [], currency)
     : null
