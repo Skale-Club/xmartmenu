@@ -154,6 +154,11 @@ function OrderCard({
               const display = [street, zip, city].filter(Boolean).join(', ') || (order as any).delivery_address
               return display ? <span className="text-[10px] text-zinc-400 font-medium truncate max-w-[150px]">{display}</span> : null
             })()}
+            {(order as any).table_name && (
+              <span className="text-[10px] font-black text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-full uppercase tracking-wide">
+                {(order as any).table_name}
+              </span>
+            )}
           </div>
         )
       })()}
@@ -646,6 +651,12 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                       {new Date(selectedOrder.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                     </div>
                   </div>
+                  {(selectedOrder as any).table_name && (
+                    <div>
+                      <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 block">Table</label>
+                      <p className="text-sm font-bold text-zinc-900">{(selectedOrder as any).table_name}</p>
+                    </div>
+                  )}
                   {(selectedOrder as any).order_type === 'delivery' && (() => {
                     const street = (selectedOrder as any).delivery_street
                     const complement = (selectedOrder as any).delivery_complement

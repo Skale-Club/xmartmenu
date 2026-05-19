@@ -8,6 +8,7 @@ import { ChevronUp, ChevronDown, Pencil, Trash2, Plus } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { Product, ProductOption, OptionGroupType, Ingredient, ProductIngredient } from '@/types/database'
 import { type GroupWithOptions } from './page'
+import ProductMediaTab from './ProductMediaTab'
 
 const TYPE_BADGE: Record<OptionGroupType, string> = {
   single:        'bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full',
@@ -303,7 +304,7 @@ export default function ProductDetailClient({
   const router = useRouter()
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'details' | 'options' | 'ingredients'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'options' | 'ingredients' | 'media'>('details')
 
   // Ingredient tab state
   const [productIngredients, setProductIngredients] = useState<ProductIngredient[]>(initialProductIngredients)
@@ -625,6 +626,16 @@ export default function ProductDetailClient({
             Ingredients
           </button>
         )}
+        <button
+          onClick={() => setActiveTab('media')}
+          className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
+            activeTab === 'media'
+              ? 'bg-white border border-b-white border-zinc-200 -mb-px text-zinc-900'
+              : 'text-zinc-500 hover:text-zinc-900'
+          }`}
+        >
+          Media
+        </button>
       </div>
 
       {/* Product fields card shown only on Details tab */}
@@ -1098,6 +1109,11 @@ export default function ProductDetailClient({
             </div>
           )}
         </div>
+      )}
+
+      {/* Media tab */}
+      {activeTab === 'media' && (
+        <ProductMediaTab productId={product.id} tenantId={_tenantId} />
       )}
     </div>
   )

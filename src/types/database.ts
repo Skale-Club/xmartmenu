@@ -120,6 +120,7 @@ export interface TenantSettings {
   tip_percentage_1: number          // SEED-017: first tip preset % (default 15)
   tip_percentage_2: number          // SEED-017: second tip preset % (default 18)
   tip_percentage_3: number          // SEED-017: third tip preset % (default 20)
+  table_management_enabled: boolean // SEED-023: table management feature flag (migration 043, default false)
   updated_at: string
   // AI-04: New fields added in migration 022
   business_type: string | null
@@ -257,6 +258,7 @@ export interface Order {
   delivery_city: string | null                       // SEED-020 (migration 041)
   delivery_notes: string | null                      // SEED-020 (migration 041)
   delivery_zone_id: string | null                    // SEED-020 (migration 041)
+  table_name: string | null                           // SEED-023 (migration 043)
   notes: string | null
   created_at: string
   updated_at: string
@@ -280,6 +282,29 @@ export interface DeliveryZone {
   name: string
   fee_cents: number
   zipcode_prefixes: string[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+// SEED-021: per-product media item (image or video)
+export interface ProductMedia {
+  id: string
+  product_id: string
+  tenant_id: string
+  type: 'image' | 'video'
+  url: string
+  storage_path: string | null
+  display_order: number
+  created_at: string
+}
+
+// SEED-023: restaurant table in the table catalog
+export interface RestaurantTable {
+  id: string
+  tenant_id: string
+  name: string
+  position: number
   is_active: boolean
   created_at: string
   updated_at: string

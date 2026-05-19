@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatPrice, getInitials } from '@/lib/utils'
-import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone } from '@/types/database'
+import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { UI_COPY, type CartItem, buildCartKey, getProductImages } from './menu-utils'
 import {
@@ -45,6 +45,7 @@ interface Props {
   ingredientCustomizationEnabled?: boolean
   productIngredientsByProductId?: Record<string, ProductIngredientWithIngredient[]>
   deliveryZones?: DeliveryZone[]
+  productMediaByProductId?: Record<string, ProductMedia[]>
 }
 
 const DAYS: Record<string, string> = {
@@ -63,7 +64,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [] }: Props) {
+export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {} }: Props) {
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -768,6 +769,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           itemNotesEnabled={settings?.item_notes_enabled ?? false}
           ingredientCustomizationEnabled={ingredientCustomizationEnabled}
           productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
+          productMedia={productMediaByProductId[selectedProduct.id] ?? []}
           onAddToCart={directOrdersEnabled
             ? (selectedOptions, unitPrice, note, ingredientModifications) => {
                 addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications)

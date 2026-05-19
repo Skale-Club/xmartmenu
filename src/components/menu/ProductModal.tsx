@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { formatPrice } from '@/lib/utils'
-import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra } from '@/types/database'
+import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { UI_COPY, getProductImages } from './menu-utils'
 
@@ -31,7 +31,60 @@ function getTagStyle(tag: string): string {
   return TAG_COLORS[tag] ?? 'bg-zinc-100 text-zinc-600'
 }
 
-export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [] }: {
+type MediaSlide = { type: 'image'; url: string } | { type: 'video'; url: string }
+
+function isYouTubeUrl(url: string) { return /youtu\.?be/.test(url) }
+function isVimeoUrl(url: string) { return /vimeo\.com/.test(url) }
+
+function getYouTubeId(url: string) {
+  const match = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/)
+  return match?.[1] ?? null
+}
+
+function VideoSlide({ url }: { url: string }) {
+  if (isYouTubeUrl(url)) {
+    const vid = getYouTubeId(url)
+    if (vid) {
+      return (
+        <iframe
+          src={`https://www.youtube-nocookie.com/embed/${vid}?rel=0`}
+          className="w-full h-full"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          title="Product video"
+        />
+      )
+    }
+  }
+  if (isVimeoUrl(url)) {
+    const match = url.match(/vimeo\.com\/(\d+)/)
+    const vid = match?.[1]
+    if (vid) {
+      return (
+        <iframe
+          src={`https://player.vimeo.com/video/${vid}?autoplay=0`}
+          className="w-full h-full"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowFullScreen
+          title="Product video"
+        />
+      )
+    }
+  }
+  // Direct video file
+  return (
+    <video
+      src={url}
+      autoPlay
+      muted
+      loop
+      playsInline
+      className="w-full h-full object-cover"
+    />
+  )
+}
+
+export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [] }: {
   product: Product; accentColor: string; currency: string; whatsapp?: string | null;
   lang: string; onClose: () => void; onWhatsApp: () => void;
   onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null) => void;
@@ -39,9 +92,31 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   itemNotesEnabled?: boolean
   ingredientCustomizationEnabled?: boolean
   productIngredients?: ProductIngredientWithIngredient[]
+  productMedia?: ProductMedia[]
 }) {
-  const images = getProductImages(product)
-  const [imageIndex, setImageIndex] = useState(0)
+  // Build ordered media slides: video first (if any), then images from product_media,
+  // falling back to products.image_urls for backward compat
+  const mediaSlides: MediaSlide[] = (() => {
+    if (productMedia.length > 0) {
+      const sorted = [...productMedia].sort((a, b) => a.display_order - b.display_order)
+      const videos = sorted.filter(m => m.type === 'video').map(m => ({ type: 'video' as const, url: m.url }))
+      const images = sorted.filter(m => m.type === 'image').map(m => ({ type: 'image' as const, url: m.url }))
+      return [...videos, ...images]
+    }
+    return getProductImages(product).map(url => ({ type: 'image' as const, url }))
+  })()
+
+  const [slideIndex, setSlideIndex] = useState(0)
+  const hasManySlides = mediaSlides.length > 1
+  // Keep legacy aliases so the rest of the code still works
+  const images = mediaSlides.filter(s => s.type === 'image').map(s => s.url)
+  const imageIndex = (() => {
+    let img = 0
+    for (let i = 0; i < slideIndex; i++) {
+      if (mediaSlides[i]?.type === 'image') img++
+    }
+    return img
+  })()
   const hasManyImages = images.length > 1
   const touchStartXRef = useRef<number | null>(null)
   const touchDeltaXRef = useRef(0)
@@ -49,7 +124,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   const [isDraggingImage, setIsDraggingImage] = useState(false)
 
   useEffect(() => {
-    setImageIndex(0)
+    setSlideIndex(0)
   }, [product.id])
 
   const [singleSelections, setSingleSelections] = useState<Record<string, string>>({})
@@ -165,12 +240,12 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
     return { removed, extras, added: addedMods }
   }
 
-  const prevImage = () => setImageIndex(i => (i - 1 + images.length) % images.length)
-  const nextImage = () => setImageIndex(i => (i + 1) % images.length)
+  const prevImage = () => setSlideIndex(i => (i - 1 + mediaSlides.length) % mediaSlides.length)
+  const nextImage = () => setSlideIndex(i => (i + 1) % mediaSlides.length)
   const SWIPE_THRESHOLD = 40
 
   function handleTouchStart(e: React.TouchEvent<HTMLDivElement>) {
-    if (!hasManyImages) return
+    if (!hasManySlides) return
     touchStartXRef.current = e.touches[0]?.clientX ?? null
     touchDeltaXRef.current = 0
     setIsDraggingImage(true)
@@ -178,7 +253,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   }
 
   function handleTouchMove(e: React.TouchEvent<HTMLDivElement>) {
-    if (!hasManyImages || touchStartXRef.current === null) return
+    if (!hasManySlides || touchStartXRef.current === null) return
     const currentX = e.touches[0]?.clientX ?? touchStartXRef.current
     const delta = currentX - touchStartXRef.current
     touchDeltaXRef.current = delta
@@ -186,7 +261,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   }
 
   function handleTouchEnd() {
-    if (!hasManyImages) return
+    if (!hasManySlides) return
     const delta = touchDeltaXRef.current
     if (Math.abs(delta) >= SWIPE_THRESHOLD) {
       if (delta < 0) nextImage()
@@ -201,7 +276,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={onClose}>
       <div className="bg-white w-full sm:max-w-md lg:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-        {images[imageIndex] && (
+        {mediaSlides.length > 0 && (
           <div
             className="relative w-full aspect-video bg-zinc-100 overflow-hidden"
             onTouchStart={handleTouchStart}
@@ -209,20 +284,24 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
             onTouchEnd={handleTouchEnd}
             onTouchCancel={handleTouchEnd}
           >
-            <Image
-              src={images[imageIndex]}
-              alt={`${product.name} ${imageIndex + 1}`}
-              fill
-              className={`object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
-              style={{ transform: `translateX(${touchOffsetX}px)` }}
-              sizes="(max-width: 768px) 100vw, 448px"
-            />
-            {hasManyImages && (
+            {mediaSlides[slideIndex]?.type === 'video' ? (
+              <VideoSlide url={mediaSlides[slideIndex].url} />
+            ) : (
+              <Image
+                src={mediaSlides[slideIndex]?.url ?? ''}
+                alt={`${product.name} ${imageIndex + 1}`}
+                fill
+                className={`object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
+                style={{ transform: `translateX(${touchOffsetX}px)` }}
+                sizes="(max-width: 768px) 100vw, 448px"
+              />
+            )}
+            {hasManySlides && (
               <>
                 <button
                   onClick={prevImage}
                   className="absolute z-10 left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/75 text-white w-9 h-9 rounded-full shadow-md flex items-center justify-center"
-                  aria-label="Previous image"
+                  aria-label="Previous"
                   type="button"
                 >
                   ‹
@@ -230,18 +309,18 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                 <button
                   onClick={nextImage}
                   className="absolute z-10 right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/75 text-white w-9 h-9 rounded-full shadow-md flex items-center justify-center"
-                  aria-label="Next image"
+                  aria-label="Next"
                   type="button"
                 >
                   ›
                 </button>
                 <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5">
-                  {images.map((_, i) => (
+                  {mediaSlides.map((slide, i) => (
                     <button
                       key={i}
-                      onClick={() => setImageIndex(i)}
-                      className={`w-1.5 h-1.5 rounded-full ${i === imageIndex ? 'bg-white' : 'bg-white/50'}`}
-                      aria-label={`Go to image ${i + 1}`}
+                      onClick={() => setSlideIndex(i)}
+                      className={`rounded-full ${i === slideIndex ? 'bg-white' : 'bg-white/50'} ${slide.type === 'video' ? 'w-3 h-1.5' : 'w-1.5 h-1.5'}`}
+                      aria-label={`Go to ${slide.type} ${i + 1}`}
                     />
                   ))}
                 </div>
