@@ -35,14 +35,16 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 **Target features:**
 - Multi-location branches: each branch has its own address, QR code, hours, and orders scoped per branch (SEED-011)
 - Order type selector: dine-in (default), pick-up, and delivery — each independently toggled by the restaurant (SEED-013)
+- Dynamic color theming: primary + secondary colors stored in DB, injected server-side as CSS vars into public menu pages (SEED-015)
+- App-wide English conversion: all operator-facing UI (admin, superadmin, onboarding, KDS, settings) migrated from Portuguese to English (SEED-016)
 - Robust SEO: per-tenant metadata, LocalBusiness + MenuItem JSON-LD schema, dynamic sitemaps, canonical URL strategy (SEED-014)
 - Full tenant website platform: homepage builder, About/Contact/Gallery pages, unified navigation, theme system (SEED-012)
 
 ## Current State
 
-**v2.2 Restaurant Growth Platform in progress** — SEED-011, SEED-012, SEED-013, SEED-014
+**v2.2 Restaurant Growth Platform in progress** — SEED-011, SEED-012, SEED-013, SEED-014, SEED-015, SEED-016
 
-v2.2 delivers multi-location branches, order type selection (dine-in/pick-up/delivery), robust per-tenant SEO, and the foundation of a full tenant website platform.
+v2.2 delivers multi-location branches, order type selection (dine-in/pick-up/delivery), dynamic color theming per tenant, app-wide English conversion, robust per-tenant SEO, and the foundation of a full tenant website platform.
 
 **v2.1 Custom Domains shipped (2026-05-10)** — SEED-010: custom domain routing
 
