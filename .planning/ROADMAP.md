@@ -194,7 +194,11 @@ Key accomplishments:
 4. KDS status labels, filter chips, and time labels are in English so a kitchen operator can use the display without Portuguese knowledge
 5. All error and validation messages (form errors, API failures) displayed in admin UI are in English
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 36-01-PLAN.md — Convert Custom Domain section (StoreClient) + superadmin error strings (TenantsClient, SettingsClient) + admin layout comments to English
+- [ ] 36-02-PLAN.md — Full grep verification scan across all 17 operator-facing files; confirm KDS, onboarding, sidebar unchanged
 
 **UI hint**: yes
 
