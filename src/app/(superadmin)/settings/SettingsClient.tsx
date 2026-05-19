@@ -66,7 +66,7 @@ export default function SettingsClient({ settings }: Props) {
     })
 
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
-    else { const d = await res.json(); setError(d.error ?? 'Erro ao salvar') }
+    else { const d = await res.json(); setError(d.error ?? 'Failed to save settings') }
     setLoading(false)
   }
 
