@@ -218,6 +218,8 @@ export interface Menu {
   purpose: string
   is_active: boolean
   is_default: boolean
+  is_private: boolean        // SEED-019: private menu requires customer OTP login (migration 040)
+  price_multiplier: number   // SEED-019: multiply product prices (1.0 = base, 1.15 = +15%)
   position: number
   created_at: string
 }

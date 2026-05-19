@@ -22,6 +22,7 @@ interface CreateOrderRequest {
   delivery_address?: string
   location_id?: string | null
   tip_cents?: number
+  menu_id?: string | null
 }
 
 function sanitizeNote(raw: string | undefined | null): string | null {
@@ -67,7 +68,7 @@ function computeItemUnitPrice(
 export async function POST(request: Request) {
   try {
     const body: CreateOrderRequest = await request.json()
-    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, location_id: rawLocationId, tip_cents: rawTipCents } = body
+    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId } = body
 
     if (!tenant_id?.trim()) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 })
@@ -129,8 +130,25 @@ export async function POST(request: Request) {
     }
     const priceById = new Map(dbProducts.map((p) => [p.id, p.price]))
 
+    // SEED-019: apply price multiplier from private/in-store menu
+    let priceMultiplier = 1
+    if (rawMenuId) {
+      const { data: menuRow } = await service
+        .from('menus')
+        .select('price_multiplier, tenant_id')
+        .eq('id', rawMenuId)
+        .eq('tenant_id', tenant_id)
+        .single()
+      if (menuRow?.price_multiplier && menuRow.price_multiplier > 0) {
+        priceMultiplier = Number(menuRow.price_multiplier)
+      }
+    }
+
     const trustedItems = items.map((item) => {
-      const trustedUnit = computeItemUnitPrice({ price: priceById.get(item.product_id) ?? 0 }, item)
+      const baseUnit = computeItemUnitPrice({ price: priceById.get(item.product_id) ?? 0 }, item)
+      const trustedUnit = priceMultiplier !== 1
+        ? Math.round(baseUnit * priceMultiplier * 100) / 100
+        : baseUnit
       return { ...item, unit_price: trustedUnit }
     })
 

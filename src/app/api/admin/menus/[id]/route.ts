@@ -48,7 +48,7 @@ export async function PATCH(request: Request, { params }: Props) {
   if (ctx.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const body = await request.json()
-  const allowed = ['name', 'language', 'supported_languages', 'translations', 'purpose', 'description', 'is_active', 'is_default', 'position']
+  const allowed = ['name', 'language', 'supported_languages', 'translations', 'purpose', 'description', 'is_active', 'is_default', 'is_private', 'price_multiplier', 'position']
   const update: Record<string, unknown> = {}
   for (const key of allowed) if (key in body) update[key] = body[key]
 

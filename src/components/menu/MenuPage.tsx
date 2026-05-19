@@ -31,6 +31,7 @@ interface Props {
   categories: Category[]
   products: Product[]
   menu?: {
+    id?: string
     name: string
     description?: string | null
     language: string
@@ -201,6 +202,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           delivery_address: orderType === 'delivery' ? deliveryAddress.trim() : undefined,
           location_id: location?.id ?? null,
           tip_cents: tipCents,
+          menu_id: menu?.id ?? null,
           items: cart.map(item => ({
             product_id: item.product.id,
             product_name: item.product.name,
