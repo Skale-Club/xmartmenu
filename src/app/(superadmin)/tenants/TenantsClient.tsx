@@ -4,14 +4,15 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  LayoutDashboard,
-  Users,
-  ExternalLink,
-  Menu as MenuIcon,
-  Trash2,
-  Edit3,
-  ChevronDown,
+import { 
+  ExternalLink, 
+  LayoutDashboard, 
+  Settings, 
+  Users, 
+  Menu as MenuIcon, 
+  Trash2, 
+  Edit3, 
+  ChevronDown, 
   ChevronUp,
   Mail,
   Globe,
@@ -123,7 +124,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
       router.refresh()
     } else {
       const data = await res.json()
-      setError('Erro ao editar: ' + data.error)
+      setError('Failed to update: ' + data.error)
     }
     setLoading(false)
   }
@@ -142,7 +143,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
     const data = await res.json()
 
     if (!res.ok) {
-      setError(data.error ?? 'Erro ao criar cliente')
+      setError(data.error ?? 'Failed to create restaurant')
     } else {
       setClients([{
         id: data.tenant.id,
@@ -173,7 +174,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
         setClients(clients.filter(c => c.id !== confirmItem.id))
       } else {
         const data = await res.json()
-        setError('Erro ao excluir: ' + data.error)
+        setError('Failed to delete: ' + data.error)
       }
     } else if (confirmItem.user_id) {
       const res = await fetch(`/api/superadmin/users/${confirmItem.user_id}`, { method: 'DELETE' })
@@ -181,7 +182,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
         setClients(clients.filter(c => c.user_id !== confirmItem.user_id))
       } else {
         const data = await res.json()
-        setError('Erro ao excluir: ' + data.error)
+        setError('Failed to delete: ' + data.error)
       }
     }
     setConfirmItem(null)
@@ -515,14 +516,21 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                       title="View Public Menu"
                       className="p-2 text-zinc-600 hover:text-zinc-900 hover:bg-white rounded-lg transition-all"
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <MenuIcon className="w-4 h-4" />
                     </a>
-                    <a
+                    <a 
                       href={`/api/admin/enter-preview?tenant=${client.id}`}
                       title="Admin Dashboard"
                       className="p-2 text-zinc-600 hover:text-zinc-900 hover:bg-white rounded-lg transition-all"
                     >
                       <LayoutDashboard className="w-4 h-4" />
+                    </a>
+                    <a 
+                      href={`/customize/${client.id}`}
+                      title="Customize Appearance"
+                      className="p-2 text-zinc-600 hover:text-zinc-900 hover:bg-white rounded-lg transition-all"
+                    >
+                      <Settings className="w-4 h-4" />
                     </a>
                   </div>
 
