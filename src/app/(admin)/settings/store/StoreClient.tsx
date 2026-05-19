@@ -5,9 +5,10 @@ import { createClient } from '@/lib/supabase/client'
 import type { TenantSettings } from '@/types/database'
 import type { Tenant } from '@/types/database'
 import type { StripeConnection } from '@/lib/stripe'
-import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle, UtensilsCrossed, Percent } from 'lucide-react'
+import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCircle2, AlertCircle, Save, Info, MapPin, Link2, XCircle, UtensilsCrossed, Percent, LayoutGrid } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import DeliveryZonesSection from './DeliveryZonesSection'
+import TablesSection from './TablesSection'
 
 interface Props {
   settings: TenantSettings | null
@@ -69,6 +70,7 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
     tip_percentage_1: settings?.tip_percentage_1 ?? 15,
     tip_percentage_2: settings?.tip_percentage_2 ?? 18,
     tip_percentage_3: settings?.tip_percentage_3 ?? 20,
+    table_management_enabled: settings?.table_management_enabled ?? false,
   })
   const [businessHours, setBusinessHours] = useState<Record<string, string>>(
     Object.fromEntries(DAYS.map(d => [d.key, hours[d.key] ?? '']))
@@ -489,6 +491,42 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
             {form.delivery_enabled && (
               <div className="mt-6 px-5 pb-2">
                 <DeliveryZonesSection />
+              </div>
+            )}
+          </div>
+
+          {/* Table Management */}
+          <div className="bg-white border border-zinc-100 rounded-[1.25rem] p-10 space-y-4 shadow-sm">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <LayoutGrid className="w-4 h-4 text-primary" />
+              </div>
+              <h2 className="text-xl font-black text-zinc-950 tracking-tight">Table Management</h2>
+            </div>
+            <div
+              className="flex items-center justify-between group p-5 rounded-[1rem] bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
+              onClick={() => setForm(f => ({ ...f, table_management_enabled: !f.table_management_enabled }))}
+            >
+              <div className="max-w-[70%]">
+                <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">Table Management</p>
+                <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Enable table catalog and waiter order entry interface.</p>
+              </div>
+              <button
+                type="button"
+                className={cn(
+                  "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
+                  form.table_management_enabled ? "bg-primary" : "bg-zinc-200"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
+                  form.table_management_enabled ? "translate-x-5" : "translate-x-1"
+                )} />
+              </button>
+            </div>
+            {form.table_management_enabled && (
+              <div className="mt-4">
+                <TablesSection tenantId={tenantId} />
               </div>
             )}
           </div>

@@ -1,6 +1,6 @@
 ---
 id: SEED-021
-status: dormant
+status: complete
 planted: 2026-05-19
 planted_during: v2.2-milestone-execution
 trigger_when: improving product presentation, working on the public menu UX, or adding rich media to the menu

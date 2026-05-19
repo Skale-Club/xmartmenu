@@ -28,6 +28,7 @@ interface CreateOrderRequest {
   location_id?: string | null
   tip_cents?: number
   menu_id?: string | null
+  table_name?: string | null
 }
 
 function sanitizeNote(raw: string | undefined | null): string | null {
@@ -73,7 +74,7 @@ function computeItemUnitPrice(
 export async function POST(request: Request) {
   try {
     const body: CreateOrderRequest = await request.json()
-    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId } = body
+    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId, table_name: rawTableName } = body
 
     if (!tenant_id?.trim()) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 })
@@ -208,6 +209,7 @@ export async function POST(request: Request) {
         delivery_zone_id: resolvedZoneId,
         location_id: locationId,
         tip_cents: tipCents,
+        table_name: rawTableName?.trim() || null,
       })
       .select()
       .single()

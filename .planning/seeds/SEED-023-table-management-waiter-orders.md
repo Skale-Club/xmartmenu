@@ -1,6 +1,6 @@
 ---
 id: SEED-023
-status: dormant
+status: complete
 planted: 2026-05-19
 planted_during: v2.2-milestone-execution
 trigger_when: restaurant uses table service and wants waiters to take orders tied to specific tables

@@ -8,7 +8,7 @@ import BranchPicker from '@/components/menu/BranchPicker'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import JsonLdScript from '@/components/seo/JsonLdScript'
 import type { Metadata } from 'next'
-import type { ProductIngredientWithIngredient } from '@/types/database'
+import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd } from '@/lib/seo'
 
@@ -155,6 +155,20 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     }
   }
 
+  // SEED-021: fetch product media for all products on this menu
+  const productMediaByProductId: Record<string, ProductMedia[]> = {}
+  if (productIds.length > 0) {
+    const { data: rawMedia } = await supabase
+      .from('product_media')
+      .select('*')
+      .in('product_id', productIds)
+      .order('display_order')
+    for (const m of rawMedia ?? []) {
+      if (!productMediaByProductId[m.product_id]) productMediaByProductId[m.product_id] = []
+      productMediaByProductId[m.product_id].push(m as ProductMedia)
+    }
+  }
+
   // Fetch active delivery zones for zone-based checkout pricing
   const deliveryEnabled = (tenant.tenant_settings as any)?.delivery_enabled ?? false
   const { data: deliveryZones } = deliveryEnabled
@@ -191,6 +205,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
         ingredientCustomizationEnabled={ingredientCustomizationEnabled}
         productIngredientsByProductId={productIngredientsByProductId}
         deliveryZones={(deliveryZones ?? []) as any}
+        productMediaByProductId={productMediaByProductId}
       />
     </>
   )

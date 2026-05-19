@@ -1,6 +1,6 @@
 ---
 id: SEED-022
-status: dormant
+status: complete
 planted: 2026-05-19
 planted_during: v2.2-milestone-execution
 trigger_when: improving checkout conversion, working on payments-plan features, or reducing payment friction

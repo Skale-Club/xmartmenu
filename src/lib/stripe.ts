@@ -155,10 +155,13 @@ export async function createPaymentIntent(params: {
   const applicationFeeAmount = Math.floor(Math.max(0, feeableAmount) * feePct)
 
   // 3. Create PaymentIntent on tenant's connected account
+  // automatic_payment_methods enables Apple Pay, Google Pay, and other wallets
+  // automatically based on device/browser — no manual listing required.
   const paymentIntent = await stripe.paymentIntents.create({
     amount: params.amount,
     currency: params.currency || 'brl',
     application_fee_amount: applicationFeeAmount,
+    automatic_payment_methods: { enabled: true },
     transfer_data: {
       destination: connection.stripe_account_id,
     },
