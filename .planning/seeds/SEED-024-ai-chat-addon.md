@@ -1,6 +1,6 @@
 ---
 id: SEED-024
-status: dormant
+status: complete
 planted: 2026-05-19
 planted_during: v2.2-milestone-planning
 trigger_when: ready to monetize AI capabilities as a restaurant-facing addon

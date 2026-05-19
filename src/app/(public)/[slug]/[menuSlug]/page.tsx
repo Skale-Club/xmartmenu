@@ -165,6 +165,13 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
     }
   }
 
+  // SEED-024: chat addon status for the widget
+  const { getChatAddonStatus } = await import('@/lib/chat-addon')
+  const chatStatus = await getChatAddonStatus(tenant.id)
+  const { data: chatSettings } = chatStatus.enabled
+    ? await supabase.from('chat_addon_settings').select('audio_enabled').eq('tenant_id', tenant.id).maybeSingle()
+    : { data: null }
+
   // SEED-021: fetch product media for all products on this menu
   const productMediaByProductId: Record<string, ProductMedia[]> = {}
   if (productIds.length > 0) {
@@ -226,6 +233,8 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       productIngredientsByProductId={productIngredientsByProductId}
       deliveryZones={(deliveryZones ?? []) as any}
       productMediaByProductId={productMediaByProductId}
+      chatAddonEnabled={chatStatus.enabled}
+      chatAddonAudioEnabled={!!chatSettings?.audio_enabled}
     />
   )
 

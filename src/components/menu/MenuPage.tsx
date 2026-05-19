@@ -25,6 +25,7 @@ import {
 
 const ProductModal = dynamic(() => import('./ProductModal'), { ssr: false })
 const CartModal = dynamic(() => import('./CartModal'), { ssr: false })
+const AiChatWidget = dynamic(() => import('./AiChatWidget'), { ssr: false })
 
 interface Props {
   tenant: TenantWithSettings
@@ -46,6 +47,8 @@ interface Props {
   productIngredientsByProductId?: Record<string, ProductIngredientWithIngredient[]>
   deliveryZones?: DeliveryZone[]
   productMediaByProductId?: Record<string, ProductMedia[]>
+  chatAddonEnabled?: boolean
+  chatAddonAudioEnabled?: boolean
 }
 
 const DAYS: Record<string, string> = {
@@ -64,11 +67,10 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {} }: Props) {
+export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
   const defaultOrderType = (tenant.tenant_settings?.dine_in_enabled ?? true) ? 'dine_in'
     : (tenant.tenant_settings?.pickup_enabled ?? false) ? 'pickup'
     : 'delivery'
-
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
@@ -778,6 +780,17 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                 setSelectedProduct(null)
               }
             : undefined}
+        />
+      )}
+
+      {chatAddonEnabled && (
+        <AiChatWidget
+          tenantSlug={tenant.slug}
+          tenantName={tenant.name}
+          primaryColor={(settings as any)?.primary_color ?? '#EEFF00'}
+          audioEnabled={chatAddonAudioEnabled}
+          products={products}
+          onAddToCart={addToCart}
         />
       )}
 

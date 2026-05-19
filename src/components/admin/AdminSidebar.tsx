@@ -24,7 +24,9 @@ import {
   ExternalLink,
   LogOut,
   Salad,
-  Building2
+  Building2,
+  Bot,
+  Inbox
 } from 'lucide-react'
 
 const mainItems = [
@@ -33,6 +35,7 @@ const mainItems = [
   { href: '/menu/categories', label: 'Categories', icon: FolderOpen },
   { href: '/menu/products', label: 'Products', icon: UtensilsCrossed },
   { href: '/orders', label: 'Orders', icon: Package },
+  { href: '/chat-inbox', label: 'Chat Inbox', icon: Inbox },
 ]
 
 const adminPanelItems = [
@@ -40,6 +43,7 @@ const adminPanelItems = [
   { href: '/settings/locations', label: 'Locations', icon: Building2 },
   { href: '/settings/subscription', label: 'Subscription', icon: CreditCard },
   { href: '/settings/branding', label: 'Branding', icon: Palette },
+  { href: '/settings/chat', label: 'AI Chat', icon: Bot },
   { href: '/settings/qrcode', label: 'QR Code', icon: QrCode },
   { href: '/settings/password', label: 'Change Password', icon: Key },
   { href: '/settings/staff', label: 'Staff', icon: Users },
