@@ -7,6 +7,7 @@ import MenuPage from '@/components/menu/MenuPage'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import type { Metadata } from 'next'
 import type { ProductIngredientWithIngredient } from '@/types/database'
+import { computePrimaryForeground } from '@/lib/color-utils'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -113,8 +114,13 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   // here would fire at most once per cache window. Scan recording is done
   // from the client via <ScanRecorder /> below so each visit is captured.
 
+  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
+  const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
+  const primaryForeground = computePrimaryForeground(primaryColor)
+
   return (
     <>
+      <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
       <ScanRecorder tenantId={tenant.id} />
       <MenuPage
         tenant={tenant}

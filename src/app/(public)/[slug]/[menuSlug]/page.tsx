@@ -8,6 +8,7 @@ import ScanRecorder from '@/components/menu/ScanRecorder'
 import type { Metadata } from 'next'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import type { ProductIngredientWithIngredient } from '@/types/database'
+import { computePrimaryForeground } from '@/lib/color-utils'
 
 interface Props {
   params: Promise<{ slug: string; menuSlug: string }>
@@ -99,8 +100,14 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
 
   // P0-08 round 2: scan recording moved client-side via <ScanRecorder /> —
   // this page is ISR-cached so a server insert here only fires per cache miss.
+
+  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
+  const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
+  const primaryForeground = computePrimaryForeground(primaryColor)
+
   return (
     <>
+      <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
       <ScanRecorder tenantId={tenant.id} />
       <MenuPage
         tenant={tenant}
