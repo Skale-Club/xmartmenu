@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed 44-02-PLAN.md
-last_updated: "2026-05-20T03:57:41.811Z"
-last_activity: 2026-05-20
+status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
+stopped_at: Completed 44-zero-hardcoded-values-44-01-PLAN.md
+last_updated: "2026-05-20T03:57:20.423Z"
+last_activity: 2026-05-19
 progress:
-  total_phases: 10
+  total_phases: 9
   completed_phases: 4
-  total_plans: 13
-  completed_plans: 10
+  total_plans: 10
+  completed_plans: 9
 ---
 
 # Project State
@@ -20,14 +20,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 44 — Zero Hardcoded Values
+**Current focus:** v2.2 milestone COMPLETE
 
 ## Current Position
 
-Phase: 44 (Zero Hardcoded Values) — EXECUTING
-Plan: 2 of 3
-Status: Ready to execute
-Last activity: 2026-05-20
+Phase: 43 — COMPLETE (all v2.2 phases done)
+Status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
+Last activity: 2026-05-19
 
 ## Milestone Overview
 
@@ -111,13 +110,9 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | Phase 39-order-types-customer-operational P01 | 5min | 4 tasks | 4 files |
 | Phase 39-order-types-customer-operational P02 | 5min | 2 tasks | 2 files |
 | Phase 39-order-types-customer-operational P03 | 5min | 1 tasks | 1 files |
-| Phase 44 P02 | 3min | 2 tasks | 2 files |
+| Phase 44 P01 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
-
-### Roadmap Evolution
-
-- Phase 44 added: Zero Hardcoded Values — tornar tudo configurável via painel do superadmin e painel do tenant
 
 ### Decisions
 
@@ -273,8 +268,8 @@ Recent decisions affecting current work:
 - [Phase 37-color-theming]: CUISINE_PALETTES lookup uses raw business_type (lowercased), not safeMenuPurpose — avoids pizza→restaurant mapping losing pizza-specific palette
 - [Phase 37-color-theming]: CartModal accent fallback changed from #6366f1 (indigo placeholder) to #09090b (platform dark) — consistent with globals.css :root --accent default
 - [Phase 38-order-types-admin-schema]: Migration 034: 5 boolean/int columns on tenant_settings with IF NOT EXISTS guards; defaults dine_in=true, pickup/delivery=false, eta=20, fee=0 preserve existing behaviour
-- [Phase 44]: FAQ section intentionally stays hardcoded — no faq array in platform_settings.landing JSONB; comment documents scope boundary
-- [Phase 44]: app_name fetched in same landing query (no extra round trip), passed as separate appName prop to ClientLandingPage and used in JSON-LD blocks
+- [Phase 44]: Migration 045 uses IF NOT EXISTS on all 3 ALTER COLUMN statements — consistent with project migration idempotency pattern
+- [Phase 44]: footerBrand fetched independently in each public page via platform_settings.menu_footer_brand with 'XmartMenu' fallback
 
 ### Pending Todos
 
@@ -286,8 +281,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-20T03:57:41.807Z
-Stopped at: Completed 44-02-PLAN.md
+Last session: 2026-05-20T03:57:20.419Z
+Stopped at: Completed 44-zero-hardcoded-values-44-01-PLAN.md
 
 ---
 
