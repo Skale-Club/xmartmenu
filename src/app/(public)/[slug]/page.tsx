@@ -74,6 +74,10 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
 
   const supabase = createServiceClient()
 
+  // Phase 44: fetch platform footer brand
+  const { data: platformRow } = await supabase.from('platform_settings').select('menu_footer_brand').single()
+  const footerBrand = platformRow?.menu_footer_brand ?? 'XmartMenu'
+
   // LOC-03: check active locations — if ≥2 show branch picker
   const { data: activeLocations } = await supabase
     .from('locations')
@@ -209,6 +213,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
         products={products}
         menu={resolvedMenu ?? null}
         initialLanguage={lang}
+        footerBrand={footerBrand}
         ingredientCustomizationEnabled={ingredientCustomizationEnabled}
         productIngredientsByProductId={productIngredientsByProductId}
         deliveryZones={(deliveryZones ?? []) as any}

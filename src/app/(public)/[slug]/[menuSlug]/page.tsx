@@ -80,6 +80,10 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const tenant = await getTenantBySlug(slug)
   if (!tenant) notFound()
 
+  // Phase 44: fetch platform footer brand
+  const { data: platformRow } = await supabase.from('platform_settings').select('menu_footer_brand').single()
+  const footerBrand = platformRow?.menu_footer_brand ?? 'XmartMenu'
+
   // LOC-03: check if the second segment is a location slug first
   const [{ data: locationCandidate }, { data: menuCandidate }] = await Promise.all([
     supabase.from('locations').select('*').eq('tenant_id', tenant.id).eq('slug', menuSlug).eq('is_active', true).maybeSingle(),
@@ -228,6 +232,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       menu={menu}
       location={location ? { id: location.id, name: location.name } : null}
       initialLanguage={lang}
+      footerBrand={footerBrand}
       optionGroupsByProductId={optionGroupsByProductId}
       ingredientCustomizationEnabled={ingredientCustomizationEnabled}
       productIngredientsByProductId={productIngredientsByProductId}
