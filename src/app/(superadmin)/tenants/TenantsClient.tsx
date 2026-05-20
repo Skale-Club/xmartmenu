@@ -93,6 +93,9 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
   // Staff delete confirm
   const [confirmStaff, setConfirmStaff] = useState<{ tenantId: string; staffId: string; name: string } | null>(null)
 
+  // Menu filter per tenant
+  const [menuFilter, setMenuFilter] = useState<Record<string, 'all' | 'active' | 'inactive'>>({})
+
   const router = useRouter()
 
   function handleNameChange(name: string) {
@@ -623,20 +626,20 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                       <div>
                         {/* Tabs */}
                         <div className="flex gap-1 border-b border-zinc-100 bg-zinc-50/50 px-5 pt-2">
-                          {(['staff', 'menus'] as const).map(t => (
+                          {(['menus', 'staff'] as const).map(t => (
                             <button
                               key={t}
                               onClick={() => setExpandedTab(prev => ({ ...prev, [client.id!]: t }))}
                               className={`px-4 py-3 text-xs font-bold capitalize transition-all border-b-2 -mb-px flex items-center gap-2 ${
-                                tab === t 
-                                  ? 'border-indigo-600 text-indigo-600' 
+                                tab === t
+                                  ? 'border-indigo-600 text-indigo-600'
                                   : 'border-transparent text-zinc-400 hover:text-zinc-600'
                               }`}
                             >
                               {t === 'staff' ? <Users className="w-3.5 h-3.5" /> : <MenuIcon className="w-3.5 h-3.5" />}
                               {t === 'staff'
                                 ? `Staff Members (${td?.staff.length ?? 0})`
-                                : `Active Menus (${td?.menus.length ?? 0})`}
+                                : `Menus (${td?.menus.length ?? 0})`}
                             </button>
                           ))}
                         </div>
@@ -779,32 +782,72 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
                                 <p className="text-xs font-medium text-zinc-400">No menus created yet</p>
                               </div>
                             ) : (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {td.menus.map(menu => (
-                                  <div key={menu.id} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                      <div className={`w-2 h-2 rounded-full ${menu.is_active ? 'bg-green-500 shadow-sm shadow-green-200' : 'bg-zinc-300'}`} />
-                                      <div>
-                                        <p className="font-bold text-zinc-900">{menu.name}</p>
-                                        <p className="text-[10px] text-zinc-400 font-mono tracking-tight">/{menu.slug}</p>
+                              <>
+                                {/* Filter */}
+                                <div className="flex gap-1 mb-4">
+                                  {(['all', 'active', 'inactive'] as const).map(f => (
+                                    <button
+                                      key={f}
+                                      onClick={() => setMenuFilter(prev => ({ ...prev, [client.id!]: f }))}
+                                      className={`px-3 py-1.5 rounded-lg text-[11px] font-bold capitalize transition-all ${
+                                        (menuFilter[client.id!] ?? 'all') === f
+                                          ? 'bg-zinc-900 text-white'
+                                          : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'
+                                      }`}
+                                    >
+                                      {f === 'all'
+                                        ? `All (${td.menus.length})`
+                                        : f === 'active'
+                                        ? `Active (${td.menus.filter(m => m.is_active).length})`
+                                        : `Inactive (${td.menus.filter(m => !m.is_active).length})`}
+                                    </button>
+                                  ))}
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {td.menus
+                                    .filter(m => {
+                                      const f = menuFilter[client.id!] ?? 'all'
+                                      if (f === 'active') return m.is_active
+                                      if (f === 'inactive') return !m.is_active
+                                      return true
+                                    })
+                                    .map(menu => (
+                                      <div key={menu.id} className="p-4 bg-zinc-50 rounded-2xl border border-zinc-100 flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                          <div className={`w-2 h-2 rounded-full ${menu.is_active ? 'bg-green-500 shadow-sm shadow-green-200' : 'bg-zinc-300'}`} />
+                                          <div>
+                                            <p className="font-bold text-zinc-900">{menu.name}</p>
+                                            <p className="text-[10px] text-zinc-400 font-mono tracking-tight">/{menu.slug}</p>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-3 text-right">
+                                          <div>
+                                            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Language</p>
+                                            <p className="font-bold text-zinc-700 uppercase">{menu.language ?? 'EN'}</p>
+                                          </div>
+                                          <div className="w-px h-6 bg-zinc-200" />
+                                          <div>
+                                            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Status</p>
+                                            <p className={`font-bold ${menu.is_active ? 'text-green-600' : 'text-zinc-500'}`}>
+                                              {menu.is_active ? 'Active' : 'Draft'}
+                                            </p>
+                                          </div>
+                                          <div className="w-px h-6 bg-zinc-200" />
+                                          <a
+                                            href={`/${client.slug}/${menu.slug}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            title="Open menu"
+                                            className="p-2 text-zinc-400 hover:text-zinc-900 hover:bg-white rounded-lg border border-transparent hover:border-zinc-200 transition-all"
+                                          >
+                                            <ExternalLink className="w-3.5 h-3.5" />
+                                          </a>
+                                        </div>
                                       </div>
-                                    </div>
-                                    <div className="flex items-center gap-4 text-right">
-                                      <div>
-                                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Language</p>
-                                        <p className="font-bold text-zinc-700 uppercase">{menu.language ?? 'EN'}</p>
-                                      </div>
-                                      <div className="w-px h-6 bg-zinc-200" />
-                                      <div>
-                                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Status</p>
-                                        <p className={`font-bold ${menu.is_active ? 'text-green-600' : 'text-zinc-500'}`}>
-                                          {menu.is_active ? 'Active' : 'Draft'}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
+                                    ))}
+                                </div>
+                              </>
                             )}
                           </div>
                         )}

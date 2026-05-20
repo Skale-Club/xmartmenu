@@ -104,12 +104,12 @@ export default function DashboardOverview({
           </div>
           <div className="space-y-4">
             {recent.map((t, idx) => (
-              <motion.div 
-                key={t.id} 
+              <Link key={t.id} href={`/tenants/${t.id}`}>
+              <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: idx * 0.05 }}
-                className="flex items-center justify-between p-4 rounded-xl hover:bg-zinc-50 transition-all border border-transparent hover:border-zinc-100"
+                className="flex items-center justify-between p-4 rounded-xl hover:bg-zinc-50 transition-all border border-transparent hover:border-zinc-100 cursor-pointer"
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center font-bold text-zinc-400">
@@ -133,6 +133,7 @@ export default function DashboardOverview({
                   <div className={`w-2 h-2 rounded-full ${t.is_active ? 'bg-green-500 shadow-sm shadow-green-100' : 'bg-zinc-300'}`} />
                 </div>
               </motion.div>
+              </Link>
             ))}
           </div>
         </div>
