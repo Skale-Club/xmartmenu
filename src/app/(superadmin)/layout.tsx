@@ -28,7 +28,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
 
   const [{ data: profile }, { data: ps }] = await Promise.all([
     supabase.from('profiles').select('role').eq('id', user.id).single(),
-    (await createServiceClient()).from('platform_settings').select('cta_color').single(),
+    (await createServiceClient()).from('platform_settings').select('cta_color, app_name').single(),
   ])
 
   if (profile?.role !== 'superadmin') redirect('/dashboard')
@@ -44,7 +44,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
         <div className="p-6 border-b border-zinc-800/50">
           <div className="flex items-center gap-2 mb-1">
             <img src="/icon.png" alt="XmartMenu Logo" className="w-6 h-6 object-cover rounded-md" />
-            <a href="/" className="text-xs font-bold text-white uppercase tracking-[0.2em] hover:text-primary transition-colors">XmartMenu</a>
+            <a href="/" className="text-xs font-bold text-white uppercase tracking-[0.2em] hover:text-primary transition-colors">{ps?.app_name ?? 'XmartMenu'}</a>
           </div>
           <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Super Admin Console</p>
         </div>
