@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
-stopped_at: Completed 44-zero-hardcoded-values-44-01-PLAN.md
-last_updated: "2026-05-20T03:57:20.423Z"
+stopped_at: Completed 44-zero-hardcoded-values-44-03-PLAN.md
+last_updated: "2026-05-20T04:04:45.258Z"
 last_activity: 2026-05-19
 progress:
-  total_phases: 9
-  completed_phases: 4
-  total_plans: 10
-  completed_plans: 9
+  total_phases: 10
+  completed_phases: 5
+  total_plans: 13
+  completed_plans: 12
 ---
 
 # Project State
@@ -111,6 +111,7 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | Phase 39-order-types-customer-operational P02 | 5min | 2 tasks | 2 files |
 | Phase 39-order-types-customer-operational P03 | 5min | 1 tasks | 1 files |
 | Phase 44 P01 | 2min | 2 tasks | 4 files |
+| Phase 44 P03 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -270,6 +271,8 @@ Recent decisions affecting current work:
 - [Phase 38-order-types-admin-schema]: Migration 034: 5 boolean/int columns on tenant_settings with IF NOT EXISTS guards; defaults dine_in=true, pickup/delivery=false, eta=20, fee=0 preserve existing behaviour
 - [Phase 44]: Migration 045 uses IF NOT EXISTS on all 3 ALTER COLUMN statements — consistent with project migration idempotency pattern
 - [Phase 44]: footerBrand fetched independently in each public page via platform_settings.menu_footer_brand with 'XmartMenu' fallback
+- [Phase 44-03]: getPlatformSettings() module-level helper shared by generateMetadata() and MarketingLayout() avoids two separate DB round-trips (Pitfall 5)
+- [Phase 44-03]: revalidate = 60 required in marketing layout for generateMetadata() ISR compatibility
 
 ### Pending Todos
 
@@ -281,8 +284,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-20T03:57:20.419Z
-Stopped at: Completed 44-zero-hardcoded-values-44-01-PLAN.md
+Last session: 2026-05-20T04:04:45.254Z
+Stopped at: Completed 44-zero-hardcoded-values-44-03-PLAN.md
 
 ---
 
