@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import '../globals.css'
+import { createServiceClient } from '@/lib/supabase/server'
+import { computePrimaryForeground } from '@/lib/color-utils'
 
 export const metadata: Metadata = {
   title: 'XmartMenu | Digital menus built for service',
@@ -32,14 +34,20 @@ export const metadata: Metadata = {
   },
 }
 
-export default function MarketingLayout({
+export default async function MarketingLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const service = await createServiceClient()
+  const { data: ps } = await service.from('platform_settings').select('cta_color').single()
+  const primary = ps?.cta_color ?? '#EEFF00'
+  const primaryFg = computePrimaryForeground(primary)
+
   return (
     <html lang="en">
       <body className="min-h-full bg-white">
+        <style>{`:root{--primary:${primary};--primary-foreground:${primaryFg};}`}</style>
         {children}
       </body>
     </html>

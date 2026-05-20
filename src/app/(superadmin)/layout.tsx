@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { computePrimaryForeground } from '@/lib/color-utils'
 import { 
   LayoutDashboard, 
   Building2, 
@@ -25,15 +26,19 @@ export default async function SuperadminLayout({ children }: { children: React.R
 
   if (!user) redirect('/auth/login')
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  const [{ data: profile }, { data: ps }] = await Promise.all([
+    supabase.from('profiles').select('role').eq('id', user.id).single(),
+    (await createServiceClient()).from('platform_settings').select('cta_color').single(),
+  ])
 
   if (profile?.role !== 'superadmin') redirect('/dashboard')
 
+  const primary = ps?.cta_color ?? '#EEFF00'
+  const primaryFg = computePrimaryForeground(primary)
+
   return (
+    <>
+    <style>{`:root{--primary:${primary};--primary-foreground:${primaryFg};}`}</style>
     <div className="flex h-screen bg-zinc-50">
       <aside className="w-64 flex-shrink-0 bg-zinc-950 text-zinc-400 flex flex-col border-r border-zinc-800">
         <div className="p-6 border-b border-zinc-800/50">
@@ -81,5 +86,6 @@ export default async function SuperadminLayout({ children }: { children: React.R
       </aside>
       <main className="flex-1 overflow-y-auto">{children}</main>
     </div>
+    </>
   )
 }
