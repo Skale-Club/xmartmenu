@@ -151,6 +151,7 @@ Key accomplishments:
 - [x] **Phase 41: Multi-Location — Routing, QR Codes & Menu Toggle** — Slug-based branch routing + root branch picker + per-branch QR codes + shared/independent menu toggle + KDS/orders branch filter
 - [x] **Phase 42: SEO — Platform & Per-Tenant** — Dynamic metadata, OG image per tenant, LocalBusiness + MenuItem JSON-LD, canonical URLs, per-domain robots.txt, tenant sitemap
 - [x] **Phase 43: SEO — Per-Branch Local SEO** — Per-branch LocalBusiness JSON-LD with branchOf link (depends on Phase 41 branch routing)
+- [ ] **Phase 44: Zero Hardcoded Values** — Migration 045 (cta_color/seo_title/seo_description) + landing page CMS wiring + marketing generateMetadata + superadmin app_name + public menu footerBrand
 
 ---
 
@@ -366,6 +367,23 @@ Plans:
 
 ---
 
+### Phase 44: Zero Hardcoded Values — tornar tudo configurável via painel do superadmin e painel do tenant
+
+**Goal:** Every user-facing string and configurable value is driven by platform_settings (superadmin-controlled) or tenant_settings (tenant-controlled) — no hardcoded brand names, SEO tags, or landing content in source code
+
+**Requirements:** CFG-01, CFG-02, CFG-03, CFG-04, CFG-05, CFG-06
+
+**Depends on:** Phase 43
+
+**Plans:** 3 plans
+
+Plans:
+- [ ] 44-01-PLAN.md — Migration 045 (cta_color + seo_title + seo_description columns) + PATCH API allowed list + footerBrand wiring in both public pages
+- [ ] 44-02-PLAN.md — Landing page CMS data wiring: HowItWorks, FeatureBlocks, FooterCTABand, Footer, Nav all read from platformLanding prop
+- [ ] 44-03-PLAN.md — Marketing generateMetadata() from DB (seo_title, seo_description, app_name) + superadmin sidebar app_name
+
+---
+
 ## Progress Table
 
 | Phase | Plans Complete | Status | Completed |
@@ -379,3 +397,4 @@ Plans:
 | 41. Multi-Location — Routing, QR Codes & Menu Toggle | 0/? | Not started | - |
 | 42. SEO — Platform & Per-Tenant | 0/? | Not started | - |
 | 43. SEO — Per-Branch Local SEO | 0/? | Not started | - |
+| 44. Zero Hardcoded Values | 0/3 | Not started | - |
