@@ -17,6 +17,28 @@ interface HeroSettings {
   bg_video_url?: string
 }
 
+interface HowItWorksData {
+  title?: string
+  subtitle?: string
+  steps?: Array<{ step?: string; icon?: string; title: string; desc: string }>
+}
+
+interface FeaturesData {
+  title?: string
+  subtitle?: string
+  items?: Array<{ icon?: string; title: string; desc: string }>
+}
+
+interface CtaData {
+  heading?: string
+  text?: string
+  button?: string
+}
+
+interface FooterData {
+  copyright?: string
+}
+
 // ─── Section data ───────
 
 const steps = [
@@ -92,9 +114,9 @@ const faqs = [
 
 // ─── Components ──────────────────────────────────────────────────────────────
 
-function Nav() {
+function Nav({ appName }: { appName?: string | null }) {
   return (
-    <motion.nav 
+    <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -104,7 +126,7 @@ function Nav() {
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
             <img src="/icon.png" alt="XmartMenu Logo" className="w-8 h-8 object-cover" />
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">XmartMenu</span>
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">{appName ?? 'XmartMenu'}</span>
           </a>
         </div>
         <a
@@ -227,26 +249,37 @@ function Hero({ s }: { s: HeroSettings }) {
   )
 }
 
-function HowItWorks() {
+function HowItWorks({ data }: { data?: HowItWorksData | null }) {
+  const resolvedSteps = data?.steps?.length
+    ? data.steps.map((s, i) => ({
+        num: i + 1,
+        icon: [UserPlus, UtensilsCrossed, QrCode][i] ?? QrCode,
+        title: s.title,
+        body: s.desc,
+      }))
+    : steps
+  const sectionTitle = data?.title ?? 'How It Works'
+  const sectionSubtitle = data?.subtitle ?? "Three simple steps to transform your restaurant's digital presence."
+
   return (
     <section id="how-it-works" className="py-24 px-4 relative">
       <div className="max-w-[1320px] mx-auto px-8">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">How It Works</h2>
-          <p className="text-xl text-zinc-400">Three simple steps to transform your restaurant's digital presence.</p>
+          <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">{sectionTitle}</h2>
+          <p className="text-xl text-zinc-400">{sectionSubtitle}</p>
         </motion.div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
           {/* Connecting Line (Desktop) */}
           <div className="hidden md:block absolute top-12 left-[15%] right-[15%] h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-          
-          {steps.map(({ num, icon: Icon, title, body }, i) => (
-            <motion.div 
+
+          {resolvedSteps.map(({ num, icon: Icon, title, body }, i) => (
+            <motion.div
               key={num}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -267,25 +300,35 @@ function HowItWorks() {
   )
 }
 
-function FeatureBlocks() {
+function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
+  const resolvedFeatures = data?.items?.length
+    ? data.items.map((f, i) => ({
+        icon: [Globe, QrCode, Sparkles, ShoppingCart, Globe, QrCode][i] ?? Globe,
+        title: f.title,
+        body: f.desc,
+      }))
+    : features
+  const sectionTitle = data?.title ?? 'Everything your restaurant needs'
+  const sectionSubtitle = data?.subtitle ?? 'Powerful features wrapped in a beautifully simple interface.'
+
   return (
     <section className="py-24 px-4 relative">
       <div className="absolute inset-0 bg-zinc-950" />
       <div className="max-w-[1320px] mx-auto px-8 relative z-10">
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="text-center mb-16"
         >
           <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">
-            Everything your restaurant needs
+            {sectionTitle}
           </h2>
-          <p className="text-xl text-zinc-400">Powerful features wrapped in a beautifully simple interface.</p>
+          <p className="text-xl text-zinc-400">{sectionSubtitle}</p>
         </motion.div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {features.map(({ icon: Icon, title, body }, i) => (
+          {resolvedFeatures.map(({ icon: Icon, title, body }, i) => (
             <motion.div
               key={title}
               initial={{ opacity: 0, scale: 0.95 }}
@@ -297,7 +340,7 @@ function FeatureBlocks() {
             >
               {/* Hover gradient effect */}
               <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-              
+
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-6">
                   <Icon className="w-6 h-6 text-primary" />
@@ -313,6 +356,8 @@ function FeatureBlocks() {
   )
 }
 
+// FAQ section is intentionally hardcoded — no DB equivalent in platform_settings.landing.
+// To add CMS support, add a `faq` array to the landing JSONB schema (separate scope).
 function FAQ() {
   return (
     <section className="py-24 px-4">
@@ -355,29 +400,33 @@ function FAQ() {
   )
 }
 
-function FooterCTABand() {
+function FooterCTABand({ data }: { data?: CtaData | null }) {
+  const heading = data?.heading ?? 'Ready to get started?'
+  const text = data?.text ?? 'Join the first restaurants using XmartMenu and transform your customer experience today.'
+  const button = data?.button ?? 'Sign in now'
+
   return (
     <section className="py-24 px-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-zinc-950" />
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-      
+
       <div className="max-w-[1320px] mx-auto relative z-10 bg-zinc-950/40 backdrop-blur-xl border border-white/10 p-12 sm:p-20 rounded-[2rem] text-center">
-        <motion.h2 
+        <motion.h2
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           className="text-4xl sm:text-6xl font-bold text-white mb-6"
         >
-          Ready to get started?
+          {heading}
         </motion.h2>
-        <motion.p 
+        <motion.p
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ delay: 0.1 }}
           className="text-xl text-zinc-300 mb-10 max-w-2xl mx-auto"
         >
-          Join the first restaurants using XmartMenu and transform your customer experience today.
+          {text}
         </motion.p>
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -389,7 +438,7 @@ function FooterCTABand() {
             href="/auth/login"
             className="inline-flex items-center justify-center bg-primary text-zinc-950 px-10 py-5 rounded-full text-xl font-bold hover:bg-white transition-all hover:scale-105 active:scale-95"
           >
-            Sign in now
+            {button}
           </a>
         </motion.div>
       </div>
@@ -397,7 +446,10 @@ function FooterCTABand() {
   )
 }
 
-function Footer() {
+function Footer({ data, appName }: { data?: FooterData | null; appName?: string | null }) {
+  const brandName = appName ?? 'XmartMenu'
+  const copyright = data?.copyright ? `© ${data.copyright}` : '© 2026 XmartMenu. All rights reserved.'
+
   return (
     <footer className="border-t border-white/10 bg-zinc-950 px-4 pt-16 pb-8">
       <div className="max-w-[1320px] mx-auto px-8">
@@ -405,8 +457,8 @@ function Footer() {
           {/* Logo + tagline */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-               <img src="/icon.png" alt="XmartMenu Logo" className="w-6 h-6 object-cover" />
-              <span className="text-lg font-bold text-white">XmartMenu</span>
+              <img src="/icon.png" alt="XmartMenu Logo" className="w-6 h-6 object-cover" />
+              <span className="text-lg font-bold text-white">{brandName}</span>
             </div>
             <p className="text-zinc-400 text-base max-w-sm">
               Digital menu for restaurants. Modernize the way your customers order.
@@ -448,7 +500,7 @@ function Footer() {
         </div>
         <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-zinc-500">
-            © 2026 XmartMenu. All rights reserved.
+            {copyright}
           </p>
         </div>
       </div>
@@ -458,20 +510,20 @@ function Footer() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ClientLandingPage({ platformLanding }: { platformLanding?: any }) {
+export default function ClientLandingPage({ platformLanding, appName }: { platformLanding?: any; appName?: string | null }) {
   const heroSettings: HeroSettings = platformLanding?.hero ?? {}
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30">
-      <Nav />
+      <Nav appName={appName} />
       <main>
         <Hero s={heroSettings} />
-        <HowItWorks />
-        <FeatureBlocks />
+        <HowItWorks data={platformLanding?.how_it_works} />
+        <FeatureBlocks data={platformLanding?.features} />
         <FAQ />
-        <FooterCTABand />
+        <FooterCTABand data={platformLanding?.cta} />
       </main>
-      <Footer />
+      <Footer data={platformLanding?.footer} appName={appName} />
     </div>
   )
 }
