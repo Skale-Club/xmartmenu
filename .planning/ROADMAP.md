@@ -397,4 +397,4 @@ Plans:
 | 41. Multi-Location — Routing, QR Codes & Menu Toggle | 0/? | Not started | - |
 | 42. SEO — Platform & Per-Tenant | 0/? | Not started | - |
 | 43. SEO — Per-Branch Local SEO | 0/? | Not started | - |
-| 44. Zero Hardcoded Values | 3/3 | Complete   | 2026-05-20 |
+| 44. Zero Hardcoded Values | 3/3 | Complete    | 2026-05-20 |

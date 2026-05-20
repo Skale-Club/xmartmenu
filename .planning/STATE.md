@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
 stopped_at: Completed 44-zero-hardcoded-values-44-03-PLAN.md
-last_updated: "2026-05-20T04:04:45.258Z"
-last_activity: 2026-05-19
+last_updated: "2026-05-20T04:09:13.252Z"
+last_activity: 2026-05-20
 progress:
   total_phases: 10
   completed_phases: 5
@@ -24,9 +24,9 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 
 ## Current Position
 
-Phase: 43 — COMPLETE (all v2.2 phases done)
+Phase: 44
 Status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
-Last activity: 2026-05-19
+Last activity: 2026-05-20
 
 ## Milestone Overview
 
