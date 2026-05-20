@@ -23,6 +23,10 @@ const eslintConfig = defineConfig([
       'react-hooks/purity': 'warn',
       // setState-in-effect pattern — real anti-pattern but non-blocking; fix incrementally
       'react-hooks/set-state-in-effect': 'warn',
+      // Dynamic component references (e.g. icon pickers): getIcon(name) returns a reference
+      // to an existing Lucide component — not a new component definition. The rule incorrectly
+      // treats this as "creating a component during render". Downgrade to warn.
+      'react-hooks/static-components': 'warn',
       // Unescaped entities — cosmetic, fix incrementally
       'react/no-unescaped-entities': 'warn',
     },
