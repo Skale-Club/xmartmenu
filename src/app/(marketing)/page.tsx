@@ -7,20 +7,23 @@ import ClientLandingPage from './ClientPage'
 async function getPlatformSettings() {
   try {
     const service = createServiceClient()
-    const { data } = await service.from('platform_settings').select('landing').single()
-    return data?.landing ?? null
+    const { data } = await service.from('platform_settings').select('landing, app_name').single()
+    return {
+      landing: data?.landing ?? null,
+      appName: data?.app_name ?? null,
+    }
   } catch {
-    return null
+    return { landing: null, appName: null }
   }
 }
 
 export default async function LandingPage() {
-  const platformLanding = await getPlatformSettings()
+  const { landing: platformLanding, appName } = await getPlatformSettings()
 
   const organization: WithContext<Organization> = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
-    name: 'XmartMenu',
+    name: appName ?? 'XmartMenu',
     url: 'https://xmartmenu.com',
     description: 'Digital menu platform for restaurants via QR code',
     sameAs: [],
@@ -29,7 +32,7 @@ export default async function LandingPage() {
   const software: WithContext<SoftwareApplication> = {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
-    name: 'XmartMenu',
+    name: appName ?? 'XmartMenu',
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
     offers: {
@@ -57,7 +60,7 @@ export default async function LandingPage() {
           __html: JSON.stringify(software).replace(/</g, '\\u003c'),
         }}
       />
-      <ClientLandingPage platformLanding={platformLanding} />
+      <ClientLandingPage platformLanding={platformLanding} appName={appName} />
     </>
   )
 }

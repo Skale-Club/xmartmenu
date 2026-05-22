@@ -5,6 +5,7 @@ import { cookies } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
+import { computePrimaryForeground } from '@/lib/color-utils'
 
 export default async function AdminLayout({
   children,
@@ -56,12 +57,18 @@ export default async function AdminLayout({
       getActiveMenuForTenant(tenant.id),
       supabase
         .from('tenant_settings')
-        .select('ingredient_customization_enabled')
+        .select('ingredient_customization_enabled, primary_color, accent_color')
         .eq('tenant_id', tenant.id)
         .single(),
     ])
 
+    const previewPrimary = (tenantSettings as any)?.primary_color ?? '#EEFF00'
+    const previewAccent = (tenantSettings as any)?.accent_color ?? '#09090b'
+    const previewPrimaryFg = computePrimaryForeground(previewPrimary)
+
     return (
+      <>
+      <style>{`:root{--primary:${previewPrimary};--primary-foreground:${previewPrimaryFg};--accent:${previewAccent};}`}</style>
       <div className="flex h-screen bg-zinc-950">
         <div className="flex flex-col w-64 flex-shrink-0 border-r border-zinc-800">
           <div className="bg-primary text-zinc-950 text-[10px] py-2 font-black uppercase tracking-widest flex items-center justify-center gap-2">
@@ -82,6 +89,7 @@ export default async function AdminLayout({
          </div>
          <main className="flex-1 overflow-y-auto bg-zinc-100">{children}</main>
       </div>
+      </>
     )
   }
 
@@ -95,12 +103,18 @@ export default async function AdminLayout({
     getActiveMenuForTenant(tenantId),
     supabase
       .from('tenant_settings')
-      .select('ingredient_customization_enabled')
+      .select('ingredient_customization_enabled, primary_color, accent_color')
       .eq('tenant_id', tenantId)
       .single(),
   ])
 
+  const adminPrimary = (tenantSettings as any)?.primary_color ?? '#EEFF00'
+  const adminAccent = (tenantSettings as any)?.accent_color ?? '#09090b'
+  const adminPrimaryFg = computePrimaryForeground(adminPrimary)
+
   return (
+    <>
+    <style>{`:root{--primary:${adminPrimary};--primary-foreground:${adminPrimaryFg};--accent:${adminAccent};}`}</style>
     <div className="flex h-screen bg-zinc-950">
       <AdminSidebar
         tenantName={profile.tenants?.name ?? 'My Restaurant'}
@@ -115,5 +129,6 @@ export default async function AdminLayout({
          {children}
        </main>
     </div>
+    </>
   )
 }

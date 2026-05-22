@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: verifying
-stopped_at: Completed 35-custom-domain-35-01-PLAN.md
+status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
+stopped_at: Completed 44-zero-hardcoded-values-44-03-PLAN.md
 last_updated: "2026-05-22T09:49:05.560Z"
 last_activity: 2026-05-22
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 5
-  total_plans: 10
-  completed_plans: 10
+  total_plans: 13
+  completed_plans: 12
 ---
 
 # Project State
@@ -24,10 +24,9 @@ See: .planning/PROJECT.md (updated 2026-05-19)
 
 ## Current Position
 
-Phase: 35 (custom-domain) — EXECUTING
-Plan: 1 of 1
-Status: Phase complete — ready for verification
-Last activity: 2026-05-22
+Phase: 44
+Status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
+Last activity: 2026-05-20
 
 ## Milestone Overview
 
@@ -112,6 +111,8 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | Phase 39-order-types-customer-operational P02 | 5min | 2 tasks | 2 files |
 | Phase 39-order-types-customer-operational P03 | 5min | 1 tasks | 1 files |
 | Phase 35 P01 | 2min | 6 tasks | 2 files |
+| Phase 44 P01 | 2min | 2 tasks | 4 files |
+| Phase 44 P03 | 3 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -270,6 +271,10 @@ Recent decisions affecting current work:
 - [Phase 37-color-theming]: CartModal accent fallback changed from #6366f1 (indigo placeholder) to #09090b (platform dark) — consistent with globals.css :root --accent default
 - [Phase 38-order-types-admin-schema]: Migration 034: 5 boolean/int columns on tenant_settings with IF NOT EXISTS guards; defaults dine_in=true, pickup/delivery=false, eta=20, fee=0 preserve existing behaviour
 - [Phase 35]: Migration numbered 031 (not 029) because 029_english_first_defaults.sql already existed
+- [Phase 44]: Migration 045 uses IF NOT EXISTS on all 3 ALTER COLUMN statements — consistent with project migration idempotency pattern
+- [Phase 44]: footerBrand fetched independently in each public page via platform_settings.menu_footer_brand with 'XmartMenu' fallback
+- [Phase 44-03]: getPlatformSettings() module-level helper shared by generateMetadata() and MarketingLayout() avoids two separate DB round-trips (Pitfall 5)
+- [Phase 44-03]: revalidate = 60 required in marketing layout for generateMetadata() ISR compatibility
 
 ### Pending Todos
 
