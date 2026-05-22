@@ -1,49 +1,43 @@
+import pg from 'pg'
 import { readFileSync } from 'fs'
-import { createRequire } from 'module'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
 
-const require = createRequire(import.meta.url)
-const dotenv = require('dotenv')
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// Load .env.local directly since this script runs outside Next.js
 try {
-  const envLocal = readFileSync('./.env.local', 'utf8')
+  const envLocal = readFileSync(join(__dirname, '../.env.local'), 'utf8')
   envLocal.split('\n').forEach((line) => {
-    const [key, ...valueParts] = line.split('=')
-    if (key && valueParts.length > 0) {
-      const value = valueParts.join('=').trim()
-      if (!process.env[key]) process.env[key] = value
+    const trimmed = line.trim()
+    if (!trimmed || trimmed.startsWith('#')) return
+    const eq = trimmed.indexOf('=')
+    if (eq < 1) return
+    const key = trimmed.slice(0, eq).trim()
+    let value = trimmed.slice(eq + 1).trim()
+    if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+      value = value.slice(1, -1)
     }
+    if (!process.env[key]) process.env[key] = value
   })
-} catch {
-  // .env.local not found, rely on environment
+} catch {}
+
+const sql = readFileSync(join(__dirname, '../supabase/migrations/031_custom_domain.sql'), 'utf8')
+
+if (!process.env.DATABASE_URL) {
+  console.error('DATABASE_URL missing — set it in .env.local')
+  process.exit(1)
 }
 
-import { DATABASE_URL } from './.env.local'
+const client = new pg.Client({ connectionString: process.env.DATABASE_URL })
 
-async function applyMigration() {
-  if (!DATABASE_URL) {
-    console.error('DATABASE_URL not found in .env.local')
-    process.exit(1)
-  }
-
-  const migration = readFileSync('./supabase/migrations/029_custom_domain.sql', 'utf8')
-
-  const response = await fetch(DATABASE_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/sql',
-      // Supabase direct SQL — use service role key in header if needed
-    },
-    body: migration,
-  })
-
-  if (!response.ok) {
-    const text = await response.text()
-    console.error('Migration failed:', text)
-    process.exit(1)
-  }
-
-  console.log('Migration 029 applied successfully')
+try {
+  await client.connect()
+  console.log('Connected. Applying migration 031...')
+  await client.query(sql)
+  console.log('Migration 031 applied successfully (custom_domain + custom_domain_verified).')
+} catch (err) {
+  console.error('Migration failed:', err.message)
+  process.exit(1)
+} finally {
+  await client.end()
 }
-
-applyMigration()
