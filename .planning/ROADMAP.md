@@ -127,7 +127,7 @@ SEED-010: Custom domain routing per tenant
 
 | # | Phase | Plans | Status |
 |---|---|---|---|
-| 35 | Custom Domain Infrastructure | 1/1 | ✅ 2026-05-10 |
+| 35 | 1/1 | Complete   | 2026-05-22 |
 
 Key accomplishments:
 - Migration 029: `custom_domain TEXT + custom_domain_verified BOOLEAN` on `tenants` table

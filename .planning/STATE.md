@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Completed phase-43-per-branch-local-seo
-last_updated: "2026-05-19T18:00:00.000Z"
-last_activity: 2026-05-19
+status: verifying
+stopped_at: Completed 35-custom-domain-35-01-PLAN.md
+last_updated: "2026-05-22T09:49:05.560Z"
+last_activity: 2026-05-22
 progress:
   total_phases: 9
-  completed_phases: 2
-  total_plans: 7
-  completed_plans: 5
+  completed_phases: 5
+  total_plans: 10
+  completed_plans: 10
 ---
 
 # Project State
@@ -20,13 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-19)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v2.2 milestone COMPLETE
+**Current focus:** Phase 35 — custom-domain
 
 ## Current Position
 
-Phase: 43 — COMPLETE (all v2.2 phases done)
-Status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
-Last activity: 2026-05-19
+Phase: 35 (custom-domain) — EXECUTING
+Plan: 1 of 1
+Status: Phase complete — ready for verification
+Last activity: 2026-05-22
 
 ## Milestone Overview
 
@@ -110,6 +111,7 @@ v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEE
 | Phase 39-order-types-customer-operational P01 | 5min | 4 tasks | 4 files |
 | Phase 39-order-types-customer-operational P02 | 5min | 2 tasks | 2 files |
 | Phase 39-order-types-customer-operational P03 | 5min | 1 tasks | 1 files |
+| Phase 35 P01 | 2min | 6 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -267,6 +269,7 @@ Recent decisions affecting current work:
 - [Phase 37-color-theming]: CUISINE_PALETTES lookup uses raw business_type (lowercased), not safeMenuPurpose — avoids pizza→restaurant mapping losing pizza-specific palette
 - [Phase 37-color-theming]: CartModal accent fallback changed from #6366f1 (indigo placeholder) to #09090b (platform dark) — consistent with globals.css :root --accent default
 - [Phase 38-order-types-admin-schema]: Migration 034: 5 boolean/int columns on tenant_settings with IF NOT EXISTS guards; defaults dine_in=true, pickup/delivery=false, eta=20, fee=0 preserve existing behaviour
+- [Phase 35]: Migration numbered 031 (not 029) because 029_english_first_defaults.sql already existed
 
 ### Pending Todos
 
@@ -278,8 +281,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-19T15:20:40.465Z
-Stopped at: Completed 38-order-types-admin-schema-38-01-PLAN.md
+Last session: 2026-05-22T09:49:05.548Z
+Stopped at: Completed 35-custom-domain-35-01-PLAN.md
 
 ---
 
