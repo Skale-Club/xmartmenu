@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import dns from 'dns'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 
 const dnsLookup = (host: string) =>
@@ -34,7 +35,7 @@ export async function POST(
   }
 
   const body = await request.json().catch(() => ({}))
-  const { custom_domain } = body as { custom_domain?: string }
+  const { custom_domain, force } = body as { custom_domain?: string; force?: boolean }
 
   if (!custom_domain || typeof custom_domain !== 'string') {
     return NextResponse.json({ error: 'custom_domain required' }, { status: 400 })
@@ -44,6 +45,25 @@ export async function POST(
   const platformHost = (process.env.NEXT_PUBLIC_APP_URL
     ?.replace(/^https?:\/\//, '')
     .split(':')[0]) ?? 'xmartmenu.skale.club'
+
+  // Superadmin force bypass: skip DNS check when force=true
+  if (force) {
+    const isSuperadmin = await assertSuperadmin()
+    if (!isSuperadmin) {
+      return NextResponse.json({ error: 'Only superadmins may force-verify domains' }, { status: 403 })
+    }
+    const service = await createServiceClient()
+    await service
+      .from('tenants')
+      .update({ custom_domain_verified: true, custom_domain: normalizedDomain })
+      .eq('id', id)
+
+    return NextResponse.json({
+      verified: true,
+      domain: normalizedDomain,
+      reason: 'Superadmin force-activated',
+    })
+  }
 
   // Strategy: accept either a CNAME pointing at the platform host, or one of
   // the A records matching one of the platform's A records (Vercel rotates
