@@ -15,21 +15,26 @@
 - ✅ **v2.0 Monetization** — Phases 30-34 (shipped 2026-05-09)
 - ✅ **v2.1 Custom Domains** — Phase 35 (shipped 2026-05-10)
 - ✅ **v2.2 Restaurant Growth Platform** — Phases 36-43 (shipped 2026-05-19)
-- 🚧 **v2.3 Brand & Marketing Refresh** — Phases 45-49 (in progress)
+- ✅ **v2.3 Brand & Marketing Refresh** — Phases 45-49 (shipped 2026-05-25)
 
-## Active Milestone — v2.3 Brand & Marketing Refresh
+## Active Milestone — none
 
-**Goal:** Rebrand the platform primary color from yellow (#EEFF00) to red (#F52323), fix broken DB icon resolution on the marketing page, improve the features section layout, and upgrade the CTA section with a full-bleed background image.
+No active milestone. Start `/gsd-new-milestone` to plan the next one.
 
-| Phase | Name | Seeds | Requirements | Status |
-|---|---|---|---|---|
-| 45 | Icon Resolver Fix | SEED-025 | ICON-01, ICON-02, ICON-03 | ✓ Complete |
-| 46 | Global Color Rebrand | SEED-026 | COLOR-01–06 | ○ Pending |
-| 47 | Features Section Layout | SEED-027 | FEAT-01–04 | ○ Pending |
-| 48 | CTA Full-Bleed + Background Image | SEED-028 | CTA-01–06 | ○ Pending |
-| 49 | DB Seeds — Color & Branding Defaults | SEED-029 | SEED-01–03 | ○ Blocked (after 45–48) |
+## Completed Milestones (recent)
 
-**Execution order:** Phase 45 → Phase 46+47+48 (parallel) → Phase 49
+<details>
+<summary>✅ v2.3 Brand & Marketing Refresh (Phases 45-49) — SHIPPED 2026-05-25</summary>
+
+| Phase | Name | Status |
+|---|---|---|
+| 45 | Icon Resolver Fix | ✓ Complete |
+| 46 | Global Color Rebrand (#EEFF00 → #F52323) | ✓ Complete |
+| 47 | Features Section Layout (4-col grid) | ✓ Complete |
+| 48 | CTA Full-Bleed + Background Image | ✓ Complete |
+| 49 | DB Seeds — Color & Branding Defaults | ✓ Complete |
+
+</details>
 
 ## Completed Milestones
 
