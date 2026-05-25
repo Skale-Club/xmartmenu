@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 
 export async function GET() {
   const service = await createServiceClient()
@@ -42,6 +43,8 @@ export async function PATCH(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     result = data
   }
+
+  revalidatePath('/', 'page')
 
   return NextResponse.json(result)
 }
