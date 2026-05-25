@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -189,7 +189,7 @@ function RegisterForm() {
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="w-full bg-primary text-zinc-950 py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
+              className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
             >
               {loading ? 'Creating account...' : (
                 <>

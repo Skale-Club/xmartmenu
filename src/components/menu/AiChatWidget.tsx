@@ -22,7 +22,7 @@ interface Message {
 
 const SESSION_KEY_PREFIX = 'aiChat:'
 
-export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#EEFF00', audioEnabled = false, products, onAddToCart }: Props) {
+export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, products, onAddToCart }: Props) {
   const [open, setOpen] = useState(false)
   const [phone, setPhone] = useState('')
   const [conversationId, setConversationId] = useState<string | null>(null)

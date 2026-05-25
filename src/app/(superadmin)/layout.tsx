@@ -33,7 +33,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
 
   if (profile?.role !== 'superadmin') redirect('/dashboard')
 
-  const primary = ps?.cta_color ?? '#EEFF00'
+  const primary = ps?.cta_color ?? '#F52323'
   const primaryFg = computePrimaryForeground(primary)
 
   return (

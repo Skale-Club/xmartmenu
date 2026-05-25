@@ -1,4 +1,4 @@
-import { Clock } from 'lucide-react'
+﻿import { Clock } from 'lucide-react'
 
 export default function PendingPage() {
   return (
@@ -17,7 +17,7 @@ export default function PendingPage() {
         </p>
         <a
           href="/auth/login"
-          className="inline-flex items-center justify-center bg-primary text-zinc-950 px-8 py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95"
+          className="inline-flex items-center justify-center bg-primary text-primary-foreground px-8 py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95"
         >
           Back to login
         </a>

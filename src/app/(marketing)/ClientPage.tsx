@@ -1,7 +1,8 @@
-"use client"
+﻿"use client"
 
+import React from 'react'
 import { motion } from 'framer-motion'
-import { Globe, QrCode, Sparkles, ShoppingCart, ChevronDown, Camera, MessageCircle, UserPlus, UtensilsCrossed, ArrowRight } from 'lucide-react'
+import { Globe, QrCode, Sparkles, ShoppingCart, ChevronDown, Camera, MessageCircle, UserPlus, UtensilsCrossed, ArrowRight, Sandwich, CupSoda, Zap, Star, ChefHat, CreditCard, BookOpen, Coffee, BarChart2, Search } from 'lucide-react'
 
 // ─── Platform settings shape (hero only) ────────────────────────────────────
 interface HeroSettings {
@@ -33,6 +34,7 @@ interface CtaData {
   heading?: string
   text?: string
   button?: string
+  bg_image_url?: string
 }
 
 interface FooterData {
@@ -79,7 +81,7 @@ const features = [
     body: 'Our team can structure your menu with AI, including categories, descriptions, and photos.',
   },
   {
-    icon: ShoppingCart,
+    icon: FoodDrinkCombo,
     title: 'Online ordering',
     body: 'Let customers order directly from the table. Available as an add-on.',
   },
@@ -112,6 +114,44 @@ const faqs = [
   },
 ]
 
+function FoodDrinkCombo({ className }: { className?: string }) {
+  const base = className?.replace(/w-\S+|h-\S+/g, '').trim()
+  const iconClassName = `w-4 h-4 ${(base || 'text-primary')}`.trim()
+
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      <Sandwich className={iconClassName} />
+      <CupSoda className={iconClassName} />
+    </span>
+  )
+}
+
+function getIcon(name: string): React.ComponentType<{ className?: string }> {
+  const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
+    Globe,
+    QrCode,
+    Sparkles,
+    ShoppingCart,
+    Globe2: Globe,
+    UserPlus,
+    UtensilsCrossed,
+    MessageCircle,
+    Zap,
+    Star,
+    ChefHat,
+    CreditCard,
+    BookOpen,
+    Coffee,
+    BarChart2,
+    Search,
+    Sandwich,
+    CupSoda,
+    FoodDrink: FoodDrinkCombo,
+  }
+
+  return iconMap[name] ?? Globe
+}
+
 // ─── Components ──────────────────────────────────────────────────────────────
 
 function Nav({ appName }: { appName?: string | null }) {
@@ -131,7 +171,7 @@ function Nav({ appName }: { appName?: string | null }) {
         </div>
         <a
           href="/auth/login"
-          className="relative group overflow-hidden bg-primary text-zinc-950 px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2"
+          className="relative group overflow-hidden bg-primary text-primary-foreground px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2"
         >
           <span className="relative z-10">Sign In</span>
           <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
@@ -211,7 +251,7 @@ function Hero({ s }: { s: HeroSettings }) {
           className="text-5xl sm:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6"
         >
           {heading} <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-yellow-200 to-white">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-red-200 to-white">
             {highlight}
           </span>
         </motion.h1>
@@ -233,7 +273,7 @@ function Hero({ s }: { s: HeroSettings }) {
         >
           <a
             href="/auth/login"
-            className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-zinc-950 px-8 py-4 rounded-full text-lg font-bold hover:bg-white transition-all hover:scale-105"
+            className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:bg-white transition-all hover:scale-105"
           >
             {ctaPrimary}
           </a>
@@ -253,7 +293,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
   const resolvedSteps = data?.steps?.length
     ? data.steps.map((s, i) => ({
         num: i + 1,
-        icon: [UserPlus, UtensilsCrossed, QrCode][i] ?? QrCode,
+        icon: getIcon(s.icon ?? ''),
         title: s.title,
         body: s.desc,
       }))
@@ -287,7 +327,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
               transition={{ delay: i * 0.2 }}
               className="relative bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-8 rounded-[1.25rem] hover:bg-zinc-900 transition-colors group"
             >
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xl font-bold mb-6 mx-auto md:mx-0 group-hover:scale-110 group-hover:bg-primary group-hover:text-zinc-950 transition-all duration-300">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xl font-bold mb-6 mx-auto md:mx-0 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                 <Icon className="w-8 h-8" />
               </div>
               <p className="text-2xl font-bold text-white mt-4 mb-3 text-center md:text-left">{title}</p>
@@ -302,8 +342,8 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
 
 function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
   const resolvedFeatures = data?.items?.length
-    ? data.items.map((f, i) => ({
-        icon: [Globe, QrCode, Sparkles, ShoppingCart, Globe, QrCode][i] ?? Globe,
+    ? data.items.map((f) => ({
+        icon: getIcon(f.icon ?? ''),
         title: f.title,
         body: f.desc,
       }))
@@ -324,10 +364,10 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
           <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">
             {sectionTitle}
           </h2>
-          <p className="text-xl text-zinc-400">{sectionSubtitle}</p>
+          <p className="text-[17px] text-zinc-400">{sectionSubtitle}</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {resolvedFeatures.map(({ icon: Icon, title, body }, i) => (
             <motion.div
               key={title}
@@ -336,16 +376,16 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
               whileHover={{ y: -5 }}
-              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[1.25rem] p-8 relative overflow-hidden group"
+              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[1.25rem] p-8 lg:p-6 relative overflow-hidden group"
             >
               {/* Hover gradient effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-yellow-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-6">
                   <Icon className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-3">{title}</h3>
+                <h3 className="text-2xl lg:text-xl font-bold text-white mb-3">{title}</h3>
                 <p className="text-lg text-zinc-400 leading-relaxed">{body}</p>
               </div>
             </motion.div>
@@ -406,41 +446,50 @@ function FooterCTABand({ data }: { data?: CtaData | null }) {
   const button = data?.button ?? 'Sign in now'
 
   return (
-    <section className="py-24 px-8 relative overflow-hidden">
+    <section className="py-24 relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-zinc-950" />
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-      <div className="max-w-[1320px] mx-auto relative z-10 bg-zinc-950/40 backdrop-blur-xl border border-white/10 p-12 sm:p-20 rounded-[2rem] text-center">
-        <motion.h2
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="text-4xl sm:text-6xl font-bold text-white mb-6"
-        >
-          {heading}
-        </motion.h2>
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-          className="text-xl text-zinc-300 mb-10 max-w-2xl mx-auto"
-        >
-          {text}
-        </motion.p>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.2 }}
-        >
-          <a
-            href="/auth/login"
-            className="inline-flex items-center justify-center bg-primary text-zinc-950 px-10 py-5 rounded-full text-xl font-bold hover:bg-white transition-all hover:scale-105 active:scale-95"
+      <div className="relative bg-zinc-950/40 backdrop-blur-xl border border-white/10 rounded-[2rem] overflow-hidden">
+        <img
+          src={data?.bg_image_url ?? '/images/cta-bg.jpg'}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-zinc-950/60 md:bg-zinc-950/50 lg:bg-zinc-950/40" />
+        <div className="relative z-20 max-w-[1320px] mx-auto px-8 sm:px-20 py-20 text-center">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-4xl sm:text-6xl font-bold text-white mb-6"
           >
-            {button}
-          </a>
-        </motion.div>
+            {heading}
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className="text-xl text-zinc-300 mb-10 max-w-2xl mx-auto"
+          >
+            {text}
+          </motion.p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.2 }}
+          >
+            <a
+              href="/auth/login"
+              className="inline-flex items-center justify-center bg-primary text-primary-foreground px-10 py-5 rounded-full text-xl font-bold hover:bg-white transition-all hover:scale-105 active:scale-95"
+            >
+              {button}
+            </a>
+          </motion.div>
+        </div>
       </div>
     </section>
   )

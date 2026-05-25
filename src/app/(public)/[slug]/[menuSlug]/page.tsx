@@ -199,7 +199,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   // P0-08 round 2: scan recording moved client-side via <ScanRecorder /> —
   // this page is ISR-cached so a server insert here only fires per cache miss.
 
-  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
+  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#F52323'
   const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
   const primaryForeground = computePrimaryForeground(primaryColor)
   const canonicalPath = `/${menuSlug}`

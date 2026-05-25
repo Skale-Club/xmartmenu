@@ -65,7 +65,7 @@ export default async function MarketingLayout({
   children: React.ReactNode
 }) {
   const ps = await getPlatformSettings()
-  const primary = ps?.cta_color ?? '#EEFF00'
+  const primary = ps?.cta_color ?? '#F52323'
   const primaryFg = computePrimaryForeground(primary)
 
   return (

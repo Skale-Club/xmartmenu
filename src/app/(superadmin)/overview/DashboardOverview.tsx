@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -171,7 +171,7 @@ export default function DashboardOverview({
             <h2 className="text-[10px] font-bold text-zinc-400 uppercase tracking-[0.2em] mb-6">Internal Tools</h2>
             <div className="space-y-3">
               {[
-                { href: '/tenants', icon: <Building2 className="w-4 h-4" />, label: 'Manage Clients', desc: 'Instances & Tenants', color: 'bg-primary text-zinc-950' },
+                { href: '/tenants', icon: <Building2 className="w-4 h-4" />, label: 'Manage Clients', desc: 'Instances & Tenants', color: 'bg-primary text-primary-foreground' },
                 { href: '/users', icon: <Users className="w-4 h-4" />, label: 'Manage Users', desc: 'Permissions & Access', color: 'bg-zinc-100 text-zinc-600' },
                 { href: '/settings', icon: <Settings className="w-4 h-4" />, label: 'System Settings', desc: 'Global configuration', color: 'bg-zinc-100 text-zinc-600' },
               ].map(item => (

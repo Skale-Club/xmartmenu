@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -134,7 +134,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={emailLoading || googleLoading}
-              className="w-full bg-primary text-zinc-950 py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
+              className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
             >
               {emailLoading ? 'Signing in...' : (
                 <>

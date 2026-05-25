@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { MapPin, Plus, Trash2, Edit2, X } from 'lucide-react'
@@ -117,7 +117,7 @@ export default function DeliveryZonesSection() {
             placeholder="e.g. 1010"
             className={cn(inputCls, 'flex-1')}
           />
-          <button type="button" onClick={addPrefix} className="px-4 py-3 bg-zinc-950 text-white rounded-xl text-sm font-black hover:bg-primary hover:text-zinc-950 transition-all">
+          <button type="button" onClick={addPrefix} className="px-4 py-3 bg-zinc-950 text-white rounded-xl text-sm font-black hover:bg-primary hover:text-primary-foreground transition-all">
             Add
           </button>
         </div>
@@ -151,7 +151,7 @@ export default function DeliveryZonesSection() {
       )}
       <div className="flex gap-3 pt-2">
         <button type="button" onClick={isCreating ? saveNew : saveEdit} disabled={!draft.name.trim() || saving}
-          className="px-6 py-3 bg-zinc-950 text-white rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all disabled:opacity-50">
+          className="px-6 py-3 bg-zinc-950 text-white rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all disabled:opacity-50">
           {saving ? 'Saving...' : 'Save Zone'}
         </button>
         <button type="button" onClick={cancel}
@@ -168,7 +168,7 @@ export default function DeliveryZonesSection() {
         <label className={labelCls}>Delivery Zones</label>
         {mode === 'idle' && (
           <button type="button" onClick={() => { setMode('creating'); setDraft(EMPTY); setPrefixInput('') }}
-            className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-zinc-950 text-white rounded-full hover:bg-primary hover:text-zinc-950 transition-all">
+            className="flex items-center gap-1.5 px-4 py-2 text-[10px] font-black uppercase tracking-widest bg-zinc-950 text-white rounded-full hover:bg-primary hover:text-primary-foreground transition-all">
             <Plus className="w-3 h-3" /> New Zone
           </button>
         )}

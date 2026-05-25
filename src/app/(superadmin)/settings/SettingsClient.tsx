@@ -35,6 +35,8 @@ import {
   ShoppingCart,
   CreditCard,
   Bell,
+  Sandwich,
+  CupSoda,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -59,6 +61,8 @@ const ICON_OPTIONS: { name: string; icon: LucideIcon }[] = [
   { name: 'Bell', icon: Bell },
   { name: 'BookOpen', icon: BookOpen },
   { name: 'Coffee', icon: Coffee },
+  { name: 'Sandwich', icon: Sandwich },
+  { name: 'CupSoda', icon: CupSoda },
 ]
 
 function getIcon(name: string): LucideIcon {
@@ -219,7 +223,7 @@ const DEFAULT_LANDING = {
   how_it_works: { title: 'How it works', subtitle: 'Up and running in 3 simple steps', steps: [{ step: '01', icon: 'ClipboardList', title: 'Build your menu', desc: 'Create categories and add your products with photos, descriptions and prices in the dashboard.' }, { step: '02', icon: 'Palette', title: 'Customize the look', desc: 'Add your logo, restaurant colors and contact information to make it your own.' }, { step: '03', icon: 'QrCode', title: 'Generate & print the QR Code', desc: 'Generate your unique QR Code with one click. Place it on tables and let customers access it instantly.' }] },
   features: { title: 'Everything you need', subtitle: 'Features designed for restaurants', items: [{ icon: 'Link2', title: 'Unique link per restaurant', desc: 'Each customer has their own digital menu address.' }, { icon: 'MessageCircle', title: 'Order via WhatsApp', desc: 'Customers tap a product and WhatsApp opens ready to order.' }, { icon: 'Palette', title: 'Custom branding', desc: 'Logo, colors and visual identity for your restaurant.' }, { icon: 'BarChart2', title: 'Scan counter', desc: 'See how many times your QR Code has been scanned.' }, { icon: 'Search', title: 'Menu search', desc: 'Customers find any product in seconds.' }, { icon: 'Zap', title: 'No app required', desc: 'Everything opens directly in the phone browser, zero friction.' }] },
   pricing: { title: 'Simple plans', subtitle: 'Start free, scale when you need', plans: [{ name: 'Free', price: '$0', period: '/mo', desc: 'To get started', features: ['Digital menu', 'QR Code generated', 'Up to 20 products', 'Basic branding'], cta: 'Get started free', highlight: false }, { name: 'Pro', price: '$49', period: '/mo', desc: 'To grow', features: ['Everything in Free', 'Unlimited products', 'Full branding', 'Scan analytics', 'Priority support'], cta: 'Subscribe to Pro', highlight: true }, { name: 'Enterprise', price: '$149', period: '/mo', desc: 'For chains', features: ['Everything in Pro', 'Multiple locations', 'Custom domain', 'Dedicated onboarding', 'Guaranteed SLA'], cta: 'Talk to sales', highlight: false }] },
-  cta: { heading: 'Ready to digitize\nyour menu?', text: 'Create your account and build a menu that works for daily service.', button: 'Create free account' },
+  cta: { heading: 'Ready to digitize\nyour menu?', text: 'Create your account and build a menu that works for daily service.', button: 'Create free account', bg_image_url: '' },
   footer: { copyright: 'XmartMenu. All rights reserved.' },
 }
 
@@ -234,7 +238,7 @@ export default function SettingsClient({ settings }: Props) {
     brand_name: s.brand_name ?? 'XmartMenu',
     default_primary_color: s.default_primary_color ?? '#000000',
     default_accent_color: s.default_accent_color ?? '#FF5722',
-    cta_color: s.cta_color ?? '#CBFF00',
+    cta_color: s.cta_color ?? '#F52323',
     menu_footer_brand: s.menu_footer_brand ?? 'XmartMenu',
   })
 
@@ -539,6 +543,7 @@ export default function SettingsClient({ settings }: Props) {
             <div className="md:col-span-2"><label className={label}>Main Headline</label><input className={input} value={cta.heading} onChange={e => setCta({ ...cta, heading: e.target.value })} /></div>
             <div><label className={label}>Supportive Text</label><input className={input} value={cta.text} onChange={e => setCta({ ...cta, text: e.target.value })} /></div>
             <div><label className={label}>Button Label</label><input className={input} value={cta.button} onChange={e => setCta({ ...cta, button: e.target.value })} /></div>
+            <div className="md:col-span-2"><label className={label}>Background Image URL</label><input className={input} value={cta.bg_image_url ?? ''} onChange={e => setCta({ ...cta, bg_image_url: e.target.value })} placeholder="/images/cta-bg.jpg" /></div>
           </div>
         </div>
 

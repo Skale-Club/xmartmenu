@@ -19,7 +19,7 @@ export default async function CustomerLoginPage({ params }: Props) {
 
   if (!tenant) notFound()
 
-  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
+  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#F52323'
 
   return <LoginClient slug={slug} primaryColor={primaryColor} />
 }

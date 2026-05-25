@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { Copy, Check, ExternalLink } from 'lucide-react'
@@ -45,7 +45,7 @@ export function CopyMenuUrl({ path }: { path: string }) {
       <Link
         href={url}
         target="_blank"
-        className="flex items-center justify-center gap-2 bg-primary text-zinc-950 px-6 py-3 rounded-full font-black hover:bg-zinc-950 hover:text-white transition-all shrink-0 w-full sm:w-auto text-xs uppercase tracking-widest shadow-sm active:scale-95"
+        className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-full font-black hover:bg-zinc-950 hover:text-white transition-all shrink-0 w-full sm:w-auto text-xs uppercase tracking-widest shadow-sm active:scale-95"
       >
         <ExternalLink size={14} />
         Open Menu

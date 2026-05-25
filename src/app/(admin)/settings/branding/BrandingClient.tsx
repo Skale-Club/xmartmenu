@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import Image from 'next/image'
@@ -21,7 +21,7 @@ const CUISINE_PRESETS = [
   { name: 'Burger',    primary: '#F39C12', accent: '#2C3E50' },
   { name: 'Cafe',      primary: '#6F4E37', accent: '#FDF5E6' },
   { name: 'Churrasco', primary: '#27AE60', accent: '#F39C12' },
-  { name: 'Default',   primary: '#EEFF00', accent: '#09090b' },
+  { name: 'Default',   primary: '#F52323', accent: '#09090b' },
 ]
 
 export default function BrandingClient({ settings, tenantId, tenantSlug, tenantName }: Props) {
@@ -169,7 +169,7 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
                     onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo')}
                     className="hidden" 
                   />
-                  <label htmlFor="logo-upload" className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-950 text-white rounded-lg text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-primary hover:text-zinc-950 transition-all shadow-lg shadow-zinc-950/10">
+                  <label htmlFor="logo-upload" className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-950 text-white rounded-lg text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-primary hover:text-primary-foreground transition-all shadow-lg shadow-zinc-950/10">
                     Choose Logo
                   </label>
                   {logoUrl && (

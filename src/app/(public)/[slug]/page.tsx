@@ -87,7 +87,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     .order('created_at', { ascending: true })
 
   if ((activeLocations ?? []).length >= 2) {
-    const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
+    const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#F52323'
     const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
     const { computePrimaryForeground } = await import('@/lib/color-utils')
     const primaryForeground = computePrimaryForeground(primaryColor)
@@ -190,7 +190,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   // here would fire at most once per cache window. Scan recording is done
   // from the client via <ScanRecorder /> below so each visit is captured.
 
-  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#EEFF00'
+  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#F52323'
   const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
   const primaryForeground = computePrimaryForeground(primaryColor)
   const canonicalUrl = getCanonicalUrl(tenant, '/')

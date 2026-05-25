@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { type ReactNode, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -315,7 +315,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
           <button
             onClick={openCreateForm}
             disabled={!menuId}
-            className="bg-primary text-zinc-950 px-8 py-4 rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-sm disabled:opacity-50"
+            className="bg-primary text-primary-foreground px-8 py-4 rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-sm disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             Add Product
@@ -358,7 +358,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
             className={cn(
               "flex-shrink-0 text-[10px] font-black uppercase tracking-widest px-6 py-2.5 rounded-full border transition-all active:scale-95",
               filterCategory === cat.id 
-                ? "bg-primary text-zinc-950 border-primary" 
+                ? "bg-primary text-primary-foreground border-primary" 
                 : "bg-white border-zinc-100 text-zinc-400 hover:border-zinc-300"
             )}
           >
@@ -476,7 +476,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                       >
                         <X className="w-4 h-4" />
                       </button>
-                      {idx === 0 && <span className="absolute bottom-2 left-2 bg-primary text-zinc-950 text-[8px] font-black uppercase px-2 py-0.5 rounded-full">Main</span>}
+                      {idx === 0 && <span className="absolute bottom-2 left-2 bg-primary text-primary-foreground text-[8px] font-black uppercase px-2 py-0.5 rounded-full">Main</span>}
                     </div>
                   ))}
                 </div>
@@ -537,7 +537,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 bg-primary text-zinc-950 py-5 rounded-full text-lg font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+                className="flex-1 bg-primary text-primary-foreground py-5 rounded-full text-lg font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50"
               >
                 {loading ? 'Processing...' : editingId ? 'Update Product' : 'Create Product'}
               </button>
@@ -579,7 +579,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 {/* Overlays */}
                 <div className="absolute top-4 left-4 flex flex-col gap-2">
                   {product.is_featured && (
-                    <div className="bg-primary text-zinc-950 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
+                    <div className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
                       <Star className="w-3 h-3 fill-current" />
                       Featured
                     </div>
