@@ -333,24 +333,29 @@ export default function SettingsClient({ settings }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-zinc-50">
             <div className="space-y-3">
               <label className={label}>Default Primary Color</label>
-              <div className="flex items-center gap-3 bg-zinc-50 p-2 rounded-2xl border border-zinc-100">
-                <input type="color" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 bg-transparent" />
-                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} />
+              <div className="flex items-center gap-2 bg-zinc-50 px-3 py-2 rounded-2xl border border-zinc-200 overflow-hidden">
+                <label className="relative w-9 h-9 rounded-lg flex-shrink-0 cursor-pointer border border-zinc-200 overflow-hidden" style={{ backgroundColor: platform.default_primary_color }}>
+                  <input type="color" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                </label>
+                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase min-w-0" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} />
               </div>
             </div>
             <div className="space-y-3">
               <label className={label}>Default Accent Color</label>
-              <div className="flex items-center gap-3 bg-zinc-50 p-2 rounded-2xl border border-zinc-100">
-                <input type="color" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 bg-transparent" />
-                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} />
+              <div className="flex items-center gap-2 bg-zinc-50 px-3 py-2 rounded-2xl border border-zinc-200 overflow-hidden">
+                <label className="relative w-9 h-9 rounded-lg flex-shrink-0 cursor-pointer border border-zinc-200 overflow-hidden" style={{ backgroundColor: platform.default_accent_color }}>
+                  <input type="color" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                </label>
+                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase min-w-0" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} />
               </div>
             </div>
             <div className="space-y-3">
               <label className={label}>CTA Color</label>
-              <div className="flex items-center gap-3 bg-zinc-50 p-2 rounded-2xl border border-zinc-100">
-                <input type="color" value={platform.cta_color} onChange={e => setPlatform({ ...platform, cta_color: e.target.value })} className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 bg-transparent" />
-                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase" value={platform.cta_color} onChange={e => setPlatform({ ...platform, cta_color: e.target.value })} />
-                <div className="w-8 h-8 rounded-lg border border-zinc-200 flex-shrink-0" style={{ backgroundColor: platform.cta_color }} />
+              <div className="flex items-center gap-2 bg-zinc-50 px-3 py-2 rounded-2xl border border-zinc-200 overflow-hidden">
+                <label className="relative w-9 h-9 rounded-lg flex-shrink-0 cursor-pointer border border-zinc-200 overflow-hidden" style={{ backgroundColor: platform.cta_color }}>
+                  <input type="color" value={platform.cta_color} onChange={e => setPlatform({ ...platform, cta_color: e.target.value })} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                </label>
+                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase min-w-0" value={platform.cta_color} onChange={e => setPlatform({ ...platform, cta_color: e.target.value })} />
               </div>
             </div>
           </div>
