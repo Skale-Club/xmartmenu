@@ -13,8 +13,9 @@ export default async function AdminLayout({
   children: React.ReactNode
 }) {
   const service = await createServiceClient()
-  const { data: platformSettings } = await service.from('platform_settings').select('app_name').single()
+  const { data: platformSettings } = await service.from('platform_settings').select('app_name, favicon_url').single()
   const appName = platformSettings?.app_name ?? 'XmartMenu'
+  const logoUrl = platformSettings?.favicon_url ?? null
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -81,6 +82,7 @@ export default async function AdminLayout({
               tenantSlug={tenant.slug}
               role="superadmin"
               appName={appName}
+              logoUrl={logoUrl}
               menus={menus ?? []}
               activeMenuId={activeMenu?.id ?? null}
               ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}

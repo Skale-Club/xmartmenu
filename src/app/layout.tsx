@@ -13,29 +13,26 @@ const inter = Inter({
   variable: '--font-inter',
 })
 
-export const metadata: Metadata = {
-  title: {
-    template: '%s | XmartMenu',
-    default: 'XmartMenu | Digital menu for restaurants',
-  },
-  description: 'A digital menu platform built for restaurant service, QR code ordering, and menu operations.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://xmartmenu.skale.club'),
-  openGraph: {
-    type: 'website',
-    locale: 'en_US',
-    siteName: 'XmartMenu',
-    images: [
-      {
-        url: '/opengraph-image',
-        width: 1200,
-        height: 630,
-        alt: 'XmartMenu',
-      },
-    ],
-  },
-  twitter: {
-    card: 'summary_large_image',
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const supabase = createServiceClient()
+  const { data: ps } = await supabase.from('platform_settings').select('favicon_url').single()
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://xmartmenu.skale.club'
+  return {
+    title: {
+      template: '%s | XmartMenu',
+      default: 'XmartMenu | Digital menu for restaurants',
+    },
+    description: 'A digital menu platform built for restaurant service, QR code ordering, and menu operations.',
+    metadataBase: new URL(appUrl),
+    icons: ps?.favicon_url ? { icon: ps.favicon_url, shortcut: ps.favicon_url } : undefined,
+    openGraph: {
+      type: 'website',
+      locale: 'en_US',
+      siteName: 'XmartMenu',
+      images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'XmartMenu' }],
+    },
+    twitter: { card: 'summary_large_image' },
+  }
 }
 
 export default async function RootLayout({
@@ -44,7 +41,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const supabase = createServiceClient()
-  const { data: ps } = await supabase.from('platform_settings').select('cta_color').single()
+  const { data: ps } = await supabase.from('platform_settings').select('cta_color, favicon_url').single()
   const primary = ps?.cta_color ?? '#F52323'
   const primaryFg = computePrimaryForeground(primary)
 

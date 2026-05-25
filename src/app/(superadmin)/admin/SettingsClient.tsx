@@ -108,9 +108,10 @@ interface HeroAssetUploaderProps {
   type: 'image' | 'video'
   url: string
   onUpload: (url: string) => void
+  dest?: string
 }
 
-function HeroAssetUploader({ type, url, onUpload }: HeroAssetUploaderProps) {
+function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -126,6 +127,7 @@ function HeroAssetUploader({ type, url, onUpload }: HeroAssetUploaderProps) {
     const form = new FormData()
     form.append('file', file)
     form.append('type', type)
+    if (dest) form.append('dest', dest)
     const res = await fetch('/api/superadmin/platform/upload', { method: 'POST', body: form })
     const data = await res.json()
     setUploading(false)
@@ -227,6 +229,47 @@ const DEFAULT_LANDING = {
   footer: { copyright: 'XmartMenu. All rights reserved.' },
 }
 
+function FaviconUploader({ url, onUpload }: { url: string; onUpload: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleFile(file: File) {
+    setUploading(true)
+    setError(null)
+    const form = new FormData()
+    form.append('file', file)
+    form.append('type', 'image')
+    form.append('dest', 'favicon')
+    const res = await fetch('/api/superadmin/platform/upload', { method: 'POST', body: form })
+    const data = await res.json()
+    if (!res.ok) setError(data.error ?? 'Upload failed')
+    else onUpload(data.url)
+    setUploading(false)
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-xs font-bold rounded-xl hover:bg-zinc-700 transition-colors disabled:opacity-50"
+      >
+        {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+        {uploading ? 'Uploading...' : url ? 'Replace' : 'Upload favicon'}
+      </button>
+      {url && (
+        <button type="button" onClick={() => onUpload('')} className="text-xs text-zinc-400 hover:text-red-500 transition-colors">
+          Remove
+        </button>
+      )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  )
+}
+
 interface Props { settings: any }
 
 export default function SettingsClient({ settings }: Props) {
@@ -240,6 +283,7 @@ export default function SettingsClient({ settings }: Props) {
     default_accent_color: s.default_accent_color ?? '#FF5722',
     cta_color: s.cta_color ?? '#F52323',
     menu_footer_brand: s.menu_footer_brand ?? 'XmartMenu',
+    favicon_url: s.favicon_url ?? '',
   })
 
   const [hero, setHero] = useState({ ...DEFAULT_LANDING.hero, ...(l.hero ?? {}) })
@@ -330,7 +374,7 @@ export default function SettingsClient({ settings }: Props) {
             <div><label className={label}>Brand Name</label><input className={input} value={platform.brand_name} onChange={e => setPlatform({ ...platform, brand_name: e.target.value })} /></div>
             <div><label className={label}>Menu Footer Text</label><input className={input} value={platform.menu_footer_brand} onChange={e => setPlatform({ ...platform, menu_footer_brand: e.target.value })} /></div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-zinc-50">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-zinc-50 items-end">
             <div className="space-y-3">
               <label className={label}>Default Primary Color</label>
               <div className="flex items-center gap-2 bg-zinc-50 px-3 py-2 rounded-2xl border border-zinc-200 overflow-hidden">
@@ -357,6 +401,24 @@ export default function SettingsClient({ settings }: Props) {
                 </label>
                 <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase min-w-0" value={platform.cta_color} onChange={e => setPlatform({ ...platform, cta_color: e.target.value })} />
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Favicon */}
+        <div className={section}>
+          <h2 className={sectionTitle}><ImageIcon className="w-5 h-5 text-zinc-500" /> Favicon</h2>
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+              {platform.favicon_url
+                ? <img src={platform.favicon_url} alt="favicon preview" className="w-12 h-12 object-contain" />
+                : <ImageIcon className="w-6 h-6 text-zinc-300" />
+              }
+            </div>
+            <div className="flex-1 space-y-2">
+              <p className="text-sm font-medium text-zinc-700">Browser tab icon</p>
+              <p className="text-xs text-zinc-400">PNG, JPG or WebP · Recommended 64×64px or larger</p>
+              <FaviconUploader url={platform.favicon_url} onUpload={url => setPlatform({ ...platform, favicon_url: url })} />
             </div>
           </div>
         </div>
@@ -552,6 +614,7 @@ export default function SettingsClient({ settings }: Props) {
               <label className={label}>Background Image</label>
               <HeroAssetUploader
                 type="image"
+                dest="cta-bg"
                 url={cta.bg_image_url ?? ''}
                 onUpload={url => setCta({ ...cta, bg_image_url: url })}
               />

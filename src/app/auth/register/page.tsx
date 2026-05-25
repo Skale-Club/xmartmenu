@@ -71,7 +71,7 @@ function RegisterForm() {
   return (
     <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-[1.25rem] p-8">
       <div className="mb-8 text-center">
-        <img src="/icon.png" alt="XmartMenu Logo" className="w-12 h-12 mx-auto mb-5" />
+        <img src={typeof window !== 'undefined' ? (window as any).__LOGO_URL__ ?? '/icon.png' : '/icon.png'} alt="Logo" className="w-12 h-12 mx-auto mb-5" />
         <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">XmartMenu</a>
         <p className="text-sm font-bold text-zinc-500 mt-2">
           {isQrFlow ? 'Enter your details to continue' : 'Create your account'}

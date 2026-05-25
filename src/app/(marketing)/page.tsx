@@ -7,10 +7,11 @@ import ClientLandingPage from './ClientPage'
 async function getPlatformSettings() {
   try {
     const service = createServiceClient()
-    const { data } = await service.from('platform_settings').select('landing, app_name').single()
+    const { data } = await service.from('platform_settings').select('landing, app_name, favicon_url').single()
     return {
       landing: data?.landing ?? null,
       appName: data?.app_name ?? null,
+      logoUrl: data?.favicon_url ?? null,
     }
   } catch {
     return { landing: null, appName: null }
@@ -18,7 +19,7 @@ async function getPlatformSettings() {
 }
 
 export default async function LandingPage() {
-  const { landing: platformLanding, appName } = await getPlatformSettings()
+  const { landing: platformLanding, appName, logoUrl } = await getPlatformSettings()
 
   const organization: WithContext<Organization> = {
     '@context': 'https://schema.org',
@@ -60,7 +61,7 @@ export default async function LandingPage() {
           __html: JSON.stringify(software).replace(/</g, '\\u003c'),
         }}
       />
-      <ClientLandingPage platformLanding={platformLanding} appName={appName} />
+      <ClientLandingPage platformLanding={platformLanding} appName={appName} logoUrl={logoUrl} />
     </>
   )
 }

@@ -26,7 +26,12 @@ export async function POST(request: Request) {
     const result = await validateAndConvertToWebP(file)
     if (result.error) return NextResponse.json({ error: result.error }, { status: 400 })
 
-    const path = '_platform/hero-bg-image.webp'
+    const dest = form.get('dest') as string | null
+    const path = dest === 'cta-bg'
+      ? '_platform/cta-bg.webp'
+      : dest === 'favicon'
+        ? '_platform/favicon.webp'
+        : '_platform/hero-bg-image.webp'
     const { error } = await service.storage
       .from(bucket)
       .upload(path, result.buffer!, {

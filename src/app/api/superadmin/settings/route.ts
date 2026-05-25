@@ -16,7 +16,7 @@ export async function PATCH(request: Request) {
   const body = await request.json()
   const service = await createServiceClient()
 
-  const allowed = ['app_name', 'brand_name', 'default_primary_color', 'default_accent_color', 'cta_color', 'menu_footer_brand', 'landing', 'seo_title', 'seo_description']
+  const allowed = ['app_name', 'brand_name', 'default_primary_color', 'default_accent_color', 'cta_color', 'menu_footer_brand', 'landing', 'seo_title', 'seo_description', 'favicon_url']
   const update: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) update[key] = body[key]
