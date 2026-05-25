@@ -69,7 +69,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
             <ClipboardList className="w-4 h-4 text-zinc-500 group-hover:text-primary transition-colors" /> 
             Plans
           </a>
-          <a href="/settings" className="group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold hover:bg-zinc-900 hover:text-white transition-all">
+          <a href="/admin" className="group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold hover:bg-zinc-900 hover:text-white transition-all">
             <Settings className="w-4 h-4 text-zinc-500 group-hover:text-primary transition-colors" /> 
             Settings
           </a>
