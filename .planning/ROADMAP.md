@@ -15,6 +15,21 @@
 - ✅ **v2.0 Monetization** — Phases 30-34 (shipped 2026-05-09)
 - ✅ **v2.1 Custom Domains** — Phase 35 (shipped 2026-05-10)
 - ✅ **v2.2 Restaurant Growth Platform** — Phases 36-43 (shipped 2026-05-19)
+- 🚧 **v2.3 Brand & Marketing Refresh** — Phases 45-49 (in progress)
+
+## Active Milestone — v2.3 Brand & Marketing Refresh
+
+**Goal:** Rebrand the platform primary color from yellow (#EEFF00) to red (#F52323), fix broken DB icon resolution on the marketing page, improve the features section layout, and upgrade the CTA section with a full-bleed background image.
+
+| Phase | Name | Seeds | Requirements | Status |
+|---|---|---|---|---|
+| 45 | Icon Resolver Fix | SEED-025 | ICON-01, ICON-02, ICON-03 | ✓ Complete |
+| 46 | Global Color Rebrand | SEED-026 | COLOR-01–06 | ○ Pending |
+| 47 | Features Section Layout | SEED-027 | FEAT-01–04 | ○ Pending |
+| 48 | CTA Full-Bleed + Background Image | SEED-028 | CTA-01–06 | ○ Pending |
+| 49 | DB Seeds — Color & Branding Defaults | SEED-029 | SEED-01–03 | ○ Blocked (after 45–48) |
+
+**Execution order:** Phase 45 → Phase 46+47+48 (parallel) → Phase 49
 
 ## Completed Milestones
 
@@ -112,6 +127,7 @@ SEED-009: Plans, Pricing & Stripe Connect Monetization
 | 34 | Tenant Subscription UI | 1/1 | ✅ 2026-05-09 |
 
 Key Requirements:
+
 - MON-01: Plans table with monthly/annual pricing, transaction fee
 - MON-02: Tenant subscriptions with billing cycle and override support
 - MON-03: Stripe Connect integration for tenant payments
@@ -130,6 +146,7 @@ SEED-010: Custom domain routing per tenant
 | 35 | 1/1 | Complete   | 2026-05-22 |
 
 Key accomplishments:
+
 - Migration 029: `custom_domain TEXT + custom_domain_verified BOOLEAN` on `tenants` table
 - Middleware hostname-based tenant resolution via `resolveTenantSlugFromHost()` with 60s cache
 - Admin UI: custom domain section in Store Settings with save, verify DNS, CNAME instructions
@@ -198,6 +215,7 @@ Key accomplishments:
 **Plans**: 2 plans
 
 Plans:
+
 - [x] 36-01-PLAN.md — Convert Custom Domain section (StoreClient) + superadmin error strings (TenantsClient, SettingsClient) + admin layout comments to English
 - [ ] 36-02-PLAN.md — Full grep verification scan across all 17 operator-facing files; confirm KDS, onboarding, sidebar unchanged
 
@@ -223,6 +241,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
+
 - [x] 37-01-PLAN.md — color-utils.ts luminance util + globals.css --accent vars + server-side CSS injection in both public page.tsx routes + BrandingClient preset chips
 - [x] 37-02-PLAN.md — MenuPage/CartModal hardcoded color audit + onboarding API smart default palette
 
@@ -248,6 +267,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
+
 - [x] 38-01-PLAN.md — Migration 034 (5 columns on tenant_settings with IF NOT EXISTS guards) + apply-migration-034.mjs runner + TenantSettings TypeScript interface update
 - [ ] 38-02-PLAN.md — StoreClient.tsx "Order Types" section (3 toggles + conditional ETA/fee fields + all-off validation)
 
@@ -273,6 +293,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
+
 - [x] 39-01-PLAN.md — Migration 035 (order_type + delivery_address on orders) + API POST update + Order interface update
 - [x] 39-02-PLAN.md — CartModal order type chips + delivery address input + fee display; MenuPage state + POST body
 - [x] 39-03-PLAN.md — OrderCard fulfillment badge + OrdersClient order type filter row
@@ -378,9 +399,54 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
+
 - [x] 44-01-PLAN.md — Migration 045 (cta_color + seo_title + seo_description columns) + PATCH API allowed list + footerBrand wiring in both public pages
 - [x] 44-02-PLAN.md — Landing page CMS data wiring: HowItWorks, FeatureBlocks, FooterCTABand, Footer, Nav all read from platformLanding prop
 - [x] 44-03-PLAN.md — Marketing generateMetadata() from DB (seo_title, seo_description, app_name) + superadmin sidebar app_name
+
+### Phase 45: 45 icon-resolver-fix
+
+**Goal:** Make the marketing page honor DB-configured icon names and expose the missing icon choices in the superadmin picker.
+**Requirements**: ICON-01, ICON-02, ICON-03
+**Depends on:** Phase 44
+**Plans:** 1/1 plans complete
+
+Plans:
+
+- [x] 45-01-PLAN.md — Add `FoodDrinkCombo` + `getIcon()` resolver in marketing `ClientPage.tsx`; wire `resolvedSteps` and `resolvedFeatures` to DB icon names; add `Sandwich` and `CupSoda` to superadmin `ICON_OPTIONS`
+
+### Phase 46: 46 global-color-rebrand
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 45
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 46 to break down)
+
+### Phase 47: 47 features-section-layout
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 46
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 47 to break down)
+
+### Phase 48: 48 cta-fullbleed-background-image
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 47
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 48 to break down)
 
 ---
 

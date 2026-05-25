@@ -28,20 +28,20 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v2.2 Restaurant Growth Platform
+## Current Milestone: v2.3 Brand & Marketing Refresh
 
-**Goal:** Turn XmartMenu into a full-featured restaurant platform — multiple locations, complete website presence, order fulfillment modes, and search-engine discoverability.
+**Goal:** Rebrand the platform from yellow-lime to red, fix broken DB icon resolution on the marketing page, improve the features section layout for all screen sizes, and upgrade the CTA section with a full-bleed restaurant background image.
 
 **Target features:**
-- Multi-location branches: each branch has its own address, QR code, hours, and orders scoped per branch (SEED-011)
-- Order type selector: dine-in (default), pick-up, and delivery — each independently toggled by the restaurant (SEED-013)
-- Dynamic color theming: primary + secondary colors stored in DB, injected server-side as CSS vars into public menu pages (SEED-015)
-- App-wide English conversion: all operator-facing UI (admin, superadmin, onboarding, KDS, settings) migrated from Portuguese to English (SEED-016)
-- Robust SEO: per-tenant metadata, LocalBusiness + MenuItem JSON-LD schema, dynamic sitemaps, canonical URL strategy (SEED-014)
+- Global color rebrand: primary `#EEFF00` → `#F52323` across 45+ files, foreground flips to white (SEED-026)
+- Icon resolver fix: `ClientPage.tsx` DB-driven icons actually work; `FoodDrinkCombo` icon registered (SEED-025)
+- Features layout: 4-column desktop, 2-column tablet, 1-column phone; Online Ordering icon updated (SEED-027)
+- CTA section: full-bleed card with restaurant background image, glass effect preserved, text untouched (SEED-028)
+- DB seeds updated to reflect new red primary color defaults (SEED-029)
 
 ## Current State
 
-**v2.2 Restaurant Growth Platform in progress** — SEED-011, SEED-013, SEED-014, SEED-015, SEED-016
+**v2.3 Brand & Marketing Refresh in progress** — SEED-025 complete; SEED-026, SEED-027, SEED-028, SEED-029 pending
 
 v2.2 delivers multi-location branches, order type selection (dine-in/pick-up/delivery), dynamic color theming per tenant, app-wide English conversion, and robust per-tenant SEO.
 

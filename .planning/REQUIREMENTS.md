@@ -1,106 +1,61 @@
-# v2.2 Requirements — Restaurant Growth Platform
+# v2.3 Requirements — Brand & Marketing Refresh
 
 ## In Scope
 
-### English Conversion (SEED-016)
+### Icon Resolver (SEED-025)
 
-- [x] **ENGL-01**: Admin panel navigation, buttons, headings, and form labels are in English
-- [x] **ENGL-02**: Superadmin panel table headers, action buttons, and modal titles are in English
-- [x] **ENGL-03**: Onboarding wizard step titles, instructions, and CTAs are in English
-- [x] **ENGL-04**: KDS status labels, filter chips, and time labels are in English
-- [x] **ENGL-05**: Settings page headings, toggle labels, and field descriptions are in English
-- [x] **ENGL-06**: Error and validation messages across the admin UI are in English
+- [ ] **ICON-01**: `ClientPage.tsx` has a `getIcon(name)` function that maps DB icon name strings to Lucide components — DB-driven feature and step icons actually render correctly on the marketing page
+- [ ] **ICON-02**: A `FoodDrinkCombo` component (Sandwich + CupSoda side by side) is registered under `'FoodDrink'` in `getIcon()`
+- [ ] **ICON-03**: `Sandwich` and `CupSoda` are added to `ICON_OPTIONS` in `SettingsClient.tsx` so they appear in the admin icon picker
 
-### Color Theming (SEED-015)
+### Color Rebrand (SEED-026)
 
-- [x] **THEME-01**: Tenant admin can set primary and secondary colors via a color picker in branding settings
-- [x] **THEME-02**: Public menu page injects tenant colors as CSS custom properties server-side with no flash of unstyled content
-- [x] **THEME-03**: All public menu interactive elements (buttons, category pills, cart badge, CTAs, modal headers) use `var(--color-primary)` and `var(--color-secondary)`
-- [x] **THEME-04**: New tenants receive a default color palette based on their cuisine or business type
+- [ ] **COLOR-01**: Platform primary color is changed from `#EEFF00` (yellow-lime) to `#F52323` (red) across the entire application
+- [ ] **COLOR-02**: `--primary-foreground` is updated to `#ffffff` — all text on primary-colored elements is white
+- [ ] **COLOR-03**: All 14 hardcoded `#EEFF00` fallback hex values are replaced with `#F52323`
+- [ ] **COLOR-04**: All 50 instances of `bg-primary text-zinc-950` are replaced with `bg-primary text-primary-foreground`
+- [ ] **COLOR-05**: Hero "built for service." heading gradient preserves its fade-out effect: `from-primary via-red-200 to-white`
+- [ ] **COLOR-06**: Admin default `cta_color` and branding palette default are updated to `#F52323`
 
-### Order Types (SEED-013)
+### Features Section (SEED-027)
 
-- [x] **ORD-01**: Restaurant admin can independently enable or disable dine-in, pick-up, and delivery modes; at least one mode must remain active
-- [x] **ORD-02**: Admin can configure estimated pick-up time in minutes when pick-up is enabled
-- [x] **ORD-03**: Admin can configure a delivery fee when delivery is enabled
-- [ ] **ORD-04**: Customer sees an order type selector only when two or more modes are active; dine-in is selected by default; selector is hidden when only dine-in is active
-- [ ] **ORD-05**: Delivery mode reveals a required delivery address field and adds the delivery fee to the cart total
-- [ ] **ORD-06**: Each order stores its `order_type` and `delivery_address`; KDS cards display a fulfillment badge per type
-- [ ] **ORD-07**: Admin orders view is filterable by order type
+- [ ] **FEAT-01**: Features grid is 1-column on phone, 2-column on tablet, 4-column on desktop
+- [ ] **FEAT-02**: Card padding and title size reduce at desktop 4-wide breakpoint only — mobile/tablet unchanged
+- [ ] **FEAT-03**: Online Ordering card icon is replaced with Sandwich + CupSoda combo (`FoodDrinkCombo`)
+- [ ] **FEAT-04**: Features section subtitle is reduced by 15% (`text-xl` 20px → `text-[17px]`)
 
-### Multi-Location Branches (SEED-011)
+### CTA Section (SEED-028)
 
-- [ ] **LOC-01**: Tenant admin can create, edit, and deactivate branch locations with name, address, city, phone, operating hours, and slug
-- [ ] **LOC-02**: Single-location tenant continues to serve the menu at the root URL (`restaurantsite.com`) — no change from current behavior
-- [ ] **LOC-03**: Multi-location tenant routes each branch at a path segment (`restaurantsite.com/[branch-slug]/`); root URL shows a branch picker instead of the menu
-- [ ] **LOC-04**: Each branch has its own QR code pointing to its path (`restaurantsite.com/branch-slug/`)
-- [ ] **LOC-05**: Admin can configure whether branches share the same menu or each has an independent menu; default is shared
-- [ ] **LOC-06**: Orders store a `location_id`; KDS and orders view are filterable by branch
+- [ ] **CTA-01**: Footer CTA card extends to full viewport width with no side gaps
+- [ ] **CTA-02**: Restaurant background image (aerial dark moody restaurant, `public/images/cta-bg.jpg`) is visible behind the text on all breakpoints
+- [ ] **CTA-03**: Card glass/shadow effect (`backdrop-blur-xl border border-white/10 rounded-[2rem]`) is preserved
+- [ ] **CTA-04**: Heading, subtext, and button classes are byte-for-byte identical to before — zero text modifications
+- [ ] **CTA-05**: Dark overlay adjusts per breakpoint (phone: `/60`, tablet: `/50`, desktop: `/40`) for readability
+- [ ] **CTA-06**: Superadmin can override the CTA background image via a `bg_image_url` field in the landing settings panel
 
-### SEO (SEED-014)
+### DB Seeds (SEED-029)
 
-- [ ] **SEO-01**: Public menu page has a dynamic `<title>` and `<meta description>` sourced from tenant name and description
-- [ ] **SEO-02**: Each tenant has a dynamically generated OG image rendered with the tenant logo and brand colors
-- [ ] **SEO-03**: `LocalBusiness` JSON-LD (schema.org) is injected per tenant with name, address, phone, operating hours, and cuisine type
-- [ ] **SEO-04**: `Menu` and `MenuItem` JSON-LD is generated server-side from the tenant's active menu data
-- [ ] **SEO-05**: Platform-slug pages include a canonical URL pointing to the custom domain when one is active
-- [ ] **SEO-06**: `robots.txt` is served per domain — custom domain gets `Allow: /`; platform slug is disallowed when a custom domain is active
-- [ ] **SEO-07**: Tenant-level `sitemap.xml` lists all indexable URLs for that tenant (root + branch paths when multi-location)
-- [ ] **SEO-08**: Each active branch has its own `LocalBusiness` JSON-LD with a `branchOf` link to the parent tenant (depends on LOC-03)
+- [ ] **SEED-01**: `platform_settings.cta_color` seed value is `#F52323`
+- [ ] **SEED-02**: Default tenant `primary_color` seed value is `#F52323`
+- [ ] **SEED-03**: Default landing JSONB Online Ordering icon is `'FoodDrink'`
 
 ---
 
-## Future Requirements (deferred)
+## Execution order
 
-- Per-branch menu customization (different products or prices per location) — deferred to v3+
-- i18n for admin panel (English-only operator UI for now; non-English localization is a future seed)
-- Delivery address geolocation and map picker — deferred to future milestone
-- Per-branch color overrides — deferred; colors live on tenant, not locations, in v2.2
-- Plan-based location limits (e.g. menu plan = 1 branch, orders = 3, payments = unlimited) — evaluate with SEED-009
+| Wave | Phase | Seeds | Constraint |
+|---|---|---|---|
+| 1 | 45 | SEED-025 | Must land before Wave 3 icon swap |
+| 2 | 46 | SEED-026 | Atomic — one commit, all 50+ files together |
+| 3 | 47 | SEED-027 | After Wave 1 complete |
+| 4 | 48 | SEED-028 | Independent — can run in parallel with others |
+| 5 | 49 | SEED-029 | After Waves 1–4 visually confirmed |
 
 ---
 
 ## Out of Scope
 
-- Public menu language — customer-facing menu language is tenant-controlled; untouched
-- Landing page copy — already in English
-- iFood / Rappi / marketplace delivery integrations — order types seed covers own-operated delivery only
-- Full i18n library (react-intl, next-intl) — over-engineering for a one-time English migration
-
----
-
-## Traceability
-
-| Requirement | Phase | Status |
-|-------------|-------|--------|
-| ENGL-01 | Phase 36 | Complete |
-| ENGL-02 | Phase 36 | Complete |
-| ENGL-03 | Phase 36 | Complete |
-| ENGL-04 | Phase 36 | Complete |
-| ENGL-05 | Phase 36 | Complete |
-| ENGL-06 | Phase 36 | Complete |
-| THEME-01 | Phase 37 | Complete |
-| THEME-02 | Phase 37 | Complete |
-| THEME-03 | Phase 37 | Complete |
-| THEME-04 | Phase 37 | Complete |
-| ORD-01 | Phase 38 | Complete |
-| ORD-02 | Phase 38 | Complete |
-| ORD-03 | Phase 38 | Complete |
-| ORD-04 | Phase 39 | Pending |
-| ORD-05 | Phase 39 | Pending |
-| ORD-06 | Phase 39 | Pending |
-| ORD-07 | Phase 39 | Pending |
-| LOC-01 | Phase 40 | Pending |
-| LOC-02 | Phase 40 | Pending |
-| LOC-03 | Phase 41 | Pending |
-| LOC-04 | Phase 41 | Pending |
-| LOC-05 | Phase 41 | Pending |
-| LOC-06 | Phase 41 | Pending |
-| SEO-01 | Phase 42 | Pending |
-| SEO-02 | Phase 42 | Pending |
-| SEO-03 | Phase 42 | Pending |
-| SEO-04 | Phase 42 | Pending |
-| SEO-05 | Phase 42 | Pending |
-| SEO-06 | Phase 42 | Pending |
-| SEO-07 | Phase 42 | Pending |
-| SEO-08 | Phase 43 | Pending |
+- Any text content changes — only colors, layout, and icons change
+- Admin panel layout or navigation — superadmin settings panel only gains one new field (CTA bg_image_url)
+- Public customer-facing menu pages — color changes only via CSS variable; no layout changes
+- FAQ section — intentionally hardcoded, out of scope for this milestone
