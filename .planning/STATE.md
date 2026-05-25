@@ -4,14 +4,14 @@ milestone: v2.3
 milestone_name: Brand & Marketing Refresh
 status: executing
 stopped_at: Milestone v2.3 initialized
-last_updated: "2026-05-25T16:36:56.055Z"
-last_activity: 2026-05-25 -- Phase 45 planning complete
+last_updated: "2026-05-25T17:34:22.474Z"
+last_activity: 2026-05-25 -- Phase 48 planning complete
 progress:
-  total_phases: 11
-  completed_phases: 6
-  total_plans: 14
-  completed_plans: 13
-  percent: 55
+  total_phases: 14
+  completed_phases: 7
+  total_plans: 19
+  completed_plans: 14
+  percent: 50
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v2.3 Brand & Marketing Refresh — starting Phase 45
+**Current focus:** v2.3 Brand & Marketing Refresh — Phase 46 ready
 
 ## Current Position
 
-Phase: 45 (not started)
+Phase: 46 (ready)
 Status: Ready to execute
-Last activity: 2026-05-25 -- Phase 45 planning complete
+Last activity: 2026-05-25 -- Phase 48 planning complete
 
 ## Milestone Overview
 
@@ -35,7 +35,7 @@ v2.3: Brand & Marketing Refresh — SEED-025, SEED-026, SEED-027, SEED-028, SEED
 
 | Phase | Name | Seeds | Requirements | Status |
 |---|---|---|---|---|
-| 45 | Icon Resolver Fix | SEED-025 | ICON-01, ICON-02, ICON-03 | ○ Pending |
+| 45 | Icon Resolver Fix | SEED-025 | ICON-01, ICON-02, ICON-03 | ✓ Complete |
 | 46 | Global Color Rebrand | SEED-026 | COLOR-01–06 | ○ Pending |
 | 47 | Features Section Layout | SEED-027 | FEAT-01–04 | ○ Pending |
 | 48 | CTA Full-Bleed + Background Image | SEED-028 | CTA-01–06 | ○ Pending |
@@ -56,10 +56,13 @@ v2.3: Brand & Marketing Refresh — SEED-025, SEED-026, SEED-027, SEED-028, SEED
 - [v2.3 Roadmap]: Hero "built for service." gradient structure unchanged — only `via-yellow-200` → `via-red-200`
 - [v2.3 Roadmap]: Features grid icon swap uses component reference (`FoodDrinkCombo`), not string `'FoodDrink'`
 - [v2.3 Roadmap]: Phase 49 (DB seeds) blocked until Phases 45–48 are visually confirmed — `FoodDrink` name invalid before SEED-025 ships
+- [Phase 45]: Marketing landing icons must resolve by DB string name, not array index, so admin edits actually appear on the live page
+- [Phase 45]: `FoodDrinkCombo` strips incoming `w-*`/`h-*` utility classes before rendering `Sandwich` + `CupSoda`, preserving container sizing and color classes
+- [Phase 45]: `FoodDrink` remains an internal marketing resolver key; superadmin picker exposes `Sandwich` and `CupSoda` separately
 
 ### Pending Todos
 
-None — all phases defined, ready to plan Phase 45.
+None — Phase 46, 47, and 48 are ready; Phase 49 remains blocked on visual confirmation.
 
 ### Blockers/Concerns
 
