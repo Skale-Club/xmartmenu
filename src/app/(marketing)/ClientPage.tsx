@@ -446,19 +446,22 @@ function FooterCTABand({ data }: { data?: CtaData | null }) {
   const button = data?.button ?? 'Sign in now'
 
   return (
-    <section className="py-24 relative overflow-hidden">
+    <section className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-zinc-950" />
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
-      <div className="relative bg-zinc-950/40 backdrop-blur-xl border border-white/10 rounded-[2rem] overflow-hidden">
-        <img
-          src={data?.bg_image_url ?? '/images/cta-bg.jpg'}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+      <div className="relative overflow-hidden">
+        {(data?.bg_image_url || true) && (
+          <img
+            src={data?.bg_image_url ?? '/images/cta-bg.jpg'}
+            alt=""
+            aria-hidden="true"
+            className="absolute inset-0 w-full h-full object-cover"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+          />
+        )}
         <div className="absolute inset-0 bg-zinc-950/60 md:bg-zinc-950/50 lg:bg-zinc-950/40" />
-        <div className="relative z-20 max-w-[1320px] mx-auto px-8 sm:px-20 py-20 text-center">
+        <div className="relative z-20 max-w-[1320px] mx-auto px-8 sm:px-20 py-24 text-center">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
