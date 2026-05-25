@@ -543,7 +543,14 @@ export default function SettingsClient({ settings }: Props) {
             <div className="md:col-span-2"><label className={label}>Main Headline</label><input className={input} value={cta.heading} onChange={e => setCta({ ...cta, heading: e.target.value })} /></div>
             <div><label className={label}>Supportive Text</label><input className={input} value={cta.text} onChange={e => setCta({ ...cta, text: e.target.value })} /></div>
             <div><label className={label}>Button Label</label><input className={input} value={cta.button} onChange={e => setCta({ ...cta, button: e.target.value })} /></div>
-            <div className="md:col-span-2"><label className={label}>Background Image URL</label><input className={input} value={cta.bg_image_url ?? ''} onChange={e => setCta({ ...cta, bg_image_url: e.target.value })} placeholder="/images/cta-bg.jpg" /></div>
+            <div className="md:col-span-2">
+              <label className={label}>Background Image</label>
+              <HeroAssetUploader
+                type="image"
+                url={cta.bg_image_url ?? ''}
+                onUpload={url => setCta({ ...cta, bg_image_url: url })}
+              />
+            </div>
           </div>
         </div>
 
