@@ -12,7 +12,7 @@ async function getPlatformSettings() {
     const service = createServiceClient()
     const { data } = await service
       .from('platform_settings')
-      .select('app_name, seo_title, seo_description, cta_color')
+      .select('app_name, seo_title, seo_description, cta_color, favicon_url')
       .single()
     return data
   } catch {
@@ -56,6 +56,7 @@ export async function generateMetadata(): Promise<Metadata> {
       description,
       images: ['/opengraph-image'],
     },
+    icons: ps?.favicon_url ? { icon: ps.favicon_url, shortcut: ps.favicon_url } : undefined,
   }
 }
 
@@ -70,7 +71,7 @@ export default async function MarketingLayout({
 
   return (
     <html lang="en">
-      <body className="min-h-full bg-white">
+      <body className="min-h-full bg-white no-text-cursor">
         <style>{`:root{--primary:${primary};--primary-foreground:${primaryFg};}`}</style>
         {children}
       </body>

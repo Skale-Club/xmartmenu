@@ -154,7 +154,7 @@ function getIcon(name: string): React.ComponentType<{ className?: string }> {
 
 // ─── Components ──────────────────────────────────────────────────────────────
 
-function Nav({ appName }: { appName?: string | null }) {
+function Nav({ appName, logoUrl }: { appName?: string | null; logoUrl?: string | null }) {
   return (
     <motion.nav
       initial={{ y: -100 }}
@@ -165,7 +165,7 @@ function Nav({ appName }: { appName?: string | null }) {
       <div className="w-full max-w-[1320px] mx-auto px-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
-            <img src="/icon.png" alt="XmartMenu Logo" className="w-8 h-8 object-cover" />
+            <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-8 h-8 object-cover" />
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">{appName ?? 'XmartMenu'}</span>
           </a>
         </div>
@@ -260,7 +260,7 @@ function Hero({ s }: { s: HeroSettings }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-xl sm:text-2xl text-zinc-400 mb-10 max-w-2xl mx-auto leading-relaxed"
+          className="text-[1rem] sm:text-[1.35rem] text-zinc-400 mb-10 max-w-2xl mx-auto leading-relaxed"
         >
           {sub}
         </motion.p>
@@ -273,7 +273,7 @@ function Hero({ s }: { s: HeroSettings }) {
         >
           <a
             href="/auth/login"
-            className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:bg-white transition-all hover:scale-105"
+            className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all"
           >
             {ctaPrimary}
           </a>
@@ -302,7 +302,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
   const sectionSubtitle = data?.subtitle ?? "Three simple steps to transform your restaurant's digital presence."
 
   return (
-    <section id="how-it-works" className="py-24 px-4 relative">
+    <section id="how-it-works" className="py-[86px] px-4 relative select-none">
       <div className="max-w-[1320px] mx-auto px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -311,10 +311,10 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
           className="text-center mb-16"
         >
           <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">{sectionTitle}</h2>
-          <p className="text-xl text-zinc-400">{sectionSubtitle}</p>
+          <p className="text-base text-zinc-400">{sectionSubtitle}</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 relative">
           {/* Connecting Line (Desktop) */}
           <div className="hidden md:block absolute top-12 left-[15%] right-[15%] h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
@@ -325,13 +325,15 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.2 }}
-              className="relative bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-8 rounded-[1.25rem] hover:bg-zinc-900 transition-colors group"
+              className="relative bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-5 md:p-8 rounded-[1.25rem] hover:bg-zinc-900 transition-colors group flex items-center gap-4 md:block"
             >
-              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center text-xl font-bold mb-6 mx-auto md:mx-0 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
-                <Icon className="w-8 h-8" />
+              <div className="w-12 h-12 flex-shrink-0 rounded-xl md:rounded-2xl md:w-16 md:h-16 bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-0 md:mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+                <Icon className="w-6 h-6 md:w-8 md:h-8" />
               </div>
-              <p className="text-2xl font-bold text-white mt-4 mb-3 text-center md:text-left">{title}</p>
-              <p className="text-zinc-400 leading-relaxed text-center md:text-left">{body}</p>
+              <div className="md:mt-4">
+                <p className="text-base md:text-2xl font-bold text-white mb-1 md:mb-3">{title}</p>
+                <p className="text-sm md:text-base text-zinc-400 leading-relaxed">{body}</p>
+              </div>
             </motion.div>
           ))}
         </div>
@@ -352,7 +354,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
   const sectionSubtitle = data?.subtitle ?? 'Powerful features wrapped in a beautifully simple interface.'
 
   return (
-    <section className="py-24 px-4 relative">
+    <section className="py-[86px] px-4 relative select-none">
       <div className="absolute inset-0 bg-zinc-950" />
       <div className="max-w-[1320px] mx-auto px-8 relative z-10">
         <motion.div
@@ -364,10 +366,10 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
           <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">
             {sectionTitle}
           </h2>
-          <p className="text-[17px] text-zinc-400">{sectionSubtitle}</p>
+          <p className="text-base text-zinc-400">{sectionSubtitle}</p>
         </motion.div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
           {resolvedFeatures.map(({ icon: Icon, title, body }, i) => (
             <motion.div
               key={title}
@@ -385,8 +387,8 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
                 <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-6">
                   <Icon className="w-6 h-6 text-primary" />
                 </div>
-                <h3 className="text-2xl lg:text-xl font-bold text-white mb-3">{title}</h3>
-                <p className="text-lg text-zinc-400 leading-relaxed">{body}</p>
+                <h3 className="text-base lg:text-xl font-bold text-white mb-3">{title}</h3>
+                <p className="text-sm lg:text-base text-zinc-400 leading-relaxed">{body}</p>
               </div>
             </motion.div>
           ))}
@@ -400,7 +402,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
 // To add CMS support, add a `faq` array to the landing JSONB schema (separate scope).
 function FAQ() {
   return (
-    <section className="py-24 px-4">
+    <section className="py-[86px] px-4">
       <div className="max-w-[1320px] mx-auto px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -421,15 +423,15 @@ function FAQ() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group bg-white/5 border border-white/10 rounded-xl overflow-hidden [&_summary::-webkit-details-marker]:hidden"
+              className="group bg-white/5 border border-white/10 rounded-xl overflow-hidden [&_summary::-webkit-details-marker]:hidden select-none"
             >
-              <summary className="p-6 text-lg font-bold text-white cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <summary className="p-6 text-base font-bold text-white cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 {q}
                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-open:rotate-180 transition-transform duration-300 shrink-0 ml-4">
                   <ChevronDown className="w-4 h-4 text-white" />
                 </div>
               </summary>
-              <div className="p-6 pt-0 text-zinc-400 text-lg leading-relaxed border-t border-white/5 group-open:animate-in group-open:fade-in group-open:slide-in-from-top-4 duration-300">
+              <div className="p-6 text-zinc-400 text-sm leading-relaxed border-t border-white/5 group-open:animate-in group-open:fade-in group-open:slide-in-from-top-4 duration-300">
                 {a}
               </div>
             </motion.details>
@@ -451,13 +453,12 @@ function FooterCTABand({ data }: { data?: CtaData | null }) {
       <div className="absolute top-0 inset-x-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
       <div className="relative overflow-hidden">
-        {(data?.bg_image_url || true) && (
+        {data?.bg_image_url && (
           <img
-            src={data?.bg_image_url ?? '/images/cta-bg.jpg'}
+            src={data.bg_image_url}
             alt=""
             aria-hidden="true"
             className="absolute inset-0 w-full h-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
           />
         )}
         <div className="absolute inset-0 bg-zinc-950/60 md:bg-zinc-950/50 lg:bg-zinc-950/40" />
@@ -475,7 +476,7 @@ function FooterCTABand({ data }: { data?: CtaData | null }) {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="text-xl text-zinc-300 mb-10 max-w-2xl mx-auto"
+            className="text-lg sm:text-2xl text-zinc-300 mb-10 max-w-2xl mx-auto"
           >
             {text}
           </motion.p>
@@ -487,7 +488,7 @@ function FooterCTABand({ data }: { data?: CtaData | null }) {
           >
             <a
               href="/auth/login"
-              className="inline-flex items-center justify-center bg-primary text-primary-foreground px-10 py-5 rounded-full text-xl font-bold hover:bg-white transition-all hover:scale-105 active:scale-95"
+              className="inline-flex items-center justify-center bg-primary text-primary-foreground px-10 py-5 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all active:scale-95"
             >
               {button}
             </a>
@@ -498,7 +499,7 @@ function FooterCTABand({ data }: { data?: CtaData | null }) {
   )
 }
 
-function Footer({ data, appName }: { data?: FooterData | null; appName?: string | null }) {
+function Footer({ data, appName, logoUrl }: { data?: FooterData | null; appName?: string | null; logoUrl?: string | null }) {
   const brandName = appName ?? 'XmartMenu'
   const copyright = data?.copyright ? `© ${data.copyright}` : '© 2026 XmartMenu. All rights reserved.'
 
@@ -509,10 +510,10 @@ function Footer({ data, appName }: { data?: FooterData | null; appName?: string 
           {/* Logo + tagline */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <img src="/icon.png" alt="XmartMenu Logo" className="w-6 h-6 object-cover" />
+              <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-cover" />
               <span className="text-lg font-bold text-white">{brandName}</span>
             </div>
-            <p className="text-zinc-400 text-base max-w-sm">
+            <p className="text-zinc-400 text-sm whitespace-nowrap">
               Digital menu for restaurants. Modernize the way your customers order.
             </p>
             {/* Social icons */}
@@ -538,12 +539,12 @@ function Footer({ data, appName }: { data?: FooterData | null; appName?: string 
             <p className="text-sm font-bold text-white uppercase tracking-wider mb-4">Legal</p>
             <ul className="flex flex-col md:items-end gap-3">
               <li>
-                <a href="/privacy" className="text-zinc-400 hover:text-white transition-colors">
+                <a href="/privacy" className="text-sm text-zinc-400 hover:text-white transition-colors">
                   Privacy Policy
                 </a>
               </li>
               <li>
-                <a href="/terms" className="text-zinc-400 hover:text-white transition-colors">
+                <a href="/terms" className="text-sm text-zinc-400 hover:text-white transition-colors">
                   Terms of Service
                 </a>
               </li>
@@ -562,12 +563,12 @@ function Footer({ data, appName }: { data?: FooterData | null; appName?: string 
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ClientLandingPage({ platformLanding, appName }: { platformLanding?: any; appName?: string | null }) {
+export default function ClientLandingPage({ platformLanding, appName, logoUrl }: { platformLanding?: any; appName?: string | null; logoUrl?: string | null }) {
   const heroSettings: HeroSettings = platformLanding?.hero ?? {}
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30">
-      <Nav appName={appName} />
+      <Nav appName={appName} logoUrl={logoUrl} />
       <main>
         <Hero s={heroSettings} />
         <HowItWorks data={platformLanding?.how_it_works} />
@@ -575,7 +576,7 @@ export default function ClientLandingPage({ platformLanding, appName }: { platfo
         <FAQ />
         <FooterCTABand data={platformLanding?.cta} />
       </main>
-      <Footer data={platformLanding?.footer} appName={appName} />
+      <Footer data={platformLanding?.footer} appName={appName} logoUrl={logoUrl} />
     </div>
   )
 }

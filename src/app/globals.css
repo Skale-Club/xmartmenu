@@ -35,6 +35,21 @@ input[type="file"] {
   cursor: pointer;
 }
 
+.no-text-cursor,
+.no-text-cursor * {
+  cursor: default !important;
+}
+.no-text-cursor a,
+.no-text-cursor button,
+.no-text-cursor summary,
+.no-text-cursor input,
+.no-text-cursor textarea,
+.no-text-cursor select,
+.no-text-cursor label,
+.no-text-cursor [role="button"] {
+  cursor: pointer !important;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
