@@ -294,7 +294,7 @@ function Hero({ s }: { s: HeroSettings }) {
           </a>
           <a
             href="#how-it-works"
-            className="w-full sm:w-auto inline-flex items-center justify-center bg-white/5 border border-white/10 text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-white/10 transition-colors"
+            className="w-full sm:w-auto inline-flex items-center justify-center bg-white/5 border border-white/10 text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-primary/20 hover:border-primary/40 hover:scale-105 transition-all"
           >
             {ctaSecondary}
           </a>
