@@ -124,15 +124,37 @@ function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps
     }
     setUploading(true)
     setUploadError(null)
-    const form = new FormData()
-    form.append('file', file)
-    form.append('type', type)
-    if (dest) form.append('dest', dest)
-    const res = await fetch('/api/superadmin/platform/upload', { method: 'POST', body: form })
-    const data = await res.json()
+
+    try {
+      if (type === 'video') {
+        // Get a signed URL and upload directly to Supabase — bypasses Next.js body size limits
+        const urlRes = await fetch('/api/superadmin/platform/video-upload-url')
+        const urlData = await urlRes.json()
+        if (!urlRes.ok) { setUploadError(urlData.error ?? 'Failed to get upload URL'); setUploading(false); return }
+
+        const uploadRes = await fetch(urlData.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        })
+        if (!uploadRes.ok) { setUploadError('Video upload failed'); setUploading(false); return }
+
+        onUpload(`${urlData.publicUrl}?v=${Date.now()}`)
+      } else {
+        const form = new FormData()
+        form.append('file', file)
+        form.append('type', type)
+        if (dest) form.append('dest', dest)
+        const res = await fetch('/api/superadmin/platform/upload', { method: 'POST', body: form })
+        const data = await res.json()
+        if (!res.ok) { setUploadError(data.error ?? 'Upload failed'); setUploading(false); return }
+        onUpload(data.url)
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+    }
+
     setUploading(false)
-    if (!res.ok) { setUploadError(data.error ?? 'Upload failed'); return }
-    onUpload(data.url)
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {

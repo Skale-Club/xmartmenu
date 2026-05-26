@@ -6,7 +6,10 @@ import { validateAndConvertToWebP } from '@/lib/upload'
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime']
 
+export const maxDuration = 60
+
 export async function POST(request: Request) {
+  try {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -46,6 +49,7 @@ export async function POST(request: Request) {
   }
 
   if (type === 'video') {
+    console.log('[upload] video upload attempt:', { name: file.name, size: file.size, mimeType: file.type })
     if (file.size > MAX_VIDEO_SIZE) {
       return NextResponse.json({ error: `Video too large (max 50MB, got ${(file.size / 1024 / 1024).toFixed(1)}MB)` }, { status: 400 })
     }
@@ -70,4 +74,8 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
+  } catch (err) {
+    console.error('[upload] unhandled error:', err)
+    return NextResponse.json({ error: err instanceof Error ? err.message : 'Upload failed' }, { status: 500 })
+  }
 }

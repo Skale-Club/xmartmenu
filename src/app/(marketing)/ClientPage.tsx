@@ -1,8 +1,8 @@
 ﻿"use client"
 
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { Globe, QrCode, Sparkles, ShoppingCart, ChevronDown, Camera, MessageCircle, UserPlus, UtensilsCrossed, ArrowRight, Sandwich, CupSoda, Zap, Star, ChefHat, CreditCard, BookOpen, Coffee, BarChart2, Search } from 'lucide-react'
+import { Globe, QrCode, Sparkles, ShoppingCart, ChevronDown, Camera, MessageCircle, UserPlus, UtensilsCrossed, ArrowRight, Sandwich, CupSoda, Zap, Star, ChefHat, CreditCard, BookOpen, Coffee, BarChart2, Search, Palette, ClipboardList, Link2 } from 'lucide-react'
 
 // ─── Platform settings shape (hero only) ────────────────────────────────────
 interface HeroSettings {
@@ -147,6 +147,9 @@ function getIcon(name: string): React.ComponentType<{ className?: string }> {
     Sandwich,
     CupSoda,
     FoodDrink: FoodDrinkCombo,
+    Palette,
+    ClipboardList,
+    Link2,
   }
 
   return iconMap[name] ?? Globe
@@ -173,7 +176,7 @@ function Nav({ appName, logoUrl }: { appName?: string | null; logoUrl?: string |
           href="/auth/login"
           className="relative group overflow-hidden bg-primary text-primary-foreground px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2"
         >
-          <span className="relative z-10">Sign In</span>
+          <span className="relative z-10">Start</span>
           <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
         </a>
       </div>
@@ -182,6 +185,7 @@ function Nav({ appName, logoUrl }: { appName?: string | null; logoUrl?: string |
 }
 
 function Hero({ s }: { s: HeroSettings }) {
+  const [videoError, setVideoError] = useState(false)
   const bgType = s.bg_type ?? 'color'
   const bgColor = s.bg_color ?? '#09090b'
   const bgImage = s.bg_image_url ?? ''
@@ -196,19 +200,30 @@ function Hero({ s }: { s: HeroSettings }) {
 
   return (
     <section
-      className="relative pt-8 pb-4 px-4 overflow-hidden min-h-[20vh] flex flex-col justify-center"
+      className="relative pt-8 pb-4 px-4 overflow-hidden min-h-screen flex flex-col justify-center"
       style={bgType === 'color' ? { backgroundColor: bgColor } : undefined}
     >
       {/* Video background */}
-      {bgType === 'video' && bgVideo && (
+      {bgType === 'video' && bgVideo && !videoError && (
         <>
           <video
             autoPlay muted loop playsInline
             className="absolute inset-0 w-full h-full object-cover"
             src={bgVideo}
             poster={bgImage || undefined}
+            onError={() => setVideoError(true)}
           />
-          {/* Dark overlay for readability */}
+          <div className="absolute inset-0 bg-black/50" />
+        </>
+      )}
+
+      {/* Video fallback — shown if video fails to load */}
+      {bgType === 'video' && videoError && bgImage && (
+        <>
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${bgImage})` }}
+          />
           <div className="absolute inset-0 bg-black/50" />
         </>
       )}
@@ -238,7 +253,7 @@ function Hero({ s }: { s: HeroSettings }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
         >
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-primary text-sm font-medium mb-8">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/40 text-white text-sm font-medium mb-8">
             <Sparkles className="w-4 h-4" />
             {badge}
           </span>
@@ -248,7 +263,7 @@ function Hero({ s }: { s: HeroSettings }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="text-5xl sm:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6"
+          className="text-5xl md:text-[3.6rem] lg:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6"
         >
           {heading} <br className="hidden sm:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-red-200 to-white">
@@ -260,7 +275,7 @@ function Hero({ s }: { s: HeroSettings }) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-[1rem] sm:text-[1.35rem] text-zinc-400 mb-10 max-w-2xl mx-auto leading-relaxed"
+          className="text-[0.85rem] sm:text-[1.15rem] text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed"
         >
           {sub}
         </motion.p>
@@ -302,7 +317,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
   const sectionSubtitle = data?.subtitle ?? "Three simple steps to transform your restaurant's digital presence."
 
   return (
-    <section id="how-it-works" className="py-[86px] px-4 relative select-none">
+    <section id="how-it-works" className="pt-[86px] md:pt-[172px] lg:pt-[86px] pb-[86px] px-4 relative select-none">
       <div className="max-w-[1320px] mx-auto px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -310,8 +325,8 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">{sectionTitle}</h2>
-          <p className="text-base text-zinc-400">{sectionSubtitle}</p>
+          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6">{sectionTitle}</h2>
+          <p className="text-sm md:text-base text-zinc-400">{sectionSubtitle}</p>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 relative">
@@ -327,12 +342,12 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
               transition={{ delay: i * 0.2 }}
               className="relative bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-5 md:p-8 rounded-[1.25rem] hover:bg-zinc-900 transition-colors group flex items-center gap-4 md:block"
             >
-              <div className="w-12 h-12 flex-shrink-0 rounded-xl md:rounded-2xl md:w-16 md:h-16 bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-0 md:mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+              <div className="w-12 h-12 flex-shrink-0 rounded-xl md:rounded-2xl md:w-16 md:h-16 md:mx-auto bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-0 md:mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                 <Icon className="w-6 h-6 md:w-8 md:h-8" />
               </div>
               <div className="md:mt-4">
-                <p className="text-base md:text-2xl font-bold text-white mb-1 md:mb-3">{title}</p>
-                <p className="text-sm md:text-base text-zinc-400 leading-relaxed">{body}</p>
+                <p className="text-base lg:text-2xl font-bold text-white mb-1 lg:mb-3">{title}</p>
+                <p className="text-sm lg:text-base text-zinc-400 leading-relaxed">{body}</p>
               </div>
             </motion.div>
           ))}
@@ -354,7 +369,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
   const sectionSubtitle = data?.subtitle ?? 'Powerful features wrapped in a beautifully simple interface.'
 
   return (
-    <section className="py-[86px] px-4 relative select-none">
+    <section className="pt-[57px] md:pt-[86px] pb-[86px] px-4 relative select-none">
       <div className="absolute inset-0 bg-zinc-950" />
       <div className="max-w-[1320px] mx-auto px-8 relative z-10">
         <motion.div
@@ -363,7 +378,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">
+          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6">
             {sectionTitle}
           </h2>
           <p className="text-base text-zinc-400">{sectionSubtitle}</p>
@@ -402,7 +417,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
 // To add CMS support, add a `faq` array to the landing JSONB schema (separate scope).
 function FAQ() {
   return (
-    <section className="py-[86px] px-4">
+    <section className="pt-[57px] md:pt-[86px] pb-[86px] md:pb-[172px] lg:pb-[86px] px-4">
       <div className="max-w-[1320px] mx-auto px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -410,7 +425,7 @@ function FAQ() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-white mb-6">
+          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6">
             Frequently asked questions
           </h2>
         </motion.div>
@@ -467,7 +482,7 @@ function FooterCTABand({ data }: { data?: CtaData | null }) {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl sm:text-6xl font-bold text-white mb-6"
+            className="text-4xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6"
           >
             {heading}
           </motion.h2>
@@ -504,7 +519,7 @@ function Footer({ data, appName, logoUrl }: { data?: FooterData | null; appName?
   const copyright = data?.copyright ? `© ${data.copyright}` : '© 2026 XmartMenu. All rights reserved.'
 
   return (
-    <footer className="border-t border-white/10 bg-zinc-950 px-4 pt-16 pb-8">
+    <footer className="border-t border-white/10 bg-zinc-950 px-4 pt-16 md:pt-32 lg:pt-16 pb-8">
       <div className="max-w-[1320px] mx-auto px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Logo + tagline */}
@@ -567,7 +582,7 @@ export default function ClientLandingPage({ platformLanding, appName, logoUrl }:
   const heroSettings: HeroSettings = platformLanding?.hero ?? {}
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30">
+    <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30 select-none">
       <Nav appName={appName} logoUrl={logoUrl} />
       <main>
         <Hero s={heroSettings} />
