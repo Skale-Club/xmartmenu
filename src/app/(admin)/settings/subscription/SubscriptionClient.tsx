@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import type { EffectivePlan } from '@/types/database'
@@ -78,7 +78,7 @@ export default function SubscriptionClient({
         </div>
         <h1 className="text-4xl font-black text-zinc-950 tracking-tight mb-2">No Active Subscription</h1>
         <p className="text-zinc-500 font-medium mb-8 max-w-sm">You don't have an active plan. Link your account to get started with XmartMenu.</p>
-        <button className="bg-zinc-950 text-white px-10 py-5 rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all shadow-xl shadow-zinc-950/10 flex items-center gap-2">
+        <button className="bg-zinc-950 text-white px-10 py-5 rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all shadow-xl shadow-zinc-950/10 flex items-center gap-2">
           Contact Enterprise Support
           <ChevronRight className="w-4 h-4" />
         </button>
@@ -296,7 +296,7 @@ export default function SubscriptionClient({
                   </div>
                   <a
                     href="/settings/store"
-                    className="flex items-center justify-center gap-2 w-full py-4 bg-zinc-950 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all shadow-xl shadow-zinc-950/10"
+                    className="flex items-center justify-center gap-2 w-full py-4 bg-zinc-950 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all shadow-xl shadow-zinc-950/10"
                   >
                     Sync Stripe Pipeline
                   </a>
@@ -316,7 +316,7 @@ export default function SubscriptionClient({
                 <p className="text-xs text-zinc-400 font-medium leading-relaxed mb-8">
                   Unlock Stripe payments, AI menu seeding, and advanced order analytics.
                 </p>
-                <button className="w-full py-4 bg-primary text-zinc-950 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all active:scale-95 shadow-xl shadow-primary/20">
+                <button className="w-full py-4 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all active:scale-95 shadow-xl shadow-primary/20">
                   Contact Sales Agent
                 </button>
               </div>

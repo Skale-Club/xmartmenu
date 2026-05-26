@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { type Dispatch, type ReactNode, type SetStateAction, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -376,7 +376,7 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
         <form onSubmit={handleCreate} className="space-y-8">
           <MenuFormFields draft={createForm} setDraft={setCreateForm} />
           <div className="flex gap-4 pt-4">
-            <button type="submit" disabled={loading} className="flex-1 bg-primary text-zinc-950 py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50">
+            <button type="submit" disabled={loading} className="flex-1 bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50">
               {loading ? 'Creating...' : 'Create Instance'}
             </button>
             <button type="button" onClick={() => setCreateOpen(false)} className="px-8 py-4 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">Cancel</button>
@@ -388,7 +388,7 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
         <form onSubmit={saveEdit} className="space-y-8">
           <MenuFormFields draft={editForm} setDraft={setEditForm} />
           <div className="flex gap-4 pt-4">
-            <button type="submit" disabled={loading} className="flex-1 bg-primary text-zinc-950 py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50">
+            <button type="submit" disabled={loading} className="flex-1 bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50">
               {loading ? 'Saving...' : 'Save Configuration'}
             </button>
             <button type="button" onClick={cancelEdit} className="px-8 py-4 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">Cancel</button>
@@ -408,7 +408,7 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
         </div>
         <button 
           onClick={() => setCreateOpen(true)} 
-          className="bg-primary text-zinc-950 px-8 py-4 rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-sm"
+          className="bg-primary text-primary-foreground px-8 py-4 rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-sm"
         >
           <Plus className="w-4 h-4" />
           New Menu
@@ -433,7 +433,7 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
                   <h3 className="text-2xl font-black text-zinc-950 truncate tracking-tight">{menu.name}</h3>
                   <div className="flex gap-2">
                     {menu.is_default && <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-950 text-white px-2.5 py-1 rounded-full">Default</span>}
-                    {isEditing && <span className="text-[9px] font-black uppercase tracking-widest bg-primary text-zinc-950 px-2.5 py-1 rounded-full">Editing</span>}
+                    {isEditing && <span className="text-[9px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-2.5 py-1 rounded-full">Editing</span>}
                     {!menu.is_active && <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-100 text-zinc-400 px-2.5 py-1 rounded-full">Off</span>}
                     {menu.is_private && <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full flex items-center gap-1"><Lock className="w-2.5 h-2.5" />Private</span>}
                   </div>
@@ -459,7 +459,7 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
                     await selectMenu(menu.id)
                     router.push('/menu/categories')
                   }}
-                  className="flex-1 sm:w-40 flex items-center justify-between gap-2 px-5 py-3 rounded-lg bg-zinc-950 text-white text-xs font-black hover:bg-primary hover:text-zinc-950 transition-all active:scale-95 group/btn"
+                  className="flex-1 sm:w-40 flex items-center justify-between gap-2 px-5 py-3 rounded-lg bg-zinc-950 text-white text-xs font-black hover:bg-primary hover:text-primary-foreground transition-all active:scale-95 group/btn"
                 >
                   Manage Items
                   <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />

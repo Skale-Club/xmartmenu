@@ -102,7 +102,7 @@ export default async function WaiterServerPage({ params }: Props) {
     .not('table_name', 'is', null)
 
   const currency = settings?.currency ?? 'USD'
-  const primaryColor = settings?.primary_color ?? '#EEFF00'
+  const primaryColor = settings?.primary_color ?? '#F52323'
 
   return (
     <WaiterPage

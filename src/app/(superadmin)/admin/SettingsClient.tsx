@@ -35,6 +35,8 @@ import {
   ShoppingCart,
   CreditCard,
   Bell,
+  Sandwich,
+  CupSoda,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -59,6 +61,8 @@ const ICON_OPTIONS: { name: string; icon: LucideIcon }[] = [
   { name: 'Bell', icon: Bell },
   { name: 'BookOpen', icon: BookOpen },
   { name: 'Coffee', icon: Coffee },
+  { name: 'Sandwich', icon: Sandwich },
+  { name: 'CupSoda', icon: CupSoda },
 ]
 
 function getIcon(name: string): LucideIcon {
@@ -104,9 +108,10 @@ interface HeroAssetUploaderProps {
   type: 'image' | 'video'
   url: string
   onUpload: (url: string) => void
+  dest?: string
 }
 
-function HeroAssetUploader({ type, url, onUpload }: HeroAssetUploaderProps) {
+function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps) {
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -119,14 +124,37 @@ function HeroAssetUploader({ type, url, onUpload }: HeroAssetUploaderProps) {
     }
     setUploading(true)
     setUploadError(null)
-    const form = new FormData()
-    form.append('file', file)
-    form.append('type', type)
-    const res = await fetch('/api/superadmin/platform/upload', { method: 'POST', body: form })
-    const data = await res.json()
+
+    try {
+      if (type === 'video') {
+        // Get a signed URL and upload directly to Supabase — bypasses Next.js body size limits
+        const urlRes = await fetch('/api/superadmin/platform/video-upload-url')
+        const urlData = await urlRes.json()
+        if (!urlRes.ok) { setUploadError(urlData.error ?? 'Failed to get upload URL'); setUploading(false); return }
+
+        const uploadRes = await fetch(urlData.signedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': file.type },
+          body: file,
+        })
+        if (!uploadRes.ok) { setUploadError('Video upload failed'); setUploading(false); return }
+
+        onUpload(`${urlData.publicUrl}?v=${Date.now()}`)
+      } else {
+        const form = new FormData()
+        form.append('file', file)
+        form.append('type', type)
+        if (dest) form.append('dest', dest)
+        const res = await fetch('/api/superadmin/platform/upload', { method: 'POST', body: form })
+        const data = await res.json()
+        if (!res.ok) { setUploadError(data.error ?? 'Upload failed'); setUploading(false); return }
+        onUpload(data.url)
+      }
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed')
+    }
+
     setUploading(false)
-    if (!res.ok) { setUploadError(data.error ?? 'Upload failed'); return }
-    onUpload(data.url)
   }
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -219,8 +247,49 @@ const DEFAULT_LANDING = {
   how_it_works: { title: 'How it works', subtitle: 'Up and running in 3 simple steps', steps: [{ step: '01', icon: 'ClipboardList', title: 'Build your menu', desc: 'Create categories and add your products with photos, descriptions and prices in the dashboard.' }, { step: '02', icon: 'Palette', title: 'Customize the look', desc: 'Add your logo, restaurant colors and contact information to make it your own.' }, { step: '03', icon: 'QrCode', title: 'Generate & print the QR Code', desc: 'Generate your unique QR Code with one click. Place it on tables and let customers access it instantly.' }] },
   features: { title: 'Everything you need', subtitle: 'Features designed for restaurants', items: [{ icon: 'Link2', title: 'Unique link per restaurant', desc: 'Each customer has their own digital menu address.' }, { icon: 'MessageCircle', title: 'Order via WhatsApp', desc: 'Customers tap a product and WhatsApp opens ready to order.' }, { icon: 'Palette', title: 'Custom branding', desc: 'Logo, colors and visual identity for your restaurant.' }, { icon: 'BarChart2', title: 'Scan counter', desc: 'See how many times your QR Code has been scanned.' }, { icon: 'Search', title: 'Menu search', desc: 'Customers find any product in seconds.' }, { icon: 'Zap', title: 'No app required', desc: 'Everything opens directly in the phone browser, zero friction.' }] },
   pricing: { title: 'Simple plans', subtitle: 'Start free, scale when you need', plans: [{ name: 'Free', price: '$0', period: '/mo', desc: 'To get started', features: ['Digital menu', 'QR Code generated', 'Up to 20 products', 'Basic branding'], cta: 'Get started free', highlight: false }, { name: 'Pro', price: '$49', period: '/mo', desc: 'To grow', features: ['Everything in Free', 'Unlimited products', 'Full branding', 'Scan analytics', 'Priority support'], cta: 'Subscribe to Pro', highlight: true }, { name: 'Enterprise', price: '$149', period: '/mo', desc: 'For chains', features: ['Everything in Pro', 'Multiple locations', 'Custom domain', 'Dedicated onboarding', 'Guaranteed SLA'], cta: 'Talk to sales', highlight: false }] },
-  cta: { heading: 'Ready to digitize\nyour menu?', text: 'Create your account and build a menu that works for daily service.', button: 'Create free account' },
+  cta: { heading: 'Ready to digitize\nyour menu?', text: 'Create your account and build a menu that works for daily service.', button: 'Create free account', bg_image_url: '' },
   footer: { copyright: 'XmartMenu. All rights reserved.' },
+}
+
+function FaviconUploader({ url, onUpload }: { url: string; onUpload: (url: string) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [uploading, setUploading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleFile(file: File) {
+    setUploading(true)
+    setError(null)
+    const form = new FormData()
+    form.append('file', file)
+    form.append('type', 'image')
+    form.append('dest', 'favicon')
+    const res = await fetch('/api/superadmin/platform/upload', { method: 'POST', body: form })
+    const data = await res.json()
+    if (!res.ok) setError(data.error ?? 'Upload failed')
+    else onUpload(data.url)
+    setUploading(false)
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={e => e.target.files?.[0] && handleFile(e.target.files[0])} />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-xs font-bold rounded-xl hover:bg-zinc-700 transition-colors disabled:opacity-50"
+      >
+        {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+        {uploading ? 'Uploading...' : url ? 'Replace' : 'Upload favicon'}
+      </button>
+      {url && (
+        <button type="button" onClick={() => onUpload('')} className="text-xs text-zinc-400 hover:text-red-500 transition-colors">
+          Remove
+        </button>
+      )}
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </div>
+  )
 }
 
 interface Props { settings: any }
@@ -234,8 +303,9 @@ export default function SettingsClient({ settings }: Props) {
     brand_name: s.brand_name ?? 'XmartMenu',
     default_primary_color: s.default_primary_color ?? '#000000',
     default_accent_color: s.default_accent_color ?? '#FF5722',
-    cta_color: s.cta_color ?? '#CBFF00',
+    cta_color: s.cta_color ?? '#F52323',
     menu_footer_brand: s.menu_footer_brand ?? 'XmartMenu',
+    favicon_url: s.favicon_url ?? '',
   })
 
   const [hero, setHero] = useState({ ...DEFAULT_LANDING.hero, ...(l.hero ?? {}) })
@@ -326,28 +396,51 @@ export default function SettingsClient({ settings }: Props) {
             <div><label className={label}>Brand Name</label><input className={input} value={platform.brand_name} onChange={e => setPlatform({ ...platform, brand_name: e.target.value })} /></div>
             <div><label className={label}>Menu Footer Text</label><input className={input} value={platform.menu_footer_brand} onChange={e => setPlatform({ ...platform, menu_footer_brand: e.target.value })} /></div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-zinc-50">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-4 border-t border-zinc-50 items-end">
             <div className="space-y-3">
               <label className={label}>Default Primary Color</label>
-              <div className="flex items-center gap-3 bg-zinc-50 p-2 rounded-2xl border border-zinc-100">
-                <input type="color" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 bg-transparent" />
-                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} />
+              <div className="flex items-center gap-2 bg-zinc-50 px-3 py-2 rounded-2xl border border-zinc-200 overflow-hidden">
+                <label className="relative w-9 h-9 rounded-lg flex-shrink-0 cursor-pointer border border-zinc-200 overflow-hidden" style={{ backgroundColor: platform.default_primary_color }}>
+                  <input type="color" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                </label>
+                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase min-w-0" value={platform.default_primary_color} onChange={e => setPlatform({ ...platform, default_primary_color: e.target.value })} />
               </div>
             </div>
             <div className="space-y-3">
               <label className={label}>Default Accent Color</label>
-              <div className="flex items-center gap-3 bg-zinc-50 p-2 rounded-2xl border border-zinc-100">
-                <input type="color" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 bg-transparent" />
-                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} />
+              <div className="flex items-center gap-2 bg-zinc-50 px-3 py-2 rounded-2xl border border-zinc-200 overflow-hidden">
+                <label className="relative w-9 h-9 rounded-lg flex-shrink-0 cursor-pointer border border-zinc-200 overflow-hidden" style={{ backgroundColor: platform.default_accent_color }}>
+                  <input type="color" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                </label>
+                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase min-w-0" value={platform.default_accent_color} onChange={e => setPlatform({ ...platform, default_accent_color: e.target.value })} />
               </div>
             </div>
             <div className="space-y-3">
               <label className={label}>CTA Color</label>
-              <div className="flex items-center gap-3 bg-zinc-50 p-2 rounded-2xl border border-zinc-100">
-                <input type="color" value={platform.cta_color} onChange={e => setPlatform({ ...platform, cta_color: e.target.value })} className="w-12 h-12 rounded-xl border-0 cursor-pointer p-0.5 bg-transparent" />
-                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase" value={platform.cta_color} onChange={e => setPlatform({ ...platform, cta_color: e.target.value })} />
-                <div className="w-8 h-8 rounded-lg border border-zinc-200 flex-shrink-0" style={{ backgroundColor: platform.cta_color }} />
+              <div className="flex items-center gap-2 bg-zinc-50 px-3 py-2 rounded-2xl border border-zinc-200 overflow-hidden">
+                <label className="relative w-9 h-9 rounded-lg flex-shrink-0 cursor-pointer border border-zinc-200 overflow-hidden" style={{ backgroundColor: platform.cta_color }}>
+                  <input type="color" value={platform.cta_color} onChange={e => setPlatform({ ...platform, cta_color: e.target.value })} className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+                </label>
+                <input className="flex-1 bg-transparent border-0 focus:ring-0 text-sm font-mono uppercase min-w-0" value={platform.cta_color} onChange={e => setPlatform({ ...platform, cta_color: e.target.value })} />
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Favicon */}
+        <div className={section}>
+          <h2 className={sectionTitle}><ImageIcon className="w-5 h-5 text-zinc-500" /> Favicon</h2>
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50 flex items-center justify-center overflow-hidden flex-shrink-0">
+              {platform.favicon_url
+                ? <img src={platform.favicon_url} alt="favicon preview" className="w-12 h-12 object-contain" />
+                : <ImageIcon className="w-6 h-6 text-zinc-300" />
+              }
+            </div>
+            <div className="flex-1 space-y-2">
+              <p className="text-sm font-medium text-zinc-700">Browser tab icon</p>
+              <p className="text-xs text-zinc-400">PNG, JPG or WebP · Recommended 64×64px or larger</p>
+              <FaviconUploader url={platform.favicon_url} onUpload={url => setPlatform({ ...platform, favicon_url: url })} />
             </div>
           </div>
         </div>
@@ -539,6 +632,15 @@ export default function SettingsClient({ settings }: Props) {
             <div className="md:col-span-2"><label className={label}>Main Headline</label><input className={input} value={cta.heading} onChange={e => setCta({ ...cta, heading: e.target.value })} /></div>
             <div><label className={label}>Supportive Text</label><input className={input} value={cta.text} onChange={e => setCta({ ...cta, text: e.target.value })} /></div>
             <div><label className={label}>Button Label</label><input className={input} value={cta.button} onChange={e => setCta({ ...cta, button: e.target.value })} /></div>
+            <div className="md:col-span-2">
+              <label className={label}>Background Image</label>
+              <HeroAssetUploader
+                type="image"
+                dest="cta-bg"
+                url={cta.bg_image_url ?? ''}
+                onUpload={url => setCta({ ...cta, bg_image_url: url })}
+              />
+            </div>
           </div>
         </div>
 

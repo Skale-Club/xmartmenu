@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
+import { revalidatePath } from 'next/cache'
 
 export async function GET() {
   const service = await createServiceClient()
@@ -15,7 +16,7 @@ export async function PATCH(request: Request) {
   const body = await request.json()
   const service = await createServiceClient()
 
-  const allowed = ['app_name', 'brand_name', 'default_primary_color', 'default_accent_color', 'cta_color', 'menu_footer_brand', 'landing', 'seo_title', 'seo_description']
+  const allowed = ['app_name', 'brand_name', 'default_primary_color', 'default_accent_color', 'cta_color', 'menu_footer_brand', 'landing', 'seo_title', 'seo_description', 'favicon_url']
   const update: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) update[key] = body[key]
@@ -42,6 +43,8 @@ export async function PATCH(request: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     result = data
   }
+
+  revalidatePath('/', 'page')
 
   return NextResponse.json(result)
 }

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -610,7 +610,7 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
                     type="button"
                     onClick={handleSaveDomain}
                     disabled={savingDomain || !customDomain.trim()}
-                    className="px-5 py-3 bg-primary text-zinc-950 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50 shrink-0"
+                    className="px-5 py-3 bg-primary text-primary-foreground rounded-xl text-sm font-black uppercase tracking-widest hover:bg-white transition-all disabled:opacity-50 shrink-0"
                   >
                     {savingDomain ? '...' : 'Save Domain'}
                   </button>
@@ -756,7 +756,7 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
               type="submit" 
               disabled={loading}
               className={cn(
-                "flex-1 sm:flex-none bg-primary text-zinc-950 px-12 py-5 rounded-full text-lg font-black transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-primary/20",
+                "flex-1 sm:flex-none bg-primary text-primary-foreground px-12 py-5 rounded-full text-lg font-black transition-all active:scale-95 flex items-center justify-center gap-3 shadow-lg shadow-primary/20",
                 saved ? "bg-green-500 text-white" : "hover:bg-white"
               )}
             >

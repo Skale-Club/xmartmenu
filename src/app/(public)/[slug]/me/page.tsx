@@ -49,7 +49,7 @@ export default async function CustomerPanelPage({ params }: Props) {
         name: tenant.name,
         slug: tenant.slug,
         settings: {
-          primary_color: settings.primary_color ?? '#EEFF00',
+          primary_color: settings.primary_color ?? '#F52323',
           accent_color: settings.accent_color ?? '#09090b',
           address: settings.address ?? null,
           phone: settings.phone ?? null,

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -142,7 +142,7 @@ export default function PasswordPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full sm:w-auto bg-zinc-950 text-white px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-zinc-950/10 flex items-center justify-center gap-3"
+                className="w-full sm:w-auto bg-zinc-950 text-white px-12 py-5 rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all active:scale-95 disabled:opacity-50 shadow-xl shadow-zinc-950/10 flex items-center justify-center gap-3"
               >
                 {loading ? 'Securing...' : (
                   <>

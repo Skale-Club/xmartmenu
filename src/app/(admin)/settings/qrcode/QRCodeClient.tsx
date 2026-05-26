@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -121,14 +121,14 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
                 <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-1">Target URL</p>
                 <p className="text-xs font-mono text-zinc-300 truncate">{selectedUrl}</p>
               </div>
-              <a href={selectedUrl} target="_blank" className="p-2 bg-white/10 rounded-xl text-primary hover:bg-primary hover:text-zinc-950 transition-all">
+              <a href={selectedUrl} target="_blank" className="p-2 bg-white/10 rounded-xl text-primary hover:bg-primary hover:text-primary-foreground transition-all">
                 <ExternalLink className="w-4 h-4" />
               </a>
             </div>
 
             <button
               onClick={downloadPNG}
-              className="w-full bg-primary text-zinc-950 py-5 rounded-full text-lg font-black hover:bg-white transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+              className="w-full bg-primary text-primary-foreground py-5 rounded-full text-lg font-black hover:bg-white transition-all active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
             >
               <Download className="w-5 h-5" />
               Download PNG Asset
@@ -159,7 +159,7 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
                 <button
                   onClick={handleCreate}
                   disabled={loading || !label.trim()}
-                  className="bg-zinc-950 text-white px-8 py-3.5 rounded-xl text-sm font-black hover:bg-primary hover:text-zinc-950 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
+                  className="bg-zinc-950 text-white px-8 py-3.5 rounded-xl text-sm font-black hover:bg-primary hover:text-primary-foreground transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
                 >
                   {loading ? '...' : 'Generate'}
                   <ArrowRight className="w-4 h-4" />

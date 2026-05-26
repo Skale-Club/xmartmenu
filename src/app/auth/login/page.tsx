@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +70,7 @@ export default function LoginPage() {
         <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-[1.25rem] p-8">
           {/* Marca */}
           <div className="mb-8 text-center">
-            <img src="/icon.png" alt="XmartMenu Logo" className="w-12 h-12 mx-auto mb-5" />
+            <img src={typeof window !== 'undefined' ? (window as any).__LOGO_URL__ ?? '/icon.png' : '/icon.png'} alt="Logo" className="w-12 h-12 mx-auto mb-5" />
             <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">XmartMenu</a>
             <p className="text-sm font-bold text-zinc-500 mt-2">Sign in to your menu dashboard</p>
           </div>
@@ -134,7 +134,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={emailLoading || googleLoading}
-              className="w-full bg-primary text-zinc-950 py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
+              className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
             >
               {emailLoading ? 'Signing in...' : (
                 <>

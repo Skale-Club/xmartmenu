@@ -103,7 +103,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const categoryFilterRef = useRef<HTMLDivElement | null>(null)
 
   const settings = tenant.tenant_settings
-  const primaryColor = settings?.primary_color ?? '#EEFF00'
+  const primaryColor = settings?.primary_color ?? '#F52323'
   const accentColor = settings?.accent_color ?? '#09090b'
   const ordersEnabled = settings?.orders_enabled ?? true
   const whatsapp = (ordersEnabled && settings?.whatsapp_orders_enabled) ? settings?.whatsapp : null
@@ -787,7 +787,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         <AiChatWidget
           tenantSlug={tenant.slug}
           tenantName={tenant.name}
-          primaryColor={(settings as any)?.primary_color ?? '#EEFF00'}
+          primaryColor={(settings as any)?.primary_color ?? '#F52323'}
           audioEnabled={chatAddonAudioEnabled}
           products={products}
           onAddToCart={addToCart}

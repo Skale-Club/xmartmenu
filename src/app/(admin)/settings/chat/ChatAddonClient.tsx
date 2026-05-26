@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { Bot, Eye, EyeOff, Sparkles, Mic, AlertCircle, CheckCircle2, Save, Zap } from 'lucide-react'
@@ -125,7 +125,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
           </div>
           <a
             href="/api/admin/chat-addon/billing/checkout"
-            className="px-6 py-3 bg-zinc-950 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all whitespace-nowrap"
+            className="px-6 py-3 bg-zinc-950 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all whitespace-nowrap"
           >
             Activate Addon
           </a>
@@ -300,7 +300,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
             disabled={saving}
             className={cn(
               "flex items-center gap-3 px-12 py-4 rounded-full text-sm font-black uppercase tracking-widest transition-all",
-              saved ? "bg-green-500 text-white" : "bg-zinc-950 text-primary hover:bg-primary hover:text-zinc-950"
+              saved ? "bg-green-500 text-white" : "bg-zinc-950 text-primary hover:bg-primary hover:text-primary-foreground"
             )}
           >
             {saving ? 'Saving…' : saved ? (<><CheckCircle2 className="w-5 h-5" />Saved</>) : (<><Save className="w-5 h-5" />Save settings</>)}

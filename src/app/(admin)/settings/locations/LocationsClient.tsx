@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef, useEffect } from 'react'
 import { MapPin, Plus, Pencil, Building2, ToggleLeft, ToggleRight, AlertCircle, X, Clock, QrCode, Download, BookOpen } from 'lucide-react'
@@ -197,7 +197,7 @@ function LocationModal({
           <button
             onClick={onSave}
             disabled={loading}
-            className="flex-1 py-3 rounded-full bg-primary text-zinc-950 text-sm font-black hover:bg-zinc-950 hover:text-white transition-all disabled:opacity-50"
+            className="flex-1 py-3 rounded-full bg-primary text-primary-foreground text-sm font-black hover:bg-zinc-950 hover:text-white transition-all disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Save Location'}
           </button>
@@ -271,7 +271,7 @@ function QRModal({
           <p className="text-[10px] font-mono text-zinc-400 text-center break-all">{url}</p>
           <button
             onClick={download}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-zinc-950 rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all"
+            className="w-full flex items-center justify-center gap-2 py-3 bg-primary text-primary-foreground rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all"
           >
             <Download className="w-4 h-4" />
             Download PNG
@@ -401,7 +401,7 @@ export default function LocationsClient({
         </div>
         <button
           onClick={openCreate}
-          className="flex items-center gap-2 px-6 py-3 bg-primary text-zinc-950 rounded-full text-sm font-black uppercase tracking-widest hover:bg-zinc-950 hover:text-white transition-all shadow-sm"
+          className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-full text-sm font-black uppercase tracking-widest hover:bg-zinc-950 hover:text-white transition-all shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Add Location
@@ -420,7 +420,7 @@ export default function LocationsClient({
           </p>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 px-8 py-4 bg-primary text-zinc-950 rounded-full text-sm font-black uppercase tracking-widest hover:bg-zinc-950 hover:text-white transition-all"
+            className="flex items-center gap-2 px-8 py-4 bg-primary text-primary-foreground rounded-full text-sm font-black uppercase tracking-widest hover:bg-zinc-950 hover:text-white transition-all"
           >
             <Plus className="w-4 h-4" />
             Add Location

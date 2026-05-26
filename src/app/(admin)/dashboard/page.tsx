@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic'
 
 import { CopyMenuUrl } from '@/components/admin/CopyMenuUrl'
 import { createClient } from '@/lib/supabase/server'
@@ -98,7 +98,7 @@ export default async function DashboardPage() {
              className="group relative bg-white rounded-[1.25rem] p-8 border border-zinc-100 transition-all hover:border-primary/50"
            >
              <div className="flex items-center gap-5">
-               <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${stat.color === 'primary' ? 'bg-primary text-zinc-950' : 'bg-zinc-100 text-zinc-400'} transition-colors group-hover:scale-110 duration-300`}>
+               <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${stat.color === 'primary' ? 'bg-primary text-primary-foreground' : 'bg-zinc-100 text-zinc-400'} transition-colors group-hover:scale-110 duration-300`}>
                  <stat.icon className="w-6 h-6" />
                </div>
                <div className="flex-1">

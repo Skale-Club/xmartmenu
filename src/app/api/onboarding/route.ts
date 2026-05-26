@@ -62,7 +62,7 @@ export async function POST(request: Request) {
       product_price,
     } = body
     const safeMenuPurpose = sanitizeMenuPurpose(business_type)
-    const defaultPalette = CUISINE_PALETTES[business_type?.trim().toLowerCase() ?? ''] ?? { primary: '#EEFF00', accent: '#09090b' }
+    const defaultPalette = CUISINE_PALETTES[business_type?.trim().toLowerCase() ?? ''] ?? { primary: '#F52323', accent: '#09090b' }
 
     if (!company_name?.trim()) return NextResponse.json({ error: 'Company name is required' }, { status: 400 })
     if (!menu_name?.trim()) return NextResponse.json({ error: 'Menu name is required' }, { status: 400 })

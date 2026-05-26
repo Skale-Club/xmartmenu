@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { type ReactNode, useEffect, useState } from 'react'
 import type { Category } from '@/types/database'
@@ -160,7 +160,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
               setShowForm(true)
             }}
             disabled={!menuId}
-            className="bg-primary text-zinc-950 px-8 py-4 rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-sm disabled:opacity-50"
+            className="bg-primary text-primary-foreground px-8 py-4 rounded-full text-sm font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 flex items-center gap-2 uppercase tracking-widest shadow-sm disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             New Category
@@ -215,7 +215,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-primary text-zinc-950 py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50"
+              className="flex-1 bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50"
             >
               {loading ? 'Processing...' : 'Save Category'}
             </button>
@@ -246,7 +246,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
                     className={cn(
                       "text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest transition-all",
                       cat.is_active 
-                        ? "bg-primary text-zinc-950" 
+                        ? "bg-primary text-primary-foreground" 
                         : "bg-zinc-100 text-zinc-400"
                     )}
                   >

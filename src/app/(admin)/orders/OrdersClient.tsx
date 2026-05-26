@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -210,7 +210,7 @@ function OrderCard({
           <button
             onClick={() => onAdvance(order.id, nextStatus)}
             disabled={isLoading}
-            className="w-full py-4 bg-zinc-950 text-white rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-zinc-950/10"
+            className="w-full py-4 bg-zinc-950 text-white rounded-full text-xs font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-zinc-950/10"
           >
             {isLoading ? 'Processing...' : ADVANCE_LABEL[order.status]}
           </button>
@@ -606,7 +606,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                         </div>
                       </td>
                       <td className="px-8 py-6 text-right">
-                        <button className="p-3 rounded-full bg-zinc-950 text-white hover:bg-primary hover:text-zinc-950 transition-all shadow-lg shadow-zinc-950/10">
+                        <button className="p-3 rounded-full bg-zinc-950 text-white hover:bg-primary hover:text-primary-foreground transition-all shadow-lg shadow-zinc-950/10">
                           <ChevronRight className="w-4 h-4" />
                         </button>
                       </td>
@@ -758,7 +758,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                 {selectedOrder.status === 'pending' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'preparing')}
-                    className="flex-1 py-5 bg-zinc-950 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all shadow-xl shadow-zinc-950/10"
+                    className="flex-1 py-5 bg-zinc-950 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all shadow-xl shadow-zinc-950/10"
                   >
                     Start preparing
                   </button>
@@ -766,7 +766,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                 {selectedOrder.status === 'preparing' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'ready')}
-                    className="flex-1 py-5 bg-primary text-zinc-950 rounded-full text-sm font-black uppercase tracking-widest hover:bg-zinc-950 hover:text-white transition-all shadow-xl shadow-primary/20"
+                    className="flex-1 py-5 bg-primary text-primary-foreground rounded-full text-sm font-black uppercase tracking-widest hover:bg-zinc-950 hover:text-white transition-all shadow-xl shadow-primary/20"
                   >
                     Mark as ready
                   </button>

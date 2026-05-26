@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
@@ -236,7 +236,7 @@ export default function StaffClient() {
               <button
                 type="submit"
                 disabled={inviteLoading}
-                className="w-full bg-zinc-950 text-white py-4 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-zinc-950 transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-zinc-950/10 flex items-center justify-center gap-2"
+                className="w-full bg-zinc-950 text-white py-4 rounded-xl text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all active:scale-95 disabled:opacity-50 shadow-lg shadow-zinc-950/10 flex items-center justify-center gap-2"
               >
                 {inviteLoading ? 'Sending...' : (
                   <>
@@ -279,7 +279,7 @@ export default function StaffClient() {
                 {staff.map(member => (
                   <div key={member.id} className="group flex flex-col sm:flex-row sm:items-center justify-between gap-6 px-10 py-8 hover:bg-zinc-50/50 transition-colors">
                     <div className="flex items-center gap-6">
-                      <div className="w-14 h-14 rounded-xl bg-zinc-100 flex items-center justify-center text-xl font-black text-zinc-300 border border-zinc-200 shadow-inner group-hover:bg-primary group-hover:text-zinc-950 transition-all">
+                      <div className="w-14 h-14 rounded-xl bg-zinc-100 flex items-center justify-center text-xl font-black text-zinc-300 border border-zinc-200 shadow-inner group-hover:bg-primary group-hover:text-primary-foreground transition-all">
                         {getInitials(member.full_name ?? member.email ?? '')}
                       </div>
                       <div>

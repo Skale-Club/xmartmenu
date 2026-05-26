@@ -1,284 +1,68 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
-stopped_at: Completed 44-zero-hardcoded-values-44-03-PLAN.md
-last_updated: "2026-05-22T09:49:05.560Z"
-last_activity: 2026-05-22
+milestone: v2.3
+milestone_name: Brand & Marketing Refresh
+status: executing
+stopped_at: Milestone v2.3 initialized
+last_updated: "2026-05-25T17:34:22.474Z"
+last_activity: 2026-05-25 -- Phase 48 planning complete
 progress:
-  total_phases: 10
-  completed_phases: 5
-  total_plans: 13
-  completed_plans: 12
+  total_phases: 14
+  completed_phases: 7
+  total_plans: 19
+  completed_plans: 14
+  percent: 50
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-05-19)
+See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 35 — custom-domain
+**Current focus:** v2.3 Brand & Marketing Refresh — Phase 46 ready
 
 ## Current Position
 
-Phase: 44
-Status: Phases 42 + 43 implemented together. Migrations 035, 036, 037 pending user apply.
-Last activity: 2026-05-20
+Phase: 46 (ready)
+Status: Ready to execute
+Last activity: 2026-05-25 -- Phase 48 planning complete
 
 ## Milestone Overview
 
-v2.2: Restaurant Growth Platform — SEED-011, SEED-013, SEED-014, SEED-015, SEED-016
+v2.3: Brand & Marketing Refresh — SEED-025, SEED-026, SEED-027, SEED-028, SEED-029
 
-| Phase | Name | Requirements | Status |
-|-------|------|--------------|--------|
-| 36 | English Conversion | ENGL-01, ENGL-02, ENGL-03, ENGL-04, ENGL-05, ENGL-06 | ○ Pending |
-| 37 | Color Theming | THEME-01, THEME-02, THEME-03, THEME-04 | ○ Pending |
-| 38 | Order Types — Admin & Schema | ORD-01, ORD-02, ORD-03 | ○ Pending |
-| 39 | Order Types — Customer & Operational | ORD-04, ORD-05, ORD-06, ORD-07 | ○ Pending |
-| 40 | Multi-Location — Schema & Admin CRUD | LOC-01, LOC-02 | ○ Pending |
-| 41 | Multi-Location — Routing, QR Codes & Menu Toggle | LOC-03, LOC-04, LOC-05, LOC-06 | ✓ Complete |
-| 42 | SEO — Platform & Per-Tenant | SEO-01, SEO-02, SEO-03, SEO-04, SEO-05, SEO-06, SEO-07 | ✓ Complete |
-| 43 | SEO — Per-Branch Local SEO | SEO-08 | ✓ Complete |
+| Phase | Name | Seeds | Requirements | Status |
+|---|---|---|---|---|
+| 45 | Icon Resolver Fix | SEED-025 | ICON-01, ICON-02, ICON-03 | ✓ Complete |
+| 46 | Global Color Rebrand | SEED-026 | COLOR-01–06 | ○ Pending |
+| 47 | Features Section Layout | SEED-027 | FEAT-01–04 | ○ Pending |
+| 48 | CTA Full-Bleed + Background Image | SEED-028 | CTA-01–06 | ○ Pending |
+| 49 | DB Seeds — Color & Branding Defaults | SEED-029 | SEED-01–03 | ○ Blocked (after 45–48) |
 
-## Performance Metrics
-
-**Velocity (v1.0):**
-
-- Total plans completed: 6
-- Average duration: ~25 min
-- Total execution time: ~2.5 hours
-
-**By Phase (previous milestones):**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1. Performance | 2 | ~50 min | ~25 min |
-| 2. Security | 3 | ~75 min | ~25 min |
-| 3. CI/CD | 1 | ~25 min | ~25 min |
-
-*Updated after each plan completion*
-| Phase 04 P01 | 1 | 1 tasks | 1 files |
-| Phase 04 P02 | 8min | 1 tasks | 3 files |
-| Phase 05 P01 | 1min | 2 tasks | 2 files |
-| Phase 05 P02 | 3min | 1 tasks | 1 files |
-| Phase 05 P03 | 8min | 2 tasks | 1 files |
-| Phase 06 P01 | 8min | 1 tasks | 1 files |
-| Phase 06-public-menu-option-selectors-cart P02 | 326 | 2 tasks | 1 files |
-| Phase 06 P03 | 306 | 2 tasks | 1 files |
-| Phase 07 P01 | 4min | 1 tasks | 1 files |
-| Phase 07 P02 | 277s | 2 tasks | 1 files |
-| Phase 08-tenant-orders-view P01 | 138 | 1 tasks | 1 files |
-| Phase 09-text-seeding P01 | 15min | 2 tasks | 4 files |
-| Phase 09-text-seeding P09-02 | 25min | 2 tasks | 2 files |
-| Phase 09-text-seeding P09-03 | 20min | 2 tasks | 4 files |
-| Phase 11-menu-photo-ocr P11-01 | 15min | 3 tasks | 5 files |
-| Phase 11-menu-photo-ocr P11-02 | 386 | 2 tasks | 3 files |
-| Phase 11-menu-photo-ocr P03 | 0min | 1 tasks | 0 files |
-| Phase 12-core-landing-page P12-01 | 4min | 3 tasks | 7 files |
-| Phase 12-core-landing-page P12-02 | 8min | 2 tasks | 3 files |
-| Phase 12-core-landing-page P12-03 | 5min | 2 tasks | 3 files |
-| Phase 13-seo-metadata P13-01 | 204 | 2 tasks | 4 files |
-| Phase 13-seo-metadata P13-02 | ~15min | 1 tasks | 1 files |
-| Phase 15 P01 | 15min | 2 tasks | 3 files |
-| Phase 15 P02 | ~15min | 1 tasks | 2 files |
-| Phase 15 P03 | 5min | 2 tasks | 2 files |
-| Phase 16-frontend-performance P02 | 35 | 2 tasks | 1 files |
-| Phase 19-admin-next-image P02 | 8min | 1 tasks | 1 files |
-| Phase 21-kds-dashboard P01 | 3min | 2 tasks | 3 files |
-| Phase 21 P02 | 10 | 2 tasks | 1 files |
-| Phase 22 P01 | 5min | 2 tasks | 3 files |
-| Phase 23 P01 | 98s | 2 tasks | 2 files |
-| Phase 24 P01 | 7min | 2 tasks | 4 files |
-| Phase 24 P02 | 5 | 2 tasks | 2 files |
-| Phase 25 P01 | 4min | 2 tasks | 4 files |
-| Phase 25 P02 | 2min | 1 tasks | 1 files |
-| Phase 26 P01 | ~2.5min | 2 tasks | 7 files |
-| Phase 27 P01 | 176 | 2 tasks | 1 files |
-| Phase 28 P01 | ~2min | 2 tasks | 3 files |
-| Phase 30 P01 | ~15min | 4 tasks | 4 files |
-| Phase 32 P01 | 275 | 6 tasks | 6 files |
-| Phase 33 P01 | 15 | 8 tasks | 8 files |
-| Phase 34 P34 | ~8min | 4 tasks | 4 files |
-| Phase 36-english-conversion P01 | 3 | 2 tasks | 4 files |
-| Phase 37-color-theming P01 | 18min | 3 tasks | 6 files |
-| Phase 37-color-theming P02 | 8min | 2 tasks | 3 files |
-| Phase 38-order-types-admin-schema P01 | 2min | 2 tasks | 3 files |
-| Phase 38-order-types-admin-schema P02 | 5min | 2 tasks | 1 files |
-| Phase 39-order-types-customer-operational P01 | 5min | 4 tasks | 4 files |
-| Phase 39-order-types-customer-operational P02 | 5min | 2 tasks | 2 files |
-| Phase 39-order-types-customer-operational P03 | 5min | 1 tasks | 1 files |
-| Phase 35 P01 | 2min | 6 tasks | 2 files |
-| Phase 44 P01 | 2min | 2 tasks | 4 files |
-| Phase 44 P03 | 3 | 2 tasks | 2 files |
+**Execution order:** Phase 45 first → then 46 + 47 + 48 can run (46+48 parallel, 47 after 45) → Phase 49 last
 
 ## Accumulated Context
 
 ### Decisions
 
-Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- In-memory cart (no localStorage) — matches skleanings pattern, avoids state-sync complexity
-- Option groups for product variants — pizza sizes + half-and-half require structured groups, not flat addons
-- CartContext must use 'use client' boundary — Next.js App Router constraint
-- half_and_half price rule: max(half1.base_price, half2.base_price) — Brazilian convention
-- [Phase 04]: Migration 021 does not touch orders_public_insert — already fixed in 020 with orders_enabled gate
-- [Phase 04]: base_price nullable on product_options to distinguish absolute option price from additive price_modifier
-- [Phase 04]: Status UPDATE rows before DROP+ADD CONSTRAINT to avoid CHECK constraint violation on existing data
-- [Phase 04]: Order.status union uses kitchen workflow language: pending/preparing/ready/done/cancelled (not confirmed/completed)
-- [Phase 04]: base_price vs price_modifier: base_price is absolute option price (nullable), price_modifier is additive delta (non-nullable)
-- [Phase 05]: Edit button navigates to /admin/menu/products/[id] instead of opening modal (modal kept for future quick-edit use per D-03)
-- [Phase 05]: GroupWithOptions interface exported from [id]/page.tsx for ProductDetailClient (Plan 02) to import
-- [Phase 05 P03]: OptionGroupForm/OptionForm declared before export default in same file — no separate files needed
-- [Phase 05 P03]: isAbsolutePrice = type==='single' || type==='half_and_half' drives price field label and min constraint
-- [Phase 05 P03]: price_modifier input has NO min attr to allow negative values (Pitfall 5 from RESEARCH.md)
-- [Phase 06-public-menu-option-selectors-cart]: buildCartKey sorts entries alphabetically to ensure stable composite cart keys
-- [Phase 06-public-menu-option-selectors-cart]: CartItem extended with selectedOptions, unitPrice, cartKey for per-option-combination cart slots
-- [Phase 06]: ProductModal owns selectedOptions building — onAddToCart callback receives (opts, unitPrice) so ProductModal can access group/option state in scope
-- [Phase 07]: selected_options typed as Record<string, unknown> to match DB column type; || null fallback for backward compatibility
-- [Phase 07-02]: Snapshot cart into confirmedCart before clearing to display ordered items in confirmation view
-- [Phase 07-02]: orderId && orderSuccess double-guard switches CartModal between confirmation and cart-form views
-- [Phase 08-01]: All changes confined to OrdersClient.tsx — Items column, selected_options display, and Notes modal section added additively without removing existing code
-- [v1.2 Roadmap]: AI SDK v6 uses Zod v4 internally — do not mix Zod v3 and v4
-- [v1.2 Roadmap]: ai_usage table schema planned as (tenant_id, feature_key, date, call_count, token_count) to cover all three AI features without future migration
-- [v1.2 Roadmap]: All AI routes must use Node.js runtime (not Edge) — Sharp requires native Node.js bindings
-- [v1.2 Roadmap]: OCR two-route pattern is architectural: ocr-menu returns draft (no DB write), ocr-commit writes only after user confirmation
-- [v1.2 Roadmap]: Phase 10 (Image Seeding) depends on Phase 9 product IDs; Phase 11 (OCR) depends on Phase 9 infra but is DB-independent
-- [v1.2 Roadmap]: tenant_id must always be derived from Supabase auth session, never from request body
-- [Phase 09-01]: sanitizeForPrompt strips `{}<>\n\r` and backticks before any user value enters a prompt — OWASP LLM Top 10 #1
-- [Phase 09-01]: ai_usage UNIQUE(tenant_id, feature_key, date) enables upsert cost accumulation without extra SELECT
-- [Phase 09-01]: Migration 022 applied via Supabase SQL editor (local Docker not available)
-- [Phase 09-text-seeding]: Single seed route with type field in POST body handles all 6 seed types without proliferating routes
-- [Phase 09-text-seeding]: Zod v4 z.record requires two args: z.record(z.string(), z.any()) — single-arg form not valid in Zod v4
-- [Phase 09-text-seeding]: TranslationsSchema kept flat as z.record(z.string(), z.any()) to avoid Gemini structured output validation failures with deeply nested schemas (Pitfall 3)
-- [Phase 09-text-seeding]: categories-list endpoint created at /api/superadmin/tenants/[id]/menus/[menuId]/categories-list — no existing superadmin route covered per-menu category listing
-- [Phase 09-text-seeding]: AI Tools section placed outside tab system, always visible below Tabs block per UI-SPEC Layout Specification
-- [Phase 11-menu-photo-ocr]: @ai-sdk/openai@^3 installed at major 3 to match @ai-sdk/google and remain compatible with ai@6.x
-- [Phase 11-menu-photo-ocr]: OcrMenuSchema price: z.number() (not .positive()) — 0 valid for unreadable prices (D-12)
-- [Phase 11-menu-photo-ocr]: ocr-upload-token route accepts ?filename= query param for correct storage path extension (Pitfall 7)
-- [Phase 11-menu-photo-ocr]: generateObject with messages array (not prompt string) used for GPT-4.1-mini vision — image base64 data URL passed as content part
-- [Phase 11-menu-photo-ocr]: Image downloaded from Supabase Storage then converted to base64 — avoids passing raw storage URL to OpenAI (storage may not be publicly accessible)
-- [Phase 11-menu-photo-ocr]: Wave 2 agent pre-completed 11-03 scope during 11-02 execution — OCR UI shipped in commit 58869bd alongside the ocr-menu route
-- [v1.3 Roadmap]: page.tsx must export `dynamic = 'force-static'` — CDN-edge delivery, replaces redirect entirely
-- [v1.3 Roadmap]: Supabase getUser() bypass in middleware.ts required for `/` — without it Lighthouse mobile drops to 85-88
-- [v1.3 Roadmap]: RESERVED_PATHS Set must be enforced in both middleware (blocks access) and onboarding API (blocks registration) — dual enforcement is defense in depth
-- [v1.3 Roadmap]: JSON-LD must use inline dangerouslySetInnerHTML in page.tsx only — next/script causes RSC hydration duplicates in React 19
-- [v1.3 Roadmap]: sitemap.ts lists only `/` — never queries tenants table (prevents tenant roster exposure)
-- [v1.3 Roadmap]: OG image must be JPEG ≤ 300 KB — WhatsApp silently drops images over 300 KB; Brazilian restaurateurs share via WhatsApp
-- [v1.3 Roadmap]: Analytics/SpeedInsights must import from /next subpath — /react breaks route-change detection in App Router
-- [v1.3 Roadmap]: No fake testimonials, fake metrics, or crossed-out anchor pricing — FTC enforcement risk and anti-pattern
-- [v1.3 Roadmap]: Ordering copy must describe feature-flag behavior (not default-on); AI seeding copy must describe onboarding service (not self-serve tenant tool)
-- [v1.3 Roadmap]: demo tenant must exist with is_active: true, default menu, seeded categories/products/images before Phase 12 ships
-- [v1.3 Roadmap]: metadataBase absence in layout.tsx confirmed in live codebase — must be added in Phase 12
-- [Phase 12-01]: BLOCKED_TENANT_SLUGS inline in middleware.ts (not imported from reserved-paths.ts) — Edge Runtime keeps imports minimal
-- [Phase 12-01]: Marketing bypass uses NextResponse.next() unconditionally for '/' — no session refresh on static marketing routes (D-26)
-- [Phase 12-01]: Analytics components in root layout (not marketing layout) — broader coverage across all routes (D-03)
-- [Phase 12-core-landing-page]: Camera icon used as Instagram proxy in (marketing)/page.tsx — lucide-react@1.7.0 does not export Instagram; aria-label preserved
-- [Phase 12-core-landing-page]: Analytics/SpeedInsights not added to (marketing)/layout.tsx — already in root layout.tsx per D-03 to avoid script duplication
-- [Phase 12-core-landing-page]: OG image uses flat dark CSS ImageResponse with no fetch() — keeps PNG under 100 KB (WhatsApp 300 KB gate, Pitfall 3)
-- [Phase 12-core-landing-page]: Legal pages (/privacy, /terms) outside (marketing) route group as named routes — inherit root lang=pt-BR, acceptable for placeholders (D-21)
-- [Phase 13-seo-metadata]: sitemap.ts lists only / — no DB queries to prevent tenant roster exposure as public XML
-- [Phase 13-seo-metadata]: JSON-LD injected via dangerouslySetInnerHTML in page.tsx only (not layout.tsx) — prevents leaking to tenant pages
-- [Phase 13-seo-metadata]: schema-dts installed as devDependency — zero runtime footprint, types stripped at build
-- [Phase 13-02]: opengraph-image.tsx must be in src/app/ root, not route-group subdirectory — file convention only injects og:image meta when co-located with the route segment it applies to
-- [Phase 13-02]: OG image measured at 33421 bytes (32.6 KB) — 9x under 300 KB WhatsApp limit
-- [v1.4 Roadmap]: Phase 14 (Instrumentacao) is a hard prerequisite gate — no optimization work starts before baselines are recorded
-- [v1.4 Roadmap]: Vercel Speed Insights already installed (v1.3); Phase 14 is about reading/interpreting data, not installing tooling
-- [v1.4 Roadmap]: All DB analysis runs via Supabase SQL editor — no local Docker available
-- [v1.4 Roadmap]: Phase 17 CI Gate depends on Phase 16 achieving >= 90 so threshold is meaningful, not aspirational
-- [Phase 14-01]: Turbopack incompatible with @next/bundle-analyzer — must use ANALYZE=true npm run build --webpack
-- [Phase 14-01]: Bundle analyzer generates client.html, edge.html, nodejs.html (not server.html as originally documented)
-- [Phase 14-01]: Top 5 client chunks: 3794 (216KB, App Router runtime), 4bd1b696 (195KB, react-dom), framework (185KB, React+scheduler), 5536 (170KB, unnamed shared — lazy candidate), main (128KB, hydration bootstrap); total non-deferrable baseline ~819KB
-- [Phase 15]: EXPLAIN ANALYZE deferred by user — migration audit used as deterministic substitute (index presence in migration = index exists in DB)
-- [Phase 15]: menus(tenant_id), menus(slug), categories(menu_id), products(menu_id) confirmed missing — all causing Seq Scans on every public menu page load
-- [Phase 15-03]: Migration 024 written with 4 IF NOT EXISTS indices — pending Supabase SQL Editor application; orders/auth path has zero missing indices
-- [Phase 15-03]: UNIQUE(tenant_id, slug) composite on menus does not serve tenant_id-only or slug-only filters — both required separate single-column indices
-- [Phase 16-frontend-performance]: Retain revalidate=60 on public menu routes — appropriate for 0-10 daily menu changes; defers chunk 5346 Supabase browser client fix to Phase 17 (architectural change >2 files)
-- [Phase 19-admin-next-image]: Remove Tailwind w-14 h-14 / w-16 h-16 from className when next/image takes over sizing — avoids conflicting dimension hints
-- [v1.6 Roadmap]: KDS grid/list toggle persists to localStorage per tenant — same localStorage pattern as existing direct_orders_enabled flag awareness
-- [v1.6 Roadmap]: Elapsed-time hook ticks every ~30s; amber threshold 10min, red threshold 20min — hardcoded for v1.6, configurable thresholds deferred to v1.7
-- [v1.6 Roadmap]: statusColors dict already exists in OrdersClient.tsx lines 9-15 — Phase 21 extends/relocates it to a shared constant
-- [v1.6 Roadmap]: Supabase Realtime filtered by tenant_id on orders table; polling at 15s interval as fallback — decision on primary vs fallback made in Phase 22
-- [v1.6 Roadmap]: item_notes_enabled flag follows same pattern as direct_orders_enabled on tenants/store_settings table
-- [v1.6 Roadmap]: order_items.notes TEXT — validated server-side (truncate at 140 chars, strip control chars); client textarea is UX-only guard
-- [Phase 21-01]: STATUS_COLORS.pending=blue, preparing=yellow — corrects inverted color mapping from original statusColors dict
-- [Phase 21-01]: loadingId: string | null replaces loading: boolean — per-card disabled state without blocking all cards simultaneously
-- [Phase 21-01]: view state and supabase client scaffolded in Plan 01; wired in Plan 02 (toggle) and Phase 22 (realtime)
-- [Phase 21-01]: useRef for intervalRef avoids spurious renders when storing the 30s timer ID
-- [Phase 21]: localStorage read in useEffect only (SSR-safe) — never in useState initializer or render body
-- [Phase 21]: List view reuses existing table + modal pattern (setSelectedOrder on row click) — no new modal needed
-- [Phase 22]: Run Realtime and polling simultaneously — Realtime for instant updates, polling at 15s as safety net covering status changes and gaps
-- [Phase 22]: Follow-up query on INSERT payload.new.id fetches full order+items — avoids empty items list on new KDS cards (Pitfall 1)
-- [Phase 22]: Migration 025 applied manually via Supabase SQL Editor (local Docker not available — consistent with all prior migrations)
-- [v1.7 Roadmap]: extra_price_override ?? default_extra_price rule — null override means use catalog default; zero override means explicitly free
-- [v1.7 Roadmap]: ingredient_modifications JSONB structure: {removed:[{ingredient_id, name}], extras:[{ingredient_id, name, qty, unit_price}], added:[{ingredient_id, name, qty, unit_price}]}
-- [v1.7 Roadmap]: Removal is always free in v1.7 — charging for removal deferred to v1.8
-- [v1.7 Roadmap]: Ingredient catalog is always via /admin/menu/ingredients page — no inline ingredient creation in product editor
-- [v1.7 Roadmap]: PT-BR labels: "Ingredientes", "Padrão do produto", "Adicionar ingrediente", "SEM cebola", "Extra queijo"
-- [v1.7 Roadmap]: Phase 24 UI gated by ingredient_customization_enabled on tenant_settings — same opt-in pattern as item_notes_enabled
-- [v1.7 Roadmap]: Phase 25 customer panel slot is below option groups in ProductModal — same pattern as notes textarea added in v1.6
-- [Phase 23]: Public read policy on product_ingredients uses USING(true) — customers need all product ingredients for customization panel; availability filtering at ingredient level
-- [Phase 23]: Primary key on product_ingredients is composite (product_id, ingredient_id) — satisfies UNIQUE constraint without a separate index
-- [Phase 23]: IngredientModifications.added reuses IngredientExtra type — additions and extras carry identical payload (qty + unit_price)
-- [Phase 24]: ingredientCustomizationEnabled prop added to AdminSidebar with default false — backward compatible with all existing callers
-- [Phase 24]: Phase 24 UI gated by ingredientCustomizationEnabled prop threading layout.tsx -> AdminSidebar -> conditional nav item render
-- [Phase 24]: Tab bar pattern with activeTab state drives conditional card rendering (details/options/ingredients) — zero complexity, clean separation
-- [Phase 24]: defaultValue + onBlur on price override inputs avoids React controlled/uncontrolled conflict on independent per-row updates
-- [Phase 24]: empty string maps to null (val !== '' ? parseFloat(val) : null) — explicit contract for catalog default_extra_price fallback
-- [Phase 25]: buildCartKey unchanged — modifications are slot metadata, not key dimensions; same product+options = same cart slot regardless of modifications
-- [Phase 25]: buildIngredientModifications returns null when all arrays empty — avoids empty JSONB being truthy in KDS/modal checks
-- [Phase 25]: ingredientDelta IIFE placed after computedUnitPrice IIFE — finalUnitPrice = computedUnitPrice + ingredientDelta
-- [Phase 25]: Inline expandable picker (not a new modal) for Adicionar ingrediente — avoids z-index stacking in fixed overlay modal
-- [Phase 25]: Both public server pages fetch product_ingredients for parity — [slug]/page.tsx passes no optionGroupsByProductId but still fetches ingredients when flag is on
-- [v1.8 Roadmap]: amber_threshold_minutes and red_threshold_minutes added to tenant_settings via migration 027 with IF NOT EXISTS guard — defaults 10/20 keep existing KDS behaviour unchanged
-- [v1.8 Roadmap]: useElapsedTime props replace hardcoded AMBER_MINUTES/RED_MINUTES constants — OrdersClient reads from tenant settings and passes down
-- [v1.8 Roadmap]: Filter chips are mutually exclusive (not multi-select); default active set is [pending, preparing] — done/cancelled hidden by default
-- [v1.8 Roadmap]: Web Audio API beep fires only on Realtime INSERT events, not on status-update payloads; AudioContext created lazily on first user interaction to satisfy browser autoplay policy
-- [v1.8 Roadmap]: kds_filter_{tenantId} and kds_mute_{tenantId} are the localStorage keys — consistent with existing kds_view_{tenantId} pattern
-- [Phase 26-01]: useElapsedTime accepts amberMinutes/redMinutes with defaults 10/20 — backward-compatible; no existing callers break
-- [Phase 26-01]: orders/page.tsx uses Promise.all for parallel fetch of orders + tenant_settings thresholds — zero added latency
-- [Phase 26-01]: StoreClient KDS validation: amber >= red and either <= 0 block upsert — prevents nonsensical KDS config reaching DB
-- [Phase 26-01]: Migration 027 applied via node scripts/apply-migration-027.mjs using DATABASE_URL from .env.local
-- [Phase 27]: DEFAULT_FILTER='pending' (not array) — chips mutually exclusive; single active filter per v1.8 Roadmap decision
-- [Phase 27]: mutedRef synced via useEffect([muted]) — avoids re-subscribing Realtime channel on every mute toggle (stale closure prevention)
-- [Phase 27]: AudioContext created lazily inside playBeep() — browser autoplay policy requires user gesture before AudioContext creation
-- [Phase 28-01]: 3 separate indices on profiles (tenant_id, role, composite) vs single composite — single-column filters cannot use leading-column-only composite efficiently (same rationale as migration 024)
-- [Phase 28-01]: configure-cdn-cache.mjs reads .env.local directly via readFileSync — no dotenv dependency; consistent with migration runner pattern
-- [Phase 28-01]: public: true passed alongside cacheControl in updateBucket() — preserves bucket public access settings during cache header update
-- [Phase 28-01]: Migration 028 applied via node scripts/apply-migration-028.mjs using DATABASE_URL from .env.local
-- [Phase 30]: Created getTenantPlan() in src/lib/tenant-plan.ts as single source of truth for plan resolution
-- [Phase 30]: Used Supabase migration pattern consistent with migrations 024-028
-- [Phase 30]: Override pattern: NULL = use plan value, non-NULL = use override
-- [Phase 30]: Grandfathered all existing tenants to payments plan with override_notes marker
-- [Phase 32]: Dynamic imports inside functions for tenant-plan and supabase/server — avoids circular dependency issues in Next.js App Router
-- [Phase 32]: Soft-delete (is_active=false) for Stripe disconnection — preserves audit trail for compliance
-- [Phase 32]: OAuth state parameter contains tenantId + timestamp (15-min window) — stateless validation without session storage
-- [Phase 32]: Stripe status read from URL search params on client mount — enables OAuth result feedback without SSR
-- [Phase 33]: PaymentIntent server-create pattern — secret key never exposed to client
-- [Phase 33]: Stripe Connect routing with application_fee_amount = floor(order_total * transaction_fee_pct)
-- [Phase 33]: Raw body (request.text()) for webhook signature — not request.json()
-- [Phase 33]: Webhook idempotency upsert + business work in same DB transaction
-- [Phase 33]: Webhook returns 200 immediately — async processing for slow ops
-- [Phase 36-01]: Pure text replacement pattern: zero layout/logic/styling changes to keep English conversion risk-free
-- [Phase 36-01]: replace_all for identical duplicate error strings (two Erro ao excluir in TenantsClient.tsx at lines 177 and 185)
-- [Phase 37-color-theming]: computePrimaryForeground threshold L > 0.4 → dark text (#09090b), L ≤ 0.4 → white text (#ffffff) — WCAG luminance
-- [Phase 37-color-theming]: Server-side <style>:root{...}</style> injection before MenuPage in public routes — zero FOUC on ISR pages
-- [Phase 37-color-theming]: CUISINE_PRESETS defined at module scope in BrandingClient — stable reference, no re-creation
-- [Phase 37-color-theming]: CUISINE_PALETTES lookup uses raw business_type (lowercased), not safeMenuPurpose — avoids pizza→restaurant mapping losing pizza-specific palette
-- [Phase 37-color-theming]: CartModal accent fallback changed from #6366f1 (indigo placeholder) to #09090b (platform dark) — consistent with globals.css :root --accent default
-- [Phase 38-order-types-admin-schema]: Migration 034: 5 boolean/int columns on tenant_settings with IF NOT EXISTS guards; defaults dine_in=true, pickup/delivery=false, eta=20, fee=0 preserve existing behaviour
-- [Phase 35]: Migration numbered 031 (not 029) because 029_english_first_defaults.sql already existed
-- [Phase 44]: Migration 045 uses IF NOT EXISTS on all 3 ALTER COLUMN statements — consistent with project migration idempotency pattern
-- [Phase 44]: footerBrand fetched independently in each public page via platform_settings.menu_footer_brand with 'XmartMenu' fallback
-- [Phase 44-03]: getPlatformSettings() module-level helper shared by generateMetadata() and MarketingLayout() avoids two separate DB round-trips (Pitfall 5)
-- [Phase 44-03]: revalidate = 60 required in marketing layout for generateMetadata() ISR compatibility
+- [v2.3 Roadmap]: Color rebrand is atomic — must ship as one commit or dark text appears on red buttons everywhere
+- [v2.3 Roadmap]: `--primary-foreground` flips from `#09090b` to `#ffffff` because `#F52323` luminance L ≤ 0.4 (WCAG)
+- [v2.3 Roadmap]: `text-zinc-950` replacement is surgical — only where paired with `bg-primary`, not global
+- [v2.3 Roadmap]: `FoodDrinkCombo` return type is `React.ComponentType<{ className?: string }>` not `LucideIcon` — custom component
+- [v2.3 Roadmap]: CTA section `overflow-hidden` on card required to clip background image to `rounded-[2rem]`
+- [v2.3 Roadmap]: CTA padding moved from section to content wrapper inside card — section px-8 removal + card full-width must be one atomic edit
+- [v2.3 Roadmap]: Hero "built for service." gradient structure unchanged — only `via-yellow-200` → `via-red-200`
+- [v2.3 Roadmap]: Features grid icon swap uses component reference (`FoodDrinkCombo`), not string `'FoodDrink'`
+- [v2.3 Roadmap]: Phase 49 (DB seeds) blocked until Phases 45–48 are visually confirmed — `FoodDrink` name invalid before SEED-025 ships
+- [Phase 45]: Marketing landing icons must resolve by DB string name, not array index, so admin edits actually appear on the live page
+- [Phase 45]: `FoodDrinkCombo` strips incoming `w-*`/`h-*` utility classes before rendering `Sandwich` + `CupSoda`, preserving container sizing and color classes
+- [Phase 45]: `FoodDrink` remains an internal marketing resolver key; superadmin picker exposes `Sandwich` and `CupSoda` separately
 
 ### Pending Todos
 
-None — v2.2 roadmap defined, ready to plan Phase 36 (English Conversion).
+None — Phase 46, 47, and 48 are ready; Phase 49 remains blocked on visual confirmation.
 
 ### Blockers/Concerns
 
@@ -286,16 +70,16 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-05-22T09:49:05.548Z
-Stopped at: Completed 35-custom-domain-35-01-PLAN.md
+Last session: 2026-05-25
+Stopped at: Milestone v2.3 initialized
 
 ---
 
 **Project Status: IN DEVELOPMENT**
 
 | Item | Status |
-|------|--------|
-| Seeds | 10 completed (SEED-011 through SEED-016 in progress as v2.2) |
-| Milestones | 12 shipped (v1.0 → v2.1), 1 in progress (v2.2) |
-| Phases | 35 shipped, 8 planned (Phases 36-43) |
+|---|---|
+| Seeds | SEED-025 through SEED-029 planted and revised |
+| Milestones | 13 shipped (v1.0 → v2.2), 1 starting (v2.3) |
+| Phases | 44 shipped, 5 planned (Phases 45-49) |
 | Blockers | None |

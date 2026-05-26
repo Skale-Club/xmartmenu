@@ -28,12 +28,12 @@ export default async function SuperadminLayout({ children }: { children: React.R
 
   const [{ data: profile }, { data: ps }] = await Promise.all([
     supabase.from('profiles').select('role').eq('id', user.id).single(),
-    (await createServiceClient()).from('platform_settings').select('cta_color, app_name').single(),
+    (await createServiceClient()).from('platform_settings').select('cta_color, app_name, favicon_url').single(),
   ])
 
   if (profile?.role !== 'superadmin') redirect('/dashboard')
 
-  const primary = ps?.cta_color ?? '#EEFF00'
+  const primary = ps?.cta_color ?? '#F52323'
   const primaryFg = computePrimaryForeground(primary)
 
   return (
@@ -43,7 +43,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
       <aside className="w-64 flex-shrink-0 bg-zinc-950 text-zinc-400 flex flex-col border-r border-zinc-800">
         <div className="p-6 border-b border-zinc-800/50">
           <div className="flex items-center gap-2 mb-1">
-            <img src="/icon.png" alt="XmartMenu Logo" className="w-6 h-6 object-cover rounded-md" />
+            <img src={ps?.favicon_url ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-cover rounded-md" />
             <a href="/" className="text-xs font-bold text-white uppercase tracking-[0.2em] hover:text-primary transition-colors">{ps?.app_name ?? 'XmartMenu'}</a>
           </div>
           <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Super Admin Console</p>
@@ -69,7 +69,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
             <ClipboardList className="w-4 h-4 text-zinc-500 group-hover:text-primary transition-colors" /> 
             Plans
           </a>
-          <a href="/settings" className="group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold hover:bg-zinc-900 hover:text-white transition-all">
+          <a href="/admin" className="group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold hover:bg-zinc-900 hover:text-white transition-all">
             <Settings className="w-4 h-4 text-zinc-500 group-hover:text-primary transition-colors" /> 
             Settings
           </a>
