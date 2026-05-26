@@ -317,7 +317,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
   const sectionSubtitle = data?.subtitle ?? "Three simple steps to transform your restaurant's digital presence."
 
   return (
-    <section id="how-it-works" className="pt-[86px] md:pt-[172px] lg:pt-[86px] pb-[86px] px-4 relative select-none">
+    <section id="how-it-works" className="pt-[57px] md:pt-[172px] lg:pt-[86px] pb-[86px] px-4 relative select-none">
       <div className="max-w-[1320px] mx-auto px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
