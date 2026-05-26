@@ -2,13 +2,19 @@
 
 export const dynamic = 'force-dynamic'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { ArrowRight } from 'lucide-react'
 
 export default function LoginPage() {
+  const [logoSrc, setLogoSrc] = useState('/icon.png')
   const [googleLoading, setGoogleLoading] = useState(false)
+
+  useEffect(() => {
+    const url = (window as any).__LOGO_URL__
+    if (url) setLogoSrc(url)
+  }, [])
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
@@ -70,7 +76,7 @@ export default function LoginPage() {
         <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-[1.25rem] p-8">
           {/* Marca */}
           <div className="mb-8 text-center">
-            <img src={typeof window !== 'undefined' ? (window as any).__LOGO_URL__ ?? '/icon.png' : '/icon.png'} alt="Logo" className="w-12 h-12 mx-auto mb-5" />
+            <img src={logoSrc} alt="Logo" className="w-12 h-12 mx-auto mb-5" />
             <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">XmartMenu</a>
             <p className="text-sm font-bold text-zinc-500 mt-2">Sign in to your menu dashboard</p>
           </div>

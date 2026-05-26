@@ -118,7 +118,7 @@ export default function AdminSidebar({
     <aside className="w-64 flex-shrink-0 bg-zinc-950 text-zinc-400 flex flex-col border-r border-zinc-800">
       <div className="p-6 border-b border-zinc-800/50">
         <div className="flex items-center gap-2 mb-4">
-          <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-cover rounded-sm" />
+          <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-contain object-center rounded-sm" />
           <Link href="/" className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] hover:text-primary transition-colors">{appName}</Link>
         </div>
         <p className="text-lg font-black text-white truncate tracking-tight">{tenantName}</p>
