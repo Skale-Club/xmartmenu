@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { formatPrice, getInitials } from '@/lib/utils'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import { UI_COPY, type CartItem, buildCartKey, getProductImages } from './menu-utils'
+import { UI_COPY, type CartItem, type CartEditorState, buildCartKey, getProductImages } from './menu-utils'
 import {
   MapPin,
   Phone,
@@ -24,7 +24,8 @@ import {
 } from 'lucide-react'
 
 const ProductModal = dynamic(() => import('./ProductModal'), { ssr: false })
-const CartModal = dynamic(() => import('./CartModal'), { ssr: false })
+const CartPanel = dynamic(() => import('./CartPanel'), { ssr: false })
+const CheckoutModal = dynamic(() => import('./CheckoutModal'), { ssr: false })
 const AiChatWidget = dynamic(() => import('./AiChatWidget'), { ssr: false })
 
 interface Props {
@@ -81,7 +82,9 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const [visibleCategory, setVisibleCategory] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [showSearch, setShowSearch] = useState(false)
-  const [showCartModal, setShowCartModal] = useState(false)
+  const [cartOpen, setCartOpen] = useState(false)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [editingCartKey, setEditingCartKey] = useState<string | null>(null)
   const [showHoursModal, setShowHoursModal] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
@@ -101,6 +104,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
   const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   const categoryFilterRef = useRef<HTMLDivElement | null>(null)
+  const autoOpenedRef = useRef(false)
 
   const settings = tenant.tenant_settings
   const primaryColor = settings?.primary_color ?? '#F52323'
@@ -154,17 +158,44 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null) {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) {
     const key = buildCartKey(product.id, selectedOptions)
     setCart(prev => {
       const existing = prev.find(item => item.cartKey === key)
       if (existing) {
         return prev.map(item =>
-          item.cartKey === key ? { ...item, quantity: item.quantity + 1, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications } : item
+          item.cartKey === key ? { ...item, quantity: item.quantity + 1, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications, editorState: editorState ?? item.editorState } : item
         )
       }
-      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications }]
+      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications, editorState }]
     })
+  }
+
+  // Re-save an edited item: drop the original entry and re-insert under its new
+  // cart key, preserving the original quantity. Merges into an identical existing
+  // item instead of creating a duplicate.
+  function replaceCartItem(oldKey: string, product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) {
+    const newKey = buildCartKey(product.id, selectedOptions)
+    setCart(prev => {
+      const old = prev.find(item => item.cartKey === oldKey)
+      const qty = old?.quantity ?? 1
+      const without = prev.filter(item => item.cartKey !== oldKey)
+      const existing = without.find(item => item.cartKey === newKey)
+      if (existing) {
+        return without.map(item =>
+          item.cartKey === newKey ? { ...item, quantity: item.quantity + qty, unitPrice, note, ingredientModifications, editorState } : item
+        )
+      }
+      return [...without, { product, quantity: qty, selectedOptions, unitPrice, cartKey: newKey, note, ingredientModifications, editorState }]
+    })
+  }
+
+  function editItem(itemCartKey: string) {
+    const item = cart.find(i => i.cartKey === itemCartKey)
+    if (!item) return
+    setEditingCartKey(itemCartKey)
+    setSelectedProduct(item.product)
+    setCartOpen(false)
   }
 
   function removeFromCart(itemCartKey: string) {
@@ -349,9 +380,32 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     return () => window.removeEventListener('resize', measure)
   }, [hasFixedFooter, hasContact, footerBrand])
 
+  // Auto-open the side panel once on desktop when the first item is added.
+  useEffect(() => {
+    if (cart.length === 0) {
+      autoOpenedRef.current = false
+      return
+    }
+    if (!autoOpenedRef.current && typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+      setCartOpen(true)
+      autoOpenedRef.current = true
+    }
+  }, [cart.length])
+
+
+  const panelPushing = directOrdersEnabled && cartOpen && cart.length > 0
+  const editingItem = editingCartKey ? cart.find(i => i.cartKey === editingCartKey) ?? null : null
+
+  function closeProductModal() {
+    setSelectedProduct(null)
+    setEditingCartKey(null)
+    if (cart.length > 0 && typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+      setCartOpen(true)
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className={`min-h-screen bg-zinc-50 text-zinc-900 transition-[padding] duration-300 ${panelPushing ? 'lg:pr-[380px]' : ''}`}>
       {/* Premium Header */}
       <motion.header
         initial={{ opacity: 0 }}
@@ -699,28 +753,43 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         )}
       </main>
 
-      {/* Floating Cart Button */}
-      {directOrdersEnabled && cart.length > 0 && !showCartModal && (
+      {/* Desktop: edge tab to re-open the side panel after it's collapsed */}
+      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && (
+        <button
+          onClick={() => setCartOpen(true)}
+          className="hidden lg:flex fixed top-1/2 right-0 -translate-y-1/2 z-40 flex-col items-center gap-1 bg-zinc-900 text-white pl-3 pr-2.5 py-4 rounded-l-2xl shadow-2xl shadow-zinc-950/20 hover:bg-zinc-800 transition-all active:scale-95"
+          aria-label="Open cart"
+        >
+          <div className="relative">
+            <ShoppingBag className="w-5 h-5" />
+            <div className="absolute -top-2 -right-2 text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-white" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">{formatPrice(cartTotal, currency)}</span>
+        </button>
+      )}
+
+      {/* Mobile: bottom order bar that opens the cart drawer */}
+      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && (
         <motion.button
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          onClick={() => setShowCartModal(true)}
-          className="fixed bottom-8 right-8 z-40 bg-zinc-900 text-white pl-6 pr-4 py-4 rounded-lg shadow-2xl shadow-zinc-950/20 flex items-center gap-4 hover:bg-zinc-800 transition-all hover:scale-105 active:scale-95"
+          onClick={() => setCartOpen(true)}
+          className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-zinc-900 text-white px-5 py-4 flex items-center justify-between gap-4 shadow-2xl shadow-zinc-950/30"
         >
-          <div className="flex flex-col items-start leading-none">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">My Order</span>
-            <span className="text-lg font-black">{formatPrice(cartTotal, currency)}</span>
+          <div className="flex items-center gap-3">
+            <div className="relative bg-white/10 p-2.5 rounded-lg">
+              <ShoppingBag className="w-5 h-5" />
+              <div className="absolute -top-1.5 -right-1.5 text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-white" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
+            </div>
+            <span className="text-xs font-black uppercase tracking-widest text-zinc-300">View order</span>
           </div>
-          <div className="relative bg-white/10 p-3 rounded-lg">
-            <ShoppingBag className="w-5 h-5" />
-            <div className="absolute -top-1.5 -right-1.5 text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-primary-foreground" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
-          </div>
+          <span className="text-lg font-black">{formatPrice(cartTotal, currency)}</span>
         </motion.button>
       )}
 
       {/* Footer */}
       {hasFixedFooter && (
-        <footer ref={footerRef} className={`fixed bottom-0 inset-x-0 z-40 border-t border-zinc-100 bg-white/90 backdrop-blur-2xl transition-all duration-500 ${showFooterAtEnd ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
+        <footer ref={footerRef} className={`fixed bottom-0 inset-x-0 z-40 border-t border-zinc-100 bg-white/90 backdrop-blur-2xl transition-all duration-500 ${panelPushing ? 'lg:right-[380px]' : ''} ${showFooterAtEnd ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
           <div className="max-w-7xl mx-auto px-4 py-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               {hasContact && (
@@ -770,17 +839,23 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           currency={currency}
           whatsapp={whatsapp}
           lang={selectedLanguage}
-          onClose={() => setSelectedProduct(null)}
+          onClose={closeProductModal}
           onWhatsApp={() => openWhatsApp(selectedProduct)}
           optionGroups={optionGroupsByProductId[selectedProduct.id] ?? []}
           itemNotesEnabled={settings?.item_notes_enabled ?? false}
           ingredientCustomizationEnabled={ingredientCustomizationEnabled}
           productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
+          initialEditorState={editingItem?.editorState ?? null}
+          submitLabel={editingCartKey ? 'Update item' : 'Add to cart'}
           onAddToCart={directOrdersEnabled
-            ? (selectedOptions, unitPrice, note, ingredientModifications) => {
-                addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications)
-                setSelectedProduct(null)
+            ? (selectedOptions, unitPrice, note, ingredientModifications, editorState) => {
+                if (editingCartKey) {
+                  replaceCartItem(editingCartKey, selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState)
+                } else {
+                  addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState)
+                }
+                closeProductModal()
               }
             : undefined}
         />
@@ -831,8 +906,23 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         )}
       </AnimatePresence>
 
-      {showCartModal && (
-        <CartModal
+      {directOrdersEnabled && (
+        <CartPanel
+          cart={cart}
+          currency={currency}
+          primaryColor={primaryColor}
+          accentColor={accentColor}
+          open={cartOpen && !checkoutOpen}
+          onClose={() => setCartOpen(false)}
+          onCheckout={() => setCheckoutOpen(true)}
+          onEdit={editItem}
+          onRemove={removeFromCart}
+          onUpdateQuantity={updateCartQuantity}
+        />
+      )}
+
+      {checkoutOpen && (
+        <CheckoutModal
           cart={cart}
           confirmedCart={confirmedCart}
           currency={currency}
@@ -843,16 +933,19 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           orderError={orderError}
           orderId={orderId}
           ui={ui}
+          primaryColor={primaryColor}
           accentColor={accentColor}
           onClose={() => {
-            setShowCartModal(false)
+            setCheckoutOpen(false)
             setOrderSuccess(false)
             setOrderId(null)
           }}
+          onBack={() => {
+            setCheckoutOpen(false)
+            setCartOpen(true)
+          }}
           onCustomerNameChange={setCustomerName}
           onCustomerPhoneChange={setCustomerPhone}
-          onRemove={removeFromCart}
-          onUpdateQuantity={updateCartQuantity}
           onSubmit={submitOrder}
           orderTypeConfig={orderTypeConfig}
           orderType={orderType}
