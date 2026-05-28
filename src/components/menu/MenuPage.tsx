@@ -393,7 +393,10 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   }, [cart.length])
 
 
-  const panelPushing = directOrdersEnabled && cartOpen && cart.length > 0
+  // Match the panel's actual on-screen visibility so the page reflow never
+  // desyncs from the panel (e.g. emptying the cart while the panel is open, or
+  // opening checkout). CartPanel uses the same `cartOpen && !checkoutOpen`.
+  const panelPushing = directOrdersEnabled && cartOpen && !checkoutOpen
   const editingItem = editingCartKey ? cart.find(i => i.cartKey === editingCartKey) ?? null : null
 
   function closeProductModal() {
