@@ -438,15 +438,16 @@ function FAQ() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group bg-white/10 hover:bg-primary/10 backdrop-blur-sm border border-white/25 hover:border-primary/35 rounded-xl overflow-hidden [&_summary::-webkit-details-marker]:hidden select-none transition-all duration-300"
+              className="group bg-white/10 backdrop-blur-sm border border-white/25 rounded-xl overflow-hidden [&_summary::-webkit-details-marker]:hidden select-none relative"
             >
-              <summary className="p-6 text-base font-bold text-white cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              <summary className="relative z-10 p-6 text-base font-bold text-white cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 {q}
                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-open:rotate-180 transition-transform duration-300 shrink-0 ml-4">
                   <ChevronDown className="w-4 h-4 text-white" />
                 </div>
               </summary>
-              <div className="p-6 text-zinc-400 text-sm leading-relaxed border-t border-white/5 group-open:animate-in group-open:fade-in group-open:slide-in-from-top-4 duration-300">
+              <div className="relative z-10 p-6 text-zinc-400 text-sm leading-relaxed border-t border-white/5 group-open:animate-in group-open:fade-in group-open:slide-in-from-top-4 duration-300">
                 {a}
               </div>
             </motion.details>
