@@ -101,7 +101,7 @@ export default function PanelClient({ tenant, orders, customerPhone }: Props) {
 
   async function handleSignOut() {
     await supabase.auth.signOut()
-    router.push(`/${tenant.slug}/me/login`)
+    router.push(`/${tenant.slug}`)
   }
 
   const TypeIcon = (type: string) => {

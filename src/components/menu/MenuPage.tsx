@@ -552,11 +552,14 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
             </div>
             <div className="flex gap-6 w-max px-4 sm:px-6 lg:px-8 animate-marquee">
               {[...featuredBase, ...featuredBase].map((p, idx) => (
-                <motion.button
+                <motion.div
                   key={`${p.id}-${idx}`}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedProduct(p)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProduct(p) } }}
                   whileHover={{ y: -8 }}
-                  className="flex-shrink-0 w-64 sm:w-80 bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-lg shadow-zinc-200/50 hover:shadow-xl transition-all duration-500"
+                  className="flex-shrink-0 w-64 sm:w-80 bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-lg shadow-zinc-200/50 hover:shadow-xl transition-all duration-500 cursor-pointer"
                 >
                   <div className="relative w-full aspect-[4/3] bg-zinc-50 overflow-hidden">
                     {getProductImages(p)[0]
@@ -600,7 +603,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                       })()}
                     </div>
                   </div>
-                </motion.button>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -907,11 +910,14 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
 }) {
   const images = getProductImages(product)
   return (
-    <motion.button
+    <motion.div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      className="group w-full bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-sm hover:shadow-xl hover:shadow-zinc-200/40 transition-all duration-300"
+      className="group w-full bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-sm hover:shadow-xl hover:shadow-zinc-200/40 transition-all duration-300 cursor-pointer"
     >
       <div className="relative w-full aspect-square bg-zinc-50 overflow-hidden">
         {images[0]
@@ -975,6 +981,6 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
           )}
         </div>
       </div>
-    </motion.button>
+    </motion.div>
   )
 }
