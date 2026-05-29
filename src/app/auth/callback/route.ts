@@ -1,6 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { normalizeRole, parseSuperadminEmails } from '@/lib/auth/role-utils'
+import { captureSecurityEvent } from '@/lib/observability'
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
@@ -25,6 +26,8 @@ export async function GET(request: Request) {
         const isConfiguredSuperadmin = parseSuperadminEmails().includes(userEmail)
 
         if (isConfiguredSuperadmin && role !== 'superadmin') {
+          console.warn(`[security] superadmin auto-promotion via SUPERADMIN_EMAILS: ${userEmail}`)
+          captureSecurityEvent('Superadmin auto-promotion via SUPERADMIN_EMAILS', { email: userEmail, userId: user.id, source: 'auth/callback' })
           await service.from('profiles').upsert({
             id: user.id,
             role: 'superadmin',
