@@ -12,7 +12,7 @@ async function getPlatformSettings() {
     const service = createServiceClient()
     const { data } = await service
       .from('platform_settings')
-      .select('app_name, seo_title, seo_description, cta_color, favicon_url')
+      .select('app_name, seo_title, seo_description, cta_color, favicon_url, twitter_handle')
       .single()
     return data
   } catch {
@@ -55,6 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       images: ['/opengraph-image'],
+      ...(ps?.twitter_handle ? { site: ps.twitter_handle, creator: ps.twitter_handle } : {}),
     },
     icons: ps?.favicon_url ? { icon: ps.favicon_url, shortcut: ps.favicon_url } : undefined,
   }

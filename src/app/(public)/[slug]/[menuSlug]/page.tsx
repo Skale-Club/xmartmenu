@@ -11,7 +11,18 @@ import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import JsonLdScript from '@/components/seo/JsonLdScript'
-import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd, buildBranchJsonLd } from '@/lib/seo'
+import {
+  getCanonicalUrl,
+  buildLocalBusinessJsonLd,
+  buildMenuJsonLd,
+  buildBranchJsonLd,
+  buildBreadcrumbJsonLd,
+  resolveSeoTitle,
+  resolveSeoDescription,
+  resolveSeoKeywords,
+  resolveOgImageOverride,
+  isTenantNoindex,
+} from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string; menuSlug: string }>
@@ -41,18 +52,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const sectionName = loc?.name ?? menu?.name ?? 'Menu'
   const settings = tenant.tenant_settings as any
-  const title = `${sectionName} | ${tenant.name}`
-  const description: string = settings?.tagline
-    || settings?.about?.slice(0, 160)
-    || `View the ${sectionName} menu of ${tenant.name}`
+  const title = resolveSeoTitle(tenant, settings, sectionName)
+  const description = resolveSeoDescription(tenant, settings, `View the ${sectionName} menu`)
+  const keywords = resolveSeoKeywords(settings)
   const canonicalPath = `/${menuSlug}`
   const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
-  const logoUrl: string | null = settings?.logo_url ?? settings?.banner_url ?? null
+  const ogOverride = resolveOgImageOverride(settings)
   const isCustomDomain = !!(tenant.custom_domain && tenant.custom_domain_verified)
+  const noindex = isCustomDomain || isTenantNoindex(settings)
 
   return {
     title,
     description,
+    metadataBase: new URL(canonicalUrl),
+    ...(keywords.length ? { keywords } : {}),
     alternates: { canonical: canonicalUrl },
     openGraph: {
       type: 'website',
@@ -60,15 +73,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonicalUrl,
       siteName: tenant.name,
-      ...(logoUrl ? { images: [{ url: logoUrl, alt: tenant.name }] } : {}),
+      ...(ogOverride ? { images: [{ url: ogOverride, alt: tenant.name }] } : {}),
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      ...(logoUrl ? { images: [logoUrl] } : {}),
+      ...(ogOverride ? { images: [ogOverride] } : {}),
     },
-    ...(isCustomDomain ? { robots: { index: false, follow: false } } : {}),
+    ...(noindex ? { robots: { index: false, follow: false } } : {}),
   }
 }
 
@@ -223,6 +236,14 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const menuLd = (menu && !isPrivate)
     ? buildMenuJsonLd(menu.name, canonicalUrl, categories ?? [], displayProducts, currency)
     : null
+  // SEED-014: breadcrumb so this section nests under the tenant home in SERPs
+  const sectionName = location?.name ?? menu?.name ?? 'Menu'
+  const breadcrumbLd = !isPrivate
+    ? buildBreadcrumbJsonLd([
+        { name: tenant.name, url: parentUrl },
+        { name: sectionName, url: canonicalUrl },
+      ])
+    : null
 
   const menuPageEl = (
     <MenuPage
@@ -248,6 +269,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       <style>{`:root{--primary:${safeCssColor(primaryColor)};--primary-foreground:${primaryForeground};--accent:${safeCssColor(accentColor)};}`}</style>
       <JsonLdScript data={localBusinessLd} />
       {menuLd && <JsonLdScript data={menuLd} />}
+      {breadcrumbLd && <JsonLdScript data={breadcrumbLd} />}
       <ScanRecorder tenantId={tenant.id} />
       {isPrivate ? (
         <PrivateMenuWrapper slug={slug} menuSlug={menuSlug} primaryColor={primaryColor}>

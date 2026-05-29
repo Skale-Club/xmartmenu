@@ -26,7 +26,8 @@ import {
   Salad,
   Building2,
   Bot,
-  Inbox
+  Inbox,
+  Search
 } from 'lucide-react'
 
 const mainItems = [
@@ -43,6 +44,7 @@ const adminPanelItems = [
   { href: '/settings/locations', label: 'Locations', icon: Building2 },
   { href: '/settings/subscription', label: 'Subscription', icon: CreditCard },
   { href: '/settings/branding', label: 'Branding', icon: Palette },
+  { href: '/settings/seo', label: 'SEO', icon: Search },
   { href: '/settings/chat', label: 'AI Chat', icon: Bot },
   { href: '/settings/qrcode', label: 'QR Code', icon: QrCode },
   { href: '/settings/password', label: 'Change Password', icon: Key },

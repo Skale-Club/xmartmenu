@@ -126,6 +126,13 @@ export interface TenantSettings {
   business_type: string | null
   tagline: string | null
   about: string | null
+  // SEED-014: per-tenant SEO overrides (migration 052). All optional —
+  // public pages fall back to derived values when these are null/empty.
+  seo_title: string | null
+  seo_description: string | null
+  seo_keywords: string | null
+  seo_og_image_url: string | null
+  seo_noindex: boolean
 }
 
 export interface BusinessHours {

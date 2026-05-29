@@ -10,7 +10,16 @@ import JsonLdScript from '@/components/seo/JsonLdScript'
 import type { Metadata } from 'next'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
-import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd } from '@/lib/seo'
+import {
+  getCanonicalUrl,
+  buildLocalBusinessJsonLd,
+  buildMenuJsonLd,
+  resolveSeoTitle,
+  resolveSeoDescription,
+  resolveSeoKeywords,
+  resolveOgImageOverride,
+  isTenantNoindex,
+} from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -35,17 +44,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tenant) return { title: 'Menu' }
 
   const settings = tenant.tenant_settings as any
-  const title = tenant.name
-  const description: string = settings?.tagline
-    || settings?.about?.slice(0, 160)
-    || `View the full menu of ${tenant.name}`
+  const title = resolveSeoTitle(tenant, settings)
+  const description = resolveSeoDescription(tenant, settings)
+  const keywords = resolveSeoKeywords(settings)
   const canonicalUrl = getCanonicalUrl(tenant, '/')
-  const logoUrl: string | null = settings?.logo_url ?? settings?.banner_url ?? null
+  const ogOverride = resolveOgImageOverride(settings)
   const isCustomDomain = !!(tenant.custom_domain && tenant.custom_domain_verified)
+  // On the platform-slug URL we suppress indexing when a custom domain is the
+  // canonical home; a tenant can also opt out of indexing entirely.
+  const noindex = isCustomDomain || isTenantNoindex(settings)
 
   return {
     title,
     description,
+    metadataBase: new URL(canonicalUrl),
+    ...(keywords.length ? { keywords } : {}),
     alternates: { canonical: canonicalUrl },
     openGraph: {
       type: 'website',
@@ -53,15 +66,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonicalUrl,
       siteName: tenant.name,
-      ...(logoUrl ? { images: [{ url: logoUrl, alt: tenant.name }] } : {}),
+      // When no override is set, the branded opengraph-image.tsx route supplies the image.
+      ...(ogOverride ? { images: [{ url: ogOverride, alt: tenant.name }] } : {}),
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      ...(logoUrl ? { images: [logoUrl] } : {}),
+      ...(ogOverride ? { images: [ogOverride] } : {}),
     },
-    ...(isCustomDomain ? { robots: { index: false, follow: false } } : {}),
+    ...(noindex ? { robots: { index: false, follow: false } } : {}),
   }
 }
 

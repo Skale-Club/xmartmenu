@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const type = formData.get('type') as string | null
 
   if (!file || !type) return NextResponse.json({ error: 'Missing file or type' }, { status: 400 })
-  if (!['logo', 'banner'].includes(type)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
+  if (!['logo', 'banner', 'seo'].includes(type)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
 
   const conversion = await validateAndConvertToWebP(file)
   if (conversion.error) return NextResponse.json({ error: conversion.error }, { status: 400 })

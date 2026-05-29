@@ -1,6 +1,9 @@
 import type { TenantSettings, BusinessHours, Category, Product } from '@/types/database'
 
-const PLATFORM_BASE = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'https://xmartmenu.skale.club'
+export const PLATFORM_BASE = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'https://xmartmenu.skale.club'
+
+/** Hostname (no scheme/port) of the platform domain — used for per-host robots/sitemap logic. */
+export const PLATFORM_HOST = PLATFORM_BASE.replace(/^https?:\/\//, '').split(':')[0]
 
 // Day names for schema.org DayOfWeek
 const SCHEMA_DAYS: Record<string, string> = {
@@ -178,4 +181,127 @@ function buildMenuItem(p: Product, currency: string): object {
   if (p.description) item.description = p.description
   if (p.image_url) item.image = p.image_url
   return item
+}
+
+// ============================================================
+// SEED-014: per-tenant SEO resolution helpers
+// Prefer explicit tenant overrides (seo_*), then derive from existing
+// branding/AI-copy fields, then fall back to a sensible default.
+// ============================================================
+
+type SeoTenant = { name: string }
+type SeoSettings = Pick<
+  TenantSettings,
+  'seo_title' | 'seo_description' | 'seo_keywords' | 'seo_og_image_url' |
+  'seo_noindex' | 'tagline' | 'about' | 'logo_url' | 'banner_url'
+> | null
+
+const clean = (s: string | null | undefined): string | null => {
+  const t = s?.trim()
+  return t ? t : null
+}
+
+export function resolveSeoTitle(tenant: SeoTenant, settings: SeoSettings, suffix?: string): string {
+  const base = clean(settings?.seo_title) ?? tenant.name
+  return suffix ? `${suffix} | ${base}` : base
+}
+
+export function resolveSeoDescription(tenant: SeoTenant, settings: SeoSettings, fallbackLabel?: string): string {
+  return (
+    clean(settings?.seo_description) ??
+    clean(settings?.tagline) ??
+    clean(settings?.about)?.slice(0, 160) ??
+    `${fallbackLabel ?? 'View the full menu'} of ${tenant.name}`
+  )
+}
+
+/** Comma-separated keyword list, normalized into an array (max 12). Empty when unset. */
+export function resolveSeoKeywords(settings: SeoSettings): string[] {
+  const raw = clean(settings?.seo_keywords)
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((k) => k.trim())
+    .filter(Boolean)
+    .slice(0, 12)
+}
+
+/** Explicit social-share image override (https). null means "use the generated branded card". */
+export function resolveOgImageOverride(settings: SeoSettings): string | null {
+  const url = clean(settings?.seo_og_image_url)
+  return url && /^https:\/\//.test(url) ? url : null
+}
+
+export function isTenantNoindex(settings: SeoSettings): boolean {
+  return settings?.seo_noindex === true
+}
+
+/** schema.org BreadcrumbList for richer SERP breadcrumbs. */
+export function buildBreadcrumbJsonLd(items: { name: string; url: string }[]): object {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  }
+}
+
+// ============================================================
+// SEED-014: platform-level structured data (marketing landing)
+// ============================================================
+
+export function buildPlatformOrganizationJsonLd(opts: {
+  name: string
+  url: string
+  description?: string | null
+  logoUrl?: string | null
+  sameAs?: string[]
+}): object {
+  const ld: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: opts.name,
+    url: opts.url,
+  }
+  if (clean(opts.description)) ld.description = opts.description
+  if (clean(opts.logoUrl)) ld.logo = opts.logoUrl
+  if (opts.sameAs && opts.sameAs.length) ld.sameAs = opts.sameAs
+  return ld
+}
+
+export function buildWebSiteJsonLd(opts: { name: string; url: string }): object {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: opts.name,
+    url: opts.url,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: {
+        '@type': 'EntryPoint',
+        urlTemplate: `${opts.url.replace(/\/$/, '')}/?q={search_term_string}`,
+      },
+      'query-input': 'required name=search_term_string',
+    },
+  }
+}
+
+export function buildSoftwareApplicationJsonLd(opts: { name: string }): object {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: opts.name,
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+      description: 'Free during beta',
+    },
+  }
 }

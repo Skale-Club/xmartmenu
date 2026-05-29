@@ -1,5 +1,9 @@
 import type { MetadataRoute } from 'next'
+import { PLATFORM_BASE } from '@/lib/seo'
 
+// Platform-host robots.txt. Custom domains are rewritten by the middleware to
+// the per-tenant `/[slug]/robots.txt` route, so this file only governs the
+// platform domain itself.
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
@@ -23,6 +27,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: 'https://xmartmenu.com/sitemap.xml',
+    sitemap: `${PLATFORM_BASE}/sitemap.xml`,
   }
 }
