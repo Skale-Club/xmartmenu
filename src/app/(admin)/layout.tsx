@@ -5,7 +5,7 @@ import { cookies } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 
 export default async function AdminLayout({
   children,
@@ -69,7 +69,7 @@ export default async function AdminLayout({
 
     return (
       <>
-      <style>{`:root{--primary:${previewPrimary};--primary-foreground:${previewPrimaryFg};--accent:${previewAccent};}`}</style>
+      <style>{`:root{--primary:${safeCssColor(previewPrimary)};--primary-foreground:${previewPrimaryFg};--accent:${safeCssColor(previewAccent)};}`}</style>
       <div className="flex h-screen bg-zinc-950">
         <div className="flex flex-col w-64 flex-shrink-0 border-r border-zinc-800">
           <div className="bg-primary text-primary-foreground text-[10px] py-2 font-black uppercase tracking-widest flex items-center justify-center gap-2">
@@ -116,7 +116,7 @@ export default async function AdminLayout({
 
   return (
     <>
-    <style>{`:root{--primary:${adminPrimary};--primary-foreground:${adminPrimaryFg};--accent:${adminAccent};}`}</style>
+    <style>{`:root{--primary:${safeCssColor(adminPrimary)};--primary-foreground:${adminPrimaryFg};--accent:${safeCssColor(adminAccent)};}`}</style>
     <div className="flex h-screen bg-zinc-950">
       <AdminSidebar
         tenantName={profile.tenants?.name ?? 'My Restaurant'}

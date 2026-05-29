@@ -22,3 +22,16 @@ export function computePrimaryForeground(hex: string): string {
 
   return L > 0.4 ? '#09090b' : '#ffffff'
 }
+
+const HEX_COLOR = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+
+/**
+ * Returns `value` only if it is a safe CSS hex color (#rgb, #rgba, #rrggbb,
+ * #rrggbbaa); otherwise returns `fallback`. Use whenever a (potentially
+ * user-controlled) color is interpolated into a <style> block or inline style,
+ * to prevent CSS/markup injection from stored tenant branding (e.g. a color
+ * value containing `</style>...`).
+ */
+export function safeCssColor(value: string | null | undefined, fallback = '#000000'): string {
+  return typeof value === 'string' && HEX_COLOR.test(value.trim()) ? value.trim() : fallback
+}

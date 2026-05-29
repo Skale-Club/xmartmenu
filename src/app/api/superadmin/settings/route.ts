@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 
 export async function GET() {
+  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const service = await createServiceClient()
   const { data, error } = await service.from('platform_settings').select('*').single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

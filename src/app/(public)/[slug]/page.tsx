@@ -9,7 +9,7 @@ import ScanRecorder from '@/components/menu/ScanRecorder'
 import JsonLdScript from '@/components/seo/JsonLdScript'
 import type { Metadata } from 'next'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd } from '@/lib/seo'
 
 interface Props {
@@ -93,7 +93,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     const primaryForeground = computePrimaryForeground(primaryColor)
     return (
       <>
-        <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
+        <style>{`:root{--primary:${safeCssColor(primaryColor)};--primary-foreground:${primaryForeground};--accent:${safeCssColor(accentColor)};}`}</style>
         <BranchPicker tenantName={tenant.name} tenantSlug={slug} locations={activeLocations!} />
       </>
     )

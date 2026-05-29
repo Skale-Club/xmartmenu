@@ -3,7 +3,7 @@ import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { createServiceClient } from '@/lib/supabase/server'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 import InstallPrompt from '@/components/InstallPrompt'
 import './globals.css'
@@ -67,7 +67,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`h-full antialiased ${inter.variable}`}>
       <head>
-        <style>{`:root{--primary:${primary};--primary-foreground:${primaryFg};}`}</style>
+        <style>{`:root{--primary:${safeCssColor(primary)};--primary-foreground:${primaryFg};}`}</style>
       </head>
       <body className={`${inter.className} min-h-full`}>
         {children}

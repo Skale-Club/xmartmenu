@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import '../globals.css'
 import { createServiceClient } from '@/lib/supabase/server'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 
 export const revalidate = 60
 
@@ -72,7 +72,7 @@ export default async function MarketingLayout({
   return (
     <html lang="en">
       <body className="min-h-full bg-white no-text-cursor">
-        <style>{`:root{--primary:${primary};--primary-foreground:${primaryFg};}`}</style>
+        <style>{`:root{--primary:${safeCssColor(primary)};--primary-foreground:${primaryFg};}`}</style>
         {children}
       </body>
     </html>
