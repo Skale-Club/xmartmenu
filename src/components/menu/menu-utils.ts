@@ -23,6 +23,17 @@ export const UI_COPY: Record<string, UICopyEntry> = {
   it: { search: 'Cerca nel menu...', all: 'Tutti', featured: 'In evidenza', noItems: 'Nessun articolo trovato', tryAnother: 'Prova un termine di ricerca diverso', other: 'Altro', createAccount: 'Crea account', hoursBtn: 'Schedule', hoursTitle: 'Orari di apertura', required: 'Obbligatorio', chooseUpTo: 'Scegli fino a {max}', chooseAtLeast: 'Scegli almeno {min}', chooseBetween: 'Scegli {min}-{max}', firstHalf: '1° tempo', secondHalf: '2° tempo', orderPlaced: 'Ordine effettuato!', orderNumber: 'Ordine', orderThankYou: 'Grazie per il tuo ordine.' },
 }
 
+// Raw ProductModal selection state, kept on the cart item so the customer can
+// re-open the customization flow ("Edit") with all choices pre-filled.
+export interface CartEditorState {
+  singleSelections: Record<string, string>
+  halfSelections: Record<string, { half1: string | null; half2: string | null }>
+  multiSelections: Record<string, string[]>
+  ingredientSteppers: Record<string, number>
+  addedIngredients: string[]
+  note: string
+}
+
 export interface CartItem {
   product: Product
   quantity: number
@@ -31,10 +42,29 @@ export interface CartItem {
   cartKey: string
   note?: string  // per-item customer note | does NOT affect buildCartKey
   ingredientModifications?: IngredientModifications | null  // INGR-09: per D-07 slot metadata
+  editorState?: CartEditorState | null  // raw selections for the Edit flow | does NOT affect buildCartKey
 }
 
 export function buildCartKey(productId: string, selectedOptions: Record<string, unknown>): string {
   return `${productId}::${JSON.stringify(
     Object.fromEntries(Object.entries(selectedOptions).sort(([a], [b]) => a.localeCompare(b)))
   )}`
+}
+
+// Compact "Key: value" list of the chosen option groups, skipping empty values.
+export function summarizeOptions(selectedOptions: Record<string, unknown>): string {
+  return Object.entries(selectedOptions)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(', ')
+}
+
+// Human-readable labels for ingredient changes, e.g. ["No Onion", "Extra Cheese", "+ Bacon"].
+export function summarizeIngredientMods(mods: IngredientModifications | null | undefined): string[] {
+  if (!mods) return []
+  const labels: string[] = []
+  for (const r of mods.removed ?? []) labels.push(`No ${r.name}`)
+  for (const e of mods.extras ?? []) labels.push(`Extra ${e.name}${e.qty > 1 ? ` ×${e.qty}` : ''}`)
+  for (const a of mods.added ?? []) labels.push(`+ ${a.name}${a.qty > 1 ? ` ×${a.qty}` : ''}`)
+  return labels
 }

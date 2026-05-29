@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { formatPrice } from '@/lib/utils'
 import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import { UI_COPY, getProductImages } from './menu-utils'
+import { UI_COPY, getProductImages, type CartEditorState } from './menu-utils'
 
 const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
   'Vegetarian': { en: 'Vegetarian' },
@@ -84,15 +84,17 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [] }: {
+export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, submitLabel = 'Add to cart' }: {
   product: Product; accentColor: string; currency: string; whatsapp?: string | null;
   lang: string; onClose: () => void; onWhatsApp: () => void;
-  onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null) => void;
+  onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void;
   optionGroups?: GroupWithOptions[]
   itemNotesEnabled?: boolean
   ingredientCustomizationEnabled?: boolean
   productIngredients?: ProductIngredientWithIngredient[]
   productMedia?: ProductMedia[]
+  initialEditorState?: CartEditorState | null  // when set, the modal opens in Edit mode pre-filled with these selections
+  submitLabel?: string
 }) {
   // Build ordered media slides: video first (if any), then images from product_media,
   // falling back to products.image_urls for backward compat
@@ -127,22 +129,24 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
     setSlideIndex(0)
   }, [product.id])
 
-  const [singleSelections, setSingleSelections] = useState<Record<string, string>>({})
-  const [halfSelections, setHalfSelections] = useState<Record<string, { half1: string | null; half2: string | null }>>({})
-  const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>({})
-  const [itemNote, setItemNote] = useState('')
-  const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>({})
-  const [addedIngredients, setAddedIngredients] = useState<string[]>([])
+  const [singleSelections, setSingleSelections] = useState<Record<string, string>>(initialEditorState?.singleSelections ?? {})
+  const [halfSelections, setHalfSelections] = useState<Record<string, { half1: string | null; half2: string | null }>>(initialEditorState?.halfSelections ?? {})
+  const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>(initialEditorState?.multiSelections ?? {})
+  const [itemNote, setItemNote] = useState(initialEditorState?.note ?? '')
+  const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>(initialEditorState?.ingredientSteppers ?? {})
+  const [addedIngredients, setAddedIngredients] = useState<string[]>(initialEditorState?.addedIngredients ?? [])
   const [showAddIngredient, setShowAddIngredient] = useState(false)
 
   useEffect(() => {
-    setSingleSelections({})
-    setHalfSelections({})
-    setMultiSelections({})
-    setItemNote('')  // Pitfall 6: reset note when new product opens
-    setIngredientSteppers({})
-    setAddedIngredients([])
+    // Re-open in Edit mode pre-fills from initialEditorState; otherwise resets for a fresh product.
+    setSingleSelections(initialEditorState?.singleSelections ?? {})
+    setHalfSelections(initialEditorState?.halfSelections ?? {})
+    setMultiSelections(initialEditorState?.multiSelections ?? {})
+    setItemNote(initialEditorState?.note ?? '')  // Pitfall 6: reset note when new product opens
+    setIngredientSteppers(initialEditorState?.ingredientSteppers ?? {})
+    setAddedIngredients(initialEditorState?.addedIngredients ?? [])
     setShowAddIngredient(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id])
 
   const canAddToCart = optionGroups.every(group => {
@@ -689,13 +693,21 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                       }
                     }
                     const mods = buildIngredientModifications()
-                    onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods)
+                    const editorState: CartEditorState = {
+                      singleSelections,
+                      halfSelections,
+                      multiSelections,
+                      ingredientSteppers,
+                      addedIngredients,
+                      note: itemNote,
+                    }
+                    onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods, editorState)
                   }}
                   disabled={!canAddToCart}
                   aria-disabled={!canAddToCart}
                   className={`w-full sm:w-auto bg-zinc-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${canAddToCart ? 'hover:bg-zinc-800' : 'opacity-50 cursor-not-allowed'}`}
                 >
-                  Add to cart
+                  {submitLabel}
                 </button>
               )}
             </div>
