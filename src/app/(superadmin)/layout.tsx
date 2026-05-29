@@ -43,7 +43,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
       <aside className="w-64 flex-shrink-0 bg-zinc-950 text-zinc-400 flex flex-col border-r border-zinc-800">
         <div className="p-6 border-b border-zinc-800/50">
           <div className="flex items-center gap-2 mb-1">
-            <img src={ps?.favicon_url ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-cover rounded-md" />
+            <img src={ps?.favicon_url ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-contain object-center rounded-md" />
             <a href="/" className="text-xs font-bold text-white uppercase tracking-[0.2em] hover:text-primary transition-colors">{ps?.app_name ?? 'XmartMenu'}</a>
           </div>
           <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Super Admin Console</p>

@@ -171,7 +171,7 @@ function Nav({ appName, logoUrl, onLoginOpen }: { appName?: string | null; logoU
       <div className="w-full max-w-[1320px] mx-auto px-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
-            <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-8 h-8 object-cover" />
+            <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-8 h-8 object-contain object-center" />
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">{appName ?? 'XmartMenu'}</span>
           </a>
         </div>
@@ -297,7 +297,7 @@ function Hero({ s, onLoginOpen }: { s: HeroSettings; onLoginOpen: () => void }) 
           </button>
           <a
             href="#how-it-works"
-            className="w-full sm:w-auto inline-flex items-center justify-center bg-white/5 border border-white/10 text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-primary/20 hover:border-primary/40 hover:scale-105 transition-all"
+            className="w-full sm:w-auto inline-flex items-center justify-center bg-white/15 border border-white/30 backdrop-blur-sm text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-primary/20 hover:border-primary/40 hover:scale-105 transition-all"
           >
             {ctaSecondary}
           </a>
@@ -320,7 +320,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
   const sectionSubtitle = data?.subtitle ?? "Three simple steps to transform your restaurant's digital presence."
 
   return (
-    <section id="how-it-works" className="pt-[57px] md:pt-[172px] lg:pt-[86px] pb-[86px] px-4 relative select-none">
+    <section id="how-it-works" className="pt-[57px] md:pt-[86px] pb-[86px] px-4 relative select-none">
       <div className="max-w-[1320px] mx-auto px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -328,7 +328,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6">{sectionTitle}</h2>
+          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6 pb-2">{sectionTitle}</h2>
           <p className="text-sm md:text-base text-zinc-400">{sectionSubtitle}</p>
         </motion.div>
 
@@ -343,12 +343,13 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.2 }}
-              className="relative bg-zinc-900/50 backdrop-blur-sm border border-white/5 p-5 md:p-8 rounded-[1.25rem] hover:bg-zinc-900 transition-colors group flex items-center gap-4 md:block"
+              className="relative bg-white/10 backdrop-blur-sm border border-white/25 p-5 md:p-8 rounded-[1.25rem] transition-all group overflow-hidden flex items-center gap-4 md:block"
             >
-              <div className="w-12 h-12 flex-shrink-0 rounded-xl md:rounded-2xl md:w-16 md:h-16 md:mx-auto bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-0 md:mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative z-10 w-12 h-12 flex-shrink-0 rounded-xl md:rounded-2xl md:w-16 md:h-16 md:mx-auto bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-0 md:mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                 <Icon className="w-6 h-6 md:w-8 md:h-8" />
               </div>
-              <div className="md:mt-4">
+              <div className="relative z-10 md:mt-4">
                 <p className="text-base lg:text-2xl font-bold text-white mb-1 lg:mb-3">{title}</p>
                 <p className="text-sm lg:text-base text-zinc-400 leading-relaxed">{body}</p>
               </div>
@@ -381,7 +382,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6">
+          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6 pb-2">
             {sectionTitle}
           </h2>
           <p className="text-base text-zinc-400">{sectionSubtitle}</p>
@@ -395,11 +396,10 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              whileHover={{ y: -5 }}
-              className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-[1.25rem] p-8 lg:p-6 relative overflow-hidden group"
+
+              className="bg-white/10 backdrop-blur-sm border border-white/25 rounded-[1.25rem] p-8 lg:p-6 relative overflow-hidden group"
             >
-              {/* Hover gradient effect */}
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-6">
@@ -428,7 +428,7 @@ function FAQ() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6">
+          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6 pb-2">
             Frequently asked questions
           </h2>
         </motion.div>
@@ -441,15 +441,16 @@ function FAQ() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
-              className="group bg-white/5 border border-white/10 rounded-xl overflow-hidden [&_summary::-webkit-details-marker]:hidden select-none"
+              className="group bg-white/10 backdrop-blur-sm border border-white/25 rounded-xl overflow-hidden [&_summary::-webkit-details-marker]:hidden select-none relative"
             >
-              <summary className="p-6 text-base font-bold text-white cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+              <summary className="relative z-10 p-6 text-base font-bold text-white cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 {q}
                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-open:rotate-180 transition-transform duration-300 shrink-0 ml-4">
                   <ChevronDown className="w-4 h-4 text-white" />
                 </div>
               </summary>
-              <div className="p-6 text-zinc-400 text-sm leading-relaxed border-t border-white/5 group-open:animate-in group-open:fade-in group-open:slide-in-from-top-4 duration-300">
+              <div className="relative z-10 p-6 text-zinc-400 text-sm leading-relaxed border-t border-white/5 group-open:animate-in group-open:fade-in group-open:slide-in-from-top-4 duration-300">
                 {a}
               </div>
             </motion.details>
@@ -485,7 +486,7 @@ function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOp
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl sm:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6"
+            className="text-4xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary via-red-200 to-white mb-6 pb-2 leading-tight tracking-tight"
           >
             {heading}
           </motion.h2>
@@ -528,7 +529,7 @@ function Footer({ data, appName, logoUrl }: { data?: FooterData | null; appName?
           {/* Logo + tagline */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-cover" />
+              <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-contain object-center" />
               <span className="text-lg font-bold text-white">{brandName}</span>
             </div>
             <p className="text-zinc-400 text-sm whitespace-nowrap">
