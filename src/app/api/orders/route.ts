@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 import type { IngredientModifications } from '@/types/database'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 interface OrderItem {
   product_id: string
@@ -73,6 +74,9 @@ function computeItemUnitPrice(
 
 export async function POST(request: Request) {
   try {
+    const rl = await rateLimit('orders-create', getClientIp(request), 12, '1 m')
+    if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
+
     const body: CreateOrderRequest = await request.json()
     const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId, table_name: rawTableName } = body
 

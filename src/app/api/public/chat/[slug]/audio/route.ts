@@ -11,6 +11,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { decryptApiKey } from '@/lib/crypto'
 import { getChatAddonStatus } from '@/lib/chat-addon'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -19,6 +20,9 @@ const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+
+  const rl = await rateLimit('chat-audio', getClientIp(request), 8, '5 m')
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
 
   const form = await request.formData()
   const audio = form.get('audio')

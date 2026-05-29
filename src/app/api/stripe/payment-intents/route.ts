@@ -9,9 +9,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createPaymentIntent, isStripeEnabled } from '@/lib/stripe'
 import { getTenantPlan } from '@/lib/tenant-plan'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    const rl = await rateLimit('payment-intents', getClientIp(request), 12, '1 m')
+    if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
+
     const supabase = await createClient()
     
     // 1. Authenticate user

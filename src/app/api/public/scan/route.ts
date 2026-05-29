@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 /**
  * POST /api/public/scan
@@ -16,6 +17,9 @@ import { createServiceClient } from '@/lib/supabase/server'
  */
 export async function POST(request: Request) {
   try {
+    const rl = await rateLimit('public-scan', getClientIp(request), 30, '1 m')
+    if (!rl.ok) return NextResponse.json({ ok: false }, { status: 429 })
+
     const { tenant_id } = (await request.json()) as { tenant_id?: string }
     if (!tenant_id || typeof tenant_id !== 'string') {
       return NextResponse.json({ ok: false }, { status: 400 })

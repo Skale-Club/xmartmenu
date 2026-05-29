@@ -18,6 +18,7 @@ import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { decryptApiKey } from '@/lib/crypto'
 import { buildMenuContext, countMessagesLast24h, getChatAddonStatus } from '@/lib/chat-addon'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -29,6 +30,10 @@ interface ChatRequestBody {
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+
+  const rl = await rateLimit('chat-message', getClientIp(request), 20, '1 m')
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
+
   const { conversation_id, messages } = (await request.json()) as ChatRequestBody
 
   if (!conversation_id || !Array.isArray(messages) || messages.length === 0) {
