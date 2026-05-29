@@ -1,9 +1,11 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import { createServiceClient } from '@/lib/supabase/server'
 import { computePrimaryForeground } from '@/lib/color-utils'
+import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
+import InstallPrompt from '@/components/InstallPrompt'
 import './globals.css'
 
 const inter = Inter({
@@ -12,6 +14,15 @@ const inter = Inter({
   preload: true,
   variable: '--font-inter',
 })
+
+export async function generateViewport(): Promise<Viewport> {
+  const supabase = createServiceClient()
+  const { data: ps } = await supabase.from('platform_settings').select('cta_color').single()
+  return {
+    themeColor: ps?.cta_color ?? '#F52323',
+    viewportFit: 'cover',
+  }
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const supabase = createServiceClient()
@@ -24,7 +35,15 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     description: 'A digital menu platform built for restaurant service, QR code ordering, and menu operations.',
     metadataBase: new URL(appUrl),
-    icons: ps?.favicon_url ? { icon: ps.favicon_url, shortcut: ps.favicon_url } : undefined,
+    applicationName: 'XmartMenu',
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'default',
+      title: 'XmartMenu',
+    },
+    icons: ps?.favicon_url
+      ? { icon: ps.favicon_url, shortcut: ps.favicon_url, apple: '/icons/apple-touch-icon.png' }
+      : { apple: '/icons/apple-touch-icon.png' },
     openGraph: {
       type: 'website',
       locale: 'en_US',
@@ -52,6 +71,8 @@ export default async function RootLayout({
       </head>
       <body className={`${inter.className} min-h-full`}>
         {children}
+        <ServiceWorkerRegistrar />
+        <InstallPrompt />
         <Analytics />
         <SpeedInsights />
       </body>
