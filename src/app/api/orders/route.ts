@@ -92,6 +92,17 @@ export async function POST(request: Request) {
     if (!items || items.length === 0) {
       return NextResponse.json({ error: 'At least one item is required' }, { status: 400 })
     }
+    // S04: validate per-item shape and quantity server-side (positive integer,
+    // sane cap) so a crafted payload cannot submit negative/huge/fractional
+    // quantities that corrupt the total.
+    for (const it of items) {
+      if (!it?.product_id || typeof it.product_id !== 'string') {
+        return NextResponse.json({ error: 'Invalid item' }, { status: 400 })
+      }
+      if (!Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > 99) {
+        return NextResponse.json({ error: 'Invalid item quantity' }, { status: 400 })
+      }
+    }
 
     const VALID_ORDER_TYPES = ['dine_in', 'pickup', 'delivery'] as const
     type OrderType = typeof VALID_ORDER_TYPES[number]
