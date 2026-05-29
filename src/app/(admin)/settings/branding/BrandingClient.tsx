@@ -39,25 +39,27 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
   const [bannerUrl, setBannerUrl] = useState(settings?.banner_url ?? '')
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState<'logo' | 'banner' | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
   const supabase = createClient()
-  
   const publicMenuUrl = `${process.env.NEXT_PUBLIC_APP_URL}/${tenantSlug}`
 
   async function handleUpload(file: File, type: 'logo' | 'banner') {
     setUploading(type)
-    const ext = file.name.split('.').pop()
-    const filename = `${tenantId}/${type}.${ext}`
+    setUploadError(null)
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('type', type)
 
-    const { data, error } = await supabase.storage
-      .from('tenant-assets')
-      .upload(filename, file, { upsert: true })
+    const res = await fetch('/api/admin/branding/upload', { method: 'POST', body: formData })
+    const json = await res.json()
 
-    if (!error && data) {
-      const { data: { publicUrl } } = supabase.storage.from('tenant-assets').getPublicUrl(data.path)
-      if (type === 'logo') setLogoUrl(publicUrl)
-      else setBannerUrl(publicUrl)
+    if (!res.ok) {
+      setUploadError(json.error ?? 'Upload failed')
+    } else {
+      if (type === 'logo') setLogoUrl(json.url)
+      else setBannerUrl(json.url)
     }
     setUploading(null)
   }
@@ -175,7 +177,8 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
                   {logoUrl && (
                     <button type="button" onClick={() => setLogoUrl('')} className="block text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition-colors ml-1">Remove Asset</button>
                   )}
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2 leading-relaxed">PNG or SVG · 1:1 Aspect · Max 2MB</p>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2 leading-relaxed">PNG, JPG or SVG · 1:1 Aspect · Max 5MB · Converted to WebP</p>
+                  {uploadError && uploading === null && <p className="text-[10px] font-bold text-red-500 mt-1">{uploadError}</p>}
                 </div>
               </div>
             </div>
