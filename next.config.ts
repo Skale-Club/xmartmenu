@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import withBundleAnalyzer from "@next/bundle-analyzer";
+import { withSentryConfig } from "@sentry/nextjs";
 
 // Security response headers applied to every route. (S05 — Security Headers)
 // The CSP here is intentionally conservative: it hardens clickjacking
@@ -38,7 +39,19 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withBundleAnalyzer({
+const config = withBundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
   openAnalyzer: false,
 })(nextConfig);
+
+// Sentry (S09 observability). The runtime SDK is inert until SENTRY_DSN /
+// NEXT_PUBLIC_SENTRY_DSN are set (see src/sentry.*.config.ts). Source-map upload
+// is skipped unless SENTRY_AUTH_TOKEN is present, so builds stay green without
+// Sentry credentials.
+export default withSentryConfig(config, {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  disableLogger: true,
+});

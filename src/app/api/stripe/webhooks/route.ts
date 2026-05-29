@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
+import { captureSecurityEvent } from '@/lib/observability'
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +22,7 @@ export async function POST(request: NextRequest) {
 
     if (!signature) {
       console.error('Missing Stripe signature header')
+      captureSecurityEvent('Stripe webhook: missing signature header')
       return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
     }
 
@@ -34,6 +36,9 @@ export async function POST(request: NextRequest) {
       )
     } catch (sigError) {
       console.error('Webhook signature verification failed:', sigError)
+      captureSecurityEvent('Stripe webhook: signature verification failed', {
+        message: sigError instanceof Error ? sigError.message : String(sigError),
+      })
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
