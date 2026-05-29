@@ -147,6 +147,9 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
   const uncategorized = filtered.filter(p => !p.category_id || !categoryIds.has(p.category_id))
 
+  // Flat list in display order — used for prev/next navigation inside the product modal.
+  const orderedProducts = [...groupedByCategory.flatMap(g => g.items), ...uncategorized]
+
   function openWhatsApp(product: Product) {
     if (!whatsapp) return
     const msg = encodeURIComponent(`Hi! I'd like to order: ${product.name} | ${formatPrice(product.price, currency)}`)
@@ -756,19 +759,24 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         )}
       </main>
 
-      {/* Desktop: edge tab to re-open the side panel after it's collapsed */}
+      {/* Desktop: floating button to re-open the side panel after it's collapsed */}
       {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && (
-        <button
+        <motion.button
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
           onClick={() => setCartOpen(true)}
-          className="hidden lg:flex fixed top-1/2 right-0 -translate-y-1/2 z-40 flex-col items-center gap-1 bg-zinc-900 text-white pl-3 pr-2.5 py-4 rounded-l-2xl shadow-2xl shadow-zinc-950/20 hover:bg-zinc-800 transition-all active:scale-95"
+          className="hidden lg:flex fixed bottom-8 right-8 z-40 bg-zinc-900 text-white pl-6 pr-4 py-4 rounded-lg shadow-2xl shadow-zinc-950/20 items-center gap-4 hover:bg-zinc-800 transition-all hover:scale-105 active:scale-95"
           aria-label="Open cart"
         >
-          <div className="relative">
-            <ShoppingBag className="w-5 h-5" />
-            <div className="absolute -top-2 -right-2 text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-white" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
+          <div className="flex flex-col items-start leading-none">
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">My Order</span>
+            <span className="text-lg font-black">{formatPrice(cartTotal, currency)}</span>
           </div>
-          <span className="text-[10px] font-black uppercase tracking-widest [writing-mode:vertical-rl] rotate-180">{formatPrice(cartTotal, currency)}</span>
-        </button>
+          <div className="relative bg-white/10 p-3 rounded-lg">
+            <ShoppingBag className="w-5 h-5" />
+            <div className="absolute -top-1.5 -right-1.5 text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-white" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
+          </div>
+        </motion.button>
       )}
 
       {/* Mobile: bottom order bar that opens the cart drawer */}
@@ -835,9 +843,15 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       )}
 
       {/* Modals */}
-      {selectedProduct && (
+      {selectedProduct && (() => {
+        const navIndex = orderedProducts.findIndex(p => p.id === selectedProduct.id)
+        const prevProduct = navIndex > 0 ? orderedProducts[navIndex - 1] : null
+        const nextProduct = navIndex >= 0 && navIndex < orderedProducts.length - 1 ? orderedProducts[navIndex + 1] : null
+        return (
         <ProductModal
           product={selectedProduct}
+          onPrevProduct={!editingCartKey && prevProduct ? () => setSelectedProduct(prevProduct) : undefined}
+          onNextProduct={!editingCartKey && nextProduct ? () => setSelectedProduct(nextProduct) : undefined}
           accentColor={accentColor}
           currency={currency}
           whatsapp={whatsapp}
@@ -850,7 +864,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
           initialEditorState={editingItem?.editorState ?? null}
-          submitLabel={editingCartKey ? 'Update item' : 'Add to cart'}
+          submitLabel={editingCartKey ? 'Update item' : 'Order'}
           onAddToCart={directOrdersEnabled
             ? (selectedOptions, unitPrice, note, ingredientModifications, editorState) => {
                 if (editingCartKey) {
@@ -862,7 +876,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
               }
             : undefined}
         />
-      )}
+        )
+      })()}
 
       {chatAddonEnabled && (
         <AiChatWidget
@@ -984,20 +999,8 @@ const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
   'Chef\'s special': { en: 'Chef\'s special' },
 }
 
-const TAG_COLORS: Record<string, string> = {
-  'Vegetarian': 'bg-green-50 text-green-700 ring-1 ring-green-100',
-  'Vegan': 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
-  'Gluten-Free': 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
-  'Spicy': 'bg-red-50 text-red-700 ring-1 ring-red-100',
-  'Chef\'s special': 'bg-purple-50 text-purple-700 ring-1 ring-purple-100',
-}
-
 function translateTag(tag: string, lang: string): string {
   return TAG_TRANSLATIONS[tag]?.[lang] ?? tag
-}
-
-function getTagStyle(tag: string): string {
-  return TAG_COLORS[tag] ?? 'bg-zinc-50 text-zinc-600 ring-1 ring-zinc-100'
 }
 
 function ProductCard({ product, accentColor, primaryColor, currency, lang, onClick, cartQuantity, onAdd, onIncrement, onDecrement }: {
@@ -1013,7 +1016,7 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      className="group w-full bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-sm hover:shadow-xl hover:shadow-zinc-200/40 transition-all duration-300 cursor-pointer"
+      className="group w-full h-full flex flex-col bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-sm hover:shadow-xl hover:shadow-zinc-200/40 transition-all duration-300 cursor-pointer"
     >
       <div className="relative w-full aspect-square bg-zinc-50 overflow-hidden">
         {images[0]
@@ -1025,13 +1028,9 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
             <Star className="w-3 h-3 fill-white" /> Featured
           </div>
         )}
-
-        <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg shadow-sm border border-white/20">
-          <span style={{ color: accentColor }} className="text-sm font-black tracking-tight">{formatPrice(product.price, currency)}</span>
-        </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-6 flex flex-col flex-grow">
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="text-base font-black text-zinc-900 leading-tight line-clamp-1">{product.name}</h3>
         </div>
@@ -1040,7 +1039,18 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
           <div className="flex gap-1.5 mb-3 flex-wrap">
             {product.tags.map(tag => {
               const translated = translateTag(tag, lang)
-              return <span key={tag} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-sm ${getTagStyle(translated)}`}>{translated}</span>
+              return (
+                <span
+                  key={tag}
+                  style={{
+                    backgroundColor: `color-mix(in srgb, ${primaryColor} 12%, white)`,
+                    color: primaryColor,
+                  }}
+                  className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
+                >
+                  {translated}
+                </span>
+              )
             })}
           </div>
         )}
@@ -1051,17 +1061,21 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
           </p>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="mt-auto pt-3">
+          <div className="mb-3">
+            <span style={{ color: accentColor }} className="text-lg font-black tracking-tight">{formatPrice(product.price, currency)}</span>
+          </div>
+          <div className="flex items-center justify-between">
           <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-zinc-300 group-hover:text-zinc-900 transition-colors">
-            Order Now <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
+            Details <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
           </div>
           {onAdd && (cartQuantity ?? 0) === 0 && (
             <button
               onClick={e => { e.stopPropagation(); onAdd() }}
               style={{ backgroundColor: primaryColor }}
-              className="w-9 h-9 rounded-full text-white flex items-center justify-center hover:opacity-80 active:scale-90 transition-all flex-shrink-0 shadow-md"
+              className="px-4 py-2 rounded-full text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center hover:opacity-80 active:scale-95 transition-all flex-shrink-0 shadow-md"
             >
-              <ShoppingBag className="w-4 h-4" />
+              Order
             </button>
           )}
           {onIncrement && onDecrement && (cartQuantity ?? 0) > 0 && (
@@ -1075,6 +1089,7 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
               </button>
             </div>
           )}
+          </div>
         </div>
       </div>
     </motion.div>

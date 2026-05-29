@@ -84,7 +84,7 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, submitLabel = 'Add to cart' }: {
+export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, submitLabel = 'Order', onPrevProduct, onNextProduct }: {
   product: Product; accentColor: string; currency: string; whatsapp?: string | null;
   lang: string; onClose: () => void; onWhatsApp: () => void;
   onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void;
@@ -95,6 +95,8 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   productMedia?: ProductMedia[]
   initialEditorState?: CartEditorState | null  // when set, the modal opens in Edit mode pre-filled with these selections
   submitLabel?: string
+  onPrevProduct?: () => void  // navigate to the previous dish (undefined = no previous / disabled)
+  onNextProduct?: () => void  // navigate to the next dish
 }) {
   // Build ordered media slides: video first (if any), then images from product_media,
   // falling back to products.image_urls for backward compat
@@ -248,6 +250,26 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   const nextImage = () => setSlideIndex(i => (i + 1) % mediaSlides.length)
   const SWIPE_THRESHOLD = 40
 
+  // Swipe to change dish — bound to the modal body (below the media area, so it
+  // never conflicts with the image carousel's own swipe).
+  const bodyTouchStartXRef = useRef<number | null>(null)
+  const PRODUCT_SWIPE_THRESHOLD = 50
+
+  function handleBodyTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    bodyTouchStartXRef.current = e.touches[0]?.clientX ?? null
+  }
+
+  function handleBodyTouchEnd(e: React.TouchEvent<HTMLDivElement>) {
+    const start = bodyTouchStartXRef.current
+    bodyTouchStartXRef.current = null
+    if (start === null) return
+    const endX = e.changedTouches[0]?.clientX ?? start
+    const delta = endX - start
+    if (Math.abs(delta) < PRODUCT_SWIPE_THRESHOLD) return
+    if (delta < 0) onNextProduct?.()
+    else onPrevProduct?.()
+  }
+
   function handleTouchStart(e: React.TouchEvent<HTMLDivElement>) {
     if (!hasManySlides) return
     touchStartXRef.current = e.touches[0]?.clientX ?? null
@@ -279,7 +301,26 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-md lg:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="relative w-full sm:max-w-md lg:max-w-lg" onClick={e => e.stopPropagation()}>
+      {onPrevProduct && (
+        <button
+          onClick={onPrevProduct}
+          aria-label="Previous dish"
+          className="hidden sm:flex absolute top-1/2 -translate-y-1/2 -left-14 z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-zinc-900 shadow-lg items-center justify-center text-2xl leading-none transition-all active:scale-90"
+        >
+          ‹
+        </button>
+      )}
+      {onNextProduct && (
+        <button
+          onClick={onNextProduct}
+          aria-label="Next dish"
+          className="hidden sm:flex absolute top-1/2 -translate-y-1/2 -right-14 z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-zinc-900 shadow-lg items-center justify-center text-2xl leading-none transition-all active:scale-90"
+        >
+          ›
+        </button>
+      )}
+      <div className="bg-white w-full rounded-t-2xl sm:rounded-2xl overflow-hidden">
         {mediaSlides.length > 0 && (
           <div
             className="relative w-full aspect-video bg-zinc-100 overflow-hidden"
@@ -332,7 +373,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
             )}
           </div>
         )}
-        <div className="p-5 sm:p-6">
+        <div className="p-5 sm:p-6" onTouchStart={handleBodyTouchStart} onTouchEnd={handleBodyTouchEnd}>
           <div className="flex items-start justify-between gap-2 mb-2">
             <h3 className="text-lg font-bold text-zinc-900">{product.name}</h3>
             <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 text-xl leading-none flex-shrink-0">✕</button>
@@ -713,6 +754,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

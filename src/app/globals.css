@@ -63,7 +63,7 @@ input[type="file"] {
   to   { transform: translateX(-50%); }
 }
 .animate-marquee {
-  animation: marquee 22s linear infinite;
+  animation: marquee 44s linear infinite;
 }
 .animate-marquee:hover {
   animation-play-state: paused;
