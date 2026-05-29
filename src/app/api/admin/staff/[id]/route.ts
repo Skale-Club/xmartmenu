@@ -42,7 +42,10 @@ export async function PATCH(_req: Request, { params }: Props) {
   const password = generatePassword()
 
   const { data: authUser, error: authError } = await ctx.service.auth.admin.getUserById(id)
-  if (authError) return NextResponse.json({ error: authError.message }, { status: 500 })
+  if (authError) {
+    console.error('PATCH /api/admin/staff/[id]:', authError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 
   const email = authUser.user?.email ?? null
   if (!email) return NextResponse.json({ error: 'Staff email not found' }, { status: 400 })
@@ -51,7 +54,10 @@ export async function PATCH(_req: Request, { params }: Props) {
     password,
     user_metadata: { full_name: ctx.staffProfile.full_name ?? undefined },
   })
-  if (updateAuthError) return NextResponse.json({ error: updateAuthError.message }, { status: 500 })
+  if (updateAuthError) {
+    console.error('PATCH /api/admin/staff/[id]:', updateAuthError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 
   const { error: updateProfileError } = await ctx.service
     .from('profiles')
@@ -60,7 +66,10 @@ export async function PATCH(_req: Request, { params }: Props) {
       password_changed_at: null,
     })
     .eq('id', id)
-  if (updateProfileError) return NextResponse.json({ error: updateProfileError.message }, { status: 500 })
+  if (updateProfileError) {
+    console.error('PATCH /api/admin/staff/[id]:', updateProfileError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 
   return NextResponse.json({
     ok: true,
@@ -85,7 +94,8 @@ export async function DELETE(_req: Request, { params }: Props) {
     .update({ role: 'customer', tenant_id: null })
     .eq('id', id)
   if (demoteError) {
-    return NextResponse.json({ error: demoteError.message }, { status: 500 })
+    console.error('DELETE /api/admin/staff/[id]:', demoteError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })

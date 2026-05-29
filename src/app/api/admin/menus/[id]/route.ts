@@ -71,7 +71,10 @@ export async function PATCH(request: Request, { params }: Props) {
   }
 
   const { data, error } = await ctx.supabase.from('menus').update(update).eq('id', id).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('PATCH /api/admin/menus/[id]:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json(data)
 }
 

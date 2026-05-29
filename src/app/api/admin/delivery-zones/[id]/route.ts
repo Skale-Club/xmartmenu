@@ -26,7 +26,10 @@ export async function PATCH(request: Request, { params }: Props) {
   if ('fee_cents' in update) update.fee_cents = Math.max(0, Number(update.fee_cents))
 
   const { data, error } = await ctx.supabase.from('delivery_zones').update(update).eq('id', id).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('PATCH /api/admin/delivery-zones/[id]:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json(data)
 }
 

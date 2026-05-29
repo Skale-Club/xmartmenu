@@ -33,8 +33,9 @@ export async function GET(
       ...(token !== undefined ? { token } : {}),
     })
   } catch (err) {
+    console.error('POST /api/superadmin/tenants/[id]/ocr-upload-token:', err)
     return NextResponse.json(
-      { error: `Failed to create upload URL: ${err instanceof Error ? err.message : 'Unknown error'}` },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

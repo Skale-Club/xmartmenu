@@ -35,7 +35,8 @@ export async function PATCH(
     if (error.code === '23505') {
       return NextResponse.json({ error: 'A location with this slug already exists' }, { status: 409 })
     }
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('PATCH /api/admin/locations/[id]:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data)
 }

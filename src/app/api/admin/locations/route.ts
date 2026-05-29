@@ -13,7 +13,10 @@ export async function GET() {
     .eq('tenant_id', effective.tenantId)
     .order('created_at', { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('GET /api/admin/locations:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json(data ?? [])
 }
 
@@ -53,7 +56,8 @@ export async function POST(request: Request) {
     if (error.code === '23505') {
       return NextResponse.json({ error: 'A location with this slug already exists' }, { status: 409 })
     }
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('POST /api/admin/locations:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data, { status: 201 })
 }

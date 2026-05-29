@@ -27,8 +27,9 @@ export async function POST(request: Request) {
     })
     return NextResponse.json({ url: publicUrl })
   } catch (err) {
+    console.error('POST /api/admin/branding/upload:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Upload failed' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

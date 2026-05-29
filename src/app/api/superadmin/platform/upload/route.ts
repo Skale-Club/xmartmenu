@@ -41,7 +41,10 @@ export async function POST(request: Request) {
         contentType: 'image/webp',
         upsert: true,
       })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('POST /api/superadmin/platform/upload:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
 
     const { data: { publicUrl } } = service.storage.from(bucket).getPublicUrl(path)
     // Bust cache by appending timestamp so browser re-fetches after replace.
@@ -67,7 +70,10 @@ export async function POST(request: Request) {
         contentType: file.type,
         upsert: true,
       })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('POST /api/superadmin/platform/upload:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
 
     const { data: { publicUrl } } = service.storage.from(bucket).getPublicUrl(path)
     return NextResponse.json({ url: `${publicUrl}?v=${Date.now()}` })
@@ -76,6 +82,6 @@ export async function POST(request: Request) {
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   } catch (err) {
     console.error('[upload] unhandled error:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Upload failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

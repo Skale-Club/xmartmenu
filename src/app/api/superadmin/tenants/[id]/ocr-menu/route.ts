@@ -51,8 +51,9 @@ export async function POST(
   try {
     imageBuffer = await getStorageClient().download('tenant-assets', storagePath)
   } catch (downloadError) {
+    console.error('POST /api/superadmin/tenants/[id]/ocr-menu (download):', downloadError)
     return NextResponse.json(
-      { error: `Failed to download menu image: ${downloadError instanceof Error ? downloadError.message : 'Unknown error'}` },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }
@@ -200,7 +201,7 @@ export async function POST(
   } catch (err) {
     console.error('[ocr-menu] vision or insert error:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'OCR extraction failed | check server logs' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

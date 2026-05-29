@@ -60,7 +60,8 @@ export async function POST(request: Request) {
 
   if (userError) {
     await service.from('tenants').delete().eq('id', tenant.id)
-    return NextResponse.json({ error: `Error creating user: ${userError.message}` }, { status: 500 })
+    console.error('POST /api/superadmin/tenants:', userError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   if (userData.user) {

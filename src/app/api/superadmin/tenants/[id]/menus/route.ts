@@ -15,6 +15,9 @@ export async function GET(_req: Request, { params }: Props) {
     .eq('tenant_id', tenantId)
     .order('position')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('GET /api/superadmin/tenants/[id]/menus:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json(data ?? [])
 }

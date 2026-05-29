@@ -7,7 +7,10 @@ export async function GET() {
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const service = await createServiceClient()
   const { data, error } = await service.from('platform_settings').select('*').single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('GET /api/superadmin/settings:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json(data)
 }
 
@@ -33,7 +36,10 @@ export async function PATCH(request: Request) {
       .eq('id', existing.id)
       .select()
       .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('PATCH /api/superadmin/settings:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
     result = data
   } else {
     const { data, error } = await service
@@ -41,7 +47,10 @@ export async function PATCH(request: Request) {
       .insert(update)
       .select()
       .single()
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) {
+      console.error('PATCH /api/superadmin/settings:', error)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
     result = data
   }
 

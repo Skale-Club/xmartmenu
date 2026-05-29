@@ -16,7 +16,8 @@ export async function GET() {
     .createSignedUploadUrl(path)
 
   if (error || !data) {
-    return NextResponse.json({ error: error?.message ?? 'Failed to create upload URL' }, { status: 500 })
+    console.error('GET /api/superadmin/platform/video-upload-url:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   const { data: { publicUrl } } = service.storage.from(bucket).getPublicUrl(path)

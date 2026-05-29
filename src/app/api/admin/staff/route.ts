@@ -72,7 +72,8 @@ export async function POST(request: Request) {
     if (userError.message.includes('already been registered')) {
       return NextResponse.json({ error: 'This email is already registered' }, { status: 409 })
     }
-    return NextResponse.json({ error: userError.message }, { status: 500 })
+    console.error('POST /api/admin/staff:', userError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   if (userData.user) {
