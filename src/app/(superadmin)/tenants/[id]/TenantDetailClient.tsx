@@ -386,7 +386,7 @@ export default function TenantDetailClient({
     tenant.plan === 'enterprise' ? 'bg-purple-100 text-purple-700' : 'bg-zinc-100 text-zinc-600'
 
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-8 w-full">
       <ConfirmDialog
         open={!!confirmId}
         title="Remove staff member"

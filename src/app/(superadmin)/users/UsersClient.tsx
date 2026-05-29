@@ -100,7 +100,7 @@ export default function UsersClient({ users: initial, tenants }: { users: UserRo
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 w-full">
       <ConfirmDialog
         open={!!confirmId}
         title="Delete User"

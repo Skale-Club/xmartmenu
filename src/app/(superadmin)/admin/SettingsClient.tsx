@@ -363,7 +363,7 @@ export default function SettingsClient({ settings }: Props) {
   const sectionTitle = 'flex items-center gap-2 text-lg font-bold text-zinc-900'
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 w-full">
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}

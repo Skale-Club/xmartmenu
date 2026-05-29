@@ -561,7 +561,7 @@ export default function ProductDetailClient({
   }
 
   return (
-    <div className="p-8 max-w-3xl mx-auto">
+    <div className="p-8 w-full">
       {/* ConfirmDialogs */}
       <ConfirmDialog
         open={!!confirmGroupId}
