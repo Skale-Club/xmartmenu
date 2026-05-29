@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { captureSecurityEvent } from '@/lib/observability'
 import { ArrowRight, ChevronLeft, X } from 'lucide-react'
 
 interface Props {
@@ -66,6 +67,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
+      captureSecurityEvent('Failed admin login', { email })
       setError('Incorrect email or password.')
       setEmailLoading(false)
       return

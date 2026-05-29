@@ -5,6 +5,7 @@ export const dynamic = 'force-dynamic'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { captureSecurityEvent } from '@/lib/observability'
 import { ArrowRight, ChevronLeft } from 'lucide-react'
 
 export default function LoginPage() {
@@ -52,6 +53,7 @@ export default function LoginPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
+      captureSecurityEvent('Failed admin login', { email })
       setError('Incorrect email or password.')
       setEmailLoading(false)
       return
