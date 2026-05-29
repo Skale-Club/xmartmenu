@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { createClient } from '@/lib/supabase/client'
 import { getInitials } from '@/lib/utils'
 import type { TenantSettings } from '@/types/database'
 import { Palette, ExternalLink, Camera, Image as ImageIcon, Share2, MessageCircle, ShoppingBag, CheckCircle2, AlertCircle, Save, Info, Type } from 'lucide-react'
@@ -24,7 +23,7 @@ const CUISINE_PRESETS = [
   { name: 'Default',   primary: '#F52323', accent: '#09090b' },
 ]
 
-export default function BrandingClient({ settings, tenantId, tenantSlug, tenantName }: Props) {
+export default function BrandingClient({ settings, tenantSlug, tenantName }: Props) {
   const [form, setForm] = useState({
     primary_color: settings?.primary_color ?? '#000000',
     accent_color: settings?.accent_color ?? '#FF5722',
@@ -42,7 +41,6 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
 
-  const supabase = createClient()
   const publicMenuUrl = `${process.env.NEXT_PUBLIC_APP_URL}/${tenantSlug}`
 
   async function handleUpload(file: File, type: 'logo' | 'banner') {
@@ -68,33 +66,18 @@ export default function BrandingClient({ settings, tenantId, tenantSlug, tenantN
     e.preventDefault()
     setLoading(true)
 
-    const payload = { ...form, logo_url: logoUrl || null, banner_url: bannerUrl || null, tenant_id: tenantId }
-    
-    const { data: existing } = await supabase
-      .from('tenant_settings')
-      .select('id')
-      .eq('tenant_id', tenantId)
-      .maybeSingle()
-    
-    let result
-    if (existing?.id) {
-      result = await supabase
-        .from('tenant_settings')
-        .update({ ...payload, id: existing.id })
-        .eq('id', existing.id)
-        .select()
-    } else {
-      result = await supabase
-        .from('tenant_settings')
-        .insert(payload)
-        .select()
-    }
-    
-    const { error } = result
-    
-    if (error) {
-      console.error('Error saving tenant settings:', error)
-      alert('Error saving settings')
+    const payload = { ...form, logo_url: logoUrl || null, banner_url: bannerUrl || null }
+
+    const res = await fetch('/api/admin/branding', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      console.error('Error saving tenant settings:', json)
+      alert((json as { error?: string }).error ?? 'Error saving settings')
       setLoading(false)
       return
     }
