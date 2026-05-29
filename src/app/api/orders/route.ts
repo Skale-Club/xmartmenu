@@ -4,6 +4,12 @@ import { NextResponse } from 'next/server'
 import type { IngredientModifications } from '@/types/database'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
+interface CartEditorState {
+  singleSelections?: Record<string, string>
+  halfSelections?: Record<string, { half1: string | null; half2: string | null }>
+  multiSelections?: Record<string, string[]>
+}
+
 interface OrderItem {
   product_id: string
   product_name: string
@@ -12,6 +18,7 @@ interface OrderItem {
   notes?: string
   selected_options?: Record<string, unknown>
   ingredient_modifications?: IngredientModifications | null
+  editor_state?: CartEditorState | null
 }
 
 interface CreateOrderRequest {
@@ -40,36 +47,65 @@ function sanitizeNote(raw: string | undefined | null): string | null {
   return trimmed.slice(0, 140)
 }
 
-function computeItemUnitPrice(
-  product: { price: number | null },
-  item: OrderItem,
-): number {
-  // Server-side trusted unit price: base product price + sum of option
-  // price_modifiers + sum of ingredient extras/adds. Client-supplied
-  // unit_price is ignored — the client can only choose quantities and
-  // which options/ingredients to apply.
-  let unit = Number(product.price ?? 0)
+type ServerOption = { id: string; base_price: number | null; price_modifier: number }
+type ServerOptionGroup = { id: string; type: string; options: ServerOption[] }
 
-  if (item.selected_options) {
-    for (const v of Object.values(item.selected_options)) {
-      if (v && typeof v === 'object' && 'price_modifier' in v) {
-        unit += Number((v as { price_modifier?: number }).price_modifier ?? 0)
-      } else if (v && typeof v === 'object' && 'base_price' in v) {
-        // Absolute price options (single, half_and_half) replace base
-        unit = Number((v as { base_price?: number }).base_price ?? unit)
+// S04 #5: server-side option price, recomputed from the DB option rows the
+// customer actually selected (resolved by id via editor_state). Mirrors
+// ProductModal pricing exactly — single/half base_price REPLACE the running
+// price, multiple modifiers add — so the client cannot tamper with prices.
+function computeOptionUnit(
+  basePrice: number,
+  ed: CartEditorState | null | undefined,
+  groups: ServerOptionGroup[],
+): number {
+  let unit = Number(basePrice ?? 0)
+  if (!ed) return unit
+  for (const g of groups) {
+    if (g.type === 'single') {
+      const optId = ed.singleSelections?.[g.id]
+      if (optId) {
+        const o = g.options.find((x) => x.id === optId)
+        if (o) {
+          if (o.base_price !== null) unit = Number(o.base_price)
+          else unit += Number(o.price_modifier)
+        }
+      }
+    } else if (g.type === 'half_and_half') {
+      const half = ed.halfSelections?.[g.id]
+      if (half?.half1 && half?.half2) {
+        const o1 = g.options.find((x) => x.id === half.half1)
+        const o2 = g.options.find((x) => x.id === half.half2)
+        unit = Math.max(Number(o1?.base_price ?? 0), Number(o2?.base_price ?? 0))
+      }
+    } else if (g.type === 'multiple') {
+      for (const optId of ed.multiSelections?.[g.id] ?? []) {
+        const o = g.options.find((x) => x.id === optId)
+        if (o) unit += Number(o.price_modifier)
       }
     }
   }
+  return unit
+}
 
-  if (item.ingredient_modifications) {
-    const mods = item.ingredient_modifications
-    const sumDelta = (list: { qty?: number; unit_price?: number }[] | undefined) =>
-      (list ?? []).reduce((s, m) => s + (Number(m.qty ?? 0) * Number(m.unit_price ?? 0)), 0)
-    unit += sumDelta(mods.extras)
-    unit += sumDelta(mods.added)
+// Ingredient delta recomputed from DB prices by ingredient_id (client unit_price
+// is ignored). Removed ingredients are free.
+function computeIngredientDelta(
+  item: OrderItem,
+  prices: Map<string, { extra: number; add: number }>,
+): number {
+  const mods = item.ingredient_modifications
+  if (!mods) return 0
+  let delta = 0
+  for (const e of mods.extras ?? []) {
+    const p = prices.get(e.ingredient_id)
+    if (p) delta += Number(e.qty ?? 0) * p.extra
   }
-
-  return Math.max(0, Number(unit.toFixed(2)))
+  for (const a of mods.added ?? []) {
+    const p = prices.get(a.ingredient_id)
+    if (p) delta += Number(a.qty ?? 0) * p.add
+  }
+  return delta
 }
 
 export async function POST(request: Request) {
@@ -154,6 +190,38 @@ export async function POST(request: Request) {
     }
     const priceById = new Map(dbProducts.map((p) => [p.id, p.price]))
 
+    // S04 #5: load option groups + ingredient catalog so option/ingredient
+    // prices are recomputed from the DB (productIds are already tenant-verified).
+    const { data: groupRows } = await service
+      .from('product_option_groups')
+      .select('id, product_id, type, position, product_options(id, base_price, price_modifier)')
+      .in('product_id', productIds)
+      .order('position')
+    const groupsByProduct = new Map<string, ServerOptionGroup[]>()
+    for (const g of (groupRows ?? []) as Array<{ id: string; product_id: string; type: string; product_options?: Array<{ id: string; base_price: number | null; price_modifier: number }> }>) {
+      const arr = groupsByProduct.get(g.product_id) ?? []
+      arr.push({
+        id: g.id,
+        type: g.type,
+        options: (g.product_options ?? []).map((o) => ({ id: o.id, base_price: o.base_price, price_modifier: Number(o.price_modifier ?? 0) })),
+      })
+      groupsByProduct.set(g.product_id, arr)
+    }
+
+    const { data: piRows } = await service
+      .from('product_ingredients')
+      .select('product_id, ingredient_id, extra_price_override, add_price_override, ingredients(default_extra_price, default_add_price)')
+      .in('product_id', productIds)
+    const ingredientPricesByProduct = new Map<string, Map<string, { extra: number; add: number }>>()
+    for (const pi of (piRows ?? []) as Array<{ product_id: string; ingredient_id: string; extra_price_override: number | null; add_price_override: number | null; ingredients?: { default_extra_price?: number; default_add_price?: number } | null }>) {
+      const m = ingredientPricesByProduct.get(pi.product_id) ?? new Map<string, { extra: number; add: number }>()
+      m.set(pi.ingredient_id, {
+        extra: Number(pi.extra_price_override ?? pi.ingredients?.default_extra_price ?? 0),
+        add: Number(pi.add_price_override ?? pi.ingredients?.default_add_price ?? 0),
+      })
+      ingredientPricesByProduct.set(pi.product_id, m)
+    }
+
     // SEED-019: apply price multiplier from private/in-store menu
     let priceMultiplier = 1
     if (rawMenuId) {
@@ -169,7 +237,11 @@ export async function POST(request: Request) {
     }
 
     const trustedItems = items.map((item) => {
-      const baseUnit = computeItemUnitPrice({ price: priceById.get(item.product_id) ?? 0 }, item)
+      const basePrice = Number(priceById.get(item.product_id) ?? 0)
+      const groups = groupsByProduct.get(item.product_id) ?? []
+      const ingPrices = ingredientPricesByProduct.get(item.product_id) ?? new Map<string, { extra: number; add: number }>()
+      const recomputed = computeOptionUnit(basePrice, item.editor_state, groups) + computeIngredientDelta(item, ingPrices)
+      const baseUnit = Math.max(0, Number(recomputed.toFixed(2)))
       const trustedUnit = priceMultiplier !== 1
         ? Math.round(baseUnit * priceMultiplier * 100) / 100
         : baseUnit

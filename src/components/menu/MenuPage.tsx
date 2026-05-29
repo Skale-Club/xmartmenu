@@ -262,6 +262,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
             selected_options: item.selectedOptions,
             notes: item.note || undefined,
             ingredient_modifications: item.ingredientModifications || null,
+            editor_state: item.editorState || null,
           })),
         }),
       })
