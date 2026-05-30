@@ -133,6 +133,14 @@ export interface TenantSettings {
   seo_keywords: string | null
   seo_og_image_url: string | null
   seo_noindex: boolean
+  // SEED-014 local SEO: structured address, geo & price range (migration 053)
+  city: string | null
+  region: string | null
+  postal_code: string | null
+  country: string | null
+  latitude: number | null
+  longitude: number | null
+  price_range: string | null
 }
 
 export interface BusinessHours {
@@ -241,6 +249,12 @@ export interface Location {
   city: string | null
   phone: string | null
   business_hours: Record<string, string> | null
+  // SEED-014 local SEO: branch structured address + geo (migration 053)
+  region: string | null
+  postal_code: string | null
+  country: string | null
+  latitude: number | null
+  longitude: number | null
   menu_id: string | null           // LOC-05: null = shared/default menu (migration 037)
   is_active: boolean
   created_at: string

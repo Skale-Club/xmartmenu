@@ -58,6 +58,13 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
     language: settings?.language ?? 'en',
     address: settings?.address ?? '',
     phone: settings?.phone ?? '',
+    city: settings?.city ?? '',
+    region: settings?.region ?? '',
+    postal_code: settings?.postal_code ?? '',
+    country: settings?.country ?? '',
+    latitude: settings?.latitude != null ? String(settings.latitude) : '',
+    longitude: settings?.longitude != null ? String(settings.longitude) : '',
+    price_range: settings?.price_range ?? '',
     item_notes_enabled: settings?.item_notes_enabled ?? false,
     amber_threshold_minutes: settings?.amber_threshold_minutes ?? 10,
     red_threshold_minutes: settings?.red_threshold_minutes ?? 20,
@@ -179,11 +186,26 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
       Object.entries(businessHours).filter(([, v]) => v.trim() !== '')
     )
 
+    const parseCoord = (v: string) => {
+      const t = v.trim()
+      if (t === '') return null
+      const n = Number(t)
+      return Number.isFinite(n) ? n : null
+    }
+
     const { error: err } = await supabase
       .from('tenant_settings')
       .upsert({
         tenant_id: tenantId,
         ...form,
+        // Coerce local-SEO fields: empty strings → null, coordinates → number.
+        city: form.city.trim() || null,
+        region: form.region.trim() || null,
+        postal_code: form.postal_code.trim() || null,
+        country: form.country.trim() || null,
+        price_range: form.price_range.trim() || null,
+        latitude: parseCoord(form.latitude),
+        longitude: parseCoord(form.longitude),
         business_hours: Object.keys(filteredHours).length > 0 ? filteredHours : null,
       }, { onConflict: 'tenant_id' })
 
@@ -282,13 +304,97 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
             </div>
             <div className="space-y-6">
               <div>
-                <label className={labelClassName}>Physical Address</label>
+                <label className={labelClassName}>Street Address</label>
                 <input
                   value={form.address}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                  placeholder="e.g. 123 Main St, New York, NY"
+                  placeholder="e.g. 123 Main St"
                   className={inputClassName}
                 />
+              </div>
+              {/* SEED-014 local SEO: structured address powers Google "near me" + Maps */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClassName}>City</label>
+                  <input
+                    value={form.city}
+                    onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
+                    placeholder="New York"
+                    className={inputClassName}
+                  />
+                </div>
+                <div>
+                  <label className={labelClassName}>State / Region</label>
+                  <input
+                    value={form.region}
+                    onChange={e => setForm(f => ({ ...f, region: e.target.value }))}
+                    placeholder="NY"
+                    className={inputClassName}
+                  />
+                </div>
+                <div>
+                  <label className={labelClassName}>Postal Code</label>
+                  <input
+                    value={form.postal_code}
+                    onChange={e => setForm(f => ({ ...f, postal_code: e.target.value }))}
+                    placeholder="10001"
+                    className={inputClassName}
+                  />
+                </div>
+                <div>
+                  <label className={labelClassName}>Country</label>
+                  <input
+                    value={form.country}
+                    onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
+                    placeholder="US"
+                    className={inputClassName}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={labelClassName}>Latitude</label>
+                  <input
+                    value={form.latitude}
+                    onChange={e => setForm(f => ({ ...f, latitude: e.target.value }))}
+                    inputMode="decimal"
+                    placeholder="40.7128"
+                    className={inputClassName}
+                  />
+                </div>
+                <div>
+                  <label className={labelClassName}>Longitude</label>
+                  <input
+                    value={form.longitude}
+                    onChange={e => setForm(f => ({ ...f, longitude: e.target.value }))}
+                    inputMode="decimal"
+                    placeholder="-74.0060"
+                    className={inputClassName}
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-zinc-400 -mt-3 ml-1">
+                Coordinates power &ldquo;near me&rdquo; search and Google Maps. Tip: right-click your spot in Google Maps to copy lat/long.
+              </p>
+              <div>
+                <label className={labelClassName}>Price Range</label>
+                <div className="flex gap-2">
+                  {['$', '$$', '$$$', '$$$$'].map(pr => (
+                    <button
+                      key={pr}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, price_range: f.price_range === pr ? '' : pr }))}
+                      className={cn(
+                        'px-5 py-2.5 rounded-xl text-sm font-black border transition-all',
+                        form.price_range === pr
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-zinc-50 text-zinc-500 border-zinc-200 hover:border-primary/40',
+                      )}
+                    >
+                      {pr}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div>
                 <label className={labelClassName}>Contact Phone</label>

@@ -14,9 +14,18 @@ export async function PATCH(
   }
 
   const body = await request.json()
-  const allowed = ['name', 'slug', 'address', 'city', 'phone', 'business_hours', 'is_active', 'menu_id']
+  const allowed = ['name', 'slug', 'address', 'city', 'phone', 'business_hours', 'is_active', 'menu_id',
+                   'region', 'postal_code', 'country', 'latitude', 'longitude']
   const update: Record<string, unknown> = {}
   for (const key of allowed) if (key in body) update[key] = body[key]
+
+  // Coordinates must be finite numbers or null.
+  for (const key of ['latitude', 'longitude'] as const) {
+    if (key in update) {
+      const v = update[key]
+      update[key] = typeof v === 'number' && Number.isFinite(v) ? v : null
+    }
+  }
 
   if (update.slug && !/^[a-z0-9-]+$/.test(update.slug as string)) {
     return NextResponse.json({ error: 'Slug must be lowercase letters, numbers, and hyphens only' }, { status: 400 })

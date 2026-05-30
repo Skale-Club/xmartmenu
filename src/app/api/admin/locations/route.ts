@@ -28,13 +28,16 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { name, slug, address, city, phone, business_hours, menu_id } = body
+  const { name, slug, address, city, phone, business_hours, menu_id,
+          region, postal_code, country, latitude, longitude } = body
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   if (!slug?.trim()) return NextResponse.json({ error: 'Slug is required' }, { status: 400 })
   if (!/^[a-z0-9-]+$/.test(slug)) {
     return NextResponse.json({ error: 'Slug must be lowercase letters, numbers, and hyphens only' }, { status: 400 })
   }
+
+  const coord = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 
   const service = await createServiceClient()
   const { data, error } = await service
@@ -48,6 +51,11 @@ export async function POST(request: Request) {
       phone: phone?.trim() || null,
       business_hours: business_hours || null,
       menu_id: menu_id ?? null,
+      region: region?.trim() || null,
+      postal_code: postal_code?.trim() || null,
+      country: country?.trim() || null,
+      latitude: coord(latitude),
+      longitude: coord(longitude),
     })
     .select()
     .single()

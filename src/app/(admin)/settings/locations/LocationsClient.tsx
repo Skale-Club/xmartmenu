@@ -37,12 +37,18 @@ interface FormState {
   address: string
   city: string
   phone: string
+  region: string
+  postal_code: string
+  country: string
+  latitude: string
+  longitude: string
   hours: Record<string, string>
   menu_id: string | null
 }
 
 const EMPTY_FORM: FormState = {
   name: '', slug: '', address: '', city: '', phone: '',
+  region: '', postal_code: '', country: '', latitude: '', longitude: '',
   hours: { ...EMPTY_HOURS },
   menu_id: null,
 }
@@ -123,6 +129,58 @@ function LocationModal({
                 value={form.city}
                 onChange={e => setForm(f => ({ ...f, city: e.target.value }))}
                 placeholder="São Paulo"
+                className={inputClassName}
+              />
+            </div>
+
+            <div>
+              <label className={labelClassName}>State / Region</label>
+              <input
+                value={form.region}
+                onChange={e => setForm(f => ({ ...f, region: e.target.value }))}
+                placeholder="SP"
+                className={inputClassName}
+              />
+            </div>
+
+            <div>
+              <label className={labelClassName}>Postal Code</label>
+              <input
+                value={form.postal_code}
+                onChange={e => setForm(f => ({ ...f, postal_code: e.target.value }))}
+                placeholder="01310-100"
+                className={inputClassName}
+              />
+            </div>
+
+            <div>
+              <label className={labelClassName}>Country</label>
+              <input
+                value={form.country}
+                onChange={e => setForm(f => ({ ...f, country: e.target.value }))}
+                placeholder="BR"
+                className={inputClassName}
+              />
+            </div>
+
+            <div>
+              <label className={labelClassName}>Latitude</label>
+              <input
+                value={form.latitude}
+                onChange={e => setForm(f => ({ ...f, latitude: e.target.value }))}
+                inputMode="decimal"
+                placeholder="-23.5614"
+                className={inputClassName}
+              />
+            </div>
+
+            <div>
+              <label className={labelClassName}>Longitude</label>
+              <input
+                value={form.longitude}
+                onChange={e => setForm(f => ({ ...f, longitude: e.target.value }))}
+                inputMode="decimal"
+                placeholder="-46.6559"
                 className={inputClassName}
               />
             </div>
@@ -314,6 +372,11 @@ export default function LocationsClient({
       address: loc.address ?? '',
       city: loc.city ?? '',
       phone: loc.phone ?? '',
+      region: loc.region ?? '',
+      postal_code: loc.postal_code ?? '',
+      country: loc.country ?? '',
+      latitude: loc.latitude != null ? String(loc.latitude) : '',
+      longitude: loc.longitude != null ? String(loc.longitude) : '',
       hours: { ...EMPTY_HOURS, ...(loc.business_hours ?? {}) },
       menu_id: loc.menu_id ?? null,
     })
@@ -335,12 +398,24 @@ export default function LocationsClient({
       Object.entries(form.hours).filter(([, v]) => v.trim() !== '')
     )
 
+    const parseCoord = (v: string) => {
+      const t = v.trim()
+      if (t === '') return null
+      const n = Number(t)
+      return Number.isFinite(n) ? n : null
+    }
+
     const payload = {
       name: form.name.trim(),
       slug: form.slug.trim(),
       address: form.address.trim() || null,
       city: form.city.trim() || null,
       phone: form.phone.trim() || null,
+      region: form.region.trim() || null,
+      postal_code: form.postal_code.trim() || null,
+      country: form.country.trim() || null,
+      latitude: parseCoord(form.latitude),
+      longitude: parseCoord(form.longitude),
       business_hours: Object.keys(filteredHours).length > 0 ? filteredHours : null,
       menu_id: form.menu_id || null,
     }

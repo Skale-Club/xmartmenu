@@ -17,6 +17,7 @@ import {
   buildMenuJsonLd,
   buildBranchJsonLd,
   buildBreadcrumbJsonLd,
+  buildSameAs,
   resolveSeoTitle,
   resolveSeoDescription,
   resolveSeoKeywords,
@@ -228,10 +229,15 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const isPrivate = (menu as any)?.is_private ?? false
 
   const parentUrl = getCanonicalUrl(tenant, '/')
-  // SEO-08: when rendering a branch, use branch-specific LocalBusiness with branchOf
+  const tenantSettings = tenant.tenant_settings as any
+  // SEO-08: when rendering a branch, use branch-specific LocalBusiness with branchOf.
+  // Branches inherit price range and social profiles from the parent tenant.
   const localBusinessLd = location
-    ? buildBranchJsonLd(location, canonicalUrl, parentUrl)
-    : buildLocalBusinessJsonLd(tenant, tenant.tenant_settings as any, parentUrl)
+    ? buildBranchJsonLd(location, canonicalUrl, parentUrl, {
+        priceRange: tenantSettings?.price_range ?? null,
+        sameAs: buildSameAs(tenantSettings),
+      })
+    : buildLocalBusinessJsonLd(tenant, tenantSettings, parentUrl)
   // Do not index private menus
   const menuLd = (menu && !isPrivate)
     ? buildMenuJsonLd(menu.name, canonicalUrl, categories ?? [], displayProducts, currency)

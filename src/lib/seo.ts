@@ -43,6 +43,64 @@ function buildOpeningHours(hours: BusinessHours): object[] {
     })
 }
 
+// ----- Local SEO building blocks (SEED-014) -----
+
+interface AddressParts {
+  streetAddress?: string | null
+  city?: string | null
+  region?: string | null
+  postalCode?: string | null
+  country?: string | null
+}
+
+/** schema.org PostalAddress, omitting empty parts. Returns null when fully empty. */
+function buildPostalAddress(a: AddressParts): object | null {
+  const entries: [string, string | null | undefined][] = [
+    ['streetAddress', a.streetAddress],
+    ['addressLocality', a.city],
+    ['addressRegion', a.region],
+    ['postalCode', a.postalCode],
+    ['addressCountry', a.country],
+  ]
+  const filled = entries.filter(([, v]) => v && String(v).trim())
+  if (!filled.length) return null
+  return { '@type': 'PostalAddress', ...Object.fromEntries(filled) }
+}
+
+/** schema.org GeoCoordinates from lat/lng, or null when either is missing. */
+function buildGeo(lat: number | null | undefined, lng: number | null | undefined): object | null {
+  if (typeof lat !== 'number' || typeof lng !== 'number' || Number.isNaN(lat) || Number.isNaN(lng)) return null
+  return { '@type': 'GeoCoordinates', latitude: lat, longitude: lng }
+}
+
+/** Google Maps deep-link from coordinates (preferred) or a free-text address. */
+function buildMapUrl(
+  lat: number | null | undefined,
+  lng: number | null | undefined,
+  addressParts: (string | null | undefined)[],
+): string | null {
+  if (typeof lat === 'number' && typeof lng === 'number' && !Number.isNaN(lat) && !Number.isNaN(lng)) {
+    return `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+  }
+  const q = addressParts.filter((p) => p && String(p).trim()).join(', ')
+  return q ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}` : null
+}
+
+/** Public profile URLs (Instagram, WhatsApp) surfaced as schema.org sameAs. */
+export function buildSameAs(settings: { instagram?: string | null; whatsapp?: string | null } | null): string[] {
+  const out: string[] = []
+  const ig = settings?.instagram?.trim()
+  if (ig) {
+    out.push(/^https?:\/\//.test(ig) ? ig : `https://instagram.com/${ig.replace(/^@/, '')}`)
+  }
+  const wa = settings?.whatsapp?.trim()
+  if (wa) {
+    const digits = wa.replace(/[^\d]/g, '')
+    if (digits) out.push(`https://wa.me/${digits}`)
+  }
+  return out
+}
+
 export function buildLocalBusinessJsonLd(
   tenant: { name: string; slug: string; custom_domain?: string | null; custom_domain_verified?: boolean },
   settings: TenantSettings | null,
@@ -54,6 +112,9 @@ export function buildLocalBusinessJsonLd(
     '@id': canonicalUrl,
     name: tenant.name,
     url: canonicalUrl,
+    // The menu page IS the canonical home — link it as the restaurant's menu.
+    menu: canonicalUrl,
+    hasMenu: canonicalUrl,
   }
 
   if (settings?.tagline) ld.description = settings.tagline
@@ -61,12 +122,24 @@ export function buildLocalBusinessJsonLd(
 
   if (settings?.phone) ld.telephone = settings.phone
 
-  if (settings?.address) {
-    ld.address = {
-      '@type': 'PostalAddress',
-      streetAddress: settings.address,
-    }
-  }
+  const address = buildPostalAddress({
+    streetAddress: settings?.address,
+    city: settings?.city,
+    region: settings?.region,
+    postalCode: settings?.postal_code,
+    country: settings?.country,
+  })
+  if (address) ld.address = address
+
+  const geo = buildGeo(settings?.latitude, settings?.longitude)
+  if (geo) ld.geo = geo
+
+  const mapUrl = buildMapUrl(settings?.latitude, settings?.longitude, [
+    settings?.address, settings?.city, settings?.region, settings?.postal_code, settings?.country,
+  ])
+  if (mapUrl) ld.hasMap = mapUrl
+
+  if (settings?.price_range?.trim()) ld.priceRange = settings.price_range.trim()
 
   if (settings?.logo_url) {
     ld.image = settings.logo_url
@@ -81,6 +154,9 @@ export function buildLocalBusinessJsonLd(
     const specs = buildOpeningHours(settings.business_hours)
     if (specs.length) ld.openingHoursSpecification = specs
   }
+
+  const sameAs = buildSameAs(settings)
+  if (sameAs.length) ld.sameAs = sameAs
 
   return ld
 }
@@ -134,9 +210,16 @@ export function buildBranchJsonLd(
     city: string | null
     phone: string | null
     business_hours: Record<string, string> | null
+    region?: string | null
+    postal_code?: string | null
+    country?: string | null
+    latitude?: number | null
+    longitude?: number | null
   },
   branchUrl: string,
   parentUrl: string,
+  // Inherited from the parent tenant where the branch has no own value.
+  inherited?: { priceRange?: string | null; sameAs?: string[] } | null,
 ): object {
   const ld: Record<string, unknown> = {
     '@context': 'https://schema.org',
@@ -144,6 +227,8 @@ export function buildBranchJsonLd(
     '@id': branchUrl,
     name: location.name,
     url: branchUrl,
+    menu: branchUrl,
+    hasMenu: branchUrl,
     branchOf: {
       '@type': 'Restaurant',
       '@id': parentUrl,
@@ -152,13 +237,25 @@ export function buildBranchJsonLd(
 
   if (location.phone) ld.telephone = location.phone
 
-  if (location.address || location.city) {
-    ld.address = {
-      '@type': 'PostalAddress',
-      ...(location.address ? { streetAddress: location.address } : {}),
-      ...(location.city ? { addressLocality: location.city } : {}),
-    }
-  }
+  const address = buildPostalAddress({
+    streetAddress: location.address,
+    city: location.city,
+    region: location.region,
+    postalCode: location.postal_code,
+    country: location.country,
+  })
+  if (address) ld.address = address
+
+  const geo = buildGeo(location.latitude, location.longitude)
+  if (geo) ld.geo = geo
+
+  const mapUrl = buildMapUrl(location.latitude, location.longitude, [
+    location.address, location.city, location.region, location.postal_code, location.country,
+  ])
+  if (mapUrl) ld.hasMap = mapUrl
+
+  if (inherited?.priceRange?.trim()) ld.priceRange = inherited.priceRange.trim()
+  if (inherited?.sameAs && inherited.sameAs.length) ld.sameAs = inherited.sameAs
 
   if (location.business_hours) {
     const specs = buildOpeningHours(location.business_hours)
