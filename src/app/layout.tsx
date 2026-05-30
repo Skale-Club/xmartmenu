@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
-import { SpeedInsights } from '@vercel/speed-insights/next'
 import { createServiceClient } from '@/lib/supabase/server'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
@@ -73,8 +71,6 @@ export default async function RootLayout({
         {children}
         <ServiceWorkerRegistrar />
         <InstallPrompt />
-        <Analytics />
-        <SpeedInsights />
       </body>
     </html>
   )
