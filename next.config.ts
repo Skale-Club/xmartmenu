@@ -18,6 +18,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // Coolify/Docker target: emit a minimal traced server (.next/standalone) with
+  // its own server.js instead of bundling the full node_modules. Required for
+  // the multi-stage Dockerfile; harmless on Vercel (ignored there).
+  output: 'standalone',
+  // sharp ships a native binary — keep it external so it isn't traced/bundled
+  // into the standalone output (next/image optimization loads it at runtime).
+  serverExternalPackages: ['sharp'],
   images: {
     formats: ['image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
