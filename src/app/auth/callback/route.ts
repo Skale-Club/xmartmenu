@@ -2,9 +2,13 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { normalizeRole, parseSuperadminEmails } from '@/lib/auth/role-utils'
 import { captureSecurityEvent } from '@/lib/observability'
+import { getRequestOrigin } from '@/lib/site-url'
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
+  // Use the proxy-aware public origin so OAuth redirects don't land on the
+  // internal bind address (0.0.0.0:3000) when running behind Coolify/Docker.
+  const origin = getRequestOrigin(request)
   const code = searchParams.get('code')
   const next = searchParams.get('next') ?? '/'
 

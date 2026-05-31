@@ -2,6 +2,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { randomSuffix } from '@/lib/auth/password-gen'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { getRequestOrigin } from '@/lib/site-url'
 
 function getSafeRedirect(value: unknown) {
   if (typeof value !== 'string') return '/'
@@ -84,7 +85,7 @@ export async function POST(request: Request) {
 
   if (rawPassword.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
 
-  const { origin } = new URL(request.url)
+  const origin = getRequestOrigin(request)
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,
