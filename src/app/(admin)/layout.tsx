@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import AdminSidebar from '@/components/admin/AdminSidebar'
+import DemoBanner from '@/components/demo/DemoBanner'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 
@@ -131,6 +132,7 @@ export default async function AdminLayout({
          {children}
        </main>
     </div>
+    <DemoBanner />
     </>
   )
 }
