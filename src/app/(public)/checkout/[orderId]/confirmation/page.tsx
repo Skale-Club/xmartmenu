@@ -6,7 +6,7 @@
  * Relies on webhook to update order status in DB.
  */
 
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { CheckCircle, XCircle, ArrowLeft, Loader2 } from 'lucide-react'
 
@@ -25,7 +25,9 @@ export default async function ConfirmationPage({
 }: ConfirmationPageProps) {
   const { orderId } = await params
   const { payment_intent, redirect_status } = await searchParams
-  const supabase = await createClient()
+  // Anonymous customer context — read the order by its unguessable UUID via the
+  // service client (RLS on `orders` is admin/staff-only). See checkout page.
+  const supabase = createServiceClient()
 
   // If we have redirect_status from Stripe, show the appropriate message
   if (redirect_status) {

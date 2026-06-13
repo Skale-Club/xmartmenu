@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { isStripeEnabled } from '@/lib/stripe'
 import { NextResponse } from 'next/server'
 import type { IngredientModifications } from '@/types/database'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
@@ -172,6 +173,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Orders not enabled for this tenant' }, { status: 403 })
     }
 
+    // Payment gating by order origin:
+    //  - Staff/waiter orders (authenticated member of THIS tenant placing the
+    //    order from the admin/waiter UI) skip online payment — paid at the
+    //    counter. getEffectiveTenant() reflects the cookie session, which a
+    //    waiter has and an anonymous QR customer does not.
+    //  - Every other order (public menu / QR customer) MUST be paid online
+    //    before reaching the kitchen, but only when the tenant actually has
+    //    Stripe configured. If Stripe isn't enabled, fall back to the legacy
+    //    "place order, pay in person" behavior.
+    const effective = await getEffectiveTenant()
+    const isStaffOrder = !!effective
+      && effective.tenantId === tenant_id
+      && (effective.role === 'store-admin' || effective.role === 'store-staff' || effective.role === 'superadmin')
+    const requiresPayment = !isStaffOrder && await isStripeEnabled(tenant_id, service)
+    const initialStatus = requiresPayment ? 'awaiting_payment' : 'pending'
+
     // P2-07 fix: resolve canonical product prices server-side and ignore
     // client-supplied unit_price.
     const productIds = Array.from(new Set(items.map((i) => i.product_id)))
@@ -284,7 +301,7 @@ export async function POST(request: Request) {
         tenant_id,
         customer_name: customer_name.trim(),
         customer_phone: customer_phone.trim(),
-        status: 'pending',
+        status: initialStatus,
         total: orderTotal,
         order_type: orderType,
         delivery_address: deliveryAddress,
@@ -327,7 +344,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to create order items' }, { status: 500 })
     }
 
-    return NextResponse.json({ id: order.id, status: order.status, total: order.total, order_type: order.order_type })
+    return NextResponse.json({ id: order.id, status: order.status, total: order.total, order_type: order.order_type, requires_payment: requiresPayment })
   } catch (error) {
     console.error('orders.error', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatPrice, getInitials } from '@/lib/utils'
@@ -69,6 +70,7 @@ function getTranslatedMenuField(
 }
 
 export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
+  const router = useRouter()
   const defaultOrderType = (tenant.tenant_settings?.dine_in_enabled ?? true) ? 'dine_in'
     : (tenant.tenant_settings?.pickup_enabled ?? false) ? 'pickup'
     : 'delivery'
@@ -271,6 +273,15 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to submit order')
+      }
+
+      // Customer (QR / public-menu) orders that require online payment skip the
+      // "order placed" screen and go straight to the Stripe checkout. The order
+      // already exists in 'awaiting_payment' and only reaches the kitchen once
+      // the payment webhook flips it to 'paid'.
+      if (data.requires_payment) {
+        router.push(`/checkout/${data.id}`)
+        return
       }
 
       setConfirmedCart([...cart])
