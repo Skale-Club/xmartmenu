@@ -31,7 +31,7 @@
 
 ### Backfill (BKF)
 
-- [ ] **BKF-01**: A superadmin-only route enqueues a full-sync for every existing tenant, throttled/rate-aware, and idempotent — safe to re-run without creating duplicates.
+- [x] **BKF-01**: A superadmin-only route enqueues a full-sync for every existing tenant, throttled/rate-aware, and idempotent — safe to re-run without creating duplicates.
 
 ### Observability & Ops (OBS)
 
@@ -89,7 +89,7 @@ Every v2.4 requirement maps to exactly one phase. 100% coverage (16/16).
 | LIF-05 | Phase 52 — Producer Hooks | Complete |
 | LIF-06 | Phase 52 — Producer Hooks | Complete |
 | LIF-07 | Phase 52 — Producer Hooks | Complete |
-| BKF-01 | Phase 53 — Backfill | Pending |
+| BKF-01 | Phase 53 — Backfill | Complete |
 | OBS-01 | Phase 54 — Observability & Ops | Pending |
 | OBS-02 | Phase 54 — Observability & Ops | Pending |
 

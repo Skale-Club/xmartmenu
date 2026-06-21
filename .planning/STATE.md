@@ -4,15 +4,15 @@ milestone: v2.4
 milestone_name: CRM & Integrations
 current_plan: Not started
 status: verifying
-stopped_at: Completed 52-04-PLAN.md
-last_updated: "2026-06-21T09:57:29.636Z"
+stopped_at: Completed 53-01-PLAN.md
+last_updated: "2026-06-21T10:07:05.206Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 20
-  completed_phases: 12
-  total_plans: 29
-  completed_plans: 28
-  percent: 86
+  completed_phases: 13
+  total_plans: 30
+  completed_plans: 29
+  percent: 97
 ---
 
 # Project State
@@ -22,17 +22,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 52 — Producer Hooks
+**Current focus:** Phase 53 — Backfill
 
 ## Current Position
 
 Phase: 53
-Current Plan: Not started
-Total Plans in Phase: 4
+Current Plan: Complete (53-01 done)
+Total Plans in Phase: 1
 Status: Phase complete — ready for verification
 Last activity: 2026-06-21
 
-Progress: [█████████░] 86% (Phase 52: 1/4 plans)
+Progress: [██████████] 97% (Phase 53: 1/1 plans)
 
 ## Milestone Overview
 
@@ -43,7 +43,7 @@ Progress: [█████████░] 86% (Phase 52: 1/4 plans)
 | 50 | Schema & Contract | FND-01, FND-02 | Ready to plan |
 | 51 | Worker + Client | FND-04, FND-05, FND-06 | In progress (51-01 done) |
 | 52 | Producer Hooks | FND-03, LIF-01..07 | In progress (52-01 done) |
-| 53 | Backfill | BKF-01 | Not started |
+| 53 | Backfill | BKF-01 | Complete (53-01 done) |
 | 54 | Observability & Ops | OBS-01, OBS-02 | Not started |
 | 55 | Live Conformance Test | (verification only) | Blocked (external dependency) |
 
@@ -86,6 +86,9 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [Phase 52]: Resume onboarding paths (already_configured + resume-finish) enqueue reason 'manual' — the only reason that emits no note — so the onboarded timeline note is never double-posted; new-tenant path uses 'onboarded' with no eventId so the worker dedups on onboarding:<tenant.id>.
 - [Phase 52]: 52-03: Stripe webhook lifecycle producers — single fail-open enqueue after the processed_stripe_events idempotency row; plans price-id columns are stripe_price_monthly_id/stripe_price_annual_id (not the plan's assumed names)
 - [Phase 52]: 52-04 gate asserts deduplicationId/retries against QStash request HEADERS (Upstash-Deduplication-Id/Upstash-Retries), not the JSON body — verified from installed SDK source
+- [Phase 53]: [Phase 53-01]: BKF-01 backfill reuses the single Phase 52 producer (enqueueXphereSync(id,'backfill')) — zero new sync logic; inherits idempotency (worker upserts by external_id; 'backfill' emits no note), QStash retries, and fail-open.
+- [Phase 53]: [Phase 53-01]: Backfill is resumable via keyset cursor on tenants.created_at (.gt ascending) returning { enqueued, skipped, nextCursor, done } — no OFFSET drift; throttled between enqueues; per-tenant fail-open via try/catch in the batch loop.
+- [Phase 53]: [Phase 53-01]: No opt-out/internal/test column invented (none on tenants) — sync ALL tenants, document absence, keep skipped=0 for forward compat; flag to product before live PII. Offline gate asserts superadmin->401 structurally.
 
 ### Pending Todos
 
@@ -106,11 +109,12 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 | Phase 52 P02 | 5min | 2 tasks | 2 files |
 | Phase 52 P03 | 4min | 2 tasks | 1 files |
 | Phase 52 P04 | 6min | 1 tasks | 2 files |
+| Phase 53 P01 | 8min | 2 tasks | 3 files |
 
 ## Session Continuity
 
-Last session: 2026-06-21T09:53:43.729Z
-Stopped at: Completed 52-04-PLAN.md
+Last session: 2026-06-21T10:06:51.437Z
+Stopped at: Completed 53-01-PLAN.md
 
 ---
 

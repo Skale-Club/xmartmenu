@@ -193,7 +193,7 @@ Key accomplishments:
 - [x] **Phase 50: Schema & Contract** — Migration 054 (xphere_* columns) + `Tenant` type update + `xphere/types.ts` (contract, SyncReason, XPHERE_STAGES) + pure offline-testable `xphere/mapping.ts` (normalized MRR) (completed 2026-06-21)
 - [x] **Phase 51: Worker + Client** — env-gated `xphere/client.ts` seam + signature-verified `/api/internal/xphere-sync` worker (fat-read, map, write-back, retry classification) + offline worker check (3 plans) (completed 2026-06-21)
 - [x] **Phase 52: Producer Hooks** — Fail-open `xphere/queue.ts` enqueue wired into onboarding + 3 Stripe webhook branches + Connect callback (lifecycle events #1–#7) (completed 2026-06-21)
-- [ ] **Phase 53: Backfill** — Superadmin-only throttled, resumable, idempotent full-sync enqueue for all existing tenants (internal/test/opt-out filtered)
+- [x] **Phase 53: Backfill** — Superadmin-only throttled, resumable, idempotent full-sync enqueue for all existing tenants (internal/test/opt-out filtered) (completed 2026-06-21)
 - [ ] **Phase 54: Observability & Ops** — Sync state + error surfaced in superadmin tenant detail, manual re-sync, env kill switch, secret hygiene, post-deploy reachability ping
 - [ ] **Phase 55: Live Conformance Test (DEFERRED)** — Full conformance checklist against the real `/api/v1/sync` once Xtimator ships it; flip the kill switch on (BLOCKED on external dependency)
 
@@ -576,7 +576,7 @@ Plans:
 
 Plans:
 
-- [ ] 53-01-PLAN.md — Superadmin-only throttled/resumable/idempotent backfill route (paginate tenants -> enqueueXphereSync(id, 'backfill')) + offline tsx gate (BKF-01)
+- [x] 53-01-PLAN.md — Superadmin-only throttled/resumable/idempotent backfill route (paginate tenants -> enqueueXphereSync(id, 'backfill')) + offline tsx gate (BKF-01)
 
 **UI hint**: no
 
@@ -641,6 +641,6 @@ Plans:
 | 50. Schema & Contract | 3/3 | Complete    | 2026-06-21 |
 | 51. Worker + Client | 3/3 | Complete    | 2026-06-21 |
 | 52. Producer Hooks | 4/4 | Complete    | 2026-06-21 |
-| 53. Backfill | 0/? | Not started | - |
+| 53. Backfill | 1/1 | Complete   | 2026-06-21 |
 | 54. Observability & Ops | 0/? | Not started | - |
 | 55. Live Conformance Test (DEFERRED) | 0/? | Blocked (external) | - |
