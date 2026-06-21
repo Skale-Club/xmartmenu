@@ -27,7 +27,12 @@ import type { SyncReason } from './types'
 // Fail-open env gate (mirror rate-limit.ts `redis = hasUpstash ? ... : null`):
 // create the client only when the token is present; otherwise null -> no-op.
 const token = process.env.QSTASH_TOKEN
-const client = token ? new Client({ token }) : null
+// baseUrl pins the QStash region (e.g. https://qstash-us-east-1.upstash.io). It
+// MUST match the region whose signing keys the worker verifies against. Falls
+// back to the SDK default when QSTASH_URL is unset.
+const client = token
+  ? new Client(process.env.QSTASH_URL ? { token, baseUrl: process.env.QSTASH_URL } : { token })
+  : null
 
 /**
  * Resolve the pinned worker URL the SAME way the worker does
