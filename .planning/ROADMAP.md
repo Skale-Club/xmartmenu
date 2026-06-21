@@ -628,7 +628,7 @@ Plans:
 | 48. CTA Full-Bleed + Background Image | 0/? | Paused | - |
 | 49. DB Seeds — Color & Branding Defaults | 0/? | Paused | - |
 | 50. Schema & Contract | 3/3 | Complete    | 2026-06-21 |
-| 51. Worker + Client | 3/3 | Complete   | 2026-06-21 |
+| 51. Worker + Client | 3/3 | Complete    | 2026-06-21 |
 | 52. Producer Hooks | 0/? | Not started | - |
 | 53. Backfill | 0/? | Not started | - |
 | 54. Observability & Ops | 0/? | Not started | - |
