@@ -191,7 +191,7 @@ Key accomplishments:
 ### v2.4 CRM & Integrations (Xphere CRM Sync) — Phases 50-55 (ACTIVE)
 
 - [x] **Phase 50: Schema & Contract** — Migration 054 (xphere_* columns) + `Tenant` type update + `xphere/types.ts` (contract, SyncReason, XPHERE_STAGES) + pure offline-testable `xphere/mapping.ts` (normalized MRR) (completed 2026-06-21)
-- [ ] **Phase 51: Worker + Client** — Signature-verified `/api/internal/xphere-sync` worker (fat-read, map, write-back, retry classification) + env-gated `xphere/client.ts` network seam
+- [ ] **Phase 51: Worker + Client** — env-gated `xphere/client.ts` seam + signature-verified `/api/internal/xphere-sync` worker (fat-read, map, write-back, retry classification) + offline worker check (3 plans)
 - [ ] **Phase 52: Producer Hooks** — Fail-open `xphere/queue.ts` enqueue wired into onboarding + 3 Stripe webhook branches + Connect callback (lifecycle events #1–#7)
 - [ ] **Phase 53: Backfill** — Superadmin-only throttled, resumable, idempotent full-sync enqueue for all existing tenants (internal/test/opt-out filtered)
 - [ ] **Phase 54: Observability & Ops** — Sync state + error surfaced in superadmin tenant detail, manual re-sync, env kill switch, secret hygiene, post-deploy reachability ping
@@ -521,7 +521,13 @@ Plans:
 3. The worker writes `xphere_account_id`/`xphere_contact_id`/`xphere_opportunity_id` + `xphere_synced_at` on success and clears `xphere_sync_error`; on failure it records `xphere_sync_error`.
 4. The sync is idempotent — re-delivery upserts by `external_id = tenants.id` and never creates duplicate Accounts/Contacts/Opportunities; transient failures (5xx/429/network/timeout) return non-2xx so QStash retries, while permanent failures (unknown stage, missing tenant) return `489` + `Upstash-NonRetryable-Error` to route to the DLQ.
 
-**Plans**: TBD
+**Plans**: 3 plans (3 waves)
+
+Plans:
+
+- [ ] 51-01-PLAN.md — Install @upstash/qstash@2.11.1 + env-gated client.ts network seam (transient/permanent typed errors) + errors.ts + .env.example docs (FND-06)
+- [ ] 51-02-PLAN.md — Signature-verified /api/internal/xphere-sync worker (Node runtime, raw-body verify-first, fat-read, map, write-back, 401/200/489/500 retry classification) + middleware passthrough (FND-04, FND-05, FND-06)
+- [ ] 51-03-PLAN.md — Pure classifyWorkerOutcome + offline xphere:worker:check tsx gate (retry table + fat-read->map wiring with stubbed client, no creds) (FND-06)
 
 **UI hint**: no
 
@@ -622,7 +628,7 @@ Plans:
 | 48. CTA Full-Bleed + Background Image | 0/? | Paused | - |
 | 49. DB Seeds — Color & Branding Defaults | 0/? | Paused | - |
 | 50. Schema & Contract | 3/3 | Complete    | 2026-06-21 |
-| 51. Worker + Client | 0/? | Not started | - |
+| 51. Worker + Client | 0/3 | Not started | - |
 | 52. Producer Hooks | 0/? | Not started | - |
 | 53. Backfill | 0/? | Not started | - |
 | 54. Observability & Ops | 0/? | Not started | - |
