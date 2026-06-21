@@ -595,7 +595,13 @@ Plans:
 3. Secrets (`XPHERE_API_KEY`, `QSTASH_TOKEN`, signing keys) are read only from server env — never `NEXT_PUBLIC`, never committed (gitleaks-safe) — and `.env.example` documents every required var.
 4. Producing can be disabled via the `XPHERE_SYNC_ENABLED` env kill switch with no code change, and a post-deploy reachability ping confirms the public worker URL resolves over HTTPS with no auth wall in front of it.
 
-**Plans**: TBD
+**Plans**: 3 plans (2 waves)
+
+Plans:
+
+- [ ] 54-01-PLAN.md — OBS-01 surfacing: extend tenant query with xphere_* columns + CRM Sync card (synced-at/error/linked) + re-sync button + xphere-resync route (enqueueXphereSync(id, 'manual'))
+- [ ] 54-02-PLAN.md — OBS-02 ops safety: producer-authoritative XPHERE_SYNC_ENABLED kill switch in queue.ts + secret hygiene (no NEXT_PUBLIC_) + .env.example complete + README ops note (kill switch/DLQ/reachability)
+- [ ] 54-03-PLAN.md — Offline gate (xphere:check:obs): producer kill-switch no-op/publish + structural resync-route assertion (assertSuperadmin + 'manual'), no creds/network
 
 **UI hint**: yes
 
