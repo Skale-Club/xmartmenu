@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: CRM & Integrations
-current_plan: 02
+current_plan: 3
 status: executing
-stopped_at: Completed 54-01-PLAN.md
-last_updated: "2026-06-21T10:22:31.853Z"
+stopped_at: Completed 54-02-PLAN.md
+last_updated: "2026-06-21T10:27:06.153Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 20
   completed_phases: 13
   total_plans: 33
-  completed_plans: 30
+  completed_plans: 31
   percent: 91
 ---
 
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 54
-Current Plan: 02
+Current Plan: 3
 Total Plans in Phase: 3
-Status: Executing — 54-01 complete
+Status: Ready to execute
 Last activity: 2026-06-21
 
 Progress: [█████████░] 91% (Phase 54: 1/3 plans)
@@ -90,6 +90,7 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [Phase 53]: [Phase 53-01]: Backfill is resumable via keyset cursor on tenants.created_at (.gt ascending) returning { enqueued, skipped, nextCursor, done } — no OFFSET drift; throttled between enqueues; per-tenant fail-open via try/catch in the batch loop.
 - [Phase 53]: [Phase 53-01]: No opt-out/internal/test column invented (none on tenants) — sync ALL tenants, document absence, keep skipped=0 for forward compat; flag to product before live PII. Offline gate asserts superadmin->401 structurally.
 - [Phase 54]: OBS-01: superadmin tenant detail surfaces xphere_synced_at + sync_error + linked state via a CRM Sync card; re-sync button POSTs a thin assertSuperadmin route calling enqueueXphereSync(id,'manual') (fail-open, ships dark).
+- [Phase 54]: OBS-02: producer-authoritative XPHERE_SYNC_ENABLED kill switch in queue.ts (fail-open preserved); one env flip halts all syncing with no code change
 
 ### Pending Todos
 
@@ -112,11 +113,12 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 | Phase 52 P04 | 6min | 1 tasks | 2 files |
 | Phase 53 P01 | 8min | 2 tasks | 3 files |
 | Phase 54 P01 | 3min | 3 tasks | 3 files |
+| Phase 54 P02 | 2min | 2 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-06-21T10:22:31.774Z
-Stopped at: Completed 54-01-PLAN.md
+Last session: 2026-06-21T10:26:56.539Z
+Stopped at: Completed 54-02-PLAN.md
 
 ---
 
