@@ -194,7 +194,7 @@ Key accomplishments:
 - [x] **Phase 51: Worker + Client** — env-gated `xphere/client.ts` seam + signature-verified `/api/internal/xphere-sync` worker (fat-read, map, write-back, retry classification) + offline worker check (3 plans) (completed 2026-06-21)
 - [x] **Phase 52: Producer Hooks** — Fail-open `xphere/queue.ts` enqueue wired into onboarding + 3 Stripe webhook branches + Connect callback (lifecycle events #1–#7) (completed 2026-06-21)
 - [x] **Phase 53: Backfill** — Superadmin-only throttled, resumable, idempotent full-sync enqueue for all existing tenants (internal/test/opt-out filtered) (completed 2026-06-21)
-- [ ] **Phase 54: Observability & Ops** — Sync state + error surfaced in superadmin tenant detail, manual re-sync, env kill switch, secret hygiene, post-deploy reachability ping
+- [x] **Phase 54: Observability & Ops** — Sync state + error surfaced in superadmin tenant detail, manual re-sync, env kill switch, secret hygiene, post-deploy reachability ping (completed 2026-06-21)
 - [ ] **Phase 55: Live Conformance Test (DEFERRED)** — Full conformance checklist against the real `/api/v1/sync` once Xtimator ships it; flip the kill switch on (BLOCKED on external dependency)
 
 ---
@@ -601,7 +601,7 @@ Plans:
 
 - [x] 54-01-PLAN.md — OBS-01 surfacing: extend tenant query with xphere_* columns + CRM Sync card (synced-at/error/linked) + re-sync button + xphere-resync route (enqueueXphereSync(id, 'manual'))
 - [x] 54-02-PLAN.md — OBS-02 ops safety: producer-authoritative XPHERE_SYNC_ENABLED kill switch in queue.ts + secret hygiene (no NEXT_PUBLIC_) + .env.example complete + README ops note (kill switch/DLQ/reachability)
-- [ ] 54-03-PLAN.md — Offline gate (xphere:check:obs): producer kill-switch no-op/publish + structural resync-route assertion (assertSuperadmin + 'manual'), no creds/network
+- [x] 54-03-PLAN.md — Offline gate (xphere:check:obs): producer kill-switch no-op/publish + structural resync-route assertion (assertSuperadmin + 'manual'), no creds/network
 
 **UI hint**: yes
 
@@ -648,5 +648,5 @@ Plans:
 | 51. Worker + Client | 3/3 | Complete    | 2026-06-21 |
 | 52. Producer Hooks | 4/4 | Complete    | 2026-06-21 |
 | 53. Backfill | 1/1 | Complete    | 2026-06-21 |
-| 54. Observability & Ops | 2/3 | In Progress|  |
+| 54. Observability & Ops | 3/3 | Complete   | 2026-06-21 |
 | 55. Live Conformance Test (DEFERRED) | 0/? | Blocked (external) | - |
