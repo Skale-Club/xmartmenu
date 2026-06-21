@@ -14,6 +14,10 @@
 services:
   app:
     image: ghcr.io/skale-club/xmartmenu:latest
+    # Force a fresh pull of :latest on every deploy. Without this, `docker compose
+    # up` reuses the host's cached :latest layer and silently runs stale code even
+    # after a new image is pushed to GHCR (Coolify does not pull by default here).
+    pull_policy: always
     restart: unless-stopped
     environment:
       - NODE_ENV=production
