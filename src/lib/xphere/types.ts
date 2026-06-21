@@ -1,17 +1,17 @@
 /**
- * types.ts - Xphere /api/v1/sync contract (single source of truth)
+ * types.ts - Xphere POST /api/v1/sync contract (single source of truth)
  *
- * v2.4 FND-02: This file is the ONE place that encodes the documented
- * `POST /api/v1/sync` request/response shape, the `SyncReason` union, and the
- * `XPHERE_STAGES` pipeline constant.
+ * v2.4 FND-02 / 2026-06-21 realignment: the real, FINALIZED Xphere contract is
+ * the generic CRM-mirror at `POST /api/v1/sync` (shared by every sibling app,
+ * discriminated by `source`). It is `company`-centric: ONE `company` object
+ * (the tenant business + its owner) yields Account + Contact + Opportunity in the
+ * platform CRM, keyed on `external_id = company.id = tenants.id`.
  *
- * CONTRACT NOT FINALIZED by Xtimator — the exact field names of the
- * /api/v1/sync payload are not yet locked by the separate Xtimator effort.
- * This file is the ONLY place to change when the real shape lands; keep every
- * wire-level field name isolated here so a contract change touches one file.
+ * This file is the ONLY place that encodes that wire shape, the `SyncReason`
+ * union, the `XPHERE_STAGES` pipeline constant, and the target pipeline name.
  *
- * No network/queue imports. The only runtime value here is the XPHERE_STAGES
- * constant; everything else is types. Code + comments in English.
+ * No network/queue imports. The only runtime values here are constants;
+ * everything else is types. Code + comments in English.
  */
 
 /**
@@ -36,8 +36,8 @@ export type SyncReason =
  * past_due — dunning often recovers, so NOT Lost) -> Churned (Lost).
  *
  * Stage names are configured data-only in the Xphere org and MUST match these
- * literals exactly. Never hard-code a stage string elsewhere — reference
- * XPHERE_STAGES so a rename happens in one place.
+ * literals exactly (the "XmartMenu Lifecycle" pipeline stages). Never hard-code a
+ * stage string elsewhere — reference XPHERE_STAGES so a rename happens in one place.
  */
 export const XPHERE_STAGES = {
   ONBOARDING: 'Onboarding',
@@ -48,61 +48,71 @@ export const XPHERE_STAGES = {
 
 export type XphereStage = (typeof XPHERE_STAGES)[keyof typeof XPHERE_STAGES]
 
+/** Target pipeline in the XmartMenu org — the receiver resolves the stage by name. */
+export const XPHERE_PIPELINE = 'XmartMenu Lifecycle'
+
+/** Producing system, inside the shared org model. */
+export const XPHERE_SOURCE = 'xmartmenu'
+
 // ---------------------------------------------------------------------------
-// CONTRACT NOT FINALIZED by Xtimator — this file is the ONLY place to change
-// when the real /api/v1/sync shape lands. Keep field names isolated here.
+// Wire shape — the generic /api/v1/sync `company` envelope. Keep field names
+// isolated here so a contract change touches one file.
 // ---------------------------------------------------------------------------
 
-/** Account = the tenant. Keyed on the immutable external_id = tenants.id. */
-export interface XphereAccountInput {
-  external_id: string // = tenants.id (immutable idempotency key — never email/phone)
+/**
+ * The tenant business + its store-admin owner. The receiver derives an Account
+ * (the business) and a Contact (the owner) from this single object, both keyed on
+ * `id`. `email` is REQUIRED for the Contact to exist — the CRM identity invariant
+ * needs phone OR email and XmartMenu collects no phone, so a null email means the
+ * tenant mirrors as Account+Opportunity with no person.
+ */
+export interface XphereCompanyInput {
+  id: string // = tenants.id (immutable idempotency key — never email/phone)
   name: string
-  slug: string
+  owner_name: string | null
+  email: string | null // store-admin auth email — required for the Contact
   website: string | null
-}
-
-/** Contact = the store-admin owner only, never staff. One owner per account. */
-export interface XphereContactInput {
-  external_id: string // = tenants.id (one owner contact per account)
-  name: string | null
-  role: 'store-admin' // owner only, never staff
+  tags?: string[] // status/direction tags — land on the Contact
+  custom_fields?: Record<string, unknown> // slug, reason, etc.
 }
 
 /** Opportunity = the subscription (one per tenant — the subscription is the deal). */
 export interface XphereOpportunityInput {
-  external_id: string // = tenants.id (the subscription is the deal)
   stage: XphereStage
-  amount: number // normalized MRR (annual_price/12 for annual, else monthly_price)
-  currency: string // e.g. 'brl'
-  tags: string[] // e.g. ['status:active', 'upgrade'] — status/direction tags
+  value: number // normalized MRR (annual_price/12 for annual, else monthly_price)
+  currency: string // ISO 4217, e.g. 'BRL'
+  pipeline: string // XPHERE_PIPELINE — target pipeline name in the org
 }
 
 /**
- * Optional append-only timeline note. `dedup_id` lets the CRM drop redelivered
- * events: the Stripe `event.id` for webhook-driven syncs, or
- * `onboarding:<tenant_id>` for the onboarding event which has no Stripe event.
+ * Optional append-only timeline note. `dedup_id` is the Stripe `event.id` (or
+ * `onboarding:<tenant_id>` for onboarding) — sent for forward-compat; the
+ * receiver accepts but does not yet enforce note idempotency.
  */
 export interface XphereNoteInput {
-  dedup_id: string // Stripe event.id or `onboarding:<tenant_id>` — dedupes redelivery
-  body: string
+  content: string
+  dedup_id?: string
 }
 
 /**
- * The full upsert payload. Every entity upserts on `external_id`, and
- * `source: 'xmartmenu'` identifies the producing system inside the shared org.
+ * The full upsert payload. `source: 'xmartmenu'` identifies the producing system
+ * inside the shared org; the receiver upserts on `(source, external_id)`.
+ * `occurred_at` is the observation time (the worker's fat-read moment) — drives
+ * the receiver's last-write-wins ordering.
  */
 export interface XphereSyncRequest {
-  source: 'xmartmenu'
-  reason: SyncReason
-  account: XphereAccountInput
-  contact: XphereContactInput
+  source: typeof XPHERE_SOURCE
+  event: string // the SyncReason, as the event name
+  occurred_at: string // ISO 8601 — worker-provided
+  company: XphereCompanyInput
   opportunity: XphereOpportunityInput
   note?: XphereNoteInput
 }
 
 /** CRM-side ids returned on a successful sync — persisted to detect drift. */
 export interface XphereSyncResponse {
-  account_id: string
-  contact_id: string
-  opportunity_id: string
+  ok: boolean
+  account_id: string | null
+  contact_id: string | null
+  opportunity_id: string | null
 }

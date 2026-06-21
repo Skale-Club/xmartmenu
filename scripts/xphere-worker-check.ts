@@ -105,6 +105,7 @@ function stubPostXphereSync(_payload: XphereSyncRequest): PostXphereResult {
   return {
     disabled: false,
     response: {
+      ok: true,
       account_id: 'acc_1',
       contact_id: 'con_1',
       opportunity_id: 'opp_1',
@@ -120,7 +121,11 @@ const tenant = {
   name: 'Pizzaria do Zé',
   custom_domain: 'pizzariadoze.com.br' as string | null,
 }
-const owner = { full_name: 'José Silva', role: 'store-admin' as const }
+const owner = {
+  full_name: 'José Silva',
+  role: 'store-admin' as const,
+  email: 'jose@pizzariadoze.com.br' as string | null,
+}
 const plan = {
   monthly_price: 49,
   annual_price: 480,
@@ -134,26 +139,14 @@ const fixture: SyncMapInput = {
   plan,
   currency: 'brl',
   reason: 'plan_activated',
+  occurredAt: '2026-06-21T12:00:00.000Z',
 }
 
 const payload = buildSyncPayload(fixture)
 
-// The fat-read shape maps to an external_id-keyed payload on all three entities.
-assert.equal(
-  payload.account.external_id,
-  tenant.id,
-  'account.external_id = tenant.id',
-)
-assert.equal(
-  payload.contact.external_id,
-  tenant.id,
-  'contact.external_id = tenant.id',
-)
-assert.equal(
-  payload.opportunity.external_id,
-  tenant.id,
-  'opportunity.external_id = tenant.id',
-)
+// The fat-read shape maps to a company envelope keyed on company.id = tenant.id.
+assert.equal(payload.company.id, tenant.id, 'company.id = tenant.id')
+assert.equal(payload.company.email, owner.email, 'company.email = owner email')
 assert.equal(payload.source, 'xmartmenu', 'payload.source = xmartmenu')
 
 // Drive the payload through the stubbed client and assert the exact ids the

@@ -1,20 +1,23 @@
 /**
  * mapping.ts - Pure Xphere entity/stage/MRR mapper.
  *
- * v2.4 FND-02: Turns a tenant + store-admin owner + override-resolved plan +
- * subscription status + reason into a `source='xmartmenu'` upsert payload keyed
- * on `external_id = tenants.id`.
+ * v2.4 FND-02 / 2026-06-21 realignment: turns a tenant + store-admin owner +
+ * override-resolved plan + subscription status + reason into the generic
+ * `POST /api/v1/sync` `company` envelope (source='xmartmenu', keyed on
+ * `company.id = tenants.id`).
  *
  * PURE module: no I/O, no network/queue imports, no `getTenantPlan()` call
- * (that is I/O — the Phase 51 worker resolves the plan and passes it in). Every
- * value is derived from inputs — no Date.now(), no random, no env reads — so the
- * mapper is fully deterministic and offline-testable with plain fixtures.
+ * (that is I/O — the worker resolves the plan and passes it in). Every value is
+ * derived from inputs — no Date.now() (the worker passes `occurredAt`), no random,
+ * no env reads — so the mapper is fully deterministic and offline-testable.
  *
  * Code + comments in English.
  */
 
 import {
   XPHERE_STAGES,
+  XPHERE_PIPELINE,
+  XPHERE_SOURCE,
   type SyncReason,
   type XphereStage,
   type XphereSyncRequest,
@@ -23,15 +26,16 @@ import type { EffectivePlan, Profile } from '@/types/database'
 
 /**
  * Input to the mapper. A minimal, decoupled shape (does NOT import the DB
- * `Tenant` type) so the mapper stays fixture-friendly and independent of the
- * full DB row. The Phase 51 worker assembles this from its fat-read.
+ * `Tenant` type) so the mapper stays fixture-friendly. The worker assembles this
+ * from its fat-read; `owner.email` comes from auth.users (not on `profiles`).
  */
 export interface SyncMapInput {
   tenant: { id: string; slug: string; name: string; custom_domain: string | null }
-  owner: Pick<Profile, 'full_name' | 'role'> | null // store-admin owner; null tolerated
+  owner: (Pick<Profile, 'full_name' | 'role'> & { email: string | null }) | null
   plan: Pick<EffectivePlan, 'monthly_price' | 'annual_price' | 'billing_cycle' | 'status'>
   currency: string // e.g. 'brl'
   reason: SyncReason
+  occurredAt: string // ISO — the worker's fat-read moment (last-write-wins anchor)
   eventId?: string // Stripe event.id; absent for onboarding
   tags?: string[] // status/direction tags from the producer
 }
@@ -110,9 +114,10 @@ function describeReason(reason: SyncReason, tenantName: string): string {
 }
 
 /**
- * Assemble the upsert payload. Every entity is keyed on
- * `external_id = tenant.id`, `source = 'xmartmenu'`, opportunity amount is the
- * normalized MRR, and the contact is the store-admin owner only.
+ * Assemble the `company`-envelope upsert payload. The business + owner collapse
+ * into one `company` object (external_id = tenant.id, source = 'xmartmenu'); the
+ * opportunity amount is the normalized MRR; status/direction tags ride on the
+ * company (→ Contact). The owner email is REQUIRED for the Contact to be created.
  *
  * Note inclusion: when an `eventId` is supplied (Stripe-driven), the note dedups
  * on that event id; for `reason === 'onboarded'` with no event, it dedups on
@@ -122,25 +127,27 @@ export function buildSyncPayload(input: SyncMapInput): XphereSyncRequest {
   const { reason } = input
 
   const payload: XphereSyncRequest = {
-    source: 'xmartmenu',
-    reason,
-    account: {
-      external_id: input.tenant.id,
+    source: XPHERE_SOURCE,
+    event: reason,
+    occurred_at: input.occurredAt,
+    company: {
+      id: input.tenant.id,
       name: input.tenant.name,
-      slug: input.tenant.slug,
+      owner_name: input.owner?.full_name ?? null,
+      email: input.owner?.email ?? null,
       website: input.tenant.custom_domain,
-    },
-    contact: {
-      external_id: input.tenant.id,
-      name: input.owner?.full_name ?? null,
-      role: 'store-admin',
+      tags: input.tags ?? [],
+      custom_fields: {
+        slug: input.tenant.slug,
+        reason,
+        subscription_status: input.plan.status,
+      },
     },
     opportunity: {
-      external_id: input.tenant.id,
       stage: selectStage(reason, input.plan.status),
-      amount: normalizeMrr(input.plan),
-      currency: input.currency,
-      tags: input.tags ?? [],
+      value: normalizeMrr(input.plan),
+      currency: input.currency.toUpperCase(),
+      pipeline: XPHERE_PIPELINE,
     },
   }
 
@@ -149,8 +156,8 @@ export function buildSyncPayload(input: SyncMapInput): XphereSyncRequest {
     (reason === 'onboarded' ? `onboarding:${input.tenant.id}` : undefined)
   if (dedupId !== undefined) {
     payload.note = {
+      content: describeReason(reason, input.tenant.name),
       dedup_id: dedupId,
-      body: describeReason(reason, input.tenant.name),
     }
   }
 

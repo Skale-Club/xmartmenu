@@ -40,20 +40,20 @@ import type { XphereSyncRequest } from '@/lib/xphere/types'
  *  just serializes it); shape comes from the Phase 50 contract. */
 const payload: XphereSyncRequest = {
   source: 'xmartmenu',
-  reason: 'manual',
-  account: {
-    external_id: 'tenant-uuid-123',
+  event: 'manual',
+  occurred_at: '2026-06-21T12:00:00.000Z',
+  company: {
+    id: 'tenant-uuid-123',
     name: 'Pizzaria do Zé',
-    slug: 'pizzaria-do-ze',
+    owner_name: 'José',
+    email: 'jose@pizzariadoze.com.br',
     website: null,
   },
-  contact: { external_id: 'tenant-uuid-123', name: 'José', role: 'store-admin' },
   opportunity: {
-    external_id: 'tenant-uuid-123',
     stage: 'Active',
-    amount: 100,
-    currency: 'brl',
-    tags: [],
+    value: 100,
+    currency: 'BRL',
+    pipeline: 'XmartMenu Lifecycle',
   },
 }
 

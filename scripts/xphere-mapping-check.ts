@@ -1,21 +1,16 @@
 /**
  * xphere-mapping-check.ts - Offline gate for the pure Xphere mapper.
  *
- * v2.4 FND-02 / Phase 50 success criterion 4: the repo has no test runner; this
- * `tsx` assertion script exercises the pure `src/lib/xphere/mapping.ts` against
- * fixture rows with NO QStash, NO Xphere credentials, and NO network. It matches
- * the existing `npx tsx scripts/*.ts` convention (per the CONTEXT decision — no
- * vitest introduced).
+ * v2.4 FND-02 / 2026-06-21 realignment: exercises the pure
+ * `src/lib/xphere/mapping.ts` against fixture rows with NO QStash, NO Xphere
+ * credentials, and NO network, asserting the generic `/api/v1/sync` `company`
+ * envelope. Matches the `npx tsx scripts/*.ts` convention (no vitest).
  *
- * It locks the riskiest correctness decisions behind a runnable gate: the
- * idempotency key (external_id = tenant.id), the stage model (XPHERE_STAGES),
- * normalized MRR, and the note dedup fallback.
+ * Locks the riskiest correctness decisions behind a runnable gate: the
+ * idempotency key (company.id = tenant.id), the stage model (XPHERE_STAGES),
+ * normalized MRR, the owner-email pass-through, and the note dedup fallback.
  *
- * Uses `node:assert/strict` — any failed assertion throws and yields a non-zero
- * exit, so this is usable as a CI/pre-commit gate (not a manual eyeball). Reads
- * no env vars and imports no dotenv / Supabase / QStash / fetch module.
- *
- * Run: npx tsx scripts/xphere-mapping-check.ts  (or `npm run xphere:check`)
+ * Run: npx tsx scripts/xphere-mapping-check.ts
  *
  * Code + comments in English.
  */
@@ -27,7 +22,7 @@ import {
   selectStage,
   type SyncMapInput,
 } from '@/lib/xphere/mapping'
-import { XPHERE_STAGES } from '@/lib/xphere/types'
+import { XPHERE_STAGES, XPHERE_PIPELINE } from '@/lib/xphere/types'
 
 // --- Fixtures -------------------------------------------------------------
 
@@ -38,7 +33,13 @@ const tenant = {
   custom_domain: 'pizzariadoze.com.br' as string | null,
 }
 
-const owner = { full_name: 'José Silva', role: 'store-admin' as const }
+const owner = {
+  full_name: 'José Silva',
+  role: 'store-admin' as const,
+  email: 'jose@pizzariadoze.com.br' as string | null,
+}
+
+const occurredAt = '2026-06-21T12:00:00.000Z'
 
 const annualPlan = {
   monthly_price: 999,
@@ -57,20 +58,12 @@ const monthlyPlan = {
 // --- 1. MRR normalization -------------------------------------------------
 
 assert.equal(
-  normalizeMrr({
-    billing_cycle: 'annual',
-    annual_price: 1200,
-    monthly_price: 999,
-  }),
+  normalizeMrr({ billing_cycle: 'annual', annual_price: 1200, monthly_price: 999 }),
   100,
   'annual MRR = annual_price / 12 = 100 (never raw monthly_price)',
 )
 assert.equal(
-  normalizeMrr({
-    billing_cycle: 'monthly',
-    annual_price: 1200,
-    monthly_price: 49,
-  }),
+  normalizeMrr({ billing_cycle: 'monthly', annual_price: 1200, monthly_price: 49 }),
   49,
   'monthly MRR = monthly_price = 49',
 )
@@ -79,50 +72,17 @@ assert.equal(normalizeMrr(monthlyPlan), 49, 'monthly fixture MRR = 49')
 
 // --- 2. Stage selection (driven by XPHERE_STAGES, not literals) -----------
 
-// reason takes priority over status
-assert.equal(
-  selectStage('onboarded', 'trial'),
-  XPHERE_STAGES.ONBOARDING,
-  'reason onboarded -> Onboarding',
-)
-assert.equal(
-  selectStage('plan_activated', 'active'),
-  XPHERE_STAGES.ACTIVE,
-  'reason plan_activated -> Active',
-)
-assert.equal(
-  selectStage('past_due', 'past_due'),
-  XPHERE_STAGES.AT_RISK,
-  'reason past_due -> At Risk',
-)
-assert.equal(
-  selectStage('churned', 'cancelled'),
-  XPHERE_STAGES.CHURNED,
-  'reason churned -> Churned',
-)
+assert.equal(selectStage('onboarded', 'trial'), XPHERE_STAGES.ONBOARDING, 'reason onboarded -> Onboarding')
+assert.equal(selectStage('plan_activated', 'active'), XPHERE_STAGES.ACTIVE, 'reason plan_activated -> Active')
+assert.equal(selectStage('past_due', 'past_due'), XPHERE_STAGES.AT_RISK, 'reason past_due -> At Risk')
+assert.equal(selectStage('churned', 'cancelled'), XPHERE_STAGES.CHURNED, 'reason churned -> Churned')
 // reason does not pin a stage -> fall back to subscription status
-assert.equal(
-  selectStage('manual', 'active'),
-  XPHERE_STAGES.ACTIVE,
-  'status active fallback -> Active',
-)
-assert.equal(
-  selectStage('manual', 'past_due'),
-  XPHERE_STAGES.AT_RISK,
-  'status past_due fallback -> At Risk',
-)
-assert.equal(
-  selectStage('manual', 'cancelled'),
-  XPHERE_STAGES.CHURNED,
-  'status cancelled fallback -> Churned',
-)
-assert.equal(
-  selectStage('manual', 'trial'),
-  XPHERE_STAGES.ONBOARDING,
-  'status trial fallback -> Onboarding',
-)
+assert.equal(selectStage('manual', 'active'), XPHERE_STAGES.ACTIVE, 'status active fallback -> Active')
+assert.equal(selectStage('manual', 'past_due'), XPHERE_STAGES.AT_RISK, 'status past_due fallback -> At Risk')
+assert.equal(selectStage('manual', 'cancelled'), XPHERE_STAGES.CHURNED, 'status cancelled fallback -> Churned')
+assert.equal(selectStage('manual', 'trial'), XPHERE_STAGES.ONBOARDING, 'status trial fallback -> Onboarding')
 
-// --- 3. Payload shape + external_id keying --------------------------------
+// --- 3. Payload shape: company envelope + external_id keying --------------
 
 const activatedInput: SyncMapInput = {
   tenant,
@@ -130,96 +90,53 @@ const activatedInput: SyncMapInput = {
   plan: annualPlan,
   currency: 'brl',
   reason: 'plan_activated',
+  occurredAt,
   eventId: 'evt_stripe_abc123',
   tags: ['status:active', 'upgrade'],
 }
 const activated = buildSyncPayload(activatedInput)
 
 assert.equal(activated.source, 'xmartmenu', 'payload.source = xmartmenu')
-assert.equal(activated.reason, 'plan_activated', 'reason passed through')
+assert.equal(activated.event, 'plan_activated', 'event = reason')
+assert.equal(activated.occurred_at, occurredAt, 'occurred_at passed through')
 
-// external_id = tenant.id on ALL THREE entities (immutable idempotency key)
-assert.equal(
-  activated.account.external_id,
-  tenant.id,
-  'account.external_id = tenant.id',
-)
-assert.equal(
-  activated.contact.external_id,
-  tenant.id,
-  'contact.external_id = tenant.id',
-)
-assert.equal(
-  activated.opportunity.external_id,
-  tenant.id,
-  'opportunity.external_id = tenant.id',
-)
+// company.id = tenant.id (the single immutable idempotency key)
+assert.equal(activated.company.id, tenant.id, 'company.id = tenant.id')
+assert.equal(activated.company.name, tenant.name, 'company.name from tenant')
+assert.equal(activated.company.owner_name, 'José Silva', 'company.owner_name from owner')
+assert.equal(activated.company.email, owner.email, 'company.email from owner (required for Contact)')
+assert.equal(activated.company.website, tenant.custom_domain, 'company.website = custom_domain')
+assert.equal(activated.company.custom_fields?.slug, tenant.slug, 'slug carried in custom_fields')
+assert.deepEqual(activated.company.tags, ['status:active', 'upgrade'], 'company.tags pass through (-> Contact)')
 
-assert.equal(activated.account.name, tenant.name, 'account.name from tenant')
-assert.equal(activated.account.slug, tenant.slug, 'account.slug from tenant')
-assert.equal(
-  activated.account.website,
-  tenant.custom_domain,
-  'account.website = custom_domain',
-)
-assert.equal(activated.contact.role, 'store-admin', 'contact.role = store-admin')
-assert.equal(activated.contact.name, 'José Silva', 'contact.name from owner')
-assert.equal(
-  activated.opportunity.stage,
-  XPHERE_STAGES.ACTIVE,
-  'opportunity.stage = Active',
-)
-assert.equal(activated.opportunity.amount, 100, 'opportunity.amount = normalized MRR')
-assert.equal(activated.opportunity.currency, 'brl', 'opportunity.currency = brl')
-assert.deepEqual(
-  activated.opportunity.tags,
-  ['status:active', 'upgrade'],
-  'opportunity.tags passed through',
-)
+assert.equal(activated.opportunity.stage, XPHERE_STAGES.ACTIVE, 'opportunity.stage = Active')
+assert.equal(activated.opportunity.value, 100, 'opportunity.value = normalized MRR')
+assert.equal(activated.opportunity.currency, 'BRL', 'opportunity.currency uppercased to BRL')
+assert.equal(activated.opportunity.pipeline, XPHERE_PIPELINE, 'opportunity.pipeline = XmartMenu Lifecycle')
 
 // --- 4. Note dedup fallback -----------------------------------------------
 
-// event-driven reason with eventId -> dedup on the Stripe event id
-assert.equal(
-  activated.note?.dedup_id,
-  'evt_stripe_abc123',
-  'event-driven note dedup_id = eventId',
-)
-assert.ok(
-  activated.note && activated.note.body.length > 0,
-  'event-driven note body non-empty',
-)
+assert.equal(activated.note?.dedup_id, 'evt_stripe_abc123', 'event-driven note dedup_id = eventId')
+assert.ok(activated.note && activated.note.content.length > 0, 'event-driven note content non-empty')
 
-// onboarding with no eventId -> dedup on onboarding:<tenant.id>
 const onboardingInput: SyncMapInput = {
   tenant,
   owner,
   plan: { ...monthlyPlan, status: 'trial' },
   currency: 'brl',
   reason: 'onboarded',
+  occurredAt,
 }
 const onboarding = buildSyncPayload(onboardingInput)
-assert.equal(
-  onboarding.opportunity.stage,
-  XPHERE_STAGES.ONBOARDING,
-  'onboarding stage = Onboarding',
-)
-assert.equal(
-  onboarding.note?.dedup_id,
-  `onboarding:${tenant.id}`,
-  'onboarding note dedup_id = onboarding:<tenant.id>',
-)
-assert.equal(onboarding.opportunity.amount, 49, 'onboarding amount = monthly MRR')
+assert.equal(onboarding.opportunity.stage, XPHERE_STAGES.ONBOARDING, 'onboarding stage = Onboarding')
+assert.equal(onboarding.note?.dedup_id, `onboarding:${tenant.id}`, 'onboarding note dedup_id = onboarding:<tenant.id>')
+assert.equal(onboarding.opportunity.value, 49, 'onboarding value = monthly MRR')
 
 // --- Extra hardening: null owner, omitted note, determinism ---------------
 
 const nullOwner = buildSyncPayload({ ...onboardingInput, owner: null })
-assert.equal(nullOwner.contact.name, null, 'null owner -> contact.name null')
-assert.equal(
-  nullOwner.contact.role,
-  'store-admin',
-  'null owner -> contact.role still store-admin',
-)
+assert.equal(nullOwner.company.owner_name, null, 'null owner -> company.owner_name null')
+assert.equal(nullOwner.company.email, null, 'null owner -> company.email null')
 
 const noNote = buildSyncPayload({
   tenant,
@@ -227,13 +144,10 @@ const noNote = buildSyncPayload({
   plan: annualPlan,
   currency: 'brl',
   reason: 'manual',
+  occurredAt,
 })
-assert.equal(
-  noNote.note,
-  undefined,
-  'manual reason without eventId omits the note',
-)
-assert.deepEqual(noNote.opportunity.tags, [], 'tags default to []')
+assert.equal(noNote.note, undefined, 'manual reason without eventId omits the note')
+assert.deepEqual(noNote.company.tags, [], 'tags default to []')
 
 assert.deepEqual(
   buildSyncPayload(activatedInput),
@@ -243,6 +157,4 @@ assert.deepEqual(
 
 // --- Result ---------------------------------------------------------------
 
-// Reaching here means every assertion held. assert/strict throws on any
-// failure, which exits non-zero automatically — no manual failure counter.
 console.log('xphere-mapping-check: all assertions passed')

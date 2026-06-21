@@ -36,7 +36,7 @@ import { Receiver } from '@upstash/qstash'
 import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getTenantPlan } from '@/lib/tenant-plan'
-import { buildSyncPayload } from '@/lib/xphere/mapping'
+import { buildSyncPayload, type SyncMapInput } from '@/lib/xphere/mapping'
 import { postXphereSync } from '@/lib/xphere/client'
 import { XpherePermanentError } from '@/lib/xphere/errors'
 import {
@@ -142,13 +142,28 @@ export async function POST(req: NextRequest) {
     }
 
     // Store-admin owner profile (the CRM Contact). null is tolerated by the mapper.
-    const { data: owner } = await supabase
+    const { data: ownerRow } = await supabase
       .from('profiles')
-      .select('full_name, role')
+      .select('id, full_name, role')
       .eq('tenant_id', tenantId)
       .eq('role', 'store-admin')
       .limit(1)
       .maybeSingle()
+
+    // The owner email lives in auth.users (NOT on profiles) and is REQUIRED for
+    // the CRM Contact — the identity invariant needs phone OR email and XmartMenu
+    // collects no phone. Resolve it via the service-role auth admin API.
+    let owner: SyncMapInput['owner'] = null
+    if (ownerRow) {
+      let email: string | null = null
+      try {
+        const { data: authUser } = await supabase.auth.admin.getUserById(ownerRow.id)
+        email = authUser?.user?.email ?? null
+      } catch {
+        email = null // non-fatal: mirror still upserts Account + Opportunity
+      }
+      owner = { full_name: ownerRow.full_name, role: ownerRow.role, email }
+    }
 
     // Currency lives on tenant_settings; default to BRL when unset.
     const { data: settings } = await supabase
@@ -186,6 +201,7 @@ export async function POST(req: NextRequest) {
       plan,
       currency,
       reason,
+      occurredAt: new Date().toISOString(),
       eventId,
       tags,
     })
