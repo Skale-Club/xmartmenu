@@ -13,6 +13,7 @@
     "xphere:check": "npx tsx scripts/xphere-mapping-check.ts",
     "xphere:check:client": "npx tsx scripts/xphere-client-check.ts",
     "xphere:check:queue": "npx tsx scripts/xphere-queue-check.ts",
+    "xphere:check:backfill": "npx tsx scripts/xphere-backfill-check.ts",
     "xphere:worker:check": "npx tsx scripts/xphere-worker-check.ts"
   },
   "dependencies": {
