@@ -46,3 +46,19 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Xphere CRM Sync — Ops
+
+One-way outbound sync mirrors every tenant into the Xphere CRM org. It ships dark and is gated by env. Operational notes:
+
+- **Kill switch:** `XPHERE_SYNC_ENABLED` is the authoritative producer gate. Leave it empty/`false`/`0` to halt ALL syncing with no code change (safe-dark default: disabled unless explicitly enabled). Set it to `true` to activate — note the worker also needs `XPHERE_API_URL` + `XPHERE_API_KEY` to actually call Xphere. The flip is a single env change; no deploy of new code is required to stop syncing.
+- **DLQ:** Permanent failures (worker responds `489` + `Upstash-NonRetryable-Error`) route to the QStash Dead Letter Queue. Inspect and replay them from the Upstash QStash dashboard.
+- **Post-deploy reachability check:** an UNSIGNED POST to the public worker URL must return `401` (route reachable but signature-protected):
+
+  ```bash
+  curl -i -X POST https://xmartmenu.skale.club/api/internal/xphere-sync
+  # expect: HTTP/.. 401
+  ```
+
+  A non-`401` response (connection refused, `404`, or `200`) means the route is unreachable or the auth wall is misconfigured — investigate before enabling sync.
+- **Secrets:** all `XPHERE_*` / `QSTASH_*` vars are SERVER-ONLY — never prefix them with `NEXT_PUBLIC_` (that would leak secrets into the browser bundle). `.env.example` holds placeholders only.
