@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: CRM & Integrations
 status: verifying
-stopped_at: Completed 51-03-PLAN.md
-last_updated: "2026-06-21T09:28:53.371Z"
+stopped_at: Completed 52-01-PLAN.md
+last_updated: "2026-06-21T09:39:50.908Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 20
   completed_phases: 11
-  total_plans: 25
-  completed_plans: 24
+  total_plans: 29
+  completed_plans: 25
 ---
 
 # Project State
@@ -20,16 +20,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 51 — Worker + Client
+**Current focus:** Phase 52 — Producer Hooks
 
 ## Current Position
 
 Phase: 52
-Plan: Not started
-Status: Phase complete — ready for verification
+Current Plan: 2
+Total Plans in Phase: 4
+Status: In progress (52-01 done)
 Last activity: 2026-06-21
 
-Progress: [██░░░░░░░░] 1/6 phases (Phase 51: 1/3 plans)
+Progress: [█████████░] 86% (Phase 52: 1/4 plans)
 
 ## Milestone Overview
 
@@ -39,7 +40,7 @@ Progress: [██░░░░░░░░] 1/6 phases (Phase 51: 1/3 plans)
 |---|---|---|---|
 | 50 | Schema & Contract | FND-01, FND-02 | Ready to plan |
 | 51 | Worker + Client | FND-04, FND-05, FND-06 | In progress (51-01 done) |
-| 52 | Producer Hooks | FND-03, LIF-01..07 | Not started |
+| 52 | Producer Hooks | FND-03, LIF-01..07 | In progress (52-01 done) |
 | 53 | Backfill | BKF-01 | Not started |
 | 54 | Observability & Ops | OBS-01, OBS-02 | Not started |
 | 55 | Live Conformance Test | (verification only) | Blocked (external dependency) |
@@ -79,6 +80,7 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [Phase 51]: Malformed/unparseable queue payload and no-subscription are permanent (489 + Upstash-NonRetryable-Error → DLQ); missing tenant is a 200 no-op
 - [Phase 51]: QStash signature verified against a pinned XPHERE_WORKER_URL/NEXT_PUBLIC_APP_URL constant (not req.url) so Coolify proxy host rewrite cannot break prod verification
 - [Phase 51]: Worker retry classification (transient->500, permanent->489+Upstash-NonRetryable-Error, disabled/gone/success->200) is a pure classifyWorkerOutcome() shared by route + offline gate
+- [Phase 52]: Xphere QStash producer is a single fail-open choke point (enqueueXphereSync) so every call site is non-blocking by construction
 
 ### Pending Todos
 
@@ -91,10 +93,16 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - **Phase 55 (Live Conformance Test) is BLOCKED** on the external Xtimator deliverable: the real `/api/v1/sync` endpoint, `external_id` indexes, `sync:write` scope, and live credentials. Do not plan Phase 55 until these are confirmed available.
 - Open contract items: exact `/api/v1/sync` request/response shape + idempotency-key header name; `/api/v1/sync` atomicity (if not atomic, checkpoint each entity id); marketing-consent/opt-out/internal-tenant flag existence (escalate to product before syncing PII).
 
+## Performance Metrics
+
+| Phase | Plan | Duration | Tasks | Files |
+|---|---|---|---|---|
+| 52 | 01 | 2min | 1 | 1 |
+
 ## Session Continuity
 
-Last session: 2026-06-21T09:25:02.460Z
-Stopped at: Completed 51-03-PLAN.md
+Last session: 2026-06-21T09:39:50.904Z
+Stopped at: Completed 52-01-PLAN.md
 
 ---
 
