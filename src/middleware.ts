@@ -50,6 +50,15 @@ async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Internal QStash worker routes authenticate by signature, not session.
+  // Let /api/internal/* through untouched BEFORE any tenant-slug block,
+  // custom-domain host rewrite, or updateSession()/getUser() so an
+  // unauthenticated QStash POST always reaches the route handler (Pitfall 4f/10).
+  if (pathname.startsWith('/api/internal/')) {
+    return NextResponse.next()
+  }
+
   const firstSegment = pathname.split('/')[1]
 
   if (firstSegment && BLOCKED_TENANT_SLUGS.has(firstSegment)) {
