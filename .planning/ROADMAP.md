@@ -641,6 +641,6 @@ Plans:
 | 50. Schema & Contract | 3/3 | Complete    | 2026-06-21 |
 | 51. Worker + Client | 3/3 | Complete    | 2026-06-21 |
 | 52. Producer Hooks | 4/4 | Complete    | 2026-06-21 |
-| 53. Backfill | 1/1 | Complete   | 2026-06-21 |
+| 53. Backfill | 1/1 | Complete    | 2026-06-21 |
 | 54. Observability & Ops | 0/? | Not started | - |
 | 55. Live Conformance Test (DEFERRED) | 0/? | Blocked (external) | - |
