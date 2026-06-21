@@ -190,7 +190,7 @@ Key accomplishments:
 
 ### v2.4 CRM & Integrations (Xphere CRM Sync) — Phases 50-55 (ACTIVE)
 
-- [ ] **Phase 50: Schema & Contract** — Migration 054 (xphere_* columns) + `Tenant` type update + `xphere/types.ts` (contract, SyncReason, XPHERE_STAGES) + pure offline-testable `xphere/mapping.ts` (normalized MRR)
+- [x] **Phase 50: Schema & Contract** — Migration 054 (xphere_* columns) + `Tenant` type update + `xphere/types.ts` (contract, SyncReason, XPHERE_STAGES) + pure offline-testable `xphere/mapping.ts` (normalized MRR) (completed 2026-06-21)
 - [ ] **Phase 51: Worker + Client** — Signature-verified `/api/internal/xphere-sync` worker (fat-read, map, write-back, retry classification) + env-gated `xphere/client.ts` network seam
 - [ ] **Phase 52: Producer Hooks** — Fail-open `xphere/queue.ts` enqueue wired into onboarding + 3 Stripe webhook branches + Connect callback (lifecycle events #1–#7)
 - [ ] **Phase 53: Backfill** — Superadmin-only throttled, resumable, idempotent full-sync enqueue for all existing tenants (internal/test/opt-out filtered)
@@ -502,7 +502,7 @@ Plans:
 
 - [x] 50-01-PLAN.md — Migration 054 (five nullable xphere_* columns) + apply-migration-054.mjs runner + Tenant interface update (FND-01)
 - [x] 50-02-PLAN.md — xphere/types.ts (/api/v1/sync contract + SyncReason + XPHERE_STAGES) + pure offline buildSyncPayload mapper with normalized MRR (FND-02)
-- [ ] 50-03-PLAN.md — Offline tsx assertion script (scripts/xphere-mapping-check.ts) + npm run xphere:check (success criterion 4)
+- [x] 50-03-PLAN.md — Offline tsx assertion script (scripts/xphere-mapping-check.ts) + npm run xphere:check (success criterion 4)
 
 **UI hint**: no
 
@@ -621,7 +621,7 @@ Plans:
 | 47. Features Section Layout | 0/? | Paused | - |
 | 48. CTA Full-Bleed + Background Image | 0/? | Paused | - |
 | 49. DB Seeds — Color & Branding Defaults | 0/? | Paused | - |
-| 50. Schema & Contract | 2/3 | In Progress|  |
+| 50. Schema & Contract | 3/3 | Complete   | 2026-06-21 |
 | 51. Worker + Client | 0/? | Not started | - |
 | 52. Producer Hooks | 0/? | Not started | - |
 | 53. Backfill | 0/? | Not started | - |

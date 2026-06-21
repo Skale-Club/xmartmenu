@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: CRM & Integrations
-status: executing
-stopped_at: Completed 50-02-PLAN.md
-last_updated: "2026-06-21T08:48:20.734Z"
+status: verifying
+stopped_at: Completed 50-03-PLAN.md
+last_updated: "2026-06-21T08:53:21.807Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 20
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 21
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 Phase: 50 (Schema & Contract) — EXECUTING
 Plan: 3 of 3
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-21
 
 Progress: [░░░░░░░░░░] 0/6 phases
@@ -74,6 +74,7 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [Phase 50]: Migration 054 adds five nullable xphere_* sync-state columns to tenants (FND-01); created but not yet applied to the live DB — schema + types only this plan.
 - [Phase 50]: FND-02: /api/v1/sync contract + SyncReason + XPHERE_STAGES isolated in src/lib/xphere/types.ts (single file to change when Xtimator finalizes shape); buildSyncPayload mapper is pure (no getTenantPlan/IO), consumes resolved EffectivePlan, keyed external_id=tenants.id, MRR via normalizeMrr.
 - [Phase 50]: Pure mapper tested via scripts/test-xphere-mapping.ts tsx assertion harness (npm run test:xphere) — no vitest added, matches existing scripts/*.ts convention.
+- [Phase 50]: Consolidated the offline Xphere mapper gate into one canonical scripts/xphere-mapping-check.ts + npm run xphere:check (node:assert/strict, non-zero exit on failure); removed the duplicate test-xphere-mapping.ts/test:xphere from plan 50-02.
 
 ### Pending Todos
 
@@ -88,8 +89,8 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 
 ## Session Continuity
 
-Last session: 2026-06-21T08:48:20.729Z
-Stopped at: Completed 50-02-PLAN.md
+Last session: 2026-06-21T08:53:21.803Z
+Stopped at: Completed 50-03-PLAN.md
 
 ---
 
