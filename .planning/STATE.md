@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: CRM & Integrations
-current_plan: Not started
-status: verifying
-stopped_at: Completed 54-03-PLAN.md
+current_plan: —
+status: blocked
+stopped_at: Phases 50-54 complete; Phase 55 BLOCKED on external Xtimator /api/v1/sync
 last_updated: "2026-06-21T10:35:01.851Z"
 last_activity: 2026-06-21
 progress:
@@ -26,13 +26,14 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 ## Current Position
 
-Phase: 55
-Current Plan: Not started
-Total Plans in Phase: 3
-Status: Phase complete — ready for verification
-Last activity: 2026-06-21
+Phase: 55 (BLOCKED — not started)
+Current Plan: —
+Status: Phases 50-54 complete & verified. Phase 55 (Live Conformance Test) is BLOCKED on the external Xtimator-owned `/api/v1/sync` endpoint + live credentials. Feature ships dark behind the `XPHERE_*` env gate until then.
+Last activity: 2026-06-21 — v2.4 Phases 50-54 built, verified, integrated (all offline gates + tsc green)
 
-Progress: [█████████░] 91% (Phase 54: 1/3 plans)
+Progress: [████████░░] 83% (5/6 phases — 50,51,52,53,54 done; 55 blocked)
+
+**To resume Phase 55 when the endpoint lands:** issue the `sync:write` API key in the XmartMenu Xphere org, configure the pipeline stages (Onboarding → Active → At Risk → Churned), set `XPHERE_API_URL/KEY/ORG_ID` + `QSTASH_*` + `XPHERE_SYNC_ENABLED=true` + `XPHERE_WORKER_URL`, run the conformance checklist, then POST `/api/superadmin/xphere/backfill` to hydrate existing tenants.
 
 ## Milestone Overview
 
