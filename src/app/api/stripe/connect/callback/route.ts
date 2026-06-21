@@ -9,6 +9,7 @@ import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
 import { verifyOAuthState } from '@/lib/stripe-oauth-state'
+import { enqueueXphereSync } from '@/lib/xphere/queue'
 
 function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
@@ -81,6 +82,12 @@ export async function GET(request: Request) {
     console.error('[Stripe OAuth] DB upsert failed:', upsertError)
     return NextResponse.redirect(new URL(`${redirectUrl}?stripe=db_error`))
   }
+
+  // Event #6 (LIF-06, OAuth-callback half): the tenant just connected Stripe
+  // Connect — mirror the connect:active signal into the CRM. Enqueue-only +
+  // fail-open; the redirect below is never blocked. The `account.updated`
+  // webhook (plan 52-03) covers later enable/disable transitions.
+  await enqueueXphereSync(tenantId, 'connect_changed')
 
   // 6. Success — redirect to settings
   return NextResponse.redirect(new URL(`${redirectUrl}?stripe=connected`))
