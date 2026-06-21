@@ -496,7 +496,13 @@ Plans:
 3. `src/lib/xphere/mapping.ts` is a pure function that turns a tenant + store-admin profile + subscription + reason into a `source='xmartmenu'` payload keyed on `external_id = tenants.id`, resolving Opportunity amount as normalized MRR (`getTenantPlan()` overrides, then `annual_price / 12` for annual, else `monthly_price`).
 4. The mapper is exercised offline with no network — a developer can run a unit/`tsx` check that asserts payload shape, stage selection, and MRR normalization against fixture rows without QStash or Xphere credentials.
 
-**Plans**: TBD
+**Plans**: 3 plans (2 waves)
+
+Plans:
+
+- [ ] 50-01-PLAN.md — Migration 054 (five nullable xphere_* columns) + apply-migration-054.mjs runner + Tenant interface update (FND-01)
+- [ ] 50-02-PLAN.md — xphere/types.ts (/api/v1/sync contract + SyncReason + XPHERE_STAGES) + pure offline buildSyncPayload mapper with normalized MRR (FND-02)
+- [ ] 50-03-PLAN.md — Offline tsx assertion script (scripts/xphere-mapping-check.ts) + npm run xphere:check (success criterion 4)
 
 **UI hint**: no
 
