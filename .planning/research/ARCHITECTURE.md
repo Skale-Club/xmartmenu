@@ -1,843 +1,399 @@
-# Architecture Research: v1.3 Landing Page
+# Architecture Research
 
-**Researched:** 2026-05-07
-**Domain:** Next.js 16.2 App Router — marketing page integration, SEO metadata files, middleware reserved paths, analytics
-**Confidence:** HIGH — all findings sourced from official Next.js docs (version 16.2.5, last updated 2026-05-07) and official Vercel docs
+**Domain:** Outbound CRM sync integration (Xphere) inside an existing Next.js 16 App Router + Supabase multi-tenant SaaS
+**Researched:** 2026-06-20
+**Confidence:** HIGH (codebase verified directly; QStash SDK API verified against the official `@upstash/qstash` README)
 
----
-
-## Summary
-
-This document answers the four integration questions for the v1.3 milestone:
-where new files go, how the middleware reserved-path list works, the build
-strategy for a Lighthouse 95+ marketing page, and the exact integration points
-for sitemap/robots/OG/analytics.
-
-The core insight: **Next.js 16.2 App Router ships every required capability
-natively** — sitemap, robots, opengraph-image, and JSON-LD are all file
-conventions, not packages. No `next-sitemap`, no `react-helmet`, no external
-packages for SEO. Vercel Analytics and Speed Insights are two `npm install`s
-plus two component imports into the existing root layout.
-
-The landing page (`src/app/page.tsx`) can be a pure Server Component that
-exports `dynamic = 'force-static'`, giving it the same treatment as a
-statically generated page while the rest of the app remains SSR/ISR. This
-is the hybrid rendering model Next.js is designed for.
-
-**Primary recommendation:** Replace `src/app/page.tsx` with a static Server
-Component; add six new files (`sitemap.ts`, `robots.ts`,
-`opengraph-image.tsx`, and one layout metadata update); add two npm packages;
-guard reserved paths in the existing middleware with a Set lookup.
+This document defines how to wire the **Xphere CRM Sync** feature into XmartMenu's existing architecture. It assumes the decisions already locked in the milestone context (QStash transport, shared `POST /api/v1/sync` Xphere endpoint, Account+Contact+Opportunity model keyed by `external_id = tenants.id`, env-var credentials, `source='xmartmenu'`, new `tenants.xphere_*` columns). It does NOT re-litigate those.
 
 ---
 
-## Current Architecture Baseline
+## Standard Architecture
+
+### System Overview
+
+The integration is a **producer → durable queue → consumer (worker) → external API → write-back** pipeline. Lifecycle events in existing routes publish a small job; QStash delivers it (with retries) to an internal worker route; the worker reads canonical state via the service-role client, maps it to the Xphere contract, POSTs, and writes the returned IDs back onto the tenant row.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                       EVENT-PUBLISH PATH (producers)                  │
+│  ┌───────────────┐  ┌────────────────────┐  ┌──────────────────────┐  │
+│  │ /api/onboarding│  │ /api/stripe/webhooks│  │ /api/stripe/connect/ │  │
+│  │  (tenant create)│  │ (plan/sub lifecycle)│  │   callback           │  │
+│  └───────┬────────┘  └─────────┬──────────┘  └──────────┬───────────┘  │
+│          │  enqueueXphereSync(tenantId, reason)  (fire-and-forget)     │
+│          └───────────────┬───────────────────────────────┘            │
+├──────────────────────────┼────────────────────────────────────────────┤
+│                          ▼   src/lib/xphere/queue.ts                   │
+│              ┌───────────────────────────────────┐                    │
+│              │  Upstash QStash  (durable queue,   │                    │
+│              │  HMAC-signed delivery, retries)    │                    │
+│              └───────────────┬───────────────────┘                    │
+├──────────────────────────────┼────────────────────────────────────────┤
+│                              ▼   WORKER (consumer)                     │
+│        POST /api/internal/xphere-sync                                  │
+│   ┌──────────────────────────────────────────────────────────────┐    │
+│   │ 1. Receiver.verify(signature, rawBody)  → 401 if bad          │    │
+│   │ 2. createServiceClient(): load tenant + profile + subscription│    │
+│   │ 3. buildXpherePayload(...)  (mapping.ts, pure fn)             │    │
+│   │ 4. xphereClient.sync(payload)  (client.ts → POST /api/v1/sync)│    │
+│   │ 5. write-back xphere_*_id / xphere_synced_at / xphere_sync_error│  │
+│   └──────────────────────────────────────────────────────────────┘    │
+├──────────────────────────────┬────────────────────────────────────────┤
+│           external            ▼            data store                  │
+│   ┌───────────────────────┐      ┌─────────────────────────────────┐  │
+│   │ Xphere POST /api/v1/sync│     │ Supabase: tenants (xphere_* cols)│  │
+│   │ (built by Xtimator)     │     │ profiles, tenant_subscriptions   │  │
+│   └───────────────────────┘      └─────────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────┘
+
+         SUPERADMIN BACKFILL: POST /api/superadmin/xphere/backfill
+         → loops tenants → enqueueXphereSync(id) for each (re-uses producer)
+```
+
+### Component Responsibilities
+
+| Component | Responsibility | Implementation |
+|-----------|----------------|----------------|
+| `enqueueXphereSync()` (queue.ts) | Single choke-point producer. Publishes `{ tenantId, reason }` to QStash. Never throws into the caller. | `new Client({ token }).publishJSON({ url, body, retries })` wrapped in try/catch → returns void |
+| QStash | Durable transport + retry/backoff. Decouples request latency from Xphere availability. | Upstash QStash (managed). Signs delivery with HMAC. |
+| Worker route `/api/internal/xphere-sync` | Verify signature, load canonical state, map, POST, write back. Idempotent & retry-safe. | App Router `route.ts`, `runtime = 'nodejs'`, reads raw body |
+| `xphere/client.ts` | HTTP client for `POST /api/v1/sync`. Owns auth headers, base URL, timeout, error shaping. | `fetch` wrapper; reads `XPHERE_API_URL/KEY/ORG_ID` |
+| `xphere/mapping.ts` | Pure function: tenant+profile+subscription → Xphere sync payload (Account/Contact/Opportunity, `external_id`, `source`). | Pure, no I/O — unit-testable in isolation |
+| `xphere/types.ts` | Contract types for request/response of `/api/v1/sync` + internal `SyncReason`. | TypeScript interfaces mirroring the documented Xphere contract |
+| Producer hooks | Call `enqueueXphereSync()` at the right lifecycle moments. | Edits to onboarding, stripe webhooks, connect callback |
+| Backfill route | Superadmin-triggered fan-out over existing tenants. | `assertSuperadmin()` + paginated enqueue loop |
+| `tenants.xphere_*` columns | Persisted CRM linkage + last sync status/error. | Migration `054_xphere_sync_columns.sql` |
+
+---
+
+## Recommended Project Structure
+
+NEW vs MODIFIED is explicit so the roadmapper can derive phases.
 
 ```
 src/
+├── lib/
+│   └── xphere/                       # NEW — all integration logic, no route concerns
+│       ├── types.ts                  # NEW — Xphere contract + SyncReason + payload types
+│       ├── client.ts                 # NEW — POST /api/v1/sync HTTP client (auth, timeout)
+│       ├── mapping.ts                # NEW — pure: tenant+profile+sub → payload
+│       └── queue.ts                  # NEW — enqueueXphereSync() producer (QStash publish)
 ├── app/
-│   ├── page.tsx                     ← MODIFY: was redirect('/auth/login')
-│   ├── layout.tsx                   ← MODIFY: add Analytics + SpeedInsights
-│   ├── globals.css
-│   ├── favicon.ico
-│   ├── (public)/
-│   │   ├── layout.tsx
-│   │   └── [slug]/
-│   │       └── [menuSlug]/
-│   │           └── page.tsx         ← UNCHANGED: tenant menu at /{slug}/{menuSlug}
-│   ├── (admin)/                     ← UNCHANGED
-│   ├── (superadmin)/                ← UNCHANGED
-│   ├── auth/                        ← UNCHANGED
-│   └── api/                         ← UNCHANGED
-├── middleware.ts                    ← MODIFY: add reserved path guard
-└── lib/
-    └── supabase/
-        └── middleware.ts            ← UNCHANGED (auth session logic lives here)
+│   └── api/
+│       ├── internal/
+│       │   └── xphere-sync/
+│       │       └── route.ts          # NEW — QStash worker (verify→load→map→POST→write-back)
+│       ├── superadmin/
+│       │   └── xphere/
+│       │       └── backfill/
+│       │           └── route.ts      # NEW — superadmin fan-out over existing tenants
+│       ├── onboarding/route.ts       # MODIFIED — enqueue after tenant fully created
+│       └── stripe/
+│           ├── webhooks/route.ts     # MODIFIED — enqueue in plan/sub event branches
+│           └── connect/callback/route.ts  # MODIFIED — enqueue after stripe_connections upsert
+├── types/
+│   └── database.ts                   # MODIFIED — add xphere_* fields to interface Tenant
+supabase/
+└── migrations/
+    └── 054_xphere_sync_columns.sql   # NEW — ALTER tenants ADD xphere_* columns
+.env.example                          # MODIFIED — document XPHERE_* + QSTASH_* vars
+package.json                          # MODIFIED — add @upstash/qstash dependency
 ```
 
-### The slug collision problem (existing)
+### Structure Rationale
 
-`src/app/(public)/[slug]/page.tsx` captures **any** first-path segment that
-is not already claimed by a named route group folder. The marketing page lives
-at `/` (the root), so it does NOT collide with `[slug]`. However, marketing
-section IDs like `/pricing`, `/faq`, `/about`, `/demo` WOULD be captured by
-`[slug]` if they were separate pages — they are NOT, because the marketing
-page is one SPA-style page at `/` with anchor links, not sub-routes.
-
-The collision risk is specifically that a **tenant** could register a slug
-identical to a marketing concept (e.g., slug `"pricing"`), then
-`/pricing` would show that tenant's page, not the marketing section. Since
-marketing sections are not separate routes this is not currently a rendering
-issue, but it IS a UX and SEO issue. The middleware reserved-path guard
-prevents those slugs from ever being provisioned.
+- **`src/lib/xphere/` (one module, four files):** Mirrors the repo's existing `src/lib/{domain}/` convention (`supabase/`, `auth/`, `marketing/`, `storage/`). Keeps all Xphere knowledge — contract, mapping, HTTP, queueing — in one place so the worker route and the producers stay thin. `mapping.ts` is pure so it can be unit-tested against the documented contract with zero network or DB.
+- **`queue.ts` separate from `client.ts`:** The producer (publish to QStash) and the consumer's HTTP client (call Xphere) are different concerns invoked from different runtimes. Splitting them means a producer import never pulls in Xphere HTTP code and vice-versa, and keeps each independently testable.
+- **`/api/internal/xphere-sync`:** New `internal/` segment signals "not user-facing, authenticated by signature not by cookie/session." Parallel to how `/api/stripe/webhooks` is machine-to-machine. Keeps it out of `admin/`, `superadmin/`, and `public/` which all carry cookie-auth semantics.
+- **Backfill under `/api/superadmin/xphere/`:** Reuses the existing `assertSuperadmin()` guard and the established `api/superadmin/*` namespace — no new auth pattern.
+- **Migration `054_`:** Next sequential number after the highest existing (`053_…`; note two duplicate `051_`/`052_` numbers already exist in the tree, so `054` is unambiguous).
 
 ---
 
-## New vs Modified Files
+## Architectural Patterns
 
-### New files to create
+### Pattern 1: Fire-and-forget producer via a single choke-point
 
-| File path | What it does | Rendered |
-|-----------|-------------|---------|
-| `src/app/sitemap.ts` | Generates `/sitemap.xml` via MetadataRoute | Static at build |
-| `src/app/robots.ts` | Generates `/robots.txt` via MetadataRoute | Static at build |
-| `src/app/opengraph-image.tsx` | OG image for `/` via ImageResponse | Static at build |
-| `src/lib/marketing/reserved-paths.ts` | Exports the RESERVED_PATHS Set (shared between middleware and tenant creation API) | N/A |
+**What:** Every lifecycle hook calls one function, `enqueueXphereSync(tenantId, reason)`, which publishes to QStash and **swallows its own errors**. The CRM sync must never fail onboarding, a Stripe webhook ack, or the Connect callback redirect.
 
-### Modified files
+**When to use:** Any time a request's primary job (create tenant, ack webhook) must not be coupled to a best-effort side effect against a flaky/unbuilt external system.
 
-| File path | Change | Why |
-|-----------|--------|-----|
-| `src/app/page.tsx` | Replace `redirect('/auth/login')` with the landing page component | This IS the marketing page |
-| `src/app/layout.tsx` | Add `<Analytics />` + `<SpeedInsights />` + update root metadata | Global analytics coverage |
-| `src/middleware.ts` | Add reserved-path check before passing to `updateSession` | Block tenant slug collisions |
-| `src/lib/supabase/middleware.ts` | No change required — auth routing logic unchanged | — |
+**Trade-offs:** (+) Primary flows stay fast and resilient; QStash gives durability so "fire-and-forget" doesn't mean "lose the event." (−) A publish failure (e.g. QStash down) is silently dropped for that one event — mitigated by logging to Sentry inside the catch, and by the superadmin backfill as a recovery path.
 
-### Optional files (i18n — Phase 13)
-
-If path-based i18n (`/pt`, `/en`) is implemented:
-
-| File path | What it does |
-|-----------|-------------|
-| `src/app/[lang]/page.tsx` | Language-specific landing page variant |
-| `src/app/[lang]/layout.tsx` | Sets `<html lang="">` per locale |
-
-This requires a restructure of the root segment. See "i18n Architecture
-Consideration" section below.
-
----
-
-## Middleware: Reserved Path Pattern
-
-### Current middleware.ts
-
+**Example:**
 ```typescript
-// src/middleware.ts — CURRENT (7 lines)
-import { type NextRequest } from 'next/server'
-import { updateSession } from './lib/supabase/middleware'
+// src/lib/xphere/queue.ts
+import { Client } from '@upstash/qstash'
+import { captureSecurityEvent } from '@/lib/observability'
+import type { SyncReason } from './types'
 
-export async function middleware(request: NextRequest) {
-  return await updateSession(request)
+const hasQstash = !!process.env.QSTASH_TOKEN
+const qstash = hasQstash ? new Client({ token: process.env.QSTASH_TOKEN! }) : null
+
+function workerUrl(): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || ''
+  return `${base}/api/internal/xphere-sync`
 }
 
-export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+/** Best-effort. NEVER throws — callers must not be coupled to CRM sync. */
+export async function enqueueXphereSync(tenantId: string, reason: SyncReason): Promise<void> {
+  if (!qstash) return // FAIL-OPEN like rate-limit.ts: no QSTASH_TOKEN ⇒ no-op
+  try {
+    await qstash.publishJSON({
+      url: workerUrl(),
+      body: { tenantId, reason },
+      retries: 3,                              // QStash retries the WORKER on non-2xx
+      deduplicationId: `${tenantId}:${reason}`, // optional: collapse rapid dupes
+    })
+  } catch (err) {
+    // Log, do not rethrow. Backfill is the recovery path.
+    captureSecurityEvent('xphere: enqueue failed', {
+      tenantId, reason, message: err instanceof Error ? err.message : String(err),
+    })
+  }
 }
 ```
+This intentionally copies the **FAIL-OPEN pattern** already proven in `src/lib/rate-limit.ts` (no env ⇒ no-op, never block the app) so the team works with a familiar shape and the feature can ship before QStash credentials are live.
 
-### How updateSession works (relevant lines)
+### Pattern 2: Signed worker that re-reads canonical state (thin payload, fat read)
 
-The auth logic in `src/lib/supabase/middleware.ts` checks named route
-prefixes (`/dashboard`, `/menu`, `/settings`, `/tenants`, `/overview`,
-`/users`, `/onboarding`). It does NOT check or block generic slug paths.
-The `[slug]` route group in `(public)` is purely a file-system route —
-middleware has no special awareness of it.
+**What:** The QStash message carries only `{ tenantId, reason }` — NOT a full snapshot. The worker re-loads tenant + profile + subscription fresh via the service-role client at execution time, then maps and POSTs. This mirrors the repo's existing **"follow-up query after Realtime INSERT"** decision (the event tells you *what changed*, you re-fetch the truth).
 
-### Reserved path guard — where to add it
+**When to use:** Whenever the queue delivery can be delayed or retried — a thin pointer + fresh read guarantees you sync the *current* state, never a stale snapshot, and makes retries naturally idempotent.
 
-The guard belongs in `src/middleware.ts`, BEFORE calling `updateSession`,
-because:
-1. It is not auth-related — it's a routing concern
-2. It should short-circuit with a 404 before any Supabase session work
-3. The auth middleware already handles admin/superadmin route protection
+**Trade-offs:** (+) Idempotent and stale-proof; small messages. (−) One extra DB read per job (negligible at this scale).
 
-### Recommended implementation
-
+**Example:**
 ```typescript
-// src/lib/marketing/reserved-paths.ts
-export const RESERVED_PATHS = new Set([
-  'demo',        // live demo tenant — a real provisioned tenant, not a block
-  'pricing',
-  'faq',
-  'about',
-  'features',
-  'contact',
-  'privacy',
-  'terms',
-  'blog',
-  'docs',
-  'help',
-  'support',
-  'status',
-  'api',
-  'auth',
-  'dashboard',
-  'settings',
-  'menu',
-  'menus',
-  'tenants',
-  'overview',
-  'users',
-  'onboarding',
-  'sitemap',
-  'robots',
-  '_next',
-])
-```
+// src/app/api/internal/xphere-sync/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { Receiver } from '@upstash/qstash'
+import { createServiceClient } from '@/lib/supabase/server'
+import { buildXpherePayload } from '@/lib/xphere/mapping'
+import { syncToXphere } from '@/lib/xphere/client'
+import { captureSecurityEvent } from '@/lib/observability'
 
-```typescript
-// src/middleware.ts — MODIFIED
-import { type NextRequest, NextResponse } from 'next/server'
-import { updateSession } from './lib/supabase/middleware'
-import { RESERVED_PATHS } from './lib/marketing/reserved-paths'
+export const runtime = 'nodejs' // needs service-role key + raw body
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl
-  // Extract first path segment: "/demo/menu-1" -> "demo"
-  const firstSegment = pathname.split('/')[1]
+const receiver = new Receiver({
+  currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY!,
+  nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY!,
+})
 
-  // If the segment is reserved but the path is NOT served by a named
-  // App Router file, return 404 immediately. Named routes (auth/, api/,
-  // dashboard/, etc.) are already handled by file-system routing and
-  // never reach this check as tenant slugs.
-  //
-  // "demo" is ALLOWED through — it is a real provisioned tenant.
-  // The block only applies to slugs that have NO corresponding named
-  // route AND are not the demo tenant.
-  if (
-    firstSegment &&
-    RESERVED_PATHS.has(firstSegment) &&
-    firstSegment !== 'demo' &&
-    !firstSegment.startsWith('_') &&
-    // Only block if the path would resolve to (public)/[slug] —
-    // named routes (auth, api, dashboard, etc.) self-resolve via
-    // file system and never reach the tenant slug handler
-    !pathname.startsWith('/auth') &&
-    !pathname.startsWith('/api') &&
-    !pathname.startsWith('/dashboard') &&
-    !pathname.startsWith('/menu') &&
-    !pathname.startsWith('/settings') &&
-    !pathname.startsWith('/tenants') &&
-    !pathname.startsWith('/overview') &&
-    !pathname.startsWith('/users') &&
-    !pathname.startsWith('/onboarding')
-  ) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+export async function POST(req: NextRequest) {
+  // 1. Verify QStash signature against the RAW body (like Stripe's constructEvent)
+  const rawBody = await req.text()
+  const signature = req.headers.get('upstash-signature') ?? ''
+  const valid = await receiver.verify({ signature, body: rawBody }).catch(() => false)
+  if (!valid) {
+    captureSecurityEvent('xphere worker: invalid QStash signature')
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
   }
 
-  return await updateSession(request)
-}
+  const { tenantId, reason } = JSON.parse(rawBody) as { tenantId: string; reason: string }
+  const supabase = createServiceClient()
 
-export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
-}
-```
+  // 2. Load canonical state fresh (service role bypasses RLS, like the webhook)
+  const { data: tenant } = await supabase
+    .from('tenants')
+    .select('id, name, slug, xphere_account_id, xphere_contact_id, xphere_opportunity_id')
+    .eq('id', tenantId).single()
+  if (!tenant) return NextResponse.json({ ok: true, skipped: 'no tenant' }) // 200: don't retry forever
 
-**Simpler alternative — the lookup-only guard:**
+  const { data: profile } = await supabase
+    .from('profiles').select('full_name, phone').eq('tenant_id', tenantId)
+    .eq('role', 'store-admin').limit(1).maybeSingle()
+  const { data: subscription } = await supabase
+    .from('tenant_subscriptions').select('status, plan_id, billing_cycle, current_period_end')
+    .eq('tenant_id', tenantId).maybeSingle()
 
-Because App Router's file-system routing already resolves named routes
-(`/auth`, `/api`, etc.) before they can be captured by `[slug]`, the
-middleware only needs to block slugs that WOULD otherwise reach
-`(public)/[slug]` but are conceptually reserved. A cleaner guard:
+  // 3. Map → 4. POST
+  try {
+    const payload = buildXpherePayload({ tenant, profile, subscription, reason })
+    const result = await syncToXphere(payload) // throws on non-2xx
 
-```typescript
-// In middleware, after extracting firstSegment:
-const BLOCKED_TENANT_SLUGS = new Set([
-  'pricing', 'faq', 'about', 'features',
-  'contact', 'privacy', 'terms', 'blog',
-  'docs', 'help', 'support', 'status', 'sitemap', 'robots',
-])
+    // 5. Write back the returned CRM IDs + clear error
+    await supabase.from('tenants').update({
+      xphere_account_id: result.accountId,
+      xphere_contact_id: result.contactId,
+      xphere_opportunity_id: result.opportunityId,
+      xphere_synced_at: new Date().toISOString(),
+      xphere_sync_error: null,
+    }).eq('id', tenantId)
 
-if (firstSegment && BLOCKED_TENANT_SLUGS.has(firstSegment)) {
-  return NextResponse.json({ error: 'Not found' }, { status: 404 })
-}
-```
-
-This is simpler because named App Router routes never reach `[slug]` —
-they are resolved first by the file system. The guard only needs to cover
-paths that have no named file but are conceptually marketing-reserved.
-
-**ALSO add to tenant slug creation validation:**
-
-```typescript
-// src/app/api/onboarding/route.ts — add before INSERT
-import { RESERVED_PATHS } from '@/lib/marketing/reserved-paths'
-
-if (RESERVED_PATHS.has(slug)) {
-  return NextResponse.json(
-    { error: 'This URL is reserved. Please choose a different name.' },
-    { status: 400 }
-  )
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    // Persist the error for observability, then 500 so QStash retries (bounded by `retries`).
+    await supabase.from('tenants')
+      .update({ xphere_sync_error: message.slice(0, 500) }).eq('id', tenantId)
+    captureSecurityEvent('xphere worker: sync failed', { tenantId, reason, message })
+    return NextResponse.json({ ok: false, error: message }, { status: 500 })
+  }
 }
 ```
+Note the **error contract that drives retries**: return 500 on a transient/Xphere failure so QStash retries (matching the Stripe webhook's "return 500 so it's reprocessed" idiom), but return **200 with `skipped`** for permanent no-ops (tenant deleted) so QStash stops.
 
-This dual enforcement (middleware blocks public access + API rejects
-creation) is the correct defense-in-depth pattern.
+### Pattern 3: Decouple from the unbuilt endpoint via a typed contract + pure mapping
 
----
+**What:** The Xphere `/api/v1/sync` endpoint is being built separately (Xtimator effort) and may not exist when this code is written. `types.ts` encodes the **documented contract** as TypeScript types; `mapping.ts` is a pure function producing that type; `client.ts` is the only place that touches the network. Build and unit-test mapping against the contract now; defer the live integration test until the endpoint exists behind an env-presence gate.
 
-## Build Strategy: Static Marketing Page + SSR App
+**When to use:** Whenever you must build a producer against a consumer that doesn't exist yet — depend on the *interface*, not the *implementation*.
 
-### The hybrid model
+**Trade-offs:** (+) Work proceeds in parallel; the mapping (the part most likely to have bugs) is fully testable offline. (−) Contract drift risk — if the real endpoint differs from the documented contract, `client.ts` + `types.ts` absorb the change in one place; mapping/worker stay untouched.
 
-Next.js 16.2 App Router renders each page segment independently. The
-marketing page at `src/app/page.tsx` can be statically generated at build
-time while all other routes remain SSR or ISR. No global config change
-needed.
-
-### Landing page rendering strategy
-
+**Example:**
 ```typescript
-// src/app/page.tsx
-export const dynamic = 'force-static'
-// This tells Next.js: always generate this page statically at build time.
-// No cookies, no request-time data, no Supabase calls.
-// Result: HTML is pre-rendered and served from CDN edge with zero server cost.
+// src/lib/xphere/client.ts
+import type { XphereSyncPayload, XphereSyncResponse } from './types'
 
-export default function LandingPage() {
-  // Pure static content — sections, copy, CTAs
-  // All data is hardcoded or imported from local constants
-  return <main>...</main>
-}
-```
+const isConfigured = () =>
+  !!(process.env.XPHERE_API_URL && process.env.XPHERE_API_KEY && process.env.XPHERE_ORG_ID)
 
-`force-static` is the correct directive for a marketing page. It:
-- Eliminates all server latency for `/`
-- Enables full CDN caching on Vercel Edge Network
-- Does not affect other routes (each segment is independent)
-- Satisfies Lighthouse performance: no server round-trip = fast TTFB
-
-### Why NOT `export const output = 'export'` (full static export)
-
-Full static export (`next.config.ts: { output: 'export' }`) would convert
-the ENTIRE app to static HTML — breaking the SSR/ISR routes
-(`/[slug]/[menuSlug]`, admin panel, API routes). Do NOT use it. Use
-per-page `force-static` instead.
-
-### Lighthouse 95+ strategy
-
-| Factor | Implementation |
-|--------|---------------|
-| TTFB | `force-static` page served from CDN edge — ~10ms |
-| LCP | Hero image: static PNG in `public/`, `<Image priority>` with `sizes` |
-| CLS | Explicit width/height on all images; no layout shifts from dynamic data |
-| TBT/INP | Minimal JS: no client state, no useEffect on landing page; analytics scripts are deferred |
-| Fonts | Inter already loaded via `next/font/google` in root layout — preloaded, no FOUT |
-
-The analytics components (`<Analytics />`, `<SpeedInsights />`) inject
-deferred scripts — they do NOT block rendering or add to TBT.
-
----
-
-## Sitemap: Exact Implementation
-
-**File:** `src/app/sitemap.ts`
-**Served at:** `/sitemap.xml` (automatic, no config needed)
-**Cached:** at build time by default (static route handler)
-
-```typescript
-// src/app/sitemap.ts
-import type { MetadataRoute } from 'next'
-
-const BASE_URL = 'https://xmartmenu.skale.club'
-
-export default function sitemap(): MetadataRoute.Sitemap {
-  return [
-    {
-      url: BASE_URL,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 1,
+export async function syncToXphere(payload: XphereSyncPayload): Promise<XphereSyncResponse> {
+  if (!isConfigured()) throw new Error('xphere: not configured (XPHERE_API_URL/KEY/ORG_ID)')
+  const res = await fetch(`${process.env.XPHERE_API_URL}/api/v1/sync`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.XPHERE_API_KEY}`,
+      'X-Org-Id': process.env.XPHERE_ORG_ID!,
     },
-    {
-      url: `${BASE_URL}/demo`,
-      lastModified: new Date(),
-      changeFrequency: 'weekly',
-      priority: 0.8,
-    },
-    // When i18n is added (Phase 13):
-    // {
-    //   url: `${BASE_URL}/pt`,
-    //   alternates: { languages: { en: `${BASE_URL}/en`, pt: `${BASE_URL}/pt` } },
-    //   changeFrequency: 'monthly',
-    //   priority: 0.9,
-    // },
-  ]
+    body: JSON.stringify({ ...payload, source: 'xmartmenu' }),
+    signal: AbortSignal.timeout(10_000),
+  })
+  if (!res.ok) throw new Error(`xphere sync ${res.status}: ${await res.text().catch(() => '')}`)
+  return (await res.json()) as XphereSyncResponse
 }
 ```
-
-Do NOT use `next-sitemap` package — Next.js 16.2 has this built in.
-
----
-
-## Robots.txt: Exact Implementation
-
-**File:** `src/app/robots.ts`
-**Served at:** `/robots.txt` (automatic)
-**Cached:** at build time by default
-
-```typescript
-// src/app/robots.ts
-import type { MetadataRoute } from 'next'
-
-export default function robots(): MetadataRoute.Robots {
-  return {
-    rules: [
-      {
-        userAgent: '*',
-        allow: '/',
-        disallow: [
-          '/dashboard',
-          '/settings',
-          '/menu',
-          '/menus',
-          '/tenants',
-          '/overview',
-          '/users',
-          '/onboarding',
-          '/auth',
-          '/api',
-        ],
-      },
-    ],
-    sitemap: 'https://xmartmenu.skale.club/sitemap.xml',
-  }
-}
-```
+Until the endpoint is live, `XPHERE_*` env vars stay unset in production → `client.ts` throws "not configured" → the worker records `xphere_sync_error` and QStash exhausts its retries. The queue, producers, mapping, and write-back are all exercisable end-to-end *without* the real Xphere by pointing `XPHERE_API_URL` at a local stub. **Gate live calls on the presence of the env vars** (same shape as `hasUpstash` in rate-limit.ts) so the integration "activates" the moment credentials land — zero code change.
 
 ---
 
-## OG Image: Exact Implementation
+## Data Flow
 
-**Recommended approach:** `src/app/opengraph-image.tsx` (dynamic via
-ImageResponse, statically optimized at build because no request-time APIs)
-
-**Served at:** metadata auto-injects `<meta property="og:image">` for `/`
-
-```typescript
-// src/app/opengraph-image.tsx
-import { ImageResponse } from 'next/og'
-
-export const alt = 'XmartMenu — Cardápio digital para restaurantes'
-export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
-
-export default function Image() {
-  return new ImageResponse(
-    (
-      <div
-        style={{
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'sans-serif',
-          color: 'white',
-        }}
-      >
-        <div style={{ fontSize: 72, fontWeight: 'bold' }}>XmartMenu</div>
-        <div style={{ fontSize: 32, marginTop: 24, opacity: 0.8 }}>
-          Cardápio digital via QR Code
-        </div>
-      </div>
-    ),
-    { ...size }
-  )
-}
-```
-
-**Alternative (simpler):** Place a static PNG at
-`src/app/opengraph-image.png`. Next.js picks it up automatically with no
-code needed. Tradeoff: cannot be customized programmatically, and must be
-a PNG file ≤ 8MB.
-
-**Recommendation:** Start with static PNG in Phase 12 (fastest to ship),
-migrate to `opengraph-image.tsx` with branding if needed in Phase 13.
-
----
-
-## JSON-LD Structured Data: Exact Implementation
-
-No package needed. Inline `<script>` tag in the Server Component.
-Source: official Next.js docs (nextjs.org/docs/app/guides/json-ld).
-
-```typescript
-// Inside src/app/page.tsx (the landing page component)
-export default function LandingPage() {
-  const organizationSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'XmartMenu',
-    url: 'https://xmartmenu.skale.club',
-    description: 'Cardápio digital via QR Code para restaurantes',
-    sameAs: [],
-  }
-
-  const softwareSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
-    name: 'XmartMenu',
-    applicationCategory: 'BusinessApplication',
-    operatingSystem: 'Web',
-    offers: {
-      '@type': 'Offer',
-      price: '0',
-      priceCurrency: 'BRL',
-      description: 'Grátis durante o beta',
-    },
-  }
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(organizationSchema).replace(/</g, '\\u003c'),
-        }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify(softwareSchema).replace(/</g, '\\u003c'),
-        }}
-      />
-      <main>...</main>
-    </>
-  )
-}
-```
-
-The `.replace(/</g, '\\u003c')` is XSS prevention per the official Next.js
-docs. Do not use `next/script` for JSON-LD — it's structured data, not
-executable JS.
-
----
-
-## Metadata API: Root Layout Update
-
-```typescript
-// src/app/layout.tsx — full updated version
-import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
-import { SpeedInsights } from '@vercel/speed-insights/next'
-import './globals.css'
-
-const inter = Inter({ subsets: ['latin'] })
-
-export const metadata: Metadata = {
-  title: {
-    template: '%s | XmartMenu',
-    default: 'XmartMenu — Cardápio digital para restaurantes',
-  },
-  description: 'Crie seu cardápio digital via QR Code em minutos. Sem design, sem desenvolvedor.',
-  metadataBase: new URL('https://xmartmenu.skale.club'),
-  openGraph: {
-    type: 'website',
-    locale: 'pt_BR',
-    alternateLocale: 'en_US',
-    siteName: 'XmartMenu',
-  },
-  twitter: {
-    card: 'summary_large_image',
-  },
-}
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="pt-BR" className="h-full antialiased">
-      <body className={`${inter.className} min-h-full`}>
-        {children}
-        <Analytics />
-        <SpeedInsights />
-      </body>
-    </html>
-  )
-}
-```
-
-`metadataBase` is required for OG image URLs to be absolute. Without it,
-Next.js will warn and may generate relative URLs that social crawlers reject.
-
----
-
-## Vercel Analytics + Speed Insights: Integration
-
-### Installation
-
-```bash
-npm install @vercel/analytics@2.0.1 @vercel/speed-insights@2.0.0
-```
-
-Versions verified against npm registry (2026-05-07).
-
-### Import paths (critical — must use `/next` subpath)
-
-```typescript
-import { Analytics } from '@vercel/analytics/next'      // NOT '/react'
-import { SpeedInsights } from '@vercel/speed-insights/next'  // NOT '/react'
-```
-
-The `/next` subpath is the App Router integration — it handles route change
-detection correctly for Next.js App Router's navigation model.
-
-### Placement
-
-Both components go in `src/app/layout.tsx` **inside `<body>`**, after
-`{children}`. This ensures:
-- They render on ALL pages (marketing, admin, public menu)
-- They are server-rendered as part of the layout
-- Scripts are injected with `defer` — no render blocking
-
-### Dashboard activation
-
-After deploying, enable both in the Vercel project dashboard:
-- Analytics tab → Enable
-- Speed Insights tab → Enable
-
-The packages work without enabling (they silently no-op), but data only
-flows after the dashboard toggle is on.
-
----
-
-## Demo Tenant at /demo
-
-The `/demo` path is a **real provisioned tenant**, not a redirect or special
-route. Required steps:
-
-1. Create a tenant in the database with `slug = 'demo'`
-2. Seed it with appealing sample content (AI seeding tools from v1.2 are perfect)
-3. Do NOT add a `src/app/demo/` folder — it would shadow `(public)/[slug]`
-4. The `/demo/[menuSlug]` URL works automatically through the existing
-   `(public)/[slug]/[menuSlug]` route
-5. Keep `'demo'` in `RESERVED_PATHS` for the API guard (prevent another
-   tenant from claiming this slug), but NOT in the middleware block
-   (legitimate traffic must reach the tenant page)
-
-**Landing page link:** `<a href="/demo">Ver demo ao vivo</a>` — static link,
-no client routing logic needed.
-
----
-
-## i18n Architecture Consideration (Phase 13)
-
-The project specifies path-based i18n (`/pt`, `/en`). Two implementation
-paths in Next.js App Router:
-
-### Option A: `[lang]` dynamic segment at root (recommended)
+### Request Flow (event → CRM, the happy path)
 
 ```
-src/app/
-├── [lang]/
-│   ├── layout.tsx      ← sets <html lang={lang}>
-│   └── page.tsx        ← language-specific landing page
-├── layout.tsx           ← root layout (Analytics, SpeedInsights, fonts)
-├── sitemap.ts           ← includes alternates.languages
-├── robots.ts
-└── opengraph-image.tsx
+[tenant lifecycle event: onboarding / plan activated / past_due / churn / connect]
+    ↓ enqueueXphereSync(tenantId, reason)   — fire-and-forget, never blocks
+[QStash durable queue]  ──(HMAC-signed POST, retriable)──▶
+[POST /api/internal/xphere-sync]
+    ↓ Receiver.verify(signature, rawBody)         (reject → 401)
+    ↓ createServiceClient() → load tenant+profile+subscription   (fresh read)
+    ↓ buildXpherePayload(...)                      (pure mapping)
+    ↓ syncToXphere(payload) → POST /api/v1/sync    (Xphere, external)
+    ↓ returns { accountId, contactId, opportunityId }
+[UPDATE tenants SET xphere_*_id, xphere_synced_at, xphere_sync_error=null]
+    ↓ 200 OK  → QStash marks delivered
 ```
 
-The current `page.tsx` (marketing) moves to `[lang]/page.tsx`. The `[lang]`
-segment must be narrowed to only `['pt', 'en']` using `generateStaticParams`.
+On Xphere/transient failure: worker writes `xphere_sync_error`, returns 500, QStash retries up to `retries`; after exhaustion the error persists on the tenant row for the superadmin to see and re-trigger.
 
-**Middleware impact:** The `[lang]` route is a named dynamic segment in the
-file system, so it will shadow `(public)/[slug]` for paths like `/pt` and
-`/en`. No middleware change needed for this.
+### Producer hook placements (the integration points)
 
-### Option B: `next-intl` library
+| Producer file (MODIFIED) | Insertion point | `reason` |
+|--------------------------|-----------------|----------|
+| `api/onboarding/route.ts` | After step 6 (product created) succeeds, just before the success `NextResponse.json` — tenant + settings + subscription all exist | `'onboarding'` |
+| `api/stripe/webhooks/route.ts` → `checkout.session.completed` (kind === 'plan') | After the `tenant_subscriptions` update succeeds | `'plan_activated'` |
+| `api/stripe/webhooks/route.ts` → `customer.subscription.updated` / `.deleted` (kind === 'plan') | After the status mirror update; covers active / past_due / cancelled (churn) | `'subscription_updated'` |
+| `api/stripe/webhooks/route.ts` → `invoice.payment_failed` | After marking `past_due` | `'past_due'` |
+| `api/stripe/connect/callback/route.ts` | After the `stripe_connections` upsert succeeds, before the redirect | `'connect'` |
 
-Not needed for two-language path routing without complex ICU message
-formatting. The simple object-dictionary approach (constants file per
-language) is sufficient for a marketing page.
+In the webhook, place each `enqueueXphereSync(...)` **inside the existing branch, after the DB write succeeds**, awaited but error-swallowed by `queue.ts` itself, so it cannot affect `updateResult` or the idempotency record. Do NOT enqueue before recording the idempotency row — enqueue is best-effort and must not change the webhook's 200/500 contract.
 
-**Phase 13 recommendation:** Option A with a `translations/` constants
-file, no external i18n library.
+### Key Data Flows
 
----
-
-## Suggested Phase Build Order
-
-Dependencies drive order. Analytics can be added early (zero risk).
-The landing page content is independent of middleware and SEO files.
-
-### Phase 12: Core marketing page
-
-**Deliverables:**
-1. `src/app/page.tsx` — landing page component (`force-static`, all sections)
-2. `src/app/layout.tsx` — add Analytics + SpeedInsights + metadataBase
-3. `src/app/opengraph-image.png` — static PNG (fast path, no code)
-4. `src/lib/marketing/reserved-paths.ts` — RESERVED_PATHS Set
-5. `src/middleware.ts` — add reserved-path guard
-6. API guard in `src/app/api/onboarding/route.ts`
-7. Demo tenant provisioned in DB (superadmin AI seeding)
-8. `npm install @vercel/analytics @vercel/speed-insights`
-
-**Why analytics first:** Zero risk, immediate value, and they belong in the
-root layout which is also being modified for metadata.
-
-**Why middleware guard with landing page:** The guard must exist before the
-landing page ships publicly, to prevent tenant slug squatting on reserved
-words from day one.
-
-### Phase 13: SEO + i18n
-
-**Deliverables:**
-1. `src/app/sitemap.ts` — MetadataRoute.Sitemap with PT/EN alternates
-2. `src/app/robots.ts` — MetadataRoute.Robots
-3. `src/app/opengraph-image.tsx` — dynamic ImageResponse (replace static PNG)
-4. JSON-LD schemas inside `page.tsx`
-5. `generateMetadata` export on `page.tsx` with full OG/Twitter metadata
-6. `[lang]` route segment for PT/EN path-based i18n
-7. Language switcher UI in landing page
-
-**Why i18n in Phase 13:** The i18n restructure (`page.tsx` → `[lang]/page.tsx`)
-can cause routing conflicts if attempted mid-phase. Build Phase 12 with
-a single-language page, then restructure cleanly in Phase 13.
+1. **Linkage establishment (first sync):** `xphere_*_id` columns are NULL → worker sends a create-style payload with `external_id = tenants.id`; Xphere upserts by `external_id` and returns IDs → worker persists them. Subsequent syncs send the same `external_id`; Xphere updates the existing records (idempotent by design of the shared endpoint).
+2. **Backfill:** Superadmin POSTs `/api/superadmin/xphere/backfill` → route pages through `tenants` (optionally `WHERE xphere_account_id IS NULL`) and calls `enqueueXphereSync(id, 'backfill')` for each → identical worker path. Reuses the producer; no special-case code in the worker.
+3. **Observability read:** `xphere_sync_error IS NOT NULL` surfaces failed tenants in the superadmin tenant list/detail; re-trigger = enqueue again.
 
 ---
 
-## Don't Hand-Roll
+## Scaling Considerations
 
-| Problem | Don't Build | Use Instead |
-|---------|------------|-------------|
-| sitemap.xml generation | Custom XML template / next-sitemap package | `src/app/sitemap.ts` with MetadataRoute |
-| robots.txt generation | Static file in `/public` / next-sitemap | `src/app/robots.ts` with MetadataRoute |
-| OG image generation | Canvas / puppeteer / cloudinary | `next/og` ImageResponse (ships with Next.js) |
-| Analytics script injection | Custom script tag | `@vercel/analytics/next` component |
-| Web Vitals tracking | Custom PerformanceObserver | `@vercel/speed-insights/next` component |
-| JSON-LD injection | `next/script` with JSON | Native `<script type="application/ld+json">` in Server Component |
-| i18n routing | next-intl for two languages | `[lang]` segment + constants file |
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| 0–1k tenants | No changes. QStash free/low tier handles event volume; one job per lifecycle event is trivial. Backfill loops synchronously. |
+| 1k–100k tenants | Backfill must paginate (e.g. 500/page) and enqueue in batches to avoid a long-running superadmin request; consider `publishJSON` batching. Worker stays single-tenant per message (good — bounded work, clean retries). |
+| 100k+ tenants | Add a QStash URL-group / flow-control to cap concurrency against Xphere's rate limits; debounce rapid repeated events per tenant via `deduplicationId`/short delay so subscription churn bursts don't hammer the CRM. |
 
----
+### Scaling Priorities
 
-## Common Pitfalls
-
-### Pitfall 1: Missing `metadataBase`
-
-**What goes wrong:** OG images and canonical URLs generate as relative paths.
-Social crawlers (Facebook, Twitter/X, LinkedIn) reject relative `og:image`
-URLs — the social preview card shows no image.
-
-**How to avoid:** Set `metadataBase: new URL('https://xmartmenu.skale.club')`
-in the root layout's `metadata` export. This is required even if all
-metadata is defined in individual pages.
-
-**Warning sign:** Next.js build logs `metadataBase not set` warning.
+1. **First bottleneck — Xphere rate limits during backfill.** A full re-sync enqueues N jobs near-simultaneously. Fix: enqueue with a small staggered `delay`, or use QStash flow-control/parallelism caps. The thin-message + fresh-read design means stale ordering is harmless.
+2. **Second bottleneck — duplicate events per tenant.** Stripe can emit several subscription events in seconds. Fix: `deduplicationId = ${tenantId}:${reason}` (already shown) collapses rapid duplicates; the worker is idempotent regardless.
 
 ---
 
-### Pitfall 2: Using `/react` analytics import instead of `/next`
+## Anti-Patterns
 
-**What goes wrong:** `@vercel/analytics/react` and `@vercel/speed-insights/react`
-do not handle Next.js App Router route changes correctly — page view events
-fire once on hard load, not on client-side navigation between pages.
+### Anti-Pattern 1: Calling Xphere synchronously inside the lifecycle request
 
-**How to avoid:** Always import from the `/next` subpath:
-```typescript
-import { Analytics } from '@vercel/analytics/next'
-import { SpeedInsights } from '@vercel/speed-insights/next'
-```
+**What people do:** `await fetch(xphereUrl)` directly inside `/api/onboarding` or the Stripe webhook handler.
+**Why it's wrong:** Couples onboarding/webhook latency and success to a flaky, possibly-not-yet-built external API. A slow or down Xphere would slow onboarding or cause Stripe to see a 500 and retry the *whole* webhook. It also has no durable retry.
+**Do this instead:** `enqueueXphereSync()` (fire-and-forget) → QStash → worker. The request returns immediately; QStash owns retries.
 
----
+### Anti-Pattern 2: Putting a full state snapshot in the queue message
 
-### Pitfall 3: Adding `src/app/demo/page.tsx`
+**What people do:** Serialize the entire tenant+subscription into the QStash body.
+**Why it's wrong:** Delivery can be delayed/retried; a snapshot goes stale and you sync outdated data. Bigger messages, contract coupling in the producer.
+**Do this instead:** Send `{ tenantId, reason }`; the worker re-reads canonical state at execution time (Pattern 2). Matches the repo's existing Realtime "re-fetch on event" decision.
 
-**What goes wrong:** A file at `src/app/demo/` creates a named route that
-shadows `(public)/[slug]` for the `/demo` path. The demo tenant's menu
-at `/demo/[menuSlug]` would 404 because `src/app/demo/` has no
-`[menuSlug]` sub-route.
+### Anti-Pattern 3: Letting an enqueue failure break the caller
 
-**How to avoid:** The demo tenant is a real DB tenant. Its URL works
-automatically through `(public)/[slug]/[menuSlug]`. Never create a
-`src/app/demo/` folder.
+**What people do:** `await enqueueXphereSync(...)` that can throw, inside the webhook's success path.
+**Why it's wrong:** A QStash hiccup would flip a successful webhook to 500 → Stripe retries → duplicate processing risk; or aborts onboarding.
+**Do this instead:** `queue.ts` swallows its own errors and logs to Sentry (FAIL-OPEN, like `rate-limit.ts`). The backfill route is the recovery mechanism for dropped enqueues.
 
----
+### Anti-Pattern 4: Skipping signature verification on the worker route
 
-### Pitfall 4: `force-static` on a page that needs cookies
-
-**What goes wrong:** If the landing page later adds personalization (e.g.,
-"Welcome back!" for logged-in users) and reads from cookies, `force-static`
-will throw a build error: "Page used cookies() which is not allowed in
-static rendering."
-
-**How to avoid:** Keep the landing page completely static — no auth check,
-no Supabase calls. Personalization for logged-in users should be client-side
-only (a `useEffect` that checks a cookie, not a server-side read).
+**What people do:** Treat `/api/internal/xphere-sync` as trusted because it "looks internal."
+**Why it's wrong:** It's a public HTTP endpoint; anyone could POST `{ tenantId }` and trigger CRM writes / enumerate tenants.
+**Do this instead:** `Receiver.verify({ signature, body })` against the raw body before any work — the exact discipline already used for Stripe's `constructEvent`. Reject with 401.
 
 ---
 
-### Pitfall 5: Reserved path guard blocking named App Router routes
+## Integration Points
 
-**What goes wrong:** If the RESERVED_PATHS Set contains `'auth'` and the
-middleware returns 404 for `/auth/login`, the login page breaks.
+### External Services
 
-**How to avoid:** Named routes in the file system (`src/app/auth/`,
-`src/app/api/`) are NOT served through `(public)/[slug]` — the file system
-resolves them first. The middleware guard is redundant for those but harmless
-if written correctly. The simpler guard that only blocks paths with NO
-corresponding named file (the `BLOCKED_TENANT_SLUGS` set approach) is
-cleaner and avoids this entirely.
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| Upstash QStash | `Client.publishJSON({ url, body, retries })` to enqueue; `Receiver.verify()` to authenticate delivery on the worker. | NEW dependency `@upstash/qstash`. Env: `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`. Upstash account already in use for Redis. FAIL-OPEN if `QSTASH_TOKEN` unset. |
+| Xphere CRM `POST /api/v1/sync` | `fetch` from `client.ts` with `Authorization: Bearer XPHERE_API_KEY`, `X-Org-Id`, body `{ ...payload, source: 'xmartmenu', external_id: tenantId }`. | Built by separate Xtimator effort — DO NOT modify. Depend on the documented contract via `types.ts`. Gate live calls on `XPHERE_*` env presence. Org `e375f031-…`. |
+| Supabase (service role) | `createServiceClient()` in the worker + backfill to read/write bypassing RLS. | Reuses existing factory. Same trust model as the Stripe webhook. |
+| Sentry | `captureSecurityEvent()` for enqueue failures, bad signatures, sync failures. | Reuses `src/lib/observability.ts`; no-ops without a DSN. |
 
----
+### Internal Boundaries
 
-### Pitfall 6: `next-sitemap` conflicts with native sitemap route
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| Producers ↔ `queue.ts` | Direct function call `enqueueXphereSync(tenantId, reason)` | Single choke-point; producers never import the Xphere HTTP client. |
+| `queue.ts` ↔ worker | Async via QStash (HTTP, signed) | Only coupling is the `{ tenantId, reason }` body shape (define in `types.ts`). |
+| Worker ↔ `mapping.ts` | Pure function call | No I/O in mapping → unit-testable against the contract offline. |
+| Worker ↔ `client.ts` | Function call → `fetch` | Only place that network-touches Xphere; absorbs contract drift. |
+| Worker ↔ Supabase | `createServiceClient()` read + write-back | `tenants.xphere_*` is the persisted linkage + status surface. |
 
-**What goes wrong:** If `next-sitemap` is installed, it generates a
-`sitemap.xml` in the `public/` folder at build time. The native
-`src/app/sitemap.ts` also generates `/sitemap.xml`. The file in `public/`
-wins, serving stale content.
+### Suggested Build Order (dependency-respecting → phases for the roadmapper)
 
-**How to avoid:** Do not install `next-sitemap`. Use `src/app/sitemap.ts`
-exclusively.
+1. **Migration** — `054_xphere_sync_columns.sql`: `ALTER TABLE tenants ADD COLUMN xphere_account_id text, xphere_contact_id text, xphere_opportunity_id text, xphere_synced_at timestamptz, xphere_sync_error text;` + update `interface Tenant` in `types/database.ts`. (No dependencies; everything below reads/writes these columns.)
+2. **Lib module** — `src/lib/xphere/types.ts` → `mapping.ts` (pure, unit-tested against the documented contract) → `client.ts` (env-gated `fetch`) → `queue.ts` (QStash producer, FAIL-OPEN). Add `@upstash/qstash` to `package.json`. (Depends on migration types; independently testable, no live Xphere.)
+3. **Worker** — `/api/internal/xphere-sync/route.ts`: signature verify → load → map → POST → write-back. (Depends on lib + migration. Testable end-to-end against a local Xphere stub.)
+4. **Hooks** — wire `enqueueXphereSync()` into onboarding, the three Stripe webhook branches, and the Connect callback. (Depends on `queue.ts` + worker existing so enqueued jobs land somewhere.)
+5. **Backfill** — `/api/superadmin/xphere/backfill/route.ts`: `assertSuperadmin()` + paginated enqueue loop. (Depends on producer + worker.)
+6. **Observability** — surface `xphere_sync_error` / `xphere_synced_at` in the superadmin tenant UI; Sentry alerts already wired via `captureSecurityEvent`. (Depends on data being written by the worker.)
 
----
-
-## Environment Availability
-
-Step 2.6: SKIPPED — Phase 12 is code/config changes only. No new external
-services or CLI tools are required. Vercel Analytics and Speed Insights are
-client-side packages that only activate after a Vercel deployment.
-
----
-
-## Integration Points Summary (for Roadmapper)
-
-| Capability | File | New/Modified | Notes |
-|-----------|------|-------------|-------|
-| Marketing page | `src/app/page.tsx` | MODIFY | Replace redirect with static Server Component |
-| Root metadata + analytics | `src/app/layout.tsx` | MODIFY | Add Analytics, SpeedInsights, metadataBase |
-| Sitemap | `src/app/sitemap.ts` | NEW | Native MetadataRoute, no package |
-| Robots | `src/app/robots.ts` | NEW | Native MetadataRoute, no package |
-| OG image | `src/app/opengraph-image.png` or `.tsx` | NEW | Static PNG in Phase 12, dynamic in Phase 13 |
-| JSON-LD | Inside `src/app/page.tsx` | Part of MODIFY | Inline script tag, no package |
-| Reserved paths | `src/lib/marketing/reserved-paths.ts` | NEW | Shared Set, imported by middleware + API |
-| Middleware guard | `src/middleware.ts` | MODIFY | Add firstSegment check before updateSession |
-| Tenant creation guard | `src/app/api/onboarding/route.ts` | MODIFY | Check RESERVED_PATHS before INSERT |
-| Vercel Analytics | `src/app/layout.tsx` | MODIFY | Import from @vercel/analytics/next |
-| Vercel Speed Insights | `src/app/layout.tsx` | MODIFY | Import from @vercel/speed-insights/next |
+**Decoupling from the unbuilt endpoint:** Steps 1–5 ship and are fully exercisable with `XPHERE_*` unset (client throws "not configured" → error recorded) or pointed at a local stub; unit tests cover `mapping.ts` against the documented contract. The **live integration test** (deferrable, after step 6) only runs once Xtimator ships `/api/v1/sync` and real `XPHERE_*` credentials are set — at which point the env-presence gate activates real calls with zero code change.
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence — official docs, dated 2026-05-07)
+- XmartMenu codebase (verified directly): `src/app/api/stripe/webhooks/route.ts`, `src/app/api/onboarding/route.ts`, `src/app/api/stripe/connect/callback/route.ts`, `src/lib/rate-limit.ts`, `src/lib/supabase/server.ts`, `src/lib/observability.ts`, `src/lib/superadmin-auth.ts`, `src/types/database.ts`, `supabase/migrations/*` — HIGH confidence
+- `@upstash/qstash` SDK README (`Client.publishJSON`, `Receiver.verify`, env vars) — HIGH confidence
+- `.planning/PROJECT.md` milestone v2.4 constraints + locked decisions — HIGH confidence
 
-- Next.js 16.2.5 sitemap file convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
-- Next.js 16.2.5 robots file convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
-- Next.js 16.2.5 opengraph-image convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image
-- Next.js 16.2.5 JSON-LD guide: https://nextjs.org/docs/app/guides/json-ld
-- Vercel Web Analytics quickstart: https://vercel.com/docs/analytics/quickstart (last updated 2026-03-11)
-- Vercel Speed Insights quickstart: https://vercel.com/docs/speed-insights/quickstart (last updated 2026-03-11)
-
-### Secondary (MEDIUM confidence — verified against primary sources)
-
-- `@vercel/analytics@2.0.1` and `@vercel/speed-insights@2.0.0` — versions verified via `npm view` (2026-05-07)
-- `force-static` rendering directive for per-page static generation in App Router — confirmed in Next.js docs
-
-### Metadata
-
-**Confidence breakdown:**
-- File conventions (sitemap, robots, OG): HIGH — from official Next.js 16.2.5 docs dated today
-- Analytics integration: HIGH — from official Vercel docs with exact import paths
-- Middleware reserved path pattern: HIGH — derived from direct codebase inspection + Next.js routing docs
-- Lighthouse 95+ strategy: MEDIUM — general Next.js performance principles; no tool-based measurement yet
-
-**Research date:** 2026-05-07
-**Valid until:** 2026-08-07 (stable APIs; Next.js metadata conventions have not changed since v13.3.0)
+---
+*Architecture research for: Xphere CRM Sync integration (XmartMenu v2.4)*
+*Researched: 2026-06-20*

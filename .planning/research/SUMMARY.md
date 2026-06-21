@@ -1,273 +1,158 @@
-# Research Summary -- v1.3 Landing Page
+# Project Research Summary
 
-**Project:** XmartMenu -- xmartmenu.skale.club
-**Milestone:** v1.3 Marketing Landing Page
-**Domain:** SaaS marketing landing page integrated into existing Next.js 16.2 multi-tenant app
-**Researched:** 2026-05-07
+**Project:** XmartMenu — v2.4 Xphere CRM Sync
+**Domain:** Outbound product→CRM lifecycle sync (one-way) via durable message queue (Next.js 16 App Router → Upstash QStash → shared external `POST /api/v1/sync`)
+**Researched:** 2026-06-20
 **Confidence:** HIGH
----
 
 ## Executive Summary
 
-XmartMenu v1.3 adds a public marketing landing page at the root of an existing Next.js 16.2 App Router multi-tenant application. The product targets Brazilian restaurant owners who need a digital QR code menu without design or development skills. Every piece of research converges on the same recommendation: build a single-page, mobile-first, server-rendered static page using only what Next.js 16.2 ships natively. Two npm installs and one dev dependency cover all new package requirements. No infrastructure changes are needed.
+This milestone mirrors every XmartMenu tenant into a single shared Xphere CRM org as an Account + Contact + Opportunity, driven by lifecycle events (onboarding, plan activated, plan changed, past_due, churn, Stripe Connect). It is strictly **one-way outbound** — the XmartMenu DB stays source of truth, the CRM is a downstream mirror. All four researchers converged on the same shape established tools (HubSpot, Salesforce) use for product→CRM lifecycle sync: **event-driven (not calendar-driven), CRM-as-mirror, idempotent upsert on a stable external id, live webhooks plus a triggered backfill to hydrate history.** The object model, transport (QStash), the destination contract (`POST /api/v1/sync`), and the idempotency key (`external_id = tenants.id`) are already **decided** and are not re-litigated.
 
-The most important design decision is the split into two phases. Phase 12 delivers the core marketing page, Vercel Analytics, the middleware reserved-path guard, and demo tenant provisioning. Phase 13 delivers SEO hardening: sitemap, robots.txt, JSON-LD structured data, and the final Lighthouse 95-plus gate. This ordering is driven by a concrete dependency chain: the middleware performance bypass and reserved-path guard must exist before the page ships, while structured data and sitemap work can be layered on safely.
+The recommended approach is a **producer → durable queue → signed worker → external API → write-back** pipeline. Producers are **enqueue-only and fire-and-forget**: every lifecycle hook calls one choke-point function `enqueueXphereSync(tenantId, reason)` that publishes to QStash and **swallows its own errors** — the single most important safeguard, because the Xphere endpoint is built by a separate (Xtimator) effort and may not exist yet, and a CRM outage must never break onboarding or a Stripe webhook 200. The QStash message is **thin** (`{ tenantId, reason }`); the worker re-reads live tenant + profile + subscription via the service-role client, maps via a pure function, POSTs, and writes the returned CRM ids back. Thin-message + fresh-read makes every retry idempotent and stale-proof. Exactly one new dependency is added: `@upstash/qstash`; everything else (zod, Sentry, Redis, native fetch) is already in the project.
 
-The highest-risk area is integration correctness, not copy or design. The existing middleware calls supabase.auth.getUser on every request including slash, which will kill Lighthouse scores without an explicit bypass. The [slug] dynamic route captures any first-segment path, so a tenant named pricing or faq would silently shadow marketing sections. Neither guard exists in the codebase today. Both are Phase 12 blockers with low recovery cost before launch and high cost after.
-
----
+The dominant risks are all consequences of async, retried, fan-in delivery and are well understood: out-of-order/stale events, idempotency keyed on a mutable field (email/phone) instead of `external_id`, double-processing (webhook + backfill racing), signature-verification footguns (raw body, both signing keys, URL claim), poison-message retry storms, backfill rate-limit storms, and PII/opt-out leakage. Mitigation mirrors the **existing Stripe webhook discipline** already proven in the repo: raw-body signature verification before any work, idempotency/state recorded only after success, transient failures → 500 (QStash retries) vs permanent failures → HTTP 489 + `Upstash-NonRetryable-Error: true` (straight to DLQ). The whole feature is buildable and unit-testable offline against the documented contract behind an env-presence gate that fails open like `rate-limit.ts`, so it ships before Xphere credentials are live with zero code change to activate.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The existing stack (Next.js 16.2, TypeScript, Tailwind CSS 4, Supabase, Vercel, ISR, Sharp) requires no changes. All SEO infrastructure is built into Next.js 16.2 as file conventions -- no external sitemap, robots, or schema packages are needed.
+The transport (Upstash QStash) and destination (`POST /api/v1/sync`) are decided; STACK.md scopes the SDK, env vars, verification flow, and deployment implication. Only **one new runtime dependency** is introduced — `@upstash/qstash@2.11.1` — exposing both the `Client` (publish) and `Receiver` (verify) on the same Upstash account already used for Redis/ratelimit. No new HTTP-client library: native `fetch` + `AbortSignal.timeout()` handles the worker→Xphere call. Confidence HIGH (versions verified against npm; APIs verified against official Upstash docs as of 2026-06-20).
 
-**New packages required:**
-- @vercel/analytics@2.0.1 -- first-party Vercel page-view tracking; must import from /next subpath for App Router route-change detection; Vercel dashboard toggle required before data flows
-- @vercel/speed-insights@2.0.0 -- real-user Web Vitals (LCP, CLS, INP); must import from /next subpath; same dashboard toggle requirement
-- schema-dts@2.0.0 (devDependency only) -- TypeScript types for Organization and SoftwareApplication JSON-LD schemas; zero runtime footprint, stripped at build
+**Core technologies:**
+- `@upstash/qstash@2.11.1` — durable queue publish + signed-delivery verification — the ONLY new install; single official SDK, same vendor as existing Upstash usage, HTTP-based (works in serverless and standalone container).
+- Native `fetch` (Node 24 / undici) — worker→Xphere REST call — already the project convention; `AbortSignal.timeout(10s)` gives per-request timeout with zero deps. QStash owns retries, so the call is a single attempt.
+- `zod` / `@sentry/nextjs` / `@upstash/redis` — payload validation / observability / optional idempotency ledger — all already installed, reuse only, no new install.
 
-**Built-in Next.js 16.2 capabilities (no install needed):**
-- app/sitemap.ts with MetadataRoute.Sitemap -- generates /sitemap.xml statically at build
-- app/robots.ts with MetadataRoute.Robots -- generates /robots.txt statically at build
-- app/opengraph-image.tsx with next/og ImageResponse -- generates OG image statically at build
-- Inline script tag with dangerouslySetInnerHTML in Server Component -- JSON-LD structured data
-- export const dynamic = force-static on page.tsx -- CDN-edge static generation for marketing page only
-
-**Explicitly avoided:** next-intl (English-only scope in v1.3), next-sitemap (legacy Pages Router package), next/script for JSON-LD (causes RSC hydration duplicates in React 19), Plausible/PostHog (Vercel Analytics covers the need at zero marginal cost).
-
-**Critical import rule:** Analytics and Speed Insights must use the /next subpath, not /react. Using /react breaks route-change detection in App Router and silently under-counts page views.
-
----
+**New env vars (all server-only, never `NEXT_PUBLIC_`):** `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`, `XPHERE_API_URL`, `XPHERE_API_KEY`, `XPHERE_ORG_ID` (org `e375f031-…`). Gate publishing/calls on env presence so the app degrades gracefully (skip-and-log) — the **fail-open pattern from `src/lib/rate-limit.ts`**.
 
 ### Expected Features
 
-**Must have (table stakes, shipping in v1.3):**
-- Hero: outcome-first headline under 8 words, subhead removing setup objection, primary CTA Get started free with no-credit-card microcopy, device mockup showing real menu
-- How It Works: 3-step flow with concrete time claims (10 minutes, 30 seconds), not vague claims
-- Live Demo: links to /demo provisioned tenant (real tenant, not a redirect); must exist before page ships
-- Feature blocks: 4 alternating blocks for QR code, ordering, multi-language, AI-assisted setup each mapped to customer benefit
-- Pricing: single Free during beta card; no fabricated anchor pricing; no Stripe integration referenced
-- FAQ: 8 questions as accordion; copy verified against actual product capability
-- Footer: logo, navigation, legal placeholders; legal docs are a hard launch dependency outside this milestone scope
-- Vercel Analytics and Speed Insights in root layout
-- SEO metadata: title template, description, OG and Twitter tags, metadataBase in root layout
-- sitemap.xml listing marketing URLs only (Phase 13)
-- robots.txt disallowing admin and API routes (Phase 13)
-- JSON-LD Organization + SoftwareApplication schemas validated in Google Rich Results Test (Phase 13)
-- OG image verified under 300 KB and confirmed rendering in WhatsApp on real device (Phase 13)
+FEATURES.md defines behavior (lifecycle event → CRM effect), grouped table-stakes / differentiator / anti-feature. Every sync upserts Account + Contact first (re-asserting identity from current DB), then moves the Opportunity stage — so a missed earlier event self-heals on the next one.
 
-**Defer to later:**
-- Social proof testimonials: no real quotes yet; fake testimonials are an FTC enforcement risk
-- Trust bar or logo strip: no customer logos available
-- PT/EN i18n path routing (/pt, /en): Phase 13 at earliest
-- Stripe billing integration
+**Must have (table stakes):**
+- Transport spine — `src/lib/xphere/` (client + mapping + types + queue) + QStash producer + signature-verified idempotent worker `/api/internal/xphere-sync`.
+- `tenants` migration — `xphere_account_id`, `xphere_contact_id`, `xphere_opportunity_id`, `xphere_synced_at`, `xphere_sync_error`.
+- Lifecycle syncs: onboarding (#1 → Onboarding stage), plan activated (#2 → Active/Won + MRR), past_due (#4 → At Risk), churn (#5 → Lost/Churned).
+- Idempotent upsert by `external_id = tenants.id`; async/non-blocking delivery; QStash retry with backoff.
+- One-time superadmin backfill (idempotent, re-runnable); `xphere_sync_error` surfaced in superadmin + manual single-tenant re-sync.
 
-**Anti-patterns enforced as hard constraints:**
-- No fabricated testimonials or stock-photo personas next to invented quotes
-- No fake metrics such as trusted by 10000 restaurants when real number is near zero
-- No crossed-out anchor pricing not based on a real published price
-- No auto-playing video with sound (kills mobile UX in restaurant environments)
-- No feature-first headlines such as all-in-one QR menu platform
-- No overselling ordering as default-on (it is feature-flagged per tenant via orders_enabled)
-- No claiming AI OCR is self-serve for tenants (superadmin-only in v1.2; frame as onboarding service)
+**Should have (competitive, P2):**
+- Plan upgrade/downgrade direction tags (#3); Stripe Connect connected flag (#6); MRR snapshot via `getTenantPlan()` (applies grandfathered overrides — never read raw `plans.monthly_price`); backfill dry-run/report mode; superadmin sync-health dashboard (synced/errored/never-synced counts).
 
----
+**Defer (v2+ / P3):**
+- First paid order activation signal (#7, needs first-order detection); richer/templated timeline notes.
+
+**Anti-features (DO NOT BUILD):** two-way/bidirectional sync; per-tenant CRM orgs; synchronous/inline sync in the webhook; per-order revenue lines; modifying the Xphere repo; caching CRM data back in XmartMenu; custom retry/queue implementation; per-staff-member Contacts (Contact = store-admin owner only).
 
 ### Architecture Approach
 
-Replace src/app/page.tsx (currently a bare redirect to /auth/login) with a static Server Component exporting dynamic = force-static. This gives the marketing page CDN-edge delivery with zero server latency while leaving every other route untouched. The hybrid model is exactly what per-page force-static is designed for in Next.js App Router.
+ARCHITECTURE.md wires the feature in as a producer to durable queue to consumer to external API to write-back pipeline, mirroring the repo existing src/lib/{domain}/ convention and the Stripe webhook machine-to-machine trust model. Mapping is a pure function (offline unit-testable against the documented contract); the worker route forces the nodejs runtime and reads the raw body for verification.
 
-**Files modified:**
-1. src/app/page.tsx -- replace redirect with full landing page component; add JSON-LD scripts in Phase 13
-2. src/app/layout.tsx -- add Analytics and SpeedInsights components; set metadataBase; add display: swap to Inter font config
-3. src/middleware.ts -- add reserved-path guard and marketing route bypass before updateSession
-4. src/lib/supabase/middleware.ts -- add public-path bypass at start of updateSession to skip Supabase auth for slash
-5. src/app/api/onboarding/route.ts -- add RESERVED_PATHS check before slug INSERT (defense in depth)
-
-**New files created:**
-1. src/lib/marketing/reserved-paths.ts -- exports RESERVED_PATHS Set shared by middleware and onboarding API
-2. src/app/opengraph-image.png -- static PNG Phase 12 fast path (1200x630px)
-3. src/app/sitemap.ts -- MetadataRoute.Sitemap listing marketing URLs only (Phase 13)
-4. src/app/robots.ts -- MetadataRoute.Robots disallowing admin and API routes (Phase 13)
-5. src/app/opengraph-image.tsx -- dynamic ImageResponse with branded CSS replacing static PNG (Phase 13)
-
-**Demo tenant:** The /demo path is a real provisioned DB tenant with slug equal to demo, not a route file. The existing (public)/[slug]/[menuSlug] route serves it automatically. No src/app/demo/ folder should ever be created -- that would shadow the tenant route handler.
-
-**i18n for Phase 13+:** The recommended approach is a (marketing)/[locale]/ route group scoped only to marketing pages, which avoids conflict with the existing (public)/[slug]/ dynamic route. No next-intl package needed for two-language path routing.
-
----
+**Major components:**
+1. enqueueXphereSync() (src/lib/xphere/queue.ts) — single choke-point producer; publishJSON wrapped in try/catch, returns void, NEVER throws into the caller (fail-open like rate-limit.ts).
+2. Worker /api/internal/xphere-sync — Receiver.verify(signature, rawBody), createServiceClient() loads live tenant+profile+subscription, buildXpherePayload() (pure), syncToXphere() POST, then write back xphere_*_id / xphere_synced_at / xphere_sync_error.
+3. xphere/types.ts + mapping.ts + client.ts — typed contract, pure mapping, the only network-touching file; absorbs contract drift in one place.
+4. Producer hooks (MODIFIED) — onboarding, three Stripe webhook branches, Connect callback; enqueue AFTER the DB write succeeds, never before the idempotency record, never inline.
+5. Superadmin backfill /api/superadmin/xphere/backfill — assertSuperadmin() + paginated enqueue loop reusing the exact same worker path (one code path equals one set of guarantees).
+6. tenants.xphere_* columns (migration 054_xphere_sync_columns.sql) — persisted CRM linkage + last sync status/error.
 
 ### Critical Pitfalls
 
-**Phase 12 blockers (must fix before any public traffic):**
+1. **Out-of-order / stale events** (QStash gives no ordering guarantee, at-least-once) — worker reads live state at process time (thin message {tenantId, reason}, fat read) + full upsert by external_id; a late retry re-sends current truth. Never write a status derived from an event older than xphere_synced_at.
+2. **Idempotency keyed on email/phone instead of external_id** — would merge/split tenants (chain owners share emails). Match key is the immutable external_id = tenants.id only; email/phone are attributes, never lookup keys. Persist returned CRM ids to detect drift.
+3. **QStash signature footguns** — verify against the raw body read once with req.text() (never JSON.parse then re-stringify); supply BOTH current + next signing keys (rotation-safe); match the exact public URL claim; reject unsigned with 401. Mirrors the Stripe constructEvent discipline.
+4. **Coupling to the unbuilt /api/v1/sync** — producers ENQUEUE-ONLY and return immediately; build against a typed contract stub + XPHERE_API_URL; env-presence gate + optional XPHERE_SYNC_ENABLED kill switch. A dead/absent endpoint must never 500 onboarding or the Stripe webhook.
+5. **Poison-message retry storms & backfill rate-limit storms** — distinguish transient (5xx/network/429 to 500, QStash retries) vs permanent (4xx/validation/unknown-stage/tenant-not-found to 489 + Upstash-NonRetryable-Error: true to DLQ); honor Retry-After on 429; throttle backfill via QStash flow-control/staggered delay; cap Upstash-Retries; monitor DLQ.
 
-1. Middleware Supabase call on slash kills Lighthouse -- supabase.auth.getUser fires on every matched request including the landing page, adding 50-200ms TTFB. Add a public-path bypass at the start of updateSession in src/lib/supabase/middleware.ts that returns NextResponse.next without calling Supabase when pathname equals slash. Without this fix Lighthouse mobile drops from 95 to 85-88. Verified in live codebase: no bypass exists.
-
-2. Tenant slug namespace collision -- (public)/[slug]/page.tsx captures any first-segment path. The onboarding API deduplicates only against existing DB tenants, not a reserved word list. The slugify utility in src/lib/utils.ts has no reserved word filter. Add RESERVED_PATHS Set to both src/middleware.ts (blocks public access) and src/app/api/onboarding/route.ts (rejects registration). Dual enforcement is defense in depth. Verified in live codebase: no reserved path list exists anywhere.
-
-3. CTA flow broken before landing page ships -- demo tenant must be healthy (is_active: true, default menu, categories with products and images seeded via v1.2 AI tools) before Phase 12 ships. A See live demo link that 404s destroys trust. Full registration-to-dashboard flow must be walked in production. Recovery cost if shipped with broken CTA flow is HIGH (Supabase Auth email redirect debugging typically takes 2-4 hours).
-
-4. Missing metadataBase breaks OG image URLs on social crawlers -- src/app/layout.tsx currently has no metadataBase. Without it OG image URLs are relative paths that Facebook, Twitter/X, and LinkedIn crawlers reject, producing link previews with no image. Verified in live codebase: metadataBase is absent.
-
-**Phase 13 critical items:**
-
-5. OG image exceeds WhatsApp 300 KB limit -- ImageResponse with background images generates PNG files often over 1 MB; WhatsApp silently drops images over 300 KB. Brazilian restaurateurs share links almost exclusively via WhatsApp so a broken social preview is a direct acquisition failure. Start with static JPEG/WebP under 100 KB in Phase 12. If using opengraph-image.tsx, use flat CSS colors and text only with no embedded images. Verify with curl -I and real WhatsApp device test before Phase 13 closes.
-
-6. JSON-LD in layout.tsx leaks schema onto tenant pages -- JSON-LD must be in page.tsx only via inline script dangerouslySetInnerHTML, never in the root layout, never via next/script (next/script causes RSC hydration duplication in React 19).
-
-7. sitemap.ts querying all tenants leaks tenant roster -- the marketing sitemap lists only marketing URLs; never queries the tenants table.
-
-8. Inter font missing display: swap causes FOIT and CLS penalties -- src/app/layout.tsx uses Inter with no display option. Add display: swap and preload: true. Verified in live codebase: option is missing.
-
----
+Additional flagged pitfalls: partial multi-call failure (checkpoint ids per step, re-runnable) — *confirm the contract guarantees atomic Account+Contact+Opportunity upsert*; missing pipeline-stage names (data-only config in the Xphere org, central stage constants + preflight assertion); secret leaks (gitleaks CI gate, no literal-fallback secrets, scrub keys from xphere_sync_error); PII/opt-out (filter internal/test tenants, respect a marketing-consent flag, always tag source=xmartmenu).
 
 ## Implications for Roadmap
 
-Research strongly supports a two-phase structure with a clean dependency boundary.
+All four researchers independently produced the **same dependency-respecting build order**. The roadmapper should treat this as the phase skeleton. Phases 1-5 are fully buildable and exercisable OFFLINE against the documented contract (XPHERE_* unset, client throws not-configured, error recorded, or pointed at a local stub); the live integration test is deferred until Xtimator ships /api/v1/sync and credentials land — the env-presence gate activates real calls with zero code change.
 
-### Phase 12: Core Marketing Page
+### Phase 1: Schema & Contract Foundation
+**Rationale:** Everything below reads/writes the xphere_* columns and depends on the typed contract; no dependencies of its own.
+**Delivers:** Migration 054_xphere_sync_columns.sql (xphere_account_id/contact_id/opportunity_id/synced_at/sync_error) + interface Tenant update; src/lib/xphere/types.ts (contract + SyncReason) and mapping.ts (pure, unit-tested against the documented contract); central pipeline-stage constants.
+**Addresses:** tenants migration + idempotent-upsert mapping (table stakes).
+**Avoids:** Pitfall 2 (mapper hard-codes external_id, never email/phone), Pitfall 6 (stage constants), Pitfall 5 (contract atomicity clarified here).
 
-**Rationale:** Blocking items (middleware bypass, reserved-path guard, demo tenant, CTA flow) must land together with the marketing page. Analytics belongs here because it touches the root layout. The static OG image PNG is the fast path for Phase 12.
+### Phase 2: Worker
+**Rationale:** Depends on the lib + migration; testable end-to-end against a local Xphere stub. The retry/error contract is the keystone everything else relies on.
+**Delivers:** /api/internal/xphere-sync/route.ts — nodejs runtime, raw-body Receiver.verify (both signing keys, URL claim), live service-role read, pure map, env-gated client.ts POST, write-back; transient-to-500 / permanent-to-489-DLQ classification; error capture to xphere_sync_error + Sentry.
+**Uses:** @upstash/qstash Receiver, native fetch + AbortSignal.timeout, createServiceClient().
+**Implements:** Worker + client.ts. **Avoids:** Pitfalls 1, 3, 4 (worker side), 5, 9 (429-aware), 10.
 
-**Delivers:**
-- Landing page live at xmartmenu.skale.club accessible to real visitors
-- Vercel Analytics and Speed Insights collecting data from first deploy
-- Protected tenant namespace (no slug squatting on reserved marketing words)
-- Demo tenant provisioned and accessible at /demo with real content
-- CTA flow verified end-to-end in production
-- Preliminary Lighthouse mobile score 90 or higher
+### Phase 3: Enqueue / Lifecycle Hooks
+**Rationale:** Hooks need the producer + worker to exist so enqueued jobs land somewhere. This is where the never-break-core-flows guarantee is enforced.
+**Delivers:** src/lib/xphere/queue.ts (enqueueXphereSync, fail-open, swallows errors) + wiring into onboarding (after subscription insert), the three Stripe webhook branches (after the DB write, inside the success path, after the idempotency record), and the Connect callback. Producer-side filtering of internal/test/opt-out tenants; always send source=xmartmenu.
+**Addresses:** Onboarding (#1), plan activated (#2), past_due (#4), churn (#5); Connect (#6) and upgrade/downgrade (#3) tags are cheap to include here or defer to P2.
+**Avoids:** Pitfall 7 (enqueue-only, never inline), Pitfall 11 (producer filters + source/consent).
 
-**Features addressed:** Hero, How It Works, Live Demo, Feature Blocks, Pricing, FAQ, Footer, Social Proof placeholder shell, Analytics instrumentation
+### Phase 4: Backfill
+**Rationale:** Reuses the producer + worker; populates history for existing tenants.
+**Delivers:** /api/superadmin/xphere/backfill — assertSuperadmin() + paginated, throttled enqueue loop through the SAME worker path; idempotent, re-runnable.
+**Avoids:** Pitfall 3 (one code path, upsert convergence) + Pitfall 9 (throttle/flow-control so backfill stays under the /api/v1/sync rate limit).
 
-**Files changed:** src/app/page.tsx, src/app/layout.tsx, src/middleware.ts, src/lib/supabase/middleware.ts, src/lib/marketing/reserved-paths.ts (new), src/app/api/onboarding/route.ts, src/app/opengraph-image.png (new)
+### Phase 5: Observability & Ops
+**Rationale:** Depends on data the worker writes.
+**Delivers:** Surface xphere_sync_error / xphere_synced_at in superadmin tenant detail + sync-health dashboard; manual single-tenant re-sync button (re-enqueue); DLQ monitoring; gitleaks CI gate + log scrubbing; optional XPHERE_SYNC_ENABLED kill switch.
+**Avoids:** Pitfall 8 (secret leaks), Pitfall 10/storm visibility, UX pitfalls (silent failures).
 
-**Packages installed:** @vercel/analytics@2.0.1, @vercel/speed-insights@2.0.0
-
-**Avoids:** Middleware TTFB kill, slug namespace collision, CTA flow failure, demo tenant 404
-
-**Phase 12 gate criteria (all must pass before shipping):**
-- RESERVED_PATHS list exists in both middleware and onboarding API
-- Marketing route bypass implemented; Vercel function logs show no Supabase call for slash requests
-- demo tenant is_active: true with default menu, seeded categories and products with images
-- CTA flow end-to-end in production: / > /auth/register > email confirm > /onboarding > /dashboard
-- Hero is a Server Component; use client not present in any above-the-fold component
-- Inter font configured with display: swap
-- metadataBase set in root layout
-- Lighthouse mobile 90 or higher
-
----
-
-### Phase 13: SEO and Analytics Hardening
-
-**Rationale:** SEO files and JSON-LD have no user-facing UI and no dependency on Phase 12 content being finalized. The OG image upgrade and Lighthouse 95-plus final gate belong here.
-
-**Delivers:**
-- /sitemap.xml listing marketing URLs only, not tenant roster
-- /robots.txt disallowing admin, API, and SaaS-internal routes
-- JSON-LD Organization and SoftwareApplication schemas validated in Google Rich Results Test
-- OG image under 300 KB confirmed rendering in WhatsApp on real device
-- schema-dts devDependency for type-safe JSON-LD authoring
-- PT/EN i18n route structure using (marketing)/[locale]/ route group if scope expands to Phase 13
-- Final Lighthouse mobile 95 or higher
-
-**Files changed/created:** src/app/sitemap.ts (new), src/app/robots.ts (new), src/app/opengraph-image.tsx (replaces static PNG), src/app/page.tsx (add JSON-LD scripts)
-
-**Packages installed:** schema-dts@2.0.0 (devDependency only)
-
-**Avoids:** WhatsApp OG image failure, JSON-LD leaking to tenant and auth pages, sitemap tenant data exposure, i18n route conflict with [slug]
-
-**Phase 13 gate criteria (all must pass before milestone complete):**
-- sitemap.xml contains only marketing URLs, verified by manual inspection
-- robots.txt disallows /dashboard, /settings, /tenants, /overview, /api/
-- OG image curl -I Content-Length below 300000 bytes
-- OG image confirmed rendering in WhatsApp on a real physical device, not simulator
-- JSON-LD Google Rich Results Test passes with no errors or warnings
-- JSON-LD does NOT appear in view-source of any /{tenantSlug} or /auth/* page
-- Vercel Analytics and Speed Insights active and reporting data in Vercel dashboard
-- Lighthouse mobile 95 or higher
-
----
+### Phase 6 (deferred): Live Integration Test
+**Rationale:** Only runnable once Xtimator ships /api/v1/sync and real credentials land. The env-presence gate activates real calls with no code change; run the Looks-Done-But-Isnt checklist (idempotency, out-of-order, stale retry, signature, partial failure, missing stage, backfill+live race, endpoint-down, secrets, opt-out, observability).
 
 ### Phase Ordering Rationale
-
-- Middleware guard and performance bypass are prerequisites for any public traffic and land with Phase 12
-- Demo tenant must exist and be healthy before Phase 12 ships; a broken demo link is worse than no link
-- SEO files have no user-facing impact and no dependency on page content being final; they layer safely onto Phase 13
-- OG image WhatsApp verification requires real-device testing that cannot be skipped or simulated
-- i18n route restructure requires moving page.tsx into a [lang] subdirectory which can break routing if done mid-phase; Phase 13 is the earliest safe window
-
----
+- **Dependency-forced:** migration types to lib (types to mapping to client to queue) to worker to hooks to backfill to observability. Each layer reads/writes what the layer below it created; this is the consensus order across STACK, FEATURES, and ARCHITECTURE.
+- **Decoupling-driven:** the unbuilt Xphere endpoint forces depend-on-the-interface-not-the-implementation — the pure mapping (the most bug-prone part) is testable offline, so Phases 1-5 proceed in parallel with the Xtimator effort.
+- **Risk-front-loaded:** the idempotency key (P1), the signature + retry contract (P2), and enqueue-only producers (P3) — the three things that, if wrong, cause cross-tenant corruption, an open CRM-write endpoint, or broken onboarding — are built earliest.
 
 ### Research Flags
 
-**Needs deeper research during planning:**
-- Phase 13 i18n route structure: if PT/EN path routing is confirmed for Phase 13, verify (marketing)/[locale]/ interaction with (public)/[slug]/ against live routing resolution order before writing any code
-- Phase 13 OG image WhatsApp testing: manual QA step on real device with production URL required as gate criterion; not addressable in CI or with simulators
+Phases likely needing deeper research / contract confirmation during planning:
+- **Phase 1-2:** The exact /api/v1/sync request/response contract must be pinned before mapping/worker are finalized — specifically whether one call upserts Account+Contact+Opportunity atomically (Pitfall 5 determines whether multi-call checkpointing is needed) and the exact Idempotency-Key header name.
+- **Phase 3:** Whether a tenant marketing-consent / opt-out field exists in the schema (Pitfall 11). If absent, flag to product before syncing PII. Also: the internal/test-tenant filter flag — how to identify and exclude demo/internal tenants at the producer.
+- **Phase 2 / deployment:** Confirm the live deploy target (Vercel vs Coolify standalone container at xmartmenu.skale.club) — the repo state (Dockerfile, docker-compose for Coolify GHCR, CI commits) contradicts the documented Vercel. This decides the public callback URL and that no auth wall sits in front of the worker (security equals signature verification, not network restriction).
 
-**Standard patterns (skip research-phase):**
-- Phase 12 Analytics integration: exact code in official Vercel docs with verified import paths and component placement
-- Phase 12 Reserved path guard: pattern derived from live codebase inspection and Next.js middleware docs; a Set lookup plus early return
-- Phase 12 Landing page sections: HIGH confidence from competitor SaaS page research; section order, CTA patterns, and copy anti-patterns well-documented
-- Phase 13 sitemap.ts and robots.ts: native Next.js file conventions with exact code in official 16.2.5 docs
-- Phase 13 JSON-LD: official Next.js guide has exact code pattern including XSS sanitization requirement
-
----
+Phases with standard, well-documented patterns (lighter research):
+- **Phase 4 Backfill** — standard idempotent fan-out reusing the worker path.
+- **Phase 5 Observability** — reuses existing superadmin patterns + captureSecurityEvent + gitleaks.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All package versions verified via npm view on 2026-05-07. Native Next.js capabilities confirmed in official 16.2.5 docs. No version conflicts with existing dependencies. |
-| Features | HIGH on structure; MEDIUM on conversion numbers | Section order and anti-patterns verified against multiple SaaS landing page analyses and competitor implementations. Specific lift percentages are directional only. |
-| Architecture | HIGH | File conventions verified in official Next.js 16.2.5 docs. Middleware patterns verified against live codebase inspection. Import paths verified from official Vercel docs. |
-| Pitfalls | HIGH | Six of eight pitfalls verified against live codebase: getUser call confirmed, no reserved path list confirmed, no metadataBase confirmed, Inter display option missing confirmed. WhatsApp 300 KB OG limit confirmed via GitHub Discussion 60366. |
+| Stack | HIGH | Versions verified from npm registry; QStash Client/Receiver/retry/dedup APIs verified against official Upstash docs (2026-06-20). One new dep, no native build step. |
+| Features | HIGH | Lifecycle/stage mapping equals standard HubSpot/Salesforce pattern + verified against the existing Stripe webhook branches in-repo; mapping already decided. Observability UI surface MEDIUM-HIGH (depends on existing admin patterns). |
+| Architecture | HIGH | Codebase verified directly; pipeline shape mirrors proven repo conventions (src/lib/{domain}/, Stripe webhook trust model, rate-limit.ts fail-open, Realtime re-fetch-on-event). |
+| Pitfalls | HIGH | Each pitfall mapped to the existing Stripe webhook discipline + official QStash retry/signature docs; phase mapping + verification checklist provided. |
 
-**Overall confidence: HIGH**
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- Data export FAQ answer: verify whether a tenant data export mechanism exists before finalizing FAQ question 6 copy. If no export exists, the answer must not imply one. Check src/app/api/ and admin panel for export endpoints.
-- Ordering feature-flag default state: confirm the default value of orders_enabled for a newly registered tenant before finalizing FAQ question 5 and Feature Block 2 copy.
-- Legal documents: Privacy Policy and Terms of Service are a hard launch blocker for the footer. Out of scope for v1.3 engineering but must be coordinated with the product owner before the page is publicly promoted.
-- OG image design asset: the Phase 12 static PNG fast path requires a 1200x630px image file. If no design asset exists at planning time, a placeholder must be created before Phase 12 build begins.
-- Marketing layout isolation: confirm at the start of Phase 12 whether to create a (marketing)/layout.tsx route group to prevent SaaS admin CSS from inflating the landing page Tailwind bundle.
-
----
+- **Exact /api/v1/sync contract** (request/response shape, atomicity, idempotency-key header name): code against the documented contract via a typed stub + XPHERE_API_URL; pin a contract version; treat a shape mismatch as a recordable xphere_sync_error, not a crash. Resolve before finalizing Phases 1-2.
+- **Live deployment target (Vercel vs Coolify container):** confirm before building so the public callback URL and the no-blocking-auth-in-front-of-the-worker requirement are correct. SDK code is identical either way.
+- **Marketing-consent / opt-out field:** confirm whether the column exists. If yes, include it in mapping + suppress PII for opted-out tenants; if no, flag to product before syncing PII (GDPR/LGPD).
+- **Internal/test-tenant filter flag:** define how internal/demo/test tenants are identified so the producer can exclude them from the CRM.
+- **No test runner yet:** the repo has no test harness. The pure mapping.ts is the highest-value unit-test target and the Looks-Done-But-Isnt checklist needs a home — decide the test approach (add a runner, or scripted verification) during planning.
 
 ## Sources
 
-### Primary (HIGH confidence -- official docs, verified 2026-05-07)
+### Primary (HIGH confidence)
+- npm registry @upstash/qstash — latest 2.11.1 (2026-06-16); transitive jose@5, crypto-js, neverthrow@7.
+- Upstash QStash docs — signature verification (Receiver / verifySignatureAppRouter, raw-body, current+next keys, URL claim), retries (exponential backoff to 24h, Upstash-Retries, Retry-After, 489 + Upstash-NonRetryable-Error), deduplication (10-min window), callbacks/DLQ.
+- @upstash/qstash SDK README — Client.publishJSON, Receiver.verify.
+- XmartMenu codebase (verified directly): src/app/api/stripe/webhooks/route.ts, src/app/api/onboarding/route.ts, src/app/api/stripe/connect/callback/route.ts, src/lib/rate-limit.ts, src/lib/supabase/server.ts, src/lib/observability.ts, src/lib/superadmin-auth.ts, src/lib/tenant-plan.ts, src/types/database.ts, supabase/migrations/*, package.json.
+- .planning/PROJECT.md (v2.4 milestone scope + locked decisions) and .planning/codebase/CONCERNS.md (hardcoded-fallback secret pattern, CI gaps).
+- Repo deployment evidence (Dockerfile, docker-compose.yaml Coolify/GHCR, recent CI commits) vs documented Vercel — discrepancy flagged.
 
-- Next.js 16.2.5 sitemap file convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/sitemap
-- Next.js 16.2.5 robots file convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/robots
-- Next.js 16.2.5 opengraph-image convention: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image
-- Next.js 16.2.5 JSON-LD guide: https://nextjs.org/docs/app/guides/json-ld
-- Next.js 16.2.5 internationalization guide: https://nextjs.org/docs/app/guides/internationalization
-- Vercel Web Analytics quickstart: https://vercel.com/docs/analytics/quickstart (updated 2026-03-11)
-- Vercel Speed Insights quickstart: https://vercel.com/docs/speed-insights/quickstart (updated 2026-03-11)
-- npm registry: @vercel/analytics@2.0.1, @vercel/speed-insights@2.0.0, schema-dts@2.0.0 verified via npm view 2026-05-07
-- Live codebase inspection: src/middleware.ts, src/lib/supabase/middleware.ts, src/app/(public)/[slug]/page.tsx, src/app/api/onboarding/route.ts, src/lib/utils.ts, src/app/layout.tsx
-
-### Secondary (MEDIUM confidence -- cross-referenced with primary sources)
-
-- unbounce.com State of SaaS Landing Pages: section order, hero copy formula, CTA patterns
-- choiceqr.com: reference implementation, restaurant QR SaaS landing page structure
-- menutiger.com: reference implementation, restaurant QR SaaS competitor landing page
-- klientboost 51 SaaS Landing Pages: social proof lift statistics, CTA label frequency analysis
-- vercel/next.js discussion 60366: ImageResponse PNG too heavy for WhatsApp 300 KB limit confirmed
-- vercel/next.js discussion 80088: JSON-LD hydration duplication with next/script in App Router confirmed
-- supabase/discussions 20905: getUser in middleware causes latency
-- SaaS Hero B2B SaaS CTA Best Practices: CTA strategy, SMB vs enterprise patterns
-
-### Tertiary (LOW confidence -- directional only)
-
-- WebSearch aggregated findings on FTC fake testimonial enforcement 2025
-- WebSearch aggregated findings on WhatsApp OG image pitfalls with Next.js
-- WebSearch aggregated findings on free-during-beta pricing conversion rates
+### Secondary (MEDIUM confidence)
+- Salesforce Data 360 integration patterns — upsert by ExternalId, self-healing replays, webhook-live + scheduled-backfill.
+- HubSpot lifecycle-stage sync — event-driven stage model (Onboarding/Active/At-Risk/Churned).
+- Idempotent pipeline / backfilling literature (ml4devs, dataskew.io 2026) — re-runnable MERGE/UPSERT by business key, DLQ patterns.
+- SaaS CRM onboarding playbooks (digitalapplied.com, ustechautomations.com 2026) — event-driven over calendar-driven consensus.
 
 ---
-*Research completed: 2026-05-07*
-*Milestone: v1.3 Landing Page -- xmartmenu.skale.club*
+*Research completed: 2026-06-20*
 *Ready for roadmap: yes*
