@@ -21,12 +21,12 @@
 
 ### Lifecycle Sync (LIF)
 
-- [ ] **LIF-01**: When a tenant finishes onboarding, the CRM has an Account + Contact (store-admin owner) + Opportunity in the `Onboarding` stage, enqueued after the subscription insert without blocking the onboarding response. *(event #1)*
+- [x] **LIF-01**: When a tenant finishes onboarding, the CRM has an Account + Contact (store-admin owner) + Opportunity in the `Onboarding` stage, enqueued after the subscription insert without blocking the onboarding response. *(event #1)*
 - [ ] **LIF-02**: When a paid plan is activated (`checkout.session.completed`, `kind=plan`), the Opportunity moves to `Active`/`Won` with MRR resolved via `getTenantPlan()` (honoring `override_*`/grandfathering). *(event #2)*
 - [ ] **LIF-03**: When a plan changes (`customer.subscription.updated`, plan differs), the Opportunity MRR is updated and an `upgrade` or `downgrade` direction tag is applied. *(event #3)*
 - [ ] **LIF-04**: When payment goes past_due (`invoice.payment_failed` / status `past_due`), the Opportunity moves to `At Risk` and the status tag updates (`status:past_due`, drop `status:active`). *(event #4)*
 - [ ] **LIF-05**: When a subscription is cancelled/churned (`customer.subscription.deleted` / status `canceled`), the Opportunity moves to `Lost`/`Churned` and the status tag updates. *(event #5)*
-- [ ] **LIF-06**: When a payments-tier tenant connects or disables Stripe Connect (OAuth callback + `account.updated`), the CRM record reflects `connect:active` / `connect:disabled` with `charges_enabled`. *(event #6)*
+- [x] **LIF-06**: When a payments-tier tenant connects or disables Stripe Connect (OAuth callback + `account.updated`), the CRM record reflects `connect:active` / `connect:disabled` with `charges_enabled`. *(event #6)*
 - [ ] **LIF-07**: Each lifecycle transition appends a human-readable timeline note to the CRM contact, deduplicated by the originating event id (Stripe `event.id` or `onboarding:<tenant_id>`), so QStash redelivery and Stripe retries never double-post.
 
 ### Backfill (BKF)
@@ -82,12 +82,12 @@ Every v2.4 requirement maps to exactly one phase. 100% coverage (16/16).
 | FND-05 | Phase 51 — Worker + Client | Complete |
 | FND-06 | Phase 51 — Worker + Client | Complete |
 | FND-03 | Phase 52 — Producer Hooks | Complete |
-| LIF-01 | Phase 52 — Producer Hooks | Pending |
+| LIF-01 | Phase 52 — Producer Hooks | Complete |
 | LIF-02 | Phase 52 — Producer Hooks | Pending |
 | LIF-03 | Phase 52 — Producer Hooks | Pending |
 | LIF-04 | Phase 52 — Producer Hooks | Pending |
 | LIF-05 | Phase 52 — Producer Hooks | Pending |
-| LIF-06 | Phase 52 — Producer Hooks | Pending |
+| LIF-06 | Phase 52 — Producer Hooks | Complete |
 | LIF-07 | Phase 52 — Producer Hooks | Pending |
 | BKF-01 | Phase 53 — Backfill | Pending |
 | OBS-01 | Phase 54 — Observability & Ops | Pending |

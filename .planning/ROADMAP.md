@@ -551,7 +551,7 @@ Plans:
 Plans:
 
 - [x] 52-01-PLAN.md — Fail-open QStash producer `enqueueXphereSync` (FND-03)
-- [ ] 52-02-PLAN.md — Onboarding `onboarded`/resume + Connect callback `connect_changed` producers (LIF-01, LIF-06)
+- [x] 52-02-PLAN.md — Onboarding `onboarded`/resume + Connect callback `connect_changed` producers (LIF-01, LIF-06)
 - [ ] 52-03-PLAN.md — Stripe webhook producers: plan_activated/plan_changed(+upgrade/downgrade)/past_due/churned/connect_changed, event.id note dedup (LIF-02..07)
 - [ ] 52-04-PLAN.md — Offline fail-open + message-shape gate `xphere:check:queue` (FND-03)
 
@@ -636,7 +636,7 @@ Plans:
 | 49. DB Seeds — Color & Branding Defaults | 0/? | Paused | - |
 | 50. Schema & Contract | 3/3 | Complete    | 2026-06-21 |
 | 51. Worker + Client | 3/3 | Complete    | 2026-06-21 |
-| 52. Producer Hooks | 1/4 | In Progress|  |
+| 52. Producer Hooks | 2/4 | In Progress|  |
 | 53. Backfill | 0/? | Not started | - |
 | 54. Observability & Ops | 0/? | Not started | - |
 | 55. Live Conformance Test (DEFERRED) | 0/? | Blocked (external) | - |

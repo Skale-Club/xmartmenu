@@ -2,15 +2,17 @@
 gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: CRM & Integrations
-status: verifying
-stopped_at: Completed 52-01-PLAN.md
-last_updated: "2026-06-21T09:39:50.908Z"
+current_plan: 3
+status: executing
+stopped_at: Completed 52-02-PLAN.md
+last_updated: "2026-06-21T09:44:04.713Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 20
   completed_phases: 11
   total_plans: 29
-  completed_plans: 25
+  completed_plans: 26
+  percent: 86
 ---
 
 # Project State
@@ -25,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 ## Current Position
 
 Phase: 52
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 4
-Status: In progress (52-01 done)
+Status: Ready to execute
 Last activity: 2026-06-21
 
 Progress: [█████████░] 86% (Phase 52: 1/4 plans)
@@ -81,6 +83,7 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [Phase 51]: QStash signature verified against a pinned XPHERE_WORKER_URL/NEXT_PUBLIC_APP_URL constant (not req.url) so Coolify proxy host rewrite cannot break prod verification
 - [Phase 51]: Worker retry classification (transient->500, permanent->489+Upstash-NonRetryable-Error, disabled/gone/success->200) is a pure classifyWorkerOutcome() shared by route + offline gate
 - [Phase 52]: Xphere QStash producer is a single fail-open choke point (enqueueXphereSync) so every call site is non-blocking by construction
+- [Phase 52]: Resume onboarding paths (already_configured + resume-finish) enqueue reason 'manual' — the only reason that emits no note — so the onboarded timeline note is never double-posted; new-tenant path uses 'onboarded' with no eventId so the worker dedups on onboarding:<tenant.id>.
 
 ### Pending Todos
 
@@ -98,11 +101,12 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 | Phase | Plan | Duration | Tasks | Files |
 |---|---|---|---|---|
 | 52 | 01 | 2min | 1 | 1 |
+| Phase 52 P02 | 5min | 2 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-06-21T09:39:50.904Z
-Stopped at: Completed 52-01-PLAN.md
+Last session: 2026-06-21T09:43:55.285Z
+Stopped at: Completed 52-02-PLAN.md
 
 ---
 
