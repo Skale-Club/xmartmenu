@@ -1,17 +1,16 @@
 ---
 gsd_state_version: 1.0
 milestone: v2.4
-milestone_name: CRM & Integrations (Xphere CRM Sync)
-status: roadmap complete — ready to plan Phase 50
-stopped_at: Roadmap created (Phases 50-55)
-last_updated: "2026-06-21T00:00:00.000Z"
-last_activity: 2026-06-21 -- v2.4 roadmap created (Phases 50-55)
+milestone_name: CRM & Integrations
+status: executing
+stopped_at: Completed 50-01-PLAN.md
+last_updated: "2026-06-21T08:41:54.831Z"
+last_activity: 2026-06-21
 progress:
-  total_phases: 6
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 20
+  completed_phases: 9
+  total_plans: 22
+  completed_plans: 19
 ---
 
 # Project State
@@ -21,14 +20,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v2.4 CRM & Integrations — Xphere CRM Sync (mirror every tenant into the dedicated Xphere CRM org as Account + Contact + Opportunity, tracking the full subscription lifecycle).
+**Current focus:** Phase 50 — Schema & Contract
 
 ## Current Position
 
-Phase: 50 — Schema & Contract (ready to plan)
-Plan: —
-Status: Roadmap complete — run `/gsd-plan-phase 50` to begin
-Last activity: 2026-06-21 -- v2.4 roadmap created (Phases 50-55)
+Phase: 50 (Schema & Contract) — EXECUTING
+Plan: 2 of 3
+Status: Ready to execute
+Last activity: 2026-06-21
 
 Progress: [░░░░░░░░░░] 0/6 phases
 
@@ -72,6 +71,7 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [v2.4 Roadmap]: Stage model Onboarding → Active/Won → At Risk (re-openable on past_due) → Churned/Lost; stage names live as `XPHERE_STAGES` constant in `types.ts`.
 - [v2.4 Roadmap]: Single new runtime dep `@upstash/qstash@2.11.1`; reuse existing `zod`, `@sentry/nextjs`, `@upstash/redis`, native `fetch`. No axios/ky/BullMQ/Inngest.
 - [v2.4 Roadmap]: Deployment target is Docker/Coolify (`xmartmenu.skale.club`), NOT Vercel — public worker URL must resolve over HTTPS with no auth wall (security = signature, not network).
+- [Phase 50]: Migration 054 adds five nullable xphere_* sync-state columns to tenants (FND-01); created but not yet applied to the live DB — schema + types only this plan.
 
 ### Pending Todos
 
@@ -86,8 +86,8 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 
 ## Session Continuity
 
-Last session: 2026-06-21
-Stopped at: v2.4 roadmap created (Phases 50-55) — ready to plan Phase 50
+Last session: 2026-06-21T08:41:37.275Z
+Stopped at: Completed 50-01-PLAN.md
 
 ---
 

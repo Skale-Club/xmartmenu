@@ -12,7 +12,7 @@
 
 ### Foundation — Schema & Transport (FND)
 
-- [ ] **FND-01**: The `tenants` table has columns `xphere_account_id`, `xphere_contact_id`, `xphere_opportunity_id` (text, nullable), `xphere_synced_at` (timestamptz), and `xphere_sync_error` (text) recording per-tenant CRM sync state (`external_id = tenants.id`).
+- [x] **FND-01**: The `tenants` table has columns `xphere_account_id`, `xphere_contact_id`, `xphere_opportunity_id` (text, nullable), `xphere_synced_at` (timestamptz), and `xphere_sync_error` (text) recording per-tenant CRM sync state (`external_id = tenants.id`).
 - [ ] **FND-02**: `src/lib/xphere/` exposes (a) shared `types.ts` matching the documented `/api/v1/sync` contract, (b) a pure `mapping.ts` that turns a tenant + store-admin profile + subscription + reason into a request payload (`source='xmartmenu'`), and (c) a `client.ts` that POSTs to the Xphere endpoint with the API key and org id — the mapping is unit-testable offline with no network.
 - [ ] **FND-03**: A QStash producer (`src/lib/xphere/queue.ts`) enqueues a thin `{ tenantId, reason }` message and is fail-open and non-blocking — when QStash/Xphere env is unset or the CRM is down, producing is a silent no-op that never blocks onboarding or a Stripe webhook response.
 - [ ] **FND-04**: The worker route `POST /api/internal/xphere-sync` verifies the QStash signature against the raw request body (current + next signing keys), and only then re-reads live tenant + profile + subscription via the service-role client and calls Xphere.
@@ -76,7 +76,7 @@ Every v2.4 requirement maps to exactly one phase. 100% coverage (16/16).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FND-01 | Phase 50 — Schema & Contract | Pending |
+| FND-01 | Phase 50 — Schema & Contract | Complete |
 | FND-02 | Phase 50 — Schema & Contract | Pending |
 | FND-04 | Phase 51 — Worker + Client | Pending |
 | FND-05 | Phase 51 — Worker + Client | Pending |
