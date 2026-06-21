@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: CRM & Integrations
 status: verifying
-stopped_at: Completed 50-03-PLAN.md
-last_updated: "2026-06-21T08:57:59.157Z"
+stopped_at: Completed 51-01-PLAN.md
+last_updated: "2026-06-21T09:13:38.712Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 20
   completed_phases: 10
-  total_plans: 22
-  completed_plans: 21
+  total_plans: 25
+  completed_plans: 22
 ---
 
 # Project State
@@ -20,16 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** Phase 50 — Schema & Contract
+**Current focus:** Phase 51 — Worker + Client
 
 ## Current Position
 
 Phase: 51
-Plan: Not started
-Status: Phase complete — ready for verification
+Plan: 51-01 complete (2 of 3 plans remaining: 51-02, 51-03)
+Status: In progress
 Last activity: 2026-06-21
 
-Progress: [░░░░░░░░░░] 0/6 phases
+Progress: [██░░░░░░░░] 1/6 phases (Phase 51: 1/3 plans)
 
 ## Milestone Overview
 
@@ -38,7 +38,7 @@ Progress: [░░░░░░░░░░] 0/6 phases
 | Phase | Name | Requirements | Status |
 |---|---|---|---|
 | 50 | Schema & Contract | FND-01, FND-02 | Ready to plan |
-| 51 | Worker + Client | FND-04, FND-05, FND-06 | Not started |
+| 51 | Worker + Client | FND-04, FND-05, FND-06 | In progress (51-01 done) |
 | 52 | Producer Hooks | FND-03, LIF-01..07 | Not started |
 | 53 | Backfill | BKF-01 | Not started |
 | 54 | Observability & Ops | OBS-01, OBS-02 | Not started |
@@ -75,6 +75,7 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [Phase 50]: FND-02: /api/v1/sync contract + SyncReason + XPHERE_STAGES isolated in src/lib/xphere/types.ts (single file to change when Xtimator finalizes shape); buildSyncPayload mapper is pure (no getTenantPlan/IO), consumes resolved EffectivePlan, keyed external_id=tenants.id, MRR via normalizeMrr.
 - [Phase 50]: Pure mapper tested via scripts/test-xphere-mapping.ts tsx assertion harness (npm run test:xphere) — no vitest added, matches existing scripts/*.ts convention.
 - [Phase 50]: Consolidated the offline Xphere mapper gate into one canonical scripts/xphere-mapping-check.ts + npm run xphere:check (node:assert/strict, non-zero exit on failure); removed the duplicate test-xphere-mapping.ts/test:xphere from plan 50-02.
+- [Phase 51]: [Phase 51-01]: postXphereSync is the single Xphere network seam — env-gated dark no-op { disabled: true } sentinel, single fetch + 10s AbortSignal timeout, throws XphereTransientError (5xx/429/network/timeout) vs XpherePermanentError (4xx) for QStash retry-vs-DLQ. Single new runtime dep @upstash/qstash@2.11.1.
 
 ### Pending Todos
 
@@ -89,8 +90,8 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 
 ## Session Continuity
 
-Last session: 2026-06-21T08:53:21.803Z
-Stopped at: Completed 50-03-PLAN.md
+Last session: 2026-06-21T09:13:27.133Z
+Stopped at: Completed 51-01-PLAN.md
 
 ---
 

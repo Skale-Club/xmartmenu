@@ -17,7 +17,7 @@
 - [ ] **FND-03**: A QStash producer (`src/lib/xphere/queue.ts`) enqueues a thin `{ tenantId, reason }` message and is fail-open and non-blocking — when QStash/Xphere env is unset or the CRM is down, producing is a silent no-op that never blocks onboarding or a Stripe webhook response.
 - [ ] **FND-04**: The worker route `POST /api/internal/xphere-sync` verifies the QStash signature against the raw request body (current + next signing keys), and only then re-reads live tenant + profile + subscription via the service-role client and calls Xphere.
 - [ ] **FND-05**: The worker writes back `xphere_account_id`/`xphere_contact_id`/`xphere_opportunity_id` + `xphere_synced_at` on success and `xphere_sync_error` on failure (clearing it on the next success).
-- [ ] **FND-06**: The sync is idempotent — re-delivery and retries upsert by `external_id = tenants.id` and never create duplicate Accounts/Contacts/Opportunities. Transient failures (5xx/429/network) return non-2xx so QStash retries; permanent failures (unknown pipeline stage, missing tenant) are routed to the DLQ (`489` + non-retryable) rather than retried forever.
+- [x] **FND-06**: The sync is idempotent — re-delivery and retries upsert by `external_id = tenants.id` and never create duplicate Accounts/Contacts/Opportunities. Transient failures (5xx/429/network) return non-2xx so QStash retries; permanent failures (unknown pipeline stage, missing tenant) are routed to the DLQ (`489` + non-retryable) rather than retried forever.
 
 ### Lifecycle Sync (LIF)
 
@@ -80,7 +80,7 @@ Every v2.4 requirement maps to exactly one phase. 100% coverage (16/16).
 | FND-02 | Phase 50 — Schema & Contract | Complete |
 | FND-04 | Phase 51 — Worker + Client | Pending |
 | FND-05 | Phase 51 — Worker + Client | Pending |
-| FND-06 | Phase 51 — Worker + Client | Pending |
+| FND-06 | Phase 51 — Worker + Client | Complete |
 | FND-03 | Phase 52 — Producer Hooks | Pending |
 | LIF-01 | Phase 52 — Producer Hooks | Pending |
 | LIF-02 | Phase 52 — Producer Hooks | Pending |
