@@ -35,7 +35,7 @@
 
 ### Observability & Ops (OBS)
 
-- [ ] **OBS-01**: The superadmin tenant detail surfaces the tenant's sync state (`xphere_synced_at`, `xphere_sync_error`) and provides a one-click manual re-sync that re-enqueues a full-sync for that tenant.
+- [x] **OBS-01**: The superadmin tenant detail surfaces the tenant's sync state (`xphere_synced_at`, `xphere_sync_error`) and provides a one-click manual re-sync that re-enqueues a full-sync for that tenant.
 - [ ] **OBS-02**: Secrets (`XPHERE_API_KEY`, `QSTASH_TOKEN`, signing keys) are read only from server env — never `NEXT_PUBLIC`, never committed (gitleaks-safe) — and producing can be disabled via an env kill switch with no code change.
 
 ---
@@ -90,7 +90,7 @@ Every v2.4 requirement maps to exactly one phase. 100% coverage (16/16).
 | LIF-06 | Phase 52 — Producer Hooks | Complete |
 | LIF-07 | Phase 52 — Producer Hooks | Complete |
 | BKF-01 | Phase 53 — Backfill | Complete |
-| OBS-01 | Phase 54 — Observability & Ops | Pending |
+| OBS-01 | Phase 54 — Observability & Ops | Complete |
 | OBS-02 | Phase 54 — Observability & Ops | Pending |
 
 **Phase 55 (Live Conformance Test)** carries no new requirement — it verifies FND/LIF/BKF/OBS against the real Xtimator-owned `/api/v1/sync` endpoint and is BLOCKED on that external dependency.
