@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { slugify } from '@/lib/utils'
 import { normalizeRole } from '@/lib/auth/role-utils'
 import { RESERVED_PATHS } from '@/lib/marketing/reserved-paths'
+import { enqueueXphereSync } from '@/lib/xphere/queue'
 
 const CUISINE_PALETTES: Record<string, { primary: string; accent: string }> = {
   pizza:        { primary: '#E74C3C', accent: '#FFFFFF' },
@@ -86,6 +87,11 @@ export async function POST(request: Request) {
       }, { status: 403 })
     }
 
+    // Track whether this request resumed a pre-existing tenant. A resume that
+    // finishes menu creation must re-assert CRM state with a no-note full-sync
+    // (reason 'manual') instead of re-firing the 'onboarded' note.
+    const wasResume = Boolean(currentProfile?.tenant_id)
+
     let tenant: { id: string; slug: string }
 
     if (currentProfile?.tenant_id) {
@@ -98,6 +104,10 @@ export async function POST(request: Request) {
         .maybeSingle()
 
       if (existingMenu) {
+        // Resume path: tenant already fully configured. Re-assert CRM state with a
+        // full-sync (reason 'manual' emits NO onboarded note — no double-post).
+        // Enqueue-only + fail-open — never blocks or throws into the response.
+        await enqueueXphereSync(currentProfile.tenant_id, 'manual')
         return NextResponse.json({
           already_configured: true,
           tenant_slug: (currentProfile.tenants as any)?.slug ?? null,
@@ -196,6 +206,12 @@ export async function POST(request: Request) {
         console.error('onboarding.create_subscription_error', subscriptionError)
         return NextResponse.json({ error: 'Failed to create subscription' }, { status: 500 })
       }
+
+      // Event #1 (LIF-01): mirror the freshly-onboarded tenant into the CRM as
+      // Account + Contact + Opportunity (Onboarding stage). Enqueue-only +
+      // fail-open — never blocks or throws into the onboarding response. No
+      // eventId → the worker dedups the onboarded note on `onboarding:<tenant.id>`.
+      await enqueueXphereSync(tenant.id, 'onboarded')
     }
 
     // 4. Create default menu
@@ -306,6 +322,11 @@ export async function POST(request: Request) {
       console.error('onboarding.create_product_error', productError)
       return NextResponse.json({ error: 'Failed to create first product' }, { status: 500 })
     }
+
+    // A resume that finished menu creation here did not hit the new-tenant
+    // 'onboarded' enqueue above — re-assert CRM state with a no-note full-sync
+    // (reason 'manual'). Enqueue-only + fail-open; never blocks the response.
+    if (wasResume) await enqueueXphereSync(tenant.id, 'manual')
 
     return NextResponse.json({ tenant_slug: tenant.slug, menu_slug: menu.slug })
   } catch (error) {
