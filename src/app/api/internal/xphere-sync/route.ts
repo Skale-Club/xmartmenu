@@ -39,14 +39,15 @@ import { getTenantPlan } from '@/lib/tenant-plan'
 import { buildSyncPayload } from '@/lib/xphere/mapping'
 import { postXphereSync } from '@/lib/xphere/client'
 import { XpherePermanentError } from '@/lib/xphere/errors'
+import {
+  classifyWorkerOutcome,
+  nonRetryableHeaders,
+} from '@/lib/xphere/classify'
 import { captureSecurityEvent } from '@/lib/observability'
 
 // The QStash Receiver needs Node crypto; the route needs the service-role key and
 // a real fetch budget for the outbound Xphere call. Never Edge.
 export const runtime = 'nodejs'
-
-// Reusable header for the non-retryable (DLQ) responses.
-const NON_RETRYABLE = { 'Upstash-NonRetryable-Error': 'true' } as const
 
 /**
  * Thin queue message. The `reason` enum MUST match the SyncReason union in
@@ -104,16 +105,18 @@ export async function POST(req: NextRequest) {
   try {
     parsedJson = JSON.parse(rawBody)
   } catch {
+    const v = classifyWorkerOutcome({ kind: 'bad_payload' })
     return NextResponse.json(
       { error: 'bad payload' },
-      { status: 489, headers: NON_RETRYABLE },
+      { status: v.status, headers: nonRetryableHeaders(v) },
     )
   }
   const parsed = bodySchema.safeParse(parsedJson)
   if (!parsed.success) {
+    const v = classifyWorkerOutcome({ kind: 'bad_payload' })
     return NextResponse.json(
       { error: 'bad payload' },
-      { status: 489, headers: NON_RETRYABLE },
+      { status: v.status, headers: nonRetryableHeaders(v) },
     )
   }
   const { tenantId, reason, eventId, tags } = parsed.data
@@ -131,7 +134,11 @@ export async function POST(req: NextRequest) {
 
     if (!tenant) {
       // A genuinely deleted tenant is not a transient failure — no retry.
-      return NextResponse.json({ skipped: 'tenant not found' }, { status: 200 })
+      const v = classifyWorkerOutcome({ kind: 'tenant_gone' })
+      return NextResponse.json(
+        { skipped: 'tenant not found' },
+        { status: v.status, headers: nonRetryableHeaders(v) },
+      )
     }
 
     // Store-admin owner profile (the CRM Contact). null is tolerated by the mapper.
@@ -155,9 +162,15 @@ export async function POST(req: NextRequest) {
     // subscription means there is no deal to sync — permanent, send to DLQ.
     const plan = await getTenantPlan(tenantId, supabase)
     if (!plan) {
+      // No subscription = no deal to sync. Reuse the permanent 489 path so the
+      // classification table stays the single source of truth.
+      const v = classifyWorkerOutcome({
+        kind: 'error',
+        error: new XpherePermanentError('no subscription'),
+      })
       return NextResponse.json(
         { error: 'no subscription' },
-        { status: 489, headers: NON_RETRYABLE },
+        { status: v.status, headers: nonRetryableHeaders(v) },
       )
     }
 
@@ -185,7 +198,11 @@ export async function POST(req: NextRequest) {
 
     // Env gate closed — the feature ships dark. Treat as a permanent no-op.
     if (result.disabled) {
-      return NextResponse.json({ skipped: 'xphere disabled' }, { status: 200 })
+      const v = classifyWorkerOutcome({ kind: 'disabled' })
+      return NextResponse.json(
+        { skipped: 'xphere disabled' },
+        { status: v.status, headers: nonRetryableHeaders(v) },
+      )
     }
 
     // Success: persist the CRM ids + the sync watermark and clear any prior error
@@ -201,7 +218,11 @@ export async function POST(req: NextRequest) {
       })
       .eq('id', tenantId)
 
-    return NextResponse.json({ ok: true }, { status: 200 })
+    const v = classifyWorkerOutcome({ kind: 'success' })
+    return NextResponse.json(
+      { ok: true },
+      { status: v.status, headers: nonRetryableHeaders(v) },
+    )
   } catch (err) {
     // Scrub before persisting — NEVER store headers / API key / signed JWT in
     // xphere_sync_error. Only the error name + message, truncated.
@@ -221,15 +242,13 @@ export async function POST(req: NextRequest) {
       // ignore — the classification below still drives the queue correctly.
     }
 
-    // Classify for QStash (FND-06): permanent → 489 + non-retryable (DLQ);
-    // transient or any unexpected throw → 500 (QStash retries with backoff).
-    if (err instanceof XpherePermanentError) {
-      return NextResponse.json(
-        { error: msg },
-        { status: 489, headers: NON_RETRYABLE },
-      )
-    }
-    // XphereTransientError and everything else fall through to a retryable 500.
-    return NextResponse.json({ error: msg }, { status: 500 })
+    // Classify for QStash (FND-06) through the shared table: permanent → 489 +
+    // non-retryable (DLQ); transient or any unexpected throw → 500 (QStash
+    // retries with backoff). Single source of truth shared with the offline gate.
+    const v = classifyWorkerOutcome({ kind: 'error', error: err })
+    return NextResponse.json(
+      { error: msg },
+      { status: v.status, headers: nonRetryableHeaders(v) },
+    )
   }
 }
