@@ -11,7 +11,8 @@
     "seed": "npx tsx scripts/seed.ts",
     "stripe:setup-plans": "npx tsx scripts/stripe-setup-plans.ts",
     "xphere:check": "npx tsx scripts/xphere-mapping-check.ts",
-    "xphere:check:client": "npx tsx scripts/xphere-client-check.ts"
+    "xphere:check:client": "npx tsx scripts/xphere-client-check.ts",
+    "xphere:worker:check": "npx tsx scripts/xphere-worker-check.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.67",
