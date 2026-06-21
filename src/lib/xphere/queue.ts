@@ -43,6 +43,21 @@ function resolveWorkerUrl(): string | null {
   return base ? `${base}/api/internal/xphere-sync` : null
 }
 
+/**
+ * Producer-side kill switch (OBS-02). Authoritative at the source: when
+ * XPHERE_SYNC_ENABLED is unset/'false'/'0', producing is a silent no-op
+ * BEFORE publish — one env flip halts all syncing with no code change.
+ * Safe-dark default: disabled unless explicitly enabled.
+ *
+ * This mirrors the kill-switch truthiness in client.ts's isXphereEnabled, but
+ * gates ONLY on the flag (creds belong to the worker, not the producer), and
+ * never throws — it only adds an early silent return, so fail-open is preserved.
+ */
+function isSyncEnabled(): boolean {
+  const flag = process.env.XPHERE_SYNC_ENABLED
+  return !!flag && flag !== 'false' && flag !== '0'
+}
+
 /** Optional fields forwarded into the thin queue message. */
 export interface EnqueueXphereOpts {
   eventId?: string // Stripe event.id — forwarded to the worker's note dedup
@@ -67,6 +82,10 @@ export async function enqueueXphereSync(
   reason: SyncReason,
   opts?: EnqueueXphereOpts,
 ): Promise<void> {
+  // Producer kill switch first (OBS-02): when XPHERE_SYNC_ENABLED is
+  // unset/'false'/'0', bail BEFORE any publish — authoritative at the source,
+  // one env flip halts all syncing with no code change. Never throws.
+  if (!isSyncEnabled()) return
   // Fail-open env gate (mirror rate-limit.ts): no client or no destination URL
   // -> silent no-op. Onboarding / Stripe webhooks keep working.
   const url = resolveWorkerUrl()
