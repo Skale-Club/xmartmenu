@@ -92,6 +92,13 @@ export interface Tenant {
   updated_at: string
   custom_domain: string | null
   custom_domain_verified: boolean
+  // v2.4 FND-01: Xphere CRM sync state (migration 054). All nullable.
+  // external_id = tenants.id is the idempotency key; these hold CRM-side ids.
+  xphere_account_id: string | null
+  xphere_contact_id: string | null
+  xphere_opportunity_id: string | null
+  xphere_synced_at: string | null
+  xphere_sync_error: string | null
 }
 
 export interface TenantSettings {
