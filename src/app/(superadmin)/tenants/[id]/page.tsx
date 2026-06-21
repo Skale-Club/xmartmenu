@@ -20,7 +20,7 @@ export default async function TenantDetailPage({ params }: Props) {
 
   const { data: tenant } = await service
     .from('tenants')
-    .select('id, name, slug, plan, is_active, created_at')
+    .select('id, name, slug, plan, is_active, created_at, xphere_account_id, xphere_contact_id, xphere_opportunity_id, xphere_synced_at, xphere_sync_error')
     .eq('id', id)
     .single()
 
