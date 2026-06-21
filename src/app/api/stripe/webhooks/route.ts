@@ -260,6 +260,36 @@ export async function POST(request: NextRequest) {
           else if (sub.status === 'canceled') status = 'cancelled'
           else status = 'active' // active / incomplete treated as active
 
+          // #3 (LIF-03): read the PRIOR plan_id BEFORE the update so we can detect
+          // a plan change and tag direction. (This branch's update does not change
+          // plan_id, but checkout.session.completed may have, and the
+          // subscription.updated event reflects the new plan via Stripe.)
+          let priorPlanId: string | null = null
+          if (!deleted) {
+            const { data: priorSub } = await supabase
+              .from('tenant_subscriptions')
+              .select('plan_id')
+              .eq('tenant_id', tenantId)
+              .eq('stripe_subscription_id', sub.id)
+              .maybeSingle()
+            priorPlanId = priorSub?.plan_id ?? null
+          }
+
+          // Resolve the NEW plan_id from the Stripe subscription's first item price
+          // id → plans row. Column names per src/types/database.ts Plan interface
+          // (stripe_price_monthly_id / stripe_price_annual_id).
+          const newPriceId =
+            (sub as { items?: { data?: Array<{ price?: { id?: string } }> } }).items?.data?.[0]?.price?.id ?? null
+          let newPlanId: string | null = null
+          if (!deleted && newPriceId) {
+            const { data: planRow } = await supabase
+              .from('plans')
+              .select('id')
+              .or(`stripe_price_monthly_id.eq.${newPriceId},stripe_price_annual_id.eq.${newPriceId}`)
+              .maybeSingle()
+            newPlanId = planRow?.id ?? null
+          }
+
           const { error } = await supabase
             .from('tenant_subscriptions')
             .update({
@@ -274,12 +304,24 @@ export async function POST(request: NextRequest) {
             console.error('Failed to sync plan subscription:', error)
             updateResult = { success: false, error: error.message }
           }
-          // #5 (LIF-05) churn, and #3 (LIF-03) plan change.
-          // Here wire ONLY the churn case; the plan-diff/upgrade-downgrade case
-          // is added below in Task 2 which reads the PRIOR plan_id. Churn
-          // (deleted) and plan_changed (!deleted) are mutually exclusive.
+          // #5 (LIF-05) churn — deleted path only.
           if (!error && deleted) {
             pendingSync = { tenantId, reason: 'churned' }
+          }
+          // #3 (LIF-03) plan change — updated path only. Detect a genuine plan
+          // change (both ids resolve AND differ) and tag direction by tier
+          // (plans.sort_order). A status-only update must NOT enqueue plan_changed.
+          // deleted (churn) and !deleted (plan_changed) are mutually exclusive, so
+          // this never clobbers the churn pendingSync above.
+          if (!error && !deleted && newPlanId && priorPlanId && newPlanId !== priorPlanId) {
+            const { data: tierRows } = await supabase
+              .from('plans')
+              .select('id, sort_order')
+              .in('id', [priorPlanId, newPlanId])
+            const priorOrder = tierRows?.find((p) => p.id === priorPlanId)?.sort_order ?? 0
+            const newOrder = tierRows?.find((p) => p.id === newPlanId)?.sort_order ?? 0
+            const direction = newOrder > priorOrder ? 'upgrade' : 'downgrade'
+            pendingSync = { tenantId, reason: 'plan_changed', tags: [direction] }
           }
         } else if (sub.metadata?.addon === 'chat' && tenantId) {
           // SEED-024: addon stays active while the subscription is live. A
