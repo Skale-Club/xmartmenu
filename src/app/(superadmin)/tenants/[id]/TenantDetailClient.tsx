@@ -12,6 +12,11 @@ interface Tenant {
   is_active: boolean | null
   created_at: string
   logo_url: string | null
+  xphere_account_id: string | null
+  xphere_contact_id: string | null
+  xphere_opportunity_id: string | null
+  xphere_synced_at: string | null
+  xphere_sync_error: string | null
 }
 
 interface StaffMember {
@@ -104,6 +109,10 @@ export default function TenantDetailClient({
   const [ocrFile, setOcrFile] = useState<File | null>(null)
   const [ocrLoading, setOcrLoading] = useState(false)
   const [ocrStatus, setOcrStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+
+  // CRM Sync (Xphere) state | OBS-01
+  const [resyncLoading, setResyncLoading] = useState(false)
+  const [resyncStatus, setResyncStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const base = `/api/superadmin/tenants/${tenant.id}/staff`
 
@@ -370,6 +379,24 @@ export default function TenantDetailClient({
       setOcrStatus({ type: 'error', message: 'OCR upload failed. Check the API logs and retry.' })
     }
     setOcrLoading(false)
+  }
+
+  // CRM Sync re-sync handler | OBS-01: re-enqueues a full Xphere sync for this tenant
+  async function handleResync() {
+    setResyncLoading(true)
+    setResyncStatus(null)
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/xphere-resync`, { method: 'POST' })
+      if (res.ok) {
+        setResyncStatus({ type: 'success', message: 'Re-sync enqueued.' })
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setResyncStatus({ type: 'error', message: data.error ?? 'Re-sync failed.' })
+      }
+    } catch {
+      setResyncStatus({ type: 'error', message: 'Re-sync failed.' })
+    }
+    setResyncLoading(false)
   }
 
   // Subscription form state
@@ -1027,6 +1054,51 @@ export default function TenantDetailClient({
                 <button onClick={() => setOcrStatus(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
               </div>
             )}
+          </div>
+        )}
+      </div>
+
+      {/* CRM Sync section | OBS-01: surface Xphere sync state + manual re-sync */}
+      <div className="mt-8 bg-white border border-zinc-200 rounded-xl p-5">
+        <h2 className="text-sm font-semibold text-zinc-900 mb-1">CRM Sync</h2>
+
+        <div className="space-y-1 mb-4">
+          <p className="text-xs text-zinc-500">
+            {tenant.xphere_synced_at
+              ? <>Last synced: <span className="font-medium text-zinc-700">{new Date(tenant.xphere_synced_at).toLocaleString('en-US')}</span></>
+              : <span className="text-zinc-400">Never synced</span>}
+          </p>
+          <p className="text-xs">
+            {tenant.xphere_account_id
+              ? <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-green-100 text-green-700">Linked</span>
+              : <span className="inline-flex items-center px-2 py-0.5 rounded-full font-medium bg-zinc-100 text-zinc-500">Not linked</span>}
+          </p>
+        </div>
+
+        {tenant.xphere_sync_error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4 text-sm text-red-700">
+            {tenant.xphere_sync_error}
+          </div>
+        )}
+
+        <button
+          onClick={() => void handleResync()}
+          disabled={resyncLoading}
+          className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+        >
+          {resyncLoading ? 'Re-syncing...' : 'Re-sync now'}
+        </button>
+
+        {resyncStatus?.type === 'success' && (
+          <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 mt-4 text-sm text-green-800 flex items-center justify-between">
+            {resyncStatus.message}
+            <button onClick={() => setResyncStatus(null)} className="ml-4 text-green-500 hover:text-green-700">✕</button>
+          </div>
+        )}
+        {resyncStatus?.type === 'error' && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mt-4 text-sm text-red-700 flex items-center justify-between">
+            {resyncStatus.message}
+            <button onClick={() => setResyncStatus(null)} className="ml-4 text-red-400 hover:text-red-600">✕</button>
           </div>
         )}
       </div>
