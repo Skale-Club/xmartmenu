@@ -1,13 +1,13 @@
 ---
 gsd_state_version: 1.0
 milestone: v2.4
-milestone_name: CRM & Integrations
-status: defining requirements
-stopped_at: Milestone v2.4 started
-last_updated: "2026-06-20T00:00:00.000Z"
-last_activity: 2026-06-20 -- Milestone v2.4 started
+milestone_name: CRM & Integrations (Xphere CRM Sync)
+status: roadmap complete — ready to plan Phase 50
+stopped_at: Roadmap created (Phases 50-55)
+last_updated: "2026-06-21T00:00:00.000Z"
+last_activity: 2026-06-21 -- v2.4 roadmap created (Phases 50-55)
 progress:
-  total_phases: 0
+  total_phases: 6
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -21,20 +21,33 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v2.4 CRM & Integrations — defining requirements (Xphere CRM Sync)
+**Current focus:** v2.4 CRM & Integrations — Xphere CRM Sync (mirror every tenant into the dedicated Xphere CRM org as Account + Contact + Opportunity, tracking the full subscription lifecycle).
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 50 — Schema & Contract (ready to plan)
 Plan: —
-Status: Defining requirements
-Last activity: 2026-06-20 -- Milestone v2.4 started
+Status: Roadmap complete — run `/gsd-plan-phase 50` to begin
+Last activity: 2026-06-21 -- v2.4 roadmap created (Phases 50-55)
+
+Progress: [░░░░░░░░░░] 0/6 phases
 
 ## Milestone Overview
 
-v2.4: CRM & Integrations — first focus: Xphere CRM Sync (mirror every tenant into the dedicated Xphere CRM org as Account + Contact + Opportunity).
+**v2.4 CRM & Integrations (Xphere CRM Sync)** — Phases 50-55. One-way outbound sync mirroring every tenant into the dedicated Xphere CRM org (`e375f031-4d9a-42b1-9f3c-ade805650442`); XmartMenu DB stays the source of truth. Dependency-forced, risk-front-loaded build; Phases 50-54 are buildable/testable offline against the documented contract and ship dark behind the `XPHERE_*` env gate; Phase 55 is deferred until the Xtimator-owned `/api/v1/sync` endpoint + credentials land.
 
-Roadmap pending (run requirements → roadmapper).
+| Phase | Name | Requirements | Status |
+|---|---|---|---|
+| 50 | Schema & Contract | FND-01, FND-02 | Ready to plan |
+| 51 | Worker + Client | FND-04, FND-05, FND-06 | Not started |
+| 52 | Producer Hooks | FND-03, LIF-01..07 | Not started |
+| 53 | Backfill | BKF-01 | Not started |
+| 54 | Observability & Ops | OBS-01, OBS-02 | Not started |
+| 55 | Live Conformance Test | (verification only) | Blocked (external dependency) |
+
+Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01..02). 100%.
+
+**Hard constraint (all phases):** Do NOT modify the Xphere repo — `/api/v1/sync`, `external_id` indexes, and `sync:write` scope are the Xtimator effort. Build against the documented contract; configure stages + API key data-only in the Xphere org; secrets server-only; ship dark behind the env gate + `XPHERE_SYNC_ENABLED` kill switch. All code in English.
 
 **Paused — v2.3 Brand & Marketing Refresh** (resume later or in parallel). Phases preserved in ROADMAP.md:
 
@@ -50,31 +63,31 @@ Roadmap pending (run requirements → roadmapper).
 
 ### Decisions
 
-- [v2.3 Roadmap]: Color rebrand is atomic — must ship as one commit or dark text appears on red buttons everywhere
-- [v2.3 Roadmap]: `--primary-foreground` flips from `#09090b` to `#ffffff` because `#F52323` luminance L ≤ 0.4 (WCAG)
-- [v2.3 Roadmap]: `text-zinc-950` replacement is surgical — only where paired with `bg-primary`, not global
-- [v2.3 Roadmap]: `FoodDrinkCombo` return type is `React.ComponentType<{ className?: string }>` not `LucideIcon` — custom component
-- [v2.3 Roadmap]: CTA section `overflow-hidden` on card required to clip background image to `rounded-[2rem]`
-- [v2.3 Roadmap]: CTA padding moved from section to content wrapper inside card — section px-8 removal + card full-width must be one atomic edit
-- [v2.3 Roadmap]: Hero "built for service." gradient structure unchanged — only `via-yellow-200` → `via-red-200`
-- [v2.3 Roadmap]: Features grid icon swap uses component reference (`FoodDrinkCombo`), not string `'FoodDrink'`
-- [v2.3 Roadmap]: Phase 49 (DB seeds) blocked until Phases 45–48 are visually confirmed — `FoodDrink` name invalid before SEED-025 ships
-- [Phase 45]: Marketing landing icons must resolve by DB string name, not array index, so admin edits actually appear on the live page
-- [Phase 45]: `FoodDrinkCombo` strips incoming `w-*`/`h-*` utility classes before rendering `Sandwich` + `CupSoda`, preserving container sizing and color classes
-- [Phase 45]: `FoodDrink` remains an internal marketing resolver key; superadmin picker exposes `Sandwich` and `CupSoda` separately
+- [v2.4 Roadmap]: `external_id = tenants.id` is the immutable idempotency key — never email/phone (chain owners share emails → merge/split). Persist returned CRM ids to detect drift.
+- [v2.4 Roadmap]: Thin message + fat read — producers enqueue `{ tenantId, reason }`; the worker re-reads live state so late/out-of-order retries re-send current truth, not a stale snapshot.
+- [v2.4 Roadmap]: Producers are enqueue-only and fail-open — a CRM outage must never block onboarding or flip a successful Stripe webhook to 500. Enqueue after the DB write succeeds, never throw.
+- [v2.4 Roadmap]: Worker runs Node runtime; reads raw body once via `req.text()` and verifies QStash signature against both signing keys + a pinned public worker URL (not `req.url` — Coolify proxy rewrites host).
+- [v2.4 Roadmap]: Retry classification — transient (5xx/429/network/timeout) → non-2xx so QStash retries; permanent (unknown stage, missing tenant) → `489` + `Upstash-NonRetryable-Error` → DLQ.
+- [v2.4 Roadmap]: Opportunity amount = normalized MRR via `getTenantPlan()` (override/grandfather) then `annual_price / 12` for annual, else `monthly_price` — never raw `plans.monthly_price`.
+- [v2.4 Roadmap]: Stage model Onboarding → Active/Won → At Risk (re-openable on past_due) → Churned/Lost; stage names live as `XPHERE_STAGES` constant in `types.ts`.
+- [v2.4 Roadmap]: Single new runtime dep `@upstash/qstash@2.11.1`; reuse existing `zod`, `@sentry/nextjs`, `@upstash/redis`, native `fetch`. No axios/ky/BullMQ/Inngest.
+- [v2.4 Roadmap]: Deployment target is Docker/Coolify (`xmartmenu.skale.club`), NOT Vercel — public worker URL must resolve over HTTPS with no auth wall (security = signature, not network).
 
 ### Pending Todos
 
-None — Phase 46, 47, and 48 are ready; Phase 49 remains blocked on visual confirmation.
+- Phase 51/53 may need `/gsd-research-phase` during planning (Coolify proxy header config + exact `/api/v1/sync` contract/atomicity; marketing-consent/internal-tenant filter for PII).
+- Confirm whether to introduce a test runner (`vitest`/`tsx`) for the pure `mapping.ts` — no test runner in `package.json` yet.
+- v2.3 Phases 46, 47, 48 ready to resume; Phase 49 (DB seeds) blocked on visual confirmation of 46-48.
 
 ### Blockers/Concerns
 
-None.
+- **Phase 55 (Live Conformance Test) is BLOCKED** on the external Xtimator deliverable: the real `/api/v1/sync` endpoint, `external_id` indexes, `sync:write` scope, and live credentials. Do not plan Phase 55 until these are confirmed available.
+- Open contract items: exact `/api/v1/sync` request/response shape + idempotency-key header name; `/api/v1/sync` atomicity (if not atomic, checkpoint each entity id); marketing-consent/opt-out/internal-tenant flag existence (escalate to product before syncing PII).
 
 ## Session Continuity
 
-Last session: 2026-05-25
-Stopped at: Milestone v2.3 initialized
+Last session: 2026-06-21
+Stopped at: v2.4 roadmap created (Phases 50-55) — ready to plan Phase 50
 
 ---
 
@@ -82,7 +95,7 @@ Stopped at: Milestone v2.3 initialized
 
 | Item | Status |
 |---|---|
-| Seeds | SEED-025 through SEED-029 planted and revised |
-| Milestones | 13 shipped (v1.0 → v2.2), 1 starting (v2.3) |
-| Phases | 44 shipped, 5 planned (Phases 45-49) |
-| Blockers | None |
+| Seeds | SEED-025 through SEED-029 planted (v2.3) |
+| Milestones | 13 shipped (v1.0 → v2.2), v2.3 paused, v2.4 active |
+| Phases | 44 shipped, v2.3 (45-49) paused, v2.4 (50-55) planned |
+| Blockers | Phase 55 blocked on external Xtimator `/api/v1/sync` |

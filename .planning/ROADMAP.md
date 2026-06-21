@@ -15,24 +15,25 @@
 - ✅ **v2.0 Monetization** — Phases 30-34 (shipped 2026-05-09)
 - ✅ **v2.1 Custom Domains** — Phase 35 (shipped 2026-05-10)
 - ✅ **v2.2 Restaurant Growth Platform** — Phases 36-43 (shipped 2026-05-19)
-- ✅ **v2.3 Brand & Marketing Refresh** — Phases 45-49 (shipped 2026-05-25)
+- ⏸ **v2.3 Brand & Marketing Refresh** — Phases 45-49 (PAUSED — Phase 45 complete, 46-49 deferred)
+- 🟢 **v2.4 CRM & Integrations (Xphere CRM Sync)** — Phases 50-55 (ACTIVE)
 
-## Active Milestone — none
+## Active Milestone — v2.4 CRM & Integrations (Xphere CRM Sync)
 
-No active milestone. Start `/gsd-new-milestone` to plan the next one.
+Mirror every XmartMenu tenant into the dedicated Xphere CRM org (`e375f031-4d9a-42b1-9f3c-ade805650442`) as Account + Contact + Opportunity, tracking the full subscription lifecycle. One-way outbound only; XmartMenu DB stays the source of truth. Dependency-forced, risk-front-loaded 6-phase build (Phases 50-55); Phases 50-54 are buildable/testable offline against the documented contract and ship dark behind an env gate; Phase 55 (live conformance) is deferred until the Xtimator-owned `/api/v1/sync` endpoint + credentials land.
 
 ## Completed Milestones (recent)
 
 <details>
-<summary>✅ v2.3 Brand & Marketing Refresh (Phases 45-49) — SHIPPED 2026-05-25</summary>
+<summary>✅ v2.3 Brand & Marketing Refresh (Phases 45-49) — PAUSED (Phase 45 shipped 2026-05-25)</summary>
 
 | Phase | Name | Status |
 |---|---|---|
 | 45 | Icon Resolver Fix | ✓ Complete |
-| 46 | Global Color Rebrand (#EEFF00 → #F52323) | ✓ Complete |
-| 47 | Features Section Layout (4-col grid) | ✓ Complete |
-| 48 | CTA Full-Bleed + Background Image | ✓ Complete |
-| 49 | DB Seeds — Color & Branding Defaults | ✓ Complete |
+| 46 | Global Color Rebrand (#EEFF00 → #F52323) | ○ Paused |
+| 47 | Features Section Layout (4-col grid) | ○ Paused |
+| 48 | CTA Full-Bleed + Background Image | ○ Paused |
+| 49 | DB Seeds — Color & Branding Defaults | ○ Paused |
 
 </details>
 
@@ -174,6 +175,27 @@ Key accomplishments:
 - [x] **Phase 42: SEO — Platform & Per-Tenant** — Dynamic metadata, OG image per tenant, LocalBusiness + MenuItem JSON-LD, canonical URLs, per-domain robots.txt, tenant sitemap
 - [x] **Phase 43: SEO — Per-Branch Local SEO** — Per-branch LocalBusiness JSON-LD with branchOf link (depends on Phase 41 branch routing)
 - [x] **Phase 44: Zero Hardcoded Values** — Migration 045 (cta_color/seo_title/seo_description) + landing page CMS wiring + marketing generateMetadata + superadmin app_name + public menu footerBrand (completed 2026-05-20)
+
+---
+
+### v2.3 Brand & Marketing Refresh — Phases 45-49 (PAUSED)
+
+- [x] **Phase 45: Icon Resolver Fix** — Marketing page honors DB-configured icon names + superadmin picker exposes missing icons (complete)
+- [ ] **Phase 46: Global Color Rebrand** — #EEFF00 → #F52323 atomic color rebrand (PAUSED)
+- [ ] **Phase 47: Features Section Layout** — 4-col grid features section (PAUSED)
+- [ ] **Phase 48: CTA Full-Bleed + Background Image** — Full-bleed CTA with background image (PAUSED)
+- [ ] **Phase 49: DB Seeds — Color & Branding Defaults** — Seed color + branding defaults for new tenants (PAUSED — blocked on visual confirmation of 46-48)
+
+---
+
+### v2.4 CRM & Integrations (Xphere CRM Sync) — Phases 50-55 (ACTIVE)
+
+- [ ] **Phase 50: Schema & Contract** — Migration 054 (xphere_* columns) + `Tenant` type update + `xphere/types.ts` (contract, SyncReason, XPHERE_STAGES) + pure offline-testable `xphere/mapping.ts` (normalized MRR)
+- [ ] **Phase 51: Worker + Client** — Signature-verified `/api/internal/xphere-sync` worker (fat-read, map, write-back, retry classification) + env-gated `xphere/client.ts` network seam
+- [ ] **Phase 52: Producer Hooks** — Fail-open `xphere/queue.ts` enqueue wired into onboarding + 3 Stripe webhook branches + Connect callback (lifecycle events #1–#7)
+- [ ] **Phase 53: Backfill** — Superadmin-only throttled, resumable, idempotent full-sync enqueue for all existing tenants (internal/test/opt-out filtered)
+- [ ] **Phase 54: Observability & Ops** — Sync state + error surfaced in superadmin tenant detail, manual re-sync, env kill switch, secret hygiene, post-deploy reachability ping
+- [ ] **Phase 55: Live Conformance Test (DEFERRED)** — Full conformance checklist against the real `/api/v1/sync` once Xtimator ships it; flip the kill switch on (BLOCKED on external dependency)
 
 ---
 
@@ -455,6 +477,125 @@ Plans:
 
 ---
 
+## v2.4 CRM & Integrations (Xphere CRM Sync) — Phase Details
+
+**Milestone constraint (applies to every v2.4 phase):** Do NOT modify the Xphere repo. `/api/v1/sync`, the `external_id` indexes, and the `sync:write` scope are owned by the separate Xtimator effort. Build against the documented contract, configure pipeline stages + the API key data-only in the Xphere org (`e375f031-4d9a-42b1-9f3c-ade805650442`), keep all secrets server-only, and ship the feature dark behind the `XPHERE_*` env presence gate + `XPHERE_SYNC_ENABLED` kill switch. All code in English. One-way outbound only — XmartMenu DB is the single source of truth.
+
+### Phase 50: Schema & Contract
+
+**Goal:** The CRM sync state lives in the schema and the entity/stage/MRR mapping exists as a pure, offline-testable function — front-loading the riskiest correctness decisions (immutable idempotency key, stage mapping, normalized MRR) with zero upstream dependency.
+
+**Depends on:** Phase 49 (prior milestone phases preserved; no functional dependency — first v2.4 phase)
+
+**Requirements:** FND-01, FND-02
+
+**Success Criteria** (what must be TRUE):
+
+1. Migration `054_xphere_sync_columns.sql` is applied — `tenants` has `xphere_account_id`, `xphere_contact_id`, `xphere_opportunity_id` (text, nullable), `xphere_synced_at` (timestamptz), and `xphere_sync_error` (text), and the `Tenant` TypeScript interface reflects all five columns.
+2. `src/lib/xphere/types.ts` encodes the documented `/api/v1/sync` request/response contract plus a `SyncReason` union and an `XPHERE_STAGES` constant (Onboarding → Active/Won → At Risk → Churned/Lost) as the single source of truth for stage names.
+3. `src/lib/xphere/mapping.ts` is a pure function that turns a tenant + store-admin profile + subscription + reason into a `source='xmartmenu'` payload keyed on `external_id = tenants.id`, resolving Opportunity amount as normalized MRR (`getTenantPlan()` overrides, then `annual_price / 12` for annual, else `monthly_price`).
+4. The mapper is exercised offline with no network — a developer can run a unit/`tsx` check that asserts payload shape, stage selection, and MRR normalization against fixture rows without QStash or Xphere credentials.
+
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 51: Worker + Client
+
+**Goal:** The keystone transport — a signature-verified worker route that fat-reads live state, maps it, calls the env-gated Xphere client, writes back CRM ids/sync metadata, and classifies the result for QStash retry vs DLQ.
+
+**Depends on:** Phase 50 (reads the new `xphere_*` columns + `types.ts`/`mapping.ts`)
+
+**Requirements:** FND-04, FND-05, FND-06
+
+**Success Criteria** (what must be TRUE):
+
+1. `POST /api/internal/xphere-sync` (Node runtime) reads the raw request body once, verifies the QStash signature against current + next signing keys and a pinned public worker URL (not `req.url`), and rejects unsigned/invalid requests with 401.
+2. On valid delivery the worker fat-reads live tenant + store-admin profile + subscription + plan via the service-role client, maps via the pure function, and calls `src/lib/xphere/client.ts` — the only network seam — which POSTs to `XPHERE_API_URL` with the API key + org id and is a no-op when `XPHERE_*` env is absent (ships dark).
+3. The worker writes `xphere_account_id`/`xphere_contact_id`/`xphere_opportunity_id` + `xphere_synced_at` on success and clears `xphere_sync_error`; on failure it records `xphere_sync_error`.
+4. The sync is idempotent — re-delivery upserts by `external_id = tenants.id` and never creates duplicate Accounts/Contacts/Opportunities; transient failures (5xx/429/network/timeout) return non-2xx so QStash retries, while permanent failures (unknown stage, missing tenant) return `489` + `Upstash-NonRetryable-Error` to route to the DLQ.
+
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 52: Producer Hooks
+
+**Goal:** Every lifecycle transition enqueues a thin `{ tenantId, reason }` message into QStash from the existing choke points — fail-open and non-blocking so a CRM outage never breaks onboarding or flips a successful Stripe webhook to 500.
+
+**Depends on:** Phase 51 (enqueued jobs need the worker to land on)
+
+**Requirements:** FND-03, LIF-01, LIF-02, LIF-03, LIF-04, LIF-05, LIF-06, LIF-07
+
+**Success Criteria** (what must be TRUE):
+
+1. `src/lib/xphere/queue.ts` exposes `enqueueXphereSync(tenantId, reason)` that publishes inside try/catch, returns void, and is a silent no-op when QStash/Xphere env is unset or down — onboarding and Stripe webhook responses are never blocked or thrown into.
+2. Finishing onboarding enqueues a sync after the subscription insert, producing an Account + Contact (store-admin owner) + Opportunity in the `Onboarding` stage without blocking the onboarding response (event #1).
+3. The three Stripe webhook success branches enqueue after the idempotency row is written and before the final return: plan activation moves the Opportunity to `Active`/`Won` with override-resolved MRR (#2); a plan change updates MRR and tags `upgrade`/`downgrade` (#3); `past_due` moves to `At Risk` (#4) and cancel/churn moves to `Lost`/`Churned` (#5), each updating the status tag.
+4. The Stripe Connect OAuth callback + `account.updated` enqueue a sync reflecting `connect:active`/`connect:disabled` with `charges_enabled` (#6), and each transition appends a timeline note to the CRM contact deduplicated by originating event id (`event.id` or `onboarding:<tenant_id>`) so Stripe retries and QStash redelivery never double-post (LIF-07).
+
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 53: Backfill
+
+**Goal:** A superadmin can hydrate the CRM with every existing tenant through the same producer→worker path — throttled, resumable, idempotent, and PII-safe.
+
+**Depends on:** Phase 52 (reuses `enqueueXphereSync` + the worker path)
+
+**Requirements:** BKF-01
+
+**Success Criteria** (what must be TRUE):
+
+1. A superadmin-only route (`assertSuperadmin()`) paginates all tenants and enqueues a full-sync for each via the same `enqueueXphereSync(id, 'backfill')` path — no separate CRM code path, so it inherits every worker guarantee.
+2. The backfill is throttled/rate-aware so it respects the `/api/v1/sync` rate limit and never stampedes the endpoint, and is resumable rather than all-or-nothing.
+3. Re-running the backfill is safe — idempotent upsert-by-`external_id` means no duplicate Accounts/Contacts/Opportunities and no duplicate onboarded note.
+4. Internal/test/opt-out tenants are filtered at the producer before any PII is fanned into the CRM (escalate to product if no consent/internal flag exists).
+
+**Plans**: TBD
+
+**UI hint**: no
+
+### Phase 54: Observability & Ops
+
+**Goal:** Silent sync failures become visible and operable — sync state surfaced in the superadmin UI, one-click manual re-sync, env kill switch, secret hygiene, and a post-deploy reachability check.
+
+**Depends on:** Phase 53 (surfaces the data the worker writes; operationalizes the full path)
+
+**Requirements:** OBS-01, OBS-02
+
+**Success Criteria** (what must be TRUE):
+
+1. The superadmin tenant detail page surfaces the tenant's `xphere_synced_at` and `xphere_sync_error`, so a never-synced or errored tenant is visible at a glance.
+2. The same page provides a one-click manual re-sync that re-enqueues a full-sync for that tenant through the standard producer path.
+3. Secrets (`XPHERE_API_KEY`, `QSTASH_TOKEN`, signing keys) are read only from server env — never `NEXT_PUBLIC`, never committed (gitleaks-safe) — and `.env.example` documents every required var.
+4. Producing can be disabled via the `XPHERE_SYNC_ENABLED` env kill switch with no code change, and a post-deploy reachability ping confirms the public worker URL resolves over HTTPS with no auth wall in front of it.
+
+**Plans**: TBD
+
+**UI hint**: yes
+
+### Phase 55: Live Conformance Test (DEFERRED — external dependency)
+
+**Goal:** Validate the dark-shipped sync against the real, Xtimator-owned `/api/v1/sync` endpoint and flip the kill switch on for production.
+
+**Depends on:** Phase 54 AND the external Xtimator deliverable (`/api/v1/sync` endpoint, `external_id` indexes, `sync:write` scope, live credentials) — **BLOCKED until that lands; this phase cannot start before then.**
+
+**Requirements:** (none new — verification of FND/LIF/BKF/OBS against the real endpoint)
+
+**Success Criteria** (what must be TRUE):
+
+1. With real `XPHERE_*` credentials set and pipeline stages configured data-only in the Xphere org, the full conformance checklist passes against the live endpoint: idempotent re-delivery, out-of-order delivery, stale-retry, signature/key-rotation, partial-failure, missing-stage, and backfill+live race.
+2. A confirmed `/api/v1/sync` contract (request/response shape + exact idempotency-key header) is reconciled against `types.ts`/`client.ts`, with any mismatch recorded as `xphere_sync_error` rather than crashing the worker.
+3. `XPHERE_SYNC_ENABLED` is turned on in production, the post-deploy reachability ping is green, and a real onboarding + a real Stripe lifecycle event each produce the expected Account/Contact/Opportunity state in the live CRM.
+
+**Plans**: TBD (blocked — do not plan until the external endpoint + credentials are confirmed available)
+
+**UI hint**: no
+
+---
+
 ## Progress Table
 
 | Phase | Plans Complete | Status | Completed |
@@ -469,3 +610,14 @@ Plans:
 | 42. SEO — Platform & Per-Tenant | 0/? | Not started | - |
 | 43. SEO — Per-Branch Local SEO | 0/? | Not started | - |
 | 44. Zero Hardcoded Values | 3/3 | Complete    | 2026-05-20 |
+| 45. Icon Resolver Fix | 1/1 | Complete    | 2026-05-25 |
+| 46. Global Color Rebrand | 0/? | Paused | - |
+| 47. Features Section Layout | 0/? | Paused | - |
+| 48. CTA Full-Bleed + Background Image | 0/? | Paused | - |
+| 49. DB Seeds — Color & Branding Defaults | 0/? | Paused | - |
+| 50. Schema & Contract | 0/? | Not started | - |
+| 51. Worker + Client | 0/? | Not started | - |
+| 52. Producer Hooks | 0/? | Not started | - |
+| 53. Backfill | 0/? | Not started | - |
+| 54. Observability & Ops | 0/? | Not started | - |
+| 55. Live Conformance Test (DEFERRED) | 0/? | Blocked (external) | - |

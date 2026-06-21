@@ -72,4 +72,37 @@
 
 ## Traceability
 
-(Filled by the roadmapper — maps each REQ-ID to exactly one phase.)
+Every v2.4 requirement maps to exactly one phase. 100% coverage (16/16).
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| FND-01 | Phase 50 — Schema & Contract | Pending |
+| FND-02 | Phase 50 — Schema & Contract | Pending |
+| FND-04 | Phase 51 — Worker + Client | Pending |
+| FND-05 | Phase 51 — Worker + Client | Pending |
+| FND-06 | Phase 51 — Worker + Client | Pending |
+| FND-03 | Phase 52 — Producer Hooks | Pending |
+| LIF-01 | Phase 52 — Producer Hooks | Pending |
+| LIF-02 | Phase 52 — Producer Hooks | Pending |
+| LIF-03 | Phase 52 — Producer Hooks | Pending |
+| LIF-04 | Phase 52 — Producer Hooks | Pending |
+| LIF-05 | Phase 52 — Producer Hooks | Pending |
+| LIF-06 | Phase 52 — Producer Hooks | Pending |
+| LIF-07 | Phase 52 — Producer Hooks | Pending |
+| BKF-01 | Phase 53 — Backfill | Pending |
+| OBS-01 | Phase 54 — Observability & Ops | Pending |
+| OBS-02 | Phase 54 — Observability & Ops | Pending |
+
+**Phase 55 (Live Conformance Test)** carries no new requirement — it verifies FND/LIF/BKF/OBS against the real Xtimator-owned `/api/v1/sync` endpoint and is BLOCKED on that external dependency.
+
+### Coverage Summary
+
+| Phase | Requirements | Count |
+|-------|--------------|-------|
+| 50 — Schema & Contract | FND-01, FND-02 | 2 |
+| 51 — Worker + Client | FND-04, FND-05, FND-06 | 3 |
+| 52 — Producer Hooks | FND-03, LIF-01..07 | 8 |
+| 53 — Backfill | BKF-01 | 1 |
+| 54 — Observability & Ops | OBS-01, OBS-02 | 2 |
+| 55 — Live Conformance (deferred) | (verification only) | 0 |
+| **Total** | | **16/16** |
