@@ -546,7 +546,14 @@ Plans:
 3. The three Stripe webhook success branches enqueue after the idempotency row is written and before the final return: plan activation moves the Opportunity to `Active`/`Won` with override-resolved MRR (#2); a plan change updates MRR and tags `upgrade`/`downgrade` (#3); `past_due` moves to `At Risk` (#4) and cancel/churn moves to `Lost`/`Churned` (#5), each updating the status tag.
 4. The Stripe Connect OAuth callback + `account.updated` enqueue a sync reflecting `connect:active`/`connect:disabled` with `charges_enabled` (#6), and each transition appends a timeline note to the CRM contact deduplicated by originating event id (`event.id` or `onboarding:<tenant_id>`) so Stripe retries and QStash redelivery never double-post (LIF-07).
 
-**Plans**: TBD
+**Plans**: 4 plans (3 waves)
+
+Plans:
+
+- [ ] 52-01-PLAN.md — Fail-open QStash producer `enqueueXphereSync` (FND-03)
+- [ ] 52-02-PLAN.md — Onboarding `onboarded`/resume + Connect callback `connect_changed` producers (LIF-01, LIF-06)
+- [ ] 52-03-PLAN.md — Stripe webhook producers: plan_activated/plan_changed(+upgrade/downgrade)/past_due/churned/connect_changed, event.id note dedup (LIF-02..07)
+- [ ] 52-04-PLAN.md — Offline fail-open + message-shape gate `xphere:check:queue` (FND-03)
 
 **UI hint**: no
 
