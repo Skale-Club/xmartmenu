@@ -1,61 +1,75 @@
-# v2.3 Requirements — Brand & Marketing Refresh
+# v2.4 Requirements — CRM & Integrations (Xphere CRM Sync)
+
+**Goal:** Mirror every XmartMenu tenant into the dedicated Xphere CRM org (`e375f031-4d9a-42b1-9f3c-ade805650442`) as Account + Contact + Opportunity, tracking the full subscription lifecycle. One-way outbound only; XmartMenu DB stays the source of truth.
+
+**Scope decided (2026-06-20):** P1 MVP core + upgrade/downgrade tags (#3) + Stripe Connect flag (#6). Backfill dry-run, sync health dashboard, and first-paid-order (#7) are deferred to Future.
+
+**Hard constraint:** Do NOT modify the Xphere repo. `/api/v1/sync`, the `external_id` indexes, and the `sync:write` scope are built by the separate Xtimator effort. We build against the documented contract and configure pipeline stages + the API key data-only in the Xphere org. All code in English.
+
+---
 
 ## In Scope
 
-### Icon Resolver (SEED-025)
+### Foundation — Schema & Transport (FND)
 
-- [ ] **ICON-01**: `ClientPage.tsx` has a `getIcon(name)` function that maps DB icon name strings to Lucide components — DB-driven feature and step icons actually render correctly on the marketing page
-- [ ] **ICON-02**: A `FoodDrinkCombo` component (Sandwich + CupSoda side by side) is registered under `'FoodDrink'` in `getIcon()`
-- [ ] **ICON-03**: `Sandwich` and `CupSoda` are added to `ICON_OPTIONS` in `SettingsClient.tsx` so they appear in the admin icon picker
+- [ ] **FND-01**: The `tenants` table has columns `xphere_account_id`, `xphere_contact_id`, `xphere_opportunity_id` (text, nullable), `xphere_synced_at` (timestamptz), and `xphere_sync_error` (text) recording per-tenant CRM sync state (`external_id = tenants.id`).
+- [ ] **FND-02**: `src/lib/xphere/` exposes (a) shared `types.ts` matching the documented `/api/v1/sync` contract, (b) a pure `mapping.ts` that turns a tenant + store-admin profile + subscription + reason into a request payload (`source='xmartmenu'`), and (c) a `client.ts` that POSTs to the Xphere endpoint with the API key and org id — the mapping is unit-testable offline with no network.
+- [ ] **FND-03**: A QStash producer (`src/lib/xphere/queue.ts`) enqueues a thin `{ tenantId, reason }` message and is fail-open and non-blocking — when QStash/Xphere env is unset or the CRM is down, producing is a silent no-op that never blocks onboarding or a Stripe webhook response.
+- [ ] **FND-04**: The worker route `POST /api/internal/xphere-sync` verifies the QStash signature against the raw request body (current + next signing keys), and only then re-reads live tenant + profile + subscription via the service-role client and calls Xphere.
+- [ ] **FND-05**: The worker writes back `xphere_account_id`/`xphere_contact_id`/`xphere_opportunity_id` + `xphere_synced_at` on success and `xphere_sync_error` on failure (clearing it on the next success).
+- [ ] **FND-06**: The sync is idempotent — re-delivery and retries upsert by `external_id = tenants.id` and never create duplicate Accounts/Contacts/Opportunities. Transient failures (5xx/429/network) return non-2xx so QStash retries; permanent failures (unknown pipeline stage, missing tenant) are routed to the DLQ (`489` + non-retryable) rather than retried forever.
 
-### Color Rebrand (SEED-026)
+### Lifecycle Sync (LIF)
 
-- [ ] **COLOR-01**: Platform primary color is changed from `#EEFF00` (yellow-lime) to `#F52323` (red) across the entire application
-- [ ] **COLOR-02**: `--primary-foreground` is updated to `#ffffff` — all text on primary-colored elements is white
-- [ ] **COLOR-03**: All 14 hardcoded `#EEFF00` fallback hex values are replaced with `#F52323`
-- [ ] **COLOR-04**: All 50 instances of `bg-primary text-zinc-950` are replaced with `bg-primary text-primary-foreground`
-- [ ] **COLOR-05**: Hero "built for service." heading gradient preserves its fade-out effect: `from-primary via-red-200 to-white`
-- [ ] **COLOR-06**: Admin default `cta_color` and branding palette default are updated to `#F52323`
+- [ ] **LIF-01**: When a tenant finishes onboarding, the CRM has an Account + Contact (store-admin owner) + Opportunity in the `Onboarding` stage, enqueued after the subscription insert without blocking the onboarding response. *(event #1)*
+- [ ] **LIF-02**: When a paid plan is activated (`checkout.session.completed`, `kind=plan`), the Opportunity moves to `Active`/`Won` with MRR resolved via `getTenantPlan()` (honoring `override_*`/grandfathering). *(event #2)*
+- [ ] **LIF-03**: When a plan changes (`customer.subscription.updated`, plan differs), the Opportunity MRR is updated and an `upgrade` or `downgrade` direction tag is applied. *(event #3)*
+- [ ] **LIF-04**: When payment goes past_due (`invoice.payment_failed` / status `past_due`), the Opportunity moves to `At Risk` and the status tag updates (`status:past_due`, drop `status:active`). *(event #4)*
+- [ ] **LIF-05**: When a subscription is cancelled/churned (`customer.subscription.deleted` / status `canceled`), the Opportunity moves to `Lost`/`Churned` and the status tag updates. *(event #5)*
+- [ ] **LIF-06**: When a payments-tier tenant connects or disables Stripe Connect (OAuth callback + `account.updated`), the CRM record reflects `connect:active` / `connect:disabled` with `charges_enabled`. *(event #6)*
+- [ ] **LIF-07**: Each lifecycle transition appends a human-readable timeline note to the CRM contact, deduplicated by the originating event id (Stripe `event.id` or `onboarding:<tenant_id>`), so QStash redelivery and Stripe retries never double-post.
 
-### Features Section (SEED-027)
+### Backfill (BKF)
 
-- [ ] **FEAT-01**: Features grid is 1-column on phone, 2-column on tablet, 4-column on desktop
-- [ ] **FEAT-02**: Card padding and title size reduce at desktop 4-wide breakpoint only — mobile/tablet unchanged
-- [ ] **FEAT-03**: Online Ordering card icon is replaced with Sandwich + CupSoda combo (`FoodDrinkCombo`)
-- [ ] **FEAT-04**: Features section subtitle is reduced by 15% (`text-xl` 20px → `text-[17px]`)
+- [ ] **BKF-01**: A superadmin-only route enqueues a full-sync for every existing tenant, throttled/rate-aware, and idempotent — safe to re-run without creating duplicates.
 
-### CTA Section (SEED-028)
+### Observability & Ops (OBS)
 
-- [ ] **CTA-01**: Footer CTA card extends to full viewport width with no side gaps
-- [ ] **CTA-02**: Restaurant background image (aerial dark moody restaurant, `public/images/cta-bg.jpg`) is visible behind the text on all breakpoints
-- [ ] **CTA-03**: Card glass/shadow effect (`backdrop-blur-xl border border-white/10 rounded-[2rem]`) is preserved
-- [ ] **CTA-04**: Heading, subtext, and button classes are byte-for-byte identical to before — zero text modifications
-- [ ] **CTA-05**: Dark overlay adjusts per breakpoint (phone: `/60`, tablet: `/50`, desktop: `/40`) for readability
-- [ ] **CTA-06**: Superadmin can override the CTA background image via a `bg_image_url` field in the landing settings panel
-
-### DB Seeds (SEED-029)
-
-- [ ] **SEED-01**: `platform_settings.cta_color` seed value is `#F52323`
-- [ ] **SEED-02**: Default tenant `primary_color` seed value is `#F52323`
-- [ ] **SEED-03**: Default landing JSONB Online Ordering icon is `'FoodDrink'`
+- [ ] **OBS-01**: The superadmin tenant detail surfaces the tenant's sync state (`xphere_synced_at`, `xphere_sync_error`) and provides a one-click manual re-sync that re-enqueues a full-sync for that tenant.
+- [ ] **OBS-02**: Secrets (`XPHERE_API_KEY`, `QSTASH_TOKEN`, signing keys) are read only from server env — never `NEXT_PUBLIC`, never committed (gitleaks-safe) — and producing can be disabled via an env kill switch with no code change.
 
 ---
 
-## Execution order
+## Future Requirements (Deferred)
 
-| Wave | Phase | Seeds | Constraint |
-|---|---|---|---|
-| 1 | 45 | SEED-025 | Must land before Wave 3 icon swap |
-| 2 | 46 | SEED-026 | Atomic — one commit, all 50+ files together |
-| 3 | 47 | SEED-027 | After Wave 1 complete |
-| 4 | 48 | SEED-028 | Independent — can run in parallel with others |
-| 5 | 49 | SEED-029 | After Waves 1–4 visually confirmed |
+- First paid order activation signal (#7) — needs first-order detection (`tenants.first_paid_order_at` or a count query).
+- Backfill dry-run / report mode — preview counts + per-tenant intended action before firing.
+- Superadmin sync health dashboard — aggregate synced / errored / never-synced counts.
+- Templated / richer timeline notes — polish once stages + tags are stable.
+
+## Out of Scope (Explicit Exclusions)
+
+- **Two-way / bidirectional sync** — CRM is a downstream mirror; XmartMenu DB is the single source of truth. No write path from CRM into the app.
+- **Per-tenant CRM orgs** — all tenants are Accounts in the single shared XmartMenu Xphere org.
+- **Synchronous/inline sync inside webhooks** — always enqueue to QStash and return 200 immediately.
+- **Per-order / per-revenue-line syncing** — aggregate revenue stays in Stripe/analytics.
+- **Modifying the Xphere repo** — `/api/v1/sync`, `external_id` migration/indexes, `sync:write` scope are the Xtimator effort's responsibility; pipeline stages are configured data-only in the Xphere org.
+- **Caching CRM data back in XmartMenu** — store only CRM ids + sync metadata, never mirrored Opportunity fields.
+- **Custom retry/queue implementation** — QStash owns retries/backoff/DLQ.
+- **Per-staff-member Contacts** — Contact = store-admin (owner) only.
 
 ---
 
-## Out of Scope
+## Dependencies / Open Items (confirm before/at integration test)
 
-- Any text content changes — only colors, layout, and icons change
-- Admin panel layout or navigation — superadmin settings panel only gains one new field (CTA bg_image_url)
-- Public customer-facing menu pages — color changes only via CSS variable; no layout changes
-- FAQ section — intentionally hardcoded, out of scope for this milestone
+- Exact `/api/v1/sync` request/response shape + idempotency-key header convention (owned by Xtimator) — isolate in `types.ts`/`client.ts`; confirm before finalizing `mapping.ts` tests.
+- Live deployment target for the public QStash callback URL (Vercel vs the Coolify standalone container at `xmartmenu.skale.club`).
+- Pipeline stages (`Onboarding → Active → At Risk → Churned`, plus `Won`/`Lost`) configured data-only in the Xphere org before live sync; worker errors clearly if a stage name is missing.
+- Marketing-consent/opt-out and internal/test-tenant filtering before PII flows to the CRM.
+- No test runner currently in `package.json` — a phase may introduce `vitest` for `mapping.ts` pure-function tests, or use `tsx` scripts per existing `scripts/` convention.
+
+---
+
+## Traceability
+
+(Filled by the roadmapper — maps each REQ-ID to exactly one phase.)
