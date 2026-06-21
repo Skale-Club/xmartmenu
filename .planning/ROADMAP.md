@@ -477,7 +477,7 @@ Plans:
 
 ---
 
-## v2.4 CRM & Integrations (Xphere CRM Sync) — Phase Details
+### CRM & Integrations (Xphere CRM Sync) — Phase Details
 
 **Milestone constraint (applies to every v2.4 phase):** Do NOT modify the Xphere repo. `/api/v1/sync`, the `external_id` indexes, and the `sync:write` scope are owned by the separate Xtimator effort. Build against the documented contract, configure pipeline stages + the API key data-only in the Xphere org (`e375f031-4d9a-42b1-9f3c-ade805650442`), keep all secrets server-only, and ship the feature dark behind the `XPHERE_*` env presence gate + `XPHERE_SYNC_ENABLED` kill switch. All code in English. One-way outbound only — XmartMenu DB is the single source of truth.
 
