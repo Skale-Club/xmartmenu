@@ -16,6 +16,11 @@ export interface Plan {
   features: string[]
   is_active: boolean
   sort_order: number
+  // SaaS billing (migration 052): Stripe Product + recurring Price IDs,
+  // populated by `npm run stripe:setup-plans`. Null until the script runs.
+  stripe_product_id: string | null
+  stripe_price_monthly_id: string | null
+  stripe_price_annual_id: string | null
   created_at: string
   updated_at: string
 }
@@ -266,7 +271,7 @@ export interface Order {
   tenant_id: string
   customer_name: string
   customer_phone: string
-  status: 'pending' | 'paid' | 'payment_failed' | 'preparing' | 'ready' | 'out_for_delivery' | 'done' | 'cancelled'
+  status: 'awaiting_payment' | 'pending' | 'paid' | 'payment_failed' | 'preparing' | 'ready' | 'out_for_delivery' | 'done' | 'cancelled'
   total: number
   payment_intent_id: string | null
   order_type: 'dine_in' | 'pickup' | 'delivery'   // ORD-06 (migration 035, default 'dine_in')
