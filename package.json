@@ -9,7 +9,8 @@
     "start": "next start",
     "lint": "eslint",
     "seed": "npx tsx scripts/seed.ts",
-    "stripe:setup-plans": "npx tsx scripts/stripe-setup-plans.ts"
+    "stripe:setup-plans": "npx tsx scripts/stripe-setup-plans.ts",
+    "test:xphere": "npx tsx scripts/test-xphere-mapping.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.67",
