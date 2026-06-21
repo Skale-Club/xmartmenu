@@ -85,6 +85,10 @@ async function main(): Promise<void> {
   process.env.QSTASH_TOKEN = 'dummy-token-not-real'
   process.env.XPHERE_WORKER_URL =
     'https://example.test/api/internal/xphere-sync'
+  // Enable the producer kill switch (added in phase 54-02) so the publish-path
+  // assertions exercise a real enqueue. Without this, enqueueXphereSync is a
+  // silent no-op and the "publishes once" assertions fail.
+  process.env.XPHERE_SYNC_ENABLED = 'true'
   delete process.env.NEXT_PUBLIC_APP_URL
 
   const { enqueueXphereSync } = await import('@/lib/xphere/queue')
