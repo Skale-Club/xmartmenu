@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: CRM & Integrations
 status: verifying
-stopped_at: Completed 51-02-PLAN.md
-last_updated: "2026-06-21T09:19:10.367Z"
+stopped_at: Completed 51-03-PLAN.md
+last_updated: "2026-06-21T09:25:14.356Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 20
-  completed_phases: 10
+  completed_phases: 11
   total_plans: 25
-  completed_plans: 23
+  completed_plans: 24
 ---
 
 # Project State
@@ -78,6 +78,7 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [Phase 51]: [Phase 51-01]: postXphereSync is the single Xphere network seam — env-gated dark no-op { disabled: true } sentinel, single fetch + 10s AbortSignal timeout, throws XphereTransientError (5xx/429/network/timeout) vs XpherePermanentError (4xx) for QStash retry-vs-DLQ. Single new runtime dep @upstash/qstash@2.11.1.
 - [Phase 51]: Malformed/unparseable queue payload and no-subscription are permanent (489 + Upstash-NonRetryable-Error → DLQ); missing tenant is a 200 no-op
 - [Phase 51]: QStash signature verified against a pinned XPHERE_WORKER_URL/NEXT_PUBLIC_APP_URL constant (not req.url) so Coolify proxy host rewrite cannot break prod verification
+- [Phase 51]: Worker retry classification (transient->500, permanent->489+Upstash-NonRetryable-Error, disabled/gone/success->200) is a pure classifyWorkerOutcome() shared by route + offline gate
 
 ### Pending Todos
 
@@ -92,8 +93,8 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 
 ## Session Continuity
 
-Last session: 2026-06-21T09:18:58.956Z
-Stopped at: Completed 51-02-PLAN.md
+Last session: 2026-06-21T09:25:02.460Z
+Stopped at: Completed 51-03-PLAN.md
 
 ---
 
