@@ -28,20 +28,28 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 | `store-staff` | Read-only access to their restaurant's data |
 | Public visitor | Customer scanning QR code — sees menu, can place orders |
 
-## Current Milestone: v2.3 Brand & Marketing Refresh
+## Current Milestone: v2.4 CRM & Integrations
 
-**Goal:** Rebrand the platform from yellow-lime to red, fix broken DB icon resolution on the marketing page, improve the features section layout for all screen sizes, and upgrade the CTA section with a full-bleed restaurant background image.
+**Goal:** Auto-register and track every XmartMenu tenant inside the dedicated Xphere CRM org as Account + Contact + Opportunity, mirroring identity and the full subscription lifecycle into the CRM.
 
-**Target features:**
-- Global color rebrand: primary `#EEFF00` → `#F52323` across 45+ files, foreground flips to white (SEED-026)
-- Icon resolver fix: `ClientPage.tsx` DB-driven icons actually work; `FoodDrinkCombo` icon registered (SEED-025)
-- Features layout: 4-column desktop, 2-column tablet, 1-column phone; Online Ordering icon updated (SEED-027)
-- CTA section: full-bleed card with restaurant background image, glass effect preserved, text untouched (SEED-028)
-- DB seeds updated to reflect new red primary color defaults (SEED-029)
+**Target features (first focus — Xphere CRM Sync):**
+- `tenants` migration: `xphere_account_id`, `xphere_contact_id`, `xphere_opportunity_id`, `xphere_synced_at`, `xphere_sync_error` (`external_id` = `tenants.id`)
+- `src/lib/xphere/` — client + mapping + types calling the SHARED `POST /api/v1/sync` endpoint with `source='xmartmenu'`
+- QStash worker route `/api/internal/xphere-sync` (no Inngest in this repo — Upstash QStash for retries/non-blocking)
+- Lifecycle hooks: onboarding, Stripe webhooks (plan activated, subscription updated, past_due, churn), stripe connect callback
+- Superadmin backfill route for existing tenants
+- Observability surfacing `xphere_sync_error`
+
+**Constraints:**
+- Do NOT modify the Xphere repo — `/api/v1/sync`, `external_id` migrations and `sync:write` scope are built by the separate Xtimator effort. Build against the documented contract.
+- Data-only config in the XmartMenu Xphere org (`e375f031-4d9a-42b1-9f3c-ade805650442`): pipeline stages + API key via UI/MCP, not repo code.
+- Credentials via env vars: `XPHERE_API_URL`, `XPHERE_API_KEY`, `XPHERE_ORG_ID`, `QSTASH_TOKEN` + signing keys.
 
 ## Current State
 
-**v2.3 Brand & Marketing Refresh in progress** — SEED-025 complete; SEED-026, SEED-027, SEED-028, SEED-029 pending
+**v2.4 CRM & Integrations started (2026-06-20)** — defining requirements for Xphere CRM Sync.
+
+**v2.3 Brand & Marketing Refresh PAUSED** — SEED-025 complete; SEED-026/027/028/029 (phases 46–49) deferred, preserved in ROADMAP.md. Resume after v2.4 or in parallel.
 
 v2.2 delivers multi-location branches, order type selection (dine-in/pick-up/delivery), dynamic color theming per tenant, app-wide English conversion, and robust per-tenant SEO.
 

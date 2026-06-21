@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v2.3
-milestone_name: Brand & Marketing Refresh
-status: executing
-stopped_at: Milestone v2.3 initialized
-last_updated: "2026-05-25T17:34:22.474Z"
-last_activity: 2026-05-25 -- Phase 48 planning complete
+milestone: v2.4
+milestone_name: CRM & Integrations
+status: defining requirements
+stopped_at: Milestone v2.4 started
+last_updated: "2026-06-20T00:00:00.000Z"
+last_activity: 2026-06-20 -- Milestone v2.4 started
 progress:
-  total_phases: 14
-  completed_phases: 7
-  total_plans: 19
-  completed_plans: 14
-  percent: 50
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,27 +21,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-25)
 
 **Core value:** A restaurant owner can go from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed.
-**Current focus:** v2.3 Brand & Marketing Refresh — Phase 46 ready
+**Current focus:** v2.4 CRM & Integrations — defining requirements (Xphere CRM Sync)
 
 ## Current Position
 
-Phase: 46 (ready)
-Status: Ready to execute
-Last activity: 2026-05-25 -- Phase 48 planning complete
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-06-20 -- Milestone v2.4 started
 
 ## Milestone Overview
 
-v2.3: Brand & Marketing Refresh — SEED-025, SEED-026, SEED-027, SEED-028, SEED-029
+v2.4: CRM & Integrations — first focus: Xphere CRM Sync (mirror every tenant into the dedicated Xphere CRM org as Account + Contact + Opportunity).
 
-| Phase | Name | Seeds | Requirements | Status |
-|---|---|---|---|---|
-| 45 | Icon Resolver Fix | SEED-025 | ICON-01, ICON-02, ICON-03 | ✓ Complete |
-| 46 | Global Color Rebrand | SEED-026 | COLOR-01–06 | ○ Pending |
-| 47 | Features Section Layout | SEED-027 | FEAT-01–04 | ○ Pending |
-| 48 | CTA Full-Bleed + Background Image | SEED-028 | CTA-01–06 | ○ Pending |
-| 49 | DB Seeds — Color & Branding Defaults | SEED-029 | SEED-01–03 | ○ Blocked (after 45–48) |
+Roadmap pending (run requirements → roadmapper).
 
-**Execution order:** Phase 45 first → then 46 + 47 + 48 can run (46+48 parallel, 47 after 45) → Phase 49 last
+**Paused — v2.3 Brand & Marketing Refresh** (resume later or in parallel). Phases preserved in ROADMAP.md:
+
+| Phase | Name | Seeds | Status |
+|---|---|---|---|
+| 45 | Icon Resolver Fix | SEED-025 | ✓ Complete |
+| 46 | Global Color Rebrand | SEED-026 | ○ Paused |
+| 47 | Features Section Layout | SEED-027 | ○ Paused |
+| 48 | CTA Full-Bleed + Background Image | SEED-028 | ○ Paused |
+| 49 | DB Seeds — Color & Branding Defaults | SEED-029 | ○ Paused |
 
 ## Accumulated Context
 
