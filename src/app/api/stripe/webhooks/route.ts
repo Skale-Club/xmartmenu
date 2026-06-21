@@ -22,6 +22,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe, toStripeAmount } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
 import { captureSecurityEvent } from '@/lib/observability'
+import { enqueueXphereSync } from '@/lib/xphere/queue'
 
 type UpdateResult = { success: boolean; error?: string }
 
@@ -77,6 +78,14 @@ export async function POST(request: NextRequest) {
 
     // 4. Process event based on type
     let updateResult: UpdateResult = { success: true }
+
+    // One enqueue per request, fired AFTER the idempotency row (so a Stripe
+    // retry that short-circuits at the idempotency check never double-enqueues).
+    // Each lifecycle branch sets this; the eventId carries Stripe event.id so the
+    // CRM timeline note dedups on redelivery (LIF-07).
+    let pendingSync:
+      | { tenantId: string; reason: 'plan_activated' | 'plan_changed' | 'past_due' | 'churned' | 'connect_changed'; tags?: string[] }
+      | null = null
 
     switch (event.type) {
       case 'payment_intent.succeeded': {
@@ -200,6 +209,9 @@ export async function POST(request: NextRequest) {
             console.error('Failed to activate plan subscription:', subErr)
             updateResult = { success: false, error: subErr.message }
           }
+          // #2 (LIF-02): paid plan activated → Opportunity moves to Active/Won.
+          // Guard on !subErr so a failed update (which 500s) does not enqueue.
+          if (!subErr) pendingSync = { tenantId, reason: 'plan_activated' }
         } else if (session.metadata?.addon === 'chat' && tenantId) {
           // SEED-024: AI Chat Addon activation
           const { error: subErr } = await supabase
@@ -262,6 +274,13 @@ export async function POST(request: NextRequest) {
             console.error('Failed to sync plan subscription:', error)
             updateResult = { success: false, error: error.message }
           }
+          // #5 (LIF-05) churn, and #3 (LIF-03) plan change.
+          // Here wire ONLY the churn case; the plan-diff/upgrade-downgrade case
+          // is added below in Task 2 which reads the PRIOR plan_id. Churn
+          // (deleted) and plan_changed (!deleted) are mutually exclusive.
+          if (!error && deleted) {
+            pendingSync = { tenantId, reason: 'churned' }
+          }
         } else if (sub.metadata?.addon === 'chat' && tenantId) {
           // SEED-024: addon stays active while the subscription is live. A
           // pending cancellation (cancel_at_period_end) keeps it usable until
@@ -300,6 +319,18 @@ export async function POST(request: NextRequest) {
             console.error('Failed to mark subscription past_due:', error)
             updateResult = { success: false, error: error.message }
           }
+          // #4 (LIF-04): dunning → Opportunity At Risk. This branch only carries
+          // the stripe_subscription_id, so resolve the tenant_id before enqueuing.
+          if (!error) {
+            const { data: subRow } = await supabase
+              .from('tenant_subscriptions')
+              .select('tenant_id')
+              .eq('stripe_subscription_id', subscriptionId)
+              .maybeSingle()
+            if (subRow?.tenant_id) {
+              pendingSync = { tenantId: subRow.tenant_id, reason: 'past_due' }
+            }
+          }
         }
         break
       }
@@ -313,7 +344,7 @@ export async function POST(request: NextRequest) {
 
         const { data: connection } = await supabase
           .from('stripe_connections')
-          .select('id, is_active')
+          .select('id, is_active, tenant_id')
           .eq('stripe_account_id', account.id)
           .single()
 
@@ -333,6 +364,12 @@ export async function POST(request: NextRequest) {
                 stripeAccountId: account.id,
               })
             }
+          }
+          // #6 (LIF-06, webhook half): connect enable/disable transition → mirror
+          // connect:active / connect:disabled into the CRM. The OAuth-callback half
+          // is wired in plan 52-02.
+          if (connection.tenant_id) {
+            pendingSync = { tenantId: connection.tenant_id, reason: 'connect_changed' }
           }
         }
         break
@@ -364,6 +401,17 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('Failed to record processed event:', insertError)
       // The work succeeded; a duplicate delivery would just redo idempotent work.
+    }
+
+    // Fire the single CRM enqueue AFTER the idempotency row is recorded and only
+    // on the success path — mirrors the Stripe idempotency-after-success rule.
+    // enqueueXphereSync is fail-open (never throws), so a QStash outage cannot
+    // flip this 200 to 500. eventId = Stripe event.id dedups the CRM note (LIF-07).
+    if (pendingSync) {
+      await enqueueXphereSync(pendingSync.tenantId, pendingSync.reason, {
+        eventId,
+        ...(pendingSync.tags ? { tags: pendingSync.tags } : {}),
+      })
     }
 
     return NextResponse.json({ received: true })
