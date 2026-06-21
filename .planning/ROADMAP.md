@@ -572,7 +572,11 @@ Plans:
 3. Re-running the backfill is safe — idempotent upsert-by-`external_id` means no duplicate Accounts/Contacts/Opportunities and no duplicate onboarded note.
 4. Internal/test/opt-out tenants are filtered at the producer before any PII is fanned into the CRM (escalate to product if no consent/internal flag exists).
 
-**Plans**: TBD
+**Plans**: 1 plan (1 wave)
+
+Plans:
+
+- [ ] 53-01-PLAN.md — Superadmin-only throttled/resumable/idempotent backfill route (paginate tenants -> enqueueXphereSync(id, 'backfill')) + offline tsx gate (BKF-01)
 
 **UI hint**: no
 
