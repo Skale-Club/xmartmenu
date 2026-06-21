@@ -192,7 +192,7 @@ Key accomplishments:
 
 - [x] **Phase 50: Schema & Contract** — Migration 054 (xphere_* columns) + `Tenant` type update + `xphere/types.ts` (contract, SyncReason, XPHERE_STAGES) + pure offline-testable `xphere/mapping.ts` (normalized MRR) (completed 2026-06-21)
 - [x] **Phase 51: Worker + Client** — env-gated `xphere/client.ts` seam + signature-verified `/api/internal/xphere-sync` worker (fat-read, map, write-back, retry classification) + offline worker check (3 plans) (completed 2026-06-21)
-- [ ] **Phase 52: Producer Hooks** — Fail-open `xphere/queue.ts` enqueue wired into onboarding + 3 Stripe webhook branches + Connect callback (lifecycle events #1–#7)
+- [x] **Phase 52: Producer Hooks** — Fail-open `xphere/queue.ts` enqueue wired into onboarding + 3 Stripe webhook branches + Connect callback (lifecycle events #1–#7) (completed 2026-06-21)
 - [ ] **Phase 53: Backfill** — Superadmin-only throttled, resumable, idempotent full-sync enqueue for all existing tenants (internal/test/opt-out filtered)
 - [ ] **Phase 54: Observability & Ops** — Sync state + error surfaced in superadmin tenant detail, manual re-sync, env kill switch, secret hygiene, post-deploy reachability ping
 - [ ] **Phase 55: Live Conformance Test (DEFERRED)** — Full conformance checklist against the real `/api/v1/sync` once Xtimator ships it; flip the kill switch on (BLOCKED on external dependency)
@@ -553,7 +553,7 @@ Plans:
 - [x] 52-01-PLAN.md — Fail-open QStash producer `enqueueXphereSync` (FND-03)
 - [x] 52-02-PLAN.md — Onboarding `onboarded`/resume + Connect callback `connect_changed` producers (LIF-01, LIF-06)
 - [x] 52-03-PLAN.md — Stripe webhook producers: plan_activated/plan_changed(+upgrade/downgrade)/past_due/churned/connect_changed, event.id note dedup (LIF-02..07)
-- [ ] 52-04-PLAN.md — Offline fail-open + message-shape gate `xphere:check:queue` (FND-03)
+- [x] 52-04-PLAN.md — Offline fail-open + message-shape gate `xphere:check:queue` (FND-03)
 
 **UI hint**: no
 
@@ -636,7 +636,7 @@ Plans:
 | 49. DB Seeds — Color & Branding Defaults | 0/? | Paused | - |
 | 50. Schema & Contract | 3/3 | Complete    | 2026-06-21 |
 | 51. Worker + Client | 3/3 | Complete    | 2026-06-21 |
-| 52. Producer Hooks | 3/4 | In Progress|  |
+| 52. Producer Hooks | 4/4 | Complete   | 2026-06-21 |
 | 53. Backfill | 0/? | Not started | - |
 | 54. Observability & Ops | 0/? | Not started | - |
 | 55. Live Conformance Test (DEFERRED) | 0/? | Blocked (external) | - |

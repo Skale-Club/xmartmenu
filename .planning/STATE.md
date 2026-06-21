@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: CRM & Integrations
 current_plan: 4
-status: executing
-stopped_at: Completed 52-03-PLAN.md
-last_updated: "2026-06-21T09:48:47.310Z"
+status: verifying
+stopped_at: Completed 52-04-PLAN.md
+last_updated: "2026-06-21T09:53:54.577Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 20
-  completed_phases: 11
+  completed_phases: 12
   total_plans: 29
-  completed_plans: 27
+  completed_plans: 28
   percent: 86
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 Phase: 52
 Current Plan: 4
 Total Plans in Phase: 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-06-21
 
 Progress: [█████████░] 86% (Phase 52: 1/4 plans)
@@ -85,6 +85,7 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [Phase 52]: Xphere QStash producer is a single fail-open choke point (enqueueXphereSync) so every call site is non-blocking by construction
 - [Phase 52]: Resume onboarding paths (already_configured + resume-finish) enqueue reason 'manual' — the only reason that emits no note — so the onboarded timeline note is never double-posted; new-tenant path uses 'onboarded' with no eventId so the worker dedups on onboarding:<tenant.id>.
 - [Phase 52]: 52-03: Stripe webhook lifecycle producers — single fail-open enqueue after the processed_stripe_events idempotency row; plans price-id columns are stripe_price_monthly_id/stripe_price_annual_id (not the plan's assumed names)
+- [Phase 52]: 52-04 gate asserts deduplicationId/retries against QStash request HEADERS (Upstash-Deduplication-Id/Upstash-Retries), not the JSON body — verified from installed SDK source
 
 ### Pending Todos
 
@@ -104,11 +105,12 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 | 52 | 01 | 2min | 1 | 1 |
 | Phase 52 P02 | 5min | 2 tasks | 2 files |
 | Phase 52 P03 | 4min | 2 tasks | 1 files |
+| Phase 52 P04 | 6min | 1 tasks | 2 files |
 
 ## Session Continuity
 
-Last session: 2026-06-21T09:48:37.247Z
-Stopped at: Completed 52-03-PLAN.md
+Last session: 2026-06-21T09:53:43.729Z
+Stopped at: Completed 52-04-PLAN.md
 
 ---
 
