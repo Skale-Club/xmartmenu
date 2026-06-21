@@ -15,7 +15,7 @@ A restaurant owner can go from zero to a live, shareable digital menu in under 1
 - **Frontend/Backend:** Next.js 16.2 (App Router, React 19, TypeScript)
 - **Database + Auth:** Supabase (PostgreSQL + RLS + Auth)
 - **Styling:** Tailwind CSS 4
-- **Deployment:** Vercel
+- **Deployment:** Docker (standalone) on Coolify (`coolify.skale.club`)
 - **Package manager:** npm
 - **AI providers:** Google Generative AI (Gemini 2.5 Flash text, Gemini 3 Pro Image), OpenAI (GPT-4.1-mini OCR)
 

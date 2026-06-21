@@ -96,6 +96,23 @@ Key options confirmed in the current SDK:
 
 The worker lives at `POST /api/internal/xphere-sync`. QStash signs every delivery with the `Upstash-Signature` header (a JWS). Verification **must** run against the **raw request-body string** — do not `JSON.parse` then re-`stringify`, or the hash won't match and every delivery 401s.
 
+**Recommended: the official `verifySignatureAppRouter` wrapper.** The SDK ships an App Router helper that auto-loads `QSTASH_CURRENT_SIGNING_KEY` + `QSTASH_NEXT_SIGNING_KEY` from env, reads the raw body internally, verifies the signature, and rejects unauthenticated calls — so you avoid manual raw-body plumbing. It throws at startup if either signing key is missing.
+
+```ts
+// src/app/api/internal/xphere-sync/route.ts
+import { verifySignatureAppRouter } from "@upstash/qstash/nextjs";
+
+export const runtime = "nodejs"; // SDK uses jose/crypto-js — avoid Edge
+
+export const POST = verifySignatureAppRouter(async (req: Request) => {
+  const { tenantId, event } = await req.json(); // safe: wrapper already verified raw body
+  // ... call Xphere POST /api/v1/sync with Bearer key, upsert by external_id ...
+  return new Response("ok");
+});
+```
+
+**Manual `Receiver` (use only if you need the raw body yourself or shared verification logic).** Same security; more control.
+
 ```ts
 import { Receiver } from "@upstash/qstash";
 

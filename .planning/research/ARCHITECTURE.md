@@ -1,10 +1,10 @@
 # Architecture Research
 
-**Domain:** Outbound CRM sync integration (Xphere) inside an existing Next.js 16 App Router + Supabase multi-tenant SaaS
-**Researched:** 2026-06-20
-**Confidence:** HIGH (codebase verified directly; QStash SDK API verified against the official `@upstash/qstash` README)
+**Domain:** Outbound product→CRM lifecycle sync integrated into an existing Next.js 16 App Router + Supabase app (XmartMenu → Upstash QStash → shared external `POST /api/v1/sync`)
+**Researched:** 2026-06-21
+**Confidence:** HIGH (every integration point verified directly against repo source: `src/app/api/stripe/webhooks/route.ts`, `src/app/api/onboarding/route.ts`, `src/app/api/stripe/connect/callback/route.ts`, `src/lib/tenant-plan.ts`, `src/lib/superadmin-auth.ts`, `src/lib/rate-limit.ts`, `src/lib/observability.ts`, `src/types/database.ts`, `supabase/migrations/*`. Transport/destination decided in committed STACK.md/SUMMARY.md.)
 
-This document defines how to wire the **Xphere CRM Sync** feature into XmartMenu's existing architecture. It assumes the decisions already locked in the milestone context (QStash transport, shared `POST /api/v1/sync` Xphere endpoint, Account+Contact+Opportunity model keyed by `external_id = tenants.id`, env-var credentials, `source='xmartmenu'`, new `tenants.xphere_*` columns). It does NOT re-litigate those.
+> Scope: how the **new** QStash CRM sync wires into the **existing** architecture. The transport (QStash), destination contract (`POST /api/v1/sync`), idempotency key (`external_id = tenants.id`), and object model (Account + Contact + Opportunity) are already decided — this file specifies the exact files, edit points, worker design, module shape, migration, idempotency mechanics, payload mapping, backfill, and build order. It does not re-litigate the transport choice.
 
 ---
 
@@ -12,302 +12,313 @@ This document defines how to wire the **Xphere CRM Sync** feature into XmartMenu
 
 ### System Overview
 
-The integration is a **producer → durable queue → consumer (worker) → external API → write-back** pipeline. Lifecycle events in existing routes publish a small job; QStash delivers it (with retries) to an internal worker route; the worker reads canonical state via the service-role client, maps it to the Xphere contract, POSTs, and writes the returned IDs back onto the tenant row.
-
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                       EVENT-PUBLISH PATH (producers)                  │
-│  ┌───────────────┐  ┌────────────────────┐  ┌──────────────────────┐  │
-│  │ /api/onboarding│  │ /api/stripe/webhooks│  │ /api/stripe/connect/ │  │
-│  │  (tenant create)│  │ (plan/sub lifecycle)│  │   callback           │  │
-│  └───────┬────────┘  └─────────┬──────────┘  └──────────┬───────────┘  │
-│          │  enqueueXphereSync(tenantId, reason)  (fire-and-forget)     │
-│          └───────────────┬───────────────────────────────┘            │
-├──────────────────────────┼────────────────────────────────────────────┤
-│                          ▼   src/lib/xphere/queue.ts                   │
-│              ┌───────────────────────────────────┐                    │
-│              │  Upstash QStash  (durable queue,   │                    │
-│              │  HMAC-signed delivery, retries)    │                    │
-│              └───────────────┬───────────────────┘                    │
-├──────────────────────────────┼────────────────────────────────────────┤
-│                              ▼   WORKER (consumer)                     │
-│        POST /api/internal/xphere-sync                                  │
-│   ┌──────────────────────────────────────────────────────────────┐    │
-│   │ 1. Receiver.verify(signature, rawBody)  → 401 if bad          │    │
-│   │ 2. createServiceClient(): load tenant + profile + subscription│    │
-│   │ 3. buildXpherePayload(...)  (mapping.ts, pure fn)             │    │
-│   │ 4. xphereClient.sync(payload)  (client.ts → POST /api/v1/sync)│    │
-│   │ 5. write-back xphere_*_id / xphere_synced_at / xphere_sync_error│  │
-│   └──────────────────────────────────────────────────────────────┘    │
-├──────────────────────────────┬────────────────────────────────────────┤
-│           external            ▼            data store                  │
-│   ┌───────────────────────┐      ┌─────────────────────────────────┐  │
-│   │ Xphere POST /api/v1/sync│     │ Supabase: tenants (xphere_* cols)│  │
-│   │ (built by Xtimator)     │     │ profiles, tenant_subscriptions   │  │
-│   └───────────────────────┘      └─────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────────┐
+│  PRODUCERS  (existing routes — MODIFIED, enqueue-only, fail-open)      │
+├───────────────────────────────────────────────────────────────────────┤
+│  onboarding   stripe/webhooks (3 branches)   stripe/connect/callback   │
+│   route.ts          route.ts                       route.ts            │
+│      │                  │                              │               │
+│      └──────────────────┴──────────────────────────────┘               │
+│                            │ enqueueXphereSync(tenantId, reason)        │
+│                            │ (try/catch, returns void, NEVER throws)    │
+├────────────────────────────┼──────────────────────────────────────────┤
+│                  src/lib/xphere/queue.ts (NEW)                          │
+│                  Client.publishJSON → Upstash QStash                    │
+└────────────────────────────┼──────────────────────────────────────────┘
+                             │ durable, at-least-once, signed delivery
+                             ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│  WORKER  /api/internal/xphere-sync/route.ts (NEW, runtime=nodejs)      │
+├───────────────────────────────────────────────────────────────────────┤
+│  1. raw body = await req.text()                                        │
+│  2. Receiver.verify(sig, rawBody, url)        → 401 if invalid         │
+│  3. createServiceClient(): load tenant + profile + tenant_subscription │
+│  4. getTenantPlan(tenantId) → EffectivePlan (applies overrides)        │
+│  5. buildXpherePayload(...) (PURE, src/lib/xphere/mapping.ts)          │
+│  6. syncToXphere(payload)  (src/lib/xphere/client.ts, native fetch)    │
+│  7. write back xphere_*_id / xphere_synced_at, clear xphere_sync_error │
+│     transient fail → 500 (QStash retries) | permanent → 489 + DLQ      │
+└───────────────────────────────┬───────────────────────────────────────┘
+                               │ POST source=xmartmenu, external_id=tenant.id
+                               ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│  EXTERNAL (NOT in this repo): Xphere POST /api/v1/sync                 │
+│  upsert-by-external_id → Account + Contact + Opportunity               │
+└───────────────────────────────────────────────────────────────────────┘
 
-         SUPERADMIN BACKFILL: POST /api/superadmin/xphere/backfill
-         → loops tenants → enqueueXphereSync(id) for each (re-uses producer)
+       ┌──────────────────────────────────────────────────────┐
+       │ BACKFILL /api/superadmin/xphere/backfill (NEW)        │
+       │ assertSuperadmin() → paginate tenants →               │
+       │ enqueueXphereSync(id,'backfill') per row (same path)  │
+       └──────────────────────────────────────────────────────┘
 ```
 
 ### Component Responsibilities
 
-| Component | Responsibility | Implementation |
-|-----------|----------------|----------------|
-| `enqueueXphereSync()` (queue.ts) | Single choke-point producer. Publishes `{ tenantId, reason }` to QStash. Never throws into the caller. | `new Client({ token }).publishJSON({ url, body, retries })` wrapped in try/catch → returns void |
-| QStash | Durable transport + retry/backoff. Decouples request latency from Xphere availability. | Upstash QStash (managed). Signs delivery with HMAC. |
-| Worker route `/api/internal/xphere-sync` | Verify signature, load canonical state, map, POST, write back. Idempotent & retry-safe. | App Router `route.ts`, `runtime = 'nodejs'`, reads raw body |
-| `xphere/client.ts` | HTTP client for `POST /api/v1/sync`. Owns auth headers, base URL, timeout, error shaping. | `fetch` wrapper; reads `XPHERE_API_URL/KEY/ORG_ID` |
-| `xphere/mapping.ts` | Pure function: tenant+profile+subscription → Xphere sync payload (Account/Contact/Opportunity, `external_id`, `source`). | Pure, no I/O — unit-testable in isolation |
-| `xphere/types.ts` | Contract types for request/response of `/api/v1/sync` + internal `SyncReason`. | TypeScript interfaces mirroring the documented Xphere contract |
-| Producer hooks | Call `enqueueXphereSync()` at the right lifecycle moments. | Edits to onboarding, stripe webhooks, connect callback |
-| Backfill route | Superadmin-triggered fan-out over existing tenants. | `assertSuperadmin()` + paginated enqueue loop |
-| `tenants.xphere_*` columns | Persisted CRM linkage + last sync status/error. | Migration `054_xphere_sync_columns.sql` |
+| Component | Responsibility | Implementation | New / Modified |
+|-----------|----------------|----------------|----------------|
+| `enqueueXphereSync()` | Single choke-point producer. Publish thin `{tenantId, reason}` to QStash, swallow all errors. | `src/lib/xphere/queue.ts` — `Client.publishJSON`, wrapped in try/catch, returns `void` | **NEW** |
+| Worker route | Verify signature, fat-read live state, map, POST Xphere, write back, classify retry. | `src/app/api/internal/xphere-sync/route.ts` | **NEW** |
+| `client.ts` | The only network-touching file. `fetch` to `XPHERE_API_URL` with auth + timeout. Env-presence gated. | `src/lib/xphere/client.ts` | **NEW** |
+| `mapping.ts` | Pure function: tenant + profile + subscription + plan → Account/Contact/Opportunity payload. | `src/lib/xphere/mapping.ts` | **NEW** |
+| `types.ts` | Typed `/api/v1/sync` request/response contract + `SyncReason` union + stage constants. | `src/lib/xphere/types.ts` | **NEW** |
+| Producer hooks | Call `enqueueXphereSync` after each lifecycle DB write succeeds. | onboarding, webhooks, connect callback | **MODIFIED** |
+| Backfill route | Superadmin fan-out of all tenants through the same worker path. | `src/app/api/superadmin/xphere/backfill/route.ts` | **NEW** |
+| `tenants.xphere_*` | Persist CRM linkage + last sync status/error. | migration `054_xphere_sync_columns.sql` + `Tenant` interface | **NEW (migration) + MODIFIED (type)** |
 
 ---
 
 ## Recommended Project Structure
 
-NEW vs MODIFIED is explicit so the roadmapper can derive phases.
-
 ```
 src/
 ├── lib/
-│   └── xphere/                       # NEW — all integration logic, no route concerns
-│       ├── types.ts                  # NEW — Xphere contract + SyncReason + payload types
-│       ├── client.ts                 # NEW — POST /api/v1/sync HTTP client (auth, timeout)
-│       ├── mapping.ts                # NEW — pure: tenant+profile+sub → payload
-│       └── queue.ts                  # NEW — enqueueXphereSync() producer (QStash publish)
+│   └── xphere/                          # NEW — mirrors lib/{domain}/ convention (lib/supabase, lib/auth)
+│       ├── types.ts                     # contract types + SyncReason + XPHERE_STAGES constants
+│       ├── mapping.ts                   # PURE map: tenant+profile+sub+plan → payload (offline unit-testable)
+│       ├── client.ts                    # syncToXphere() — native fetch, env-gated, the only network file
+│       └── queue.ts                     # enqueueXphereSync() — QStash Client, fail-open producer
 ├── app/
 │   └── api/
 │       ├── internal/
 │       │   └── xphere-sync/
-│       │       └── route.ts          # NEW — QStash worker (verify→load→map→POST→write-back)
+│       │       └── route.ts             # NEW — QStash worker (Receiver.verify, runtime=nodejs)
 │       ├── superadmin/
 │       │   └── xphere/
 │       │       └── backfill/
-│       │           └── route.ts      # NEW — superadmin fan-out over existing tenants
-│       ├── onboarding/route.ts       # MODIFIED — enqueue after tenant fully created
+│       │           └── route.ts         # NEW — assertSuperadmin() + paginated enqueue
+│       ├── onboarding/route.ts          # MODIFIED — enqueue after subscription insert
 │       └── stripe/
-│           ├── webhooks/route.ts     # MODIFIED — enqueue in plan/sub event branches
-│           └── connect/callback/route.ts  # MODIFIED — enqueue after stripe_connections upsert
+│           ├── webhooks/route.ts        # MODIFIED — enqueue in 3 success branches
+│           └── connect/callback/route.ts# MODIFIED — enqueue after upsert succeeds
 ├── types/
-│   └── database.ts                   # MODIFIED — add xphere_* fields to interface Tenant
-supabase/
-└── migrations/
-    └── 054_xphere_sync_columns.sql   # NEW — ALTER tenants ADD xphere_* columns
-.env.example                          # MODIFIED — document XPHERE_* + QSTASH_* vars
-package.json                          # MODIFIED — add @upstash/qstash dependency
+│   └── database.ts                      # MODIFIED — add xphere_* fields to interface Tenant
+supabase/migrations/
+└── 054_xphere_sync_columns.sql          # NEW — ALTER tenants ADD xphere_* columns
+.env.example                             # MODIFIED — document QSTASH_* + XPHERE_* vars
 ```
 
 ### Structure Rationale
 
-- **`src/lib/xphere/` (one module, four files):** Mirrors the repo's existing `src/lib/{domain}/` convention (`supabase/`, `auth/`, `marketing/`, `storage/`). Keeps all Xphere knowledge — contract, mapping, HTTP, queueing — in one place so the worker route and the producers stay thin. `mapping.ts` is pure so it can be unit-tested against the documented contract with zero network or DB.
-- **`queue.ts` separate from `client.ts`:** The producer (publish to QStash) and the consumer's HTTP client (call Xphere) are different concerns invoked from different runtimes. Splitting them means a producer import never pulls in Xphere HTTP code and vice-versa, and keeps each independently testable.
-- **`/api/internal/xphere-sync`:** New `internal/` segment signals "not user-facing, authenticated by signature not by cookie/session." Parallel to how `/api/stripe/webhooks` is machine-to-machine. Keeps it out of `admin/`, `superadmin/`, and `public/` which all carry cookie-auth semantics.
-- **Backfill under `/api/superadmin/xphere/`:** Reuses the existing `assertSuperadmin()` guard and the established `api/superadmin/*` namespace — no new auth pattern.
-- **Migration `054_`:** Next sequential number after the highest existing (`053_…`; note two duplicate `051_`/`052_` numbers already exist in the tree, so `054` is unambiguous).
+- **`src/lib/xphere/`:** Matches the established `lib/{domain}/` convention (`lib/supabase/`, `lib/auth/`, `lib/marketing/`). Splitting into types/mapping/client/queue isolates the contract (types), the bug-prone logic (mapping, pure → testable offline against the documented contract), the network surface (client, the single place contract drift is absorbed), and the producer (queue, the single fail-open choke-point). No barrel `index.ts` — repo convention is direct imports (`@/lib/xphere/queue`).
+- **`api/internal/xphere-sync/`:** New `internal/` segment signals "machine-to-machine, not user-facing." Security is **signature verification**, not session auth — same trust model as `api/stripe/webhooks` (no cookies, service-role client, verify-before-work). Must be publicly reachable with no auth wall in front of it (see Integration Points / deployment).
+- **`api/superadmin/xphere/backfill/`:** Lives under the existing `api/superadmin/*` tree so it inherits the established `assertSuperadmin()` guard pattern and folder semantics (no tenant scoping, platform-level op).
+- **Migration `054_`:** Next free number — highest existing is `053_local_seo_address_geo.sql` (note: two `051_` and two `052_` collisions already exist in the tree; `054` is unambiguous and avoids extending the collision).
 
 ---
 
 ## Architectural Patterns
 
-### Pattern 1: Fire-and-forget producer via a single choke-point
+### Pattern 1: Enqueue-only, fail-open producer (never break core flows)
 
-**What:** Every lifecycle hook calls one function, `enqueueXphereSync(tenantId, reason)`, which publishes to QStash and **swallows its own errors**. The CRM sync must never fail onboarding, a Stripe webhook ack, or the Connect callback redirect.
+**What:** Every lifecycle hook calls one function that publishes to QStash inside a try/catch and returns `void`. A CRM/QStash outage can never propagate an error into onboarding or a Stripe webhook ack.
+**When to use:** Always, at every producer site. This is the single most important safeguard — the Xphere endpoint is built by a separate effort and may not exist when this ships.
+**Trade-offs:** A swallowed publish error means a missed sync until the next lifecycle event or a backfill re-run heals it. Acceptable because every sync re-asserts full identity (self-healing); never acceptable to break a paid user's onboarding for a CRM mirror.
 
-**When to use:** Any time a request's primary job (create tenant, ack webhook) must not be coupled to a best-effort side effect against a flaky/unbuilt external system.
+**Mirrors the existing `rate-limit.ts` fail-open discipline** (`if (!redis) return { ok: true }` + `catch { return { ok: true } }`).
 
-**Trade-offs:** (+) Primary flows stay fast and resilient; QStash gives durability so "fire-and-forget" doesn't mean "lose the event." (−) A publish failure (e.g. QStash down) is silently dropped for that one event — mitigated by logging to Sentry inside the catch, and by the superadmin backfill as a recovery path.
-
-**Example:**
 ```typescript
 // src/lib/xphere/queue.ts
 import { Client } from '@upstash/qstash'
-import { captureSecurityEvent } from '@/lib/observability'
-import type { SyncReason } from './types'
+import type { SyncReason } from '@/lib/xphere/types'
 
-const hasQstash = !!process.env.QSTASH_TOKEN
-const qstash = hasQstash ? new Client({ token: process.env.QSTASH_TOKEN! }) : null
+const token = process.env.QSTASH_TOKEN
+const client = token ? new Client({ token }) : null
 
-function workerUrl(): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || ''
-  return `${base}/api/internal/xphere-sync`
-}
-
-/** Best-effort. NEVER throws — callers must not be coupled to CRM sync. */
 export async function enqueueXphereSync(tenantId: string, reason: SyncReason): Promise<void> {
-  if (!qstash) return // FAIL-OPEN like rate-limit.ts: no QSTASH_TOKEN ⇒ no-op
+  // Fail-open env gate — like rate-limit.ts. Unset QSTASH_TOKEN/XPHERE_* → skip-and-log, app keeps working.
+  if (!client || !process.env.XPHERE_API_URL) return
   try {
-    await qstash.publishJSON({
-      url: workerUrl(),
-      body: { tenantId, reason },
-      retries: 3,                              // QStash retries the WORKER on non-2xx
-      deduplicationId: `${tenantId}:${reason}`, // optional: collapse rapid dupes
+    await client.publishJSON({
+      url: `${process.env.NEXT_PUBLIC_APP_URL}/api/internal/xphere-sync`,
+      body: { tenantId, reason },                       // THIN message — see Pattern 2
+      retries: 5,
+      deduplicationId: `xphere:${tenantId}:${reason}`,   // 10-min QStash dedup window
     })
   } catch (err) {
-    // Log, do not rethrow. Backfill is the recovery path.
-    captureSecurityEvent('xphere: enqueue failed', {
-      tenantId, reason, message: err instanceof Error ? err.message : String(err),
-    })
+    // NEVER rethrow into the caller — onboarding / Stripe ack must not fail for a CRM mirror.
+    console.error('xphere.enqueue_failed', { tenantId, reason, err })
   }
 }
 ```
-This intentionally copies the **FAIL-OPEN pattern** already proven in `src/lib/rate-limit.ts` (no env ⇒ no-op, never block the app) so the team works with a familiar shape and the feature can ship before QStash credentials are live.
 
-### Pattern 2: Signed worker that re-reads canonical state (thin payload, fat read)
+### Pattern 2: Thin message + fat read (stale-proof, idempotent retries)
 
-**What:** The QStash message carries only `{ tenantId, reason }` — NOT a full snapshot. The worker re-loads tenant + profile + subscription fresh via the service-role client at execution time, then maps and POSTs. This mirrors the repo's existing **"follow-up query after Realtime INSERT"** decision (the event tells you *what changed*, you re-fetch the truth).
+**What:** The QStash message carries only `{ tenantId, reason }`. The worker re-reads live tenant + profile + subscription via the service-role client at process time and maps from current truth — never trusts data captured at enqueue time.
+**When to use:** Always. QStash gives no ordering guarantee and at-least-once delivery; a retry hours later must re-send current state, not a stale snapshot.
+**Trade-offs:** One extra DB read per delivery (cheap). In exchange, out-of-order delivery, duplicate delivery, and late retries all converge to the same correct upsert. A late `past_due` retry that arrives after the tenant already churned simply re-reads the now-`cancelled` subscription and sends that — no stale write.
 
-**When to use:** Whenever the queue delivery can be delayed or retried — a thin pointer + fresh read guarantees you sync the *current* state, never a stale snapshot, and makes retries naturally idempotent.
+```typescript
+// inside the worker, after signature verification
+const { tenantId, reason } = JSON.parse(rawBody)
+const supabase = createServiceClient()
+const { data: tenant } = await supabase.from('tenants').select('*').eq('id', tenantId).single()
+const { data: profile } = await supabase
+  .from('profiles').select('full_name, phone, id')         // owner = store-admin
+  .eq('tenant_id', tenantId).eq('role', 'store-admin').limit(1).maybeSingle()
+const plan = await getTenantPlan(tenantId, supabase)        // EffectivePlan — applies overrides
+const payload = buildXpherePayload({ tenant, profile, plan, reason })  // PURE
+```
 
-**Trade-offs:** (+) Idempotent and stale-proof; small messages. (−) One extra DB read per job (negligible at this scale).
+### Pattern 3: Machine-to-machine trust via raw-body signature verification
 
-**Example:**
+**What:** The worker reads the raw request body once with `req.text()`, verifies the `Upstash-Signature` JWS with both signing keys + the URL claim, and only then parses. This is the exact discipline the Stripe webhook already uses (`request.text()` → `stripe.webhooks.constructEvent` before any work).
+**When to use:** Every inbound machine delivery with no session.
+**Trade-offs:** None meaningful. The one footgun: `JSON.parse(body)` then re-`stringify` before `verify()` changes the bytes and 401s every delivery — so parse strictly *after* verification.
+
 ```typescript
 // src/app/api/internal/xphere-sync/route.ts
-import { NextRequest, NextResponse } from 'next/server'
 import { Receiver } from '@upstash/qstash'
-import { createServiceClient } from '@/lib/supabase/server'
-import { buildXpherePayload } from '@/lib/xphere/mapping'
-import { syncToXphere } from '@/lib/xphere/client'
-import { captureSecurityEvent } from '@/lib/observability'
-
-export const runtime = 'nodejs' // needs service-role key + raw body
+export const runtime = 'nodejs'   // SDK uses jose/crypto-js — not Edge
 
 const receiver = new Receiver({
   currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY!,
   nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY!,
 })
 
-export async function POST(req: NextRequest) {
-  // 1. Verify QStash signature against the RAW body (like Stripe's constructEvent)
-  const rawBody = await req.text()
-  const signature = req.headers.get('upstash-signature') ?? ''
-  const valid = await receiver.verify({ signature, body: rawBody }).catch(() => false)
-  if (!valid) {
-    captureSecurityEvent('xphere worker: invalid QStash signature')
-    return NextResponse.json({ error: 'Invalid signature' }, { status: 401 })
-  }
-
-  const { tenantId, reason } = JSON.parse(rawBody) as { tenantId: string; reason: string }
-  const supabase = createServiceClient()
-
-  // 2. Load canonical state fresh (service role bypasses RLS, like the webhook)
-  const { data: tenant } = await supabase
-    .from('tenants')
-    .select('id, name, slug, xphere_account_id, xphere_contact_id, xphere_opportunity_id')
-    .eq('id', tenantId).single()
-  if (!tenant) return NextResponse.json({ ok: true, skipped: 'no tenant' }) // 200: don't retry forever
-
-  const { data: profile } = await supabase
-    .from('profiles').select('full_name, phone').eq('tenant_id', tenantId)
-    .eq('role', 'store-admin').limit(1).maybeSingle()
-  const { data: subscription } = await supabase
-    .from('tenant_subscriptions').select('status, plan_id, billing_cycle, current_period_end')
-    .eq('tenant_id', tenantId).maybeSingle()
-
-  // 3. Map → 4. POST
-  try {
-    const payload = buildXpherePayload({ tenant, profile, subscription, reason })
-    const result = await syncToXphere(payload) // throws on non-2xx
-
-    // 5. Write back the returned CRM IDs + clear error
-    await supabase.from('tenants').update({
-      xphere_account_id: result.accountId,
-      xphere_contact_id: result.contactId,
-      xphere_opportunity_id: result.opportunityId,
-      xphere_synced_at: new Date().toISOString(),
-      xphere_sync_error: null,
-    }).eq('id', tenantId)
-
-    return NextResponse.json({ ok: true })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
-    // Persist the error for observability, then 500 so QStash retries (bounded by `retries`).
-    await supabase.from('tenants')
-      .update({ xphere_sync_error: message.slice(0, 500) }).eq('id', tenantId)
-    captureSecurityEvent('xphere worker: sync failed', { tenantId, reason, message })
-    return NextResponse.json({ ok: false, error: message }, { status: 500 })
-  }
-}
-```
-Note the **error contract that drives retries**: return 500 on a transient/Xphere failure so QStash retries (matching the Stripe webhook's "return 500 so it's reprocessed" idiom), but return **200 with `skipped`** for permanent no-ops (tenant deleted) so QStash stops.
-
-### Pattern 3: Decouple from the unbuilt endpoint via a typed contract + pure mapping
-
-**What:** The Xphere `/api/v1/sync` endpoint is being built separately (Xtimator effort) and may not exist when this code is written. `types.ts` encodes the **documented contract** as TypeScript types; `mapping.ts` is a pure function producing that type; `client.ts` is the only place that touches the network. Build and unit-test mapping against the contract now; defer the live integration test until the endpoint exists behind an env-presence gate.
-
-**When to use:** Whenever you must build a producer against a consumer that doesn't exist yet — depend on the *interface*, not the *implementation*.
-
-**Trade-offs:** (+) Work proceeds in parallel; the mapping (the part most likely to have bugs) is fully testable offline. (−) Contract drift risk — if the real endpoint differs from the documented contract, `client.ts` + `types.ts` absorb the change in one place; mapping/worker stay untouched.
-
-**Example:**
-```typescript
-// src/lib/xphere/client.ts
-import type { XphereSyncPayload, XphereSyncResponse } from './types'
-
-const isConfigured = () =>
-  !!(process.env.XPHERE_API_URL && process.env.XPHERE_API_KEY && process.env.XPHERE_ORG_ID)
-
-export async function syncToXphere(payload: XphereSyncPayload): Promise<XphereSyncResponse> {
-  if (!isConfigured()) throw new Error('xphere: not configured (XPHERE_API_URL/KEY/ORG_ID)')
-  const res = await fetch(`${process.env.XPHERE_API_URL}/api/v1/sync`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.XPHERE_API_KEY}`,
-      'X-Org-Id': process.env.XPHERE_ORG_ID!,
-    },
-    body: JSON.stringify({ ...payload, source: 'xmartmenu' }),
-    signal: AbortSignal.timeout(10_000),
+export async function POST(req: Request) {
+  const signature = req.headers.get('Upstash-Signature') ?? ''
+  const rawBody = await req.text()                          // RAW — required for verify()
+  const valid = await receiver.verify({
+    signature, body: rawBody,
+    url: `${process.env.NEXT_PUBLIC_APP_URL}/api/internal/xphere-sync`,
   })
-  if (!res.ok) throw new Error(`xphere sync ${res.status}: ${await res.text().catch(() => '')}`)
-  return (await res.json()) as XphereSyncResponse
+  if (!valid) return new Response('invalid signature', { status: 401 })
+  const { tenantId, reason } = JSON.parse(rawBody)          // parse AFTER verify
+  // ... fat read → map → POST → write back ...
 }
 ```
-Until the endpoint is live, `XPHERE_*` env vars stay unset in production → `client.ts` throws "not configured" → the worker records `xphere_sync_error` and QStash exhausts its retries. The queue, producers, mapping, and write-back are all exercisable end-to-end *without* the real Xphere by pointing `XPHERE_API_URL` at a local stub. **Gate live calls on the presence of the env vars** (same shape as `hasUpstash` in rate-limit.ts) so the integration "activates" the moment credentials land — zero code change.
+
+### Pattern 4: 2xx/5xx/489 retry classification (transient vs permanent)
+
+**What:** The worker's HTTP status code is the retry signal QStash reads. Map outcomes deliberately:
+
+| Outcome | Worker responds | QStash behaviour |
+|---------|-----------------|------------------|
+| Xphere `2xx`, write-back ok | `200` | Acked, done |
+| Xphere `5xx` / network / timeout / `429` | `500` (optionally `Retry-After`) | Retried on exponential backoff (~12s, ~2m, ~30m, ~6h, cap 24h) |
+| Xphere `4xx` validation / unknown stage / tenant-not-found / bad payload | `489` + header `Upstash-NonRetryable-Error: true` | Straight to DLQ — no wasted retries |
+| Signature invalid | `401` | Unsigned = attacker, not a real delivery |
+
+**Critical parallel to existing Stripe handler:** in `stripe/webhooks/route.ts`, business-logic failure returns `500` and does NOT record the idempotency row, so Stripe genuinely reprocesses (lines 345-350). Here, transient failure returns `500` and does NOT write `xphere_synced_at` (records `xphere_sync_error`), so QStash genuinely retries. **Mirror that discipline exactly.**
+
+```typescript
+try {
+  const res = await syncToXphere(payload)        // throws XphereTransientError / XpherePermanentError
+  await supabase.from('tenants').update({
+    xphere_account_id: res.accountId,
+    xphere_contact_id: res.contactId,
+    xphere_opportunity_id: res.opportunityId,
+    xphere_synced_at: new Date().toISOString(),
+    xphere_sync_error: null,                       // clear on success
+  }).eq('id', tenantId)
+  return new Response('ok', { status: 200 })
+} catch (err) {
+  await supabase.from('tenants')
+    .update({ xphere_sync_error: scrub(String(err)) }).eq('id', tenantId)   // scrub secrets from key
+  captureSecurityEvent('xphere.sync_failed', { tenantId, reason })
+  if (err instanceof XpherePermanentError) {
+    return new Response('permanent', { status: 489, headers: { 'Upstash-NonRetryable-Error': 'true' } })
+  }
+  return new Response('transient', { status: 500 })   // QStash retries
+}
+```
+
+### Pattern 5: Idempotent backfill reusing the worker path (one code path = one guarantee)
+
+**What:** The superadmin backfill does NOT build payloads or call Xphere itself. It paginates `tenants` and calls `enqueueXphereSync(id, 'backfill')` per row, throttled. Every tenant flows through the identical worker, so backfill and live events share one set of guarantees and converge via upsert-by-external_id.
+**When to use:** Hydrating history; re-running after errors; manual single-tenant re-sync (just `enqueueXphereSync(id, 'manual')`).
+**Trade-offs:** Backfill + a live webhook can enqueue the same tenant concurrently — harmless because both upsert by `external_id` to the same Account/Contact/Opportunity. Throttle the fan-out (QStash `delay` / staggered enqueue) to stay under the `/api/v1/sync` rate limit.
 
 ---
 
 ## Data Flow
 
-### Request Flow (event → CRM, the happy path)
+### Lifecycle event → CRM (the happy path)
 
 ```
-[tenant lifecycle event: onboarding / plan activated / past_due / churn / connect]
-    ↓ enqueueXphereSync(tenantId, reason)   — fire-and-forget, never blocks
-[QStash durable queue]  ──(HMAC-signed POST, retriable)──▶
-[POST /api/internal/xphere-sync]
-    ↓ Receiver.verify(signature, rawBody)         (reject → 401)
-    ↓ createServiceClient() → load tenant+profile+subscription   (fresh read)
-    ↓ buildXpherePayload(...)                      (pure mapping)
-    ↓ syncToXphere(payload) → POST /api/v1/sync    (Xphere, external)
-    ↓ returns { accountId, contactId, opportunityId }
-[UPDATE tenants SET xphere_*_id, xphere_synced_at, xphere_sync_error=null]
-    ↓ 200 OK  → QStash marks delivered
+Stripe "customer.subscription.updated" (kind=plan, status=past_due)
+    ↓
+webhooks/route.ts: update tenant_subscriptions → past_due  (existing DB write, line ~251)
+    ↓  (after idempotency row recorded at line ~353, inside success path)
+enqueueXphereSync(tenantId, 'plan.past_due')   → QStash  [returns void, non-blocking]
+    ↓  Stripe gets 200 immediately
+QStash → POST /api/internal/xphere-sync  (signed, at-least-once)
+    ↓
+worker: verify → fat-read tenant+profile+sub+plan → buildXpherePayload (At-Risk stage)
+    ↓
+client.syncToXphere → POST /api/v1/sync {source:'xmartmenu', external_id:tenantId, account, contact, opportunity}
+    ↓  2xx + {accountId, contactId, opportunityId}
+worker: UPDATE tenants SET xphere_*_id, xphere_synced_at, xphere_sync_error=null
 ```
 
-On Xphere/transient failure: worker writes `xphere_sync_error`, returns 500, QStash retries up to `retries`; after exhaustion the error persists on the tenant row for the superadmin to see and re-trigger.
+### Exact producer integration points (verified line context)
 
-### Producer hook placements (the integration points)
+| File (MODIFIED) | Insert `enqueueXphereSync(...)` here | Reason value |
+|---|---|---|
+| `api/onboarding/route.ts` | After the `tenant_subscriptions` insert succeeds (after line ~198) — note the resume-path branch (existing tenant, no menu) skips subscription creation, so enqueue should also cover the final success `return` (line ~310) to catch resumes | `'onboarding'` |
+| `webhooks/route.ts` → `checkout.session.completed`, `kind==='plan'` branch | After `tenant_subscriptions` update succeeds (≈ line 198) | `'plan.activated'` |
+| `webhooks/route.ts` → `customer.subscription.updated`/`deleted`, `kind==='plan'` branch | After the update succeeds (≈ line 260) — derive reason from the computed `status` local (`active`/`past_due`/`cancelled`) | `'plan.updated'` / `'plan.past_due'` / `'plan.churned'` |
+| `webhooks/route.ts` → `invoice.payment_failed` branch | After the `past_due` update (≈ line 298) — this branch only has `stripe_subscription_id`, so look up `tenant_id` from `tenant_subscriptions` to enqueue | `'plan.past_due'` |
+| `stripe/connect/callback/route.ts` | After the `stripe_connections` upsert succeeds (≈ line 79-83, before the success redirect at line 86) | `'connect.connected'` |
 
-| Producer file (MODIFIED) | Insertion point | `reason` |
-|--------------------------|-----------------|----------|
-| `api/onboarding/route.ts` | After step 6 (product created) succeeds, just before the success `NextResponse.json` — tenant + settings + subscription all exist | `'onboarding'` |
-| `api/stripe/webhooks/route.ts` → `checkout.session.completed` (kind === 'plan') | After the `tenant_subscriptions` update succeeds | `'plan_activated'` |
-| `api/stripe/webhooks/route.ts` → `customer.subscription.updated` / `.deleted` (kind === 'plan') | After the status mirror update; covers active / past_due / cancelled (churn) | `'subscription_updated'` |
-| `api/stripe/webhooks/route.ts` → `invoice.payment_failed` | After marking `past_due` | `'past_due'` |
-| `api/stripe/connect/callback/route.ts` | After the `stripe_connections` upsert succeeds, before the redirect | `'connect'` |
+**Placement rule (mirrors Stripe idempotency discipline):** enqueue ONLY after the DB write succeeds AND (in the webhook) inside the success path. Never enqueue before the work, never inline-call Xphere, never enqueue on a failure branch. In the webhook, the cleanest spot is just before the final `return NextResponse.json({ received: true })` (line ~369, after the idempotency row is recorded at line ~353): each branch sets a local `pendingSync: {tenantId, reason} | null`, and one `if (pendingSync) await enqueueXphereSync(...)` fires at the end. That guarantees enqueue happens only when the event is genuinely processed, and a Stripe retry — which short-circuits at the idempotency check (line 73-76) — won't double-enqueue.
 
-In the webhook, place each `enqueueXphereSync(...)` **inside the existing branch, after the DB write succeeds**, awaited but error-swallowed by `queue.ts` itself, so it cannot affect `updateResult` or the idempotency record. Do NOT enqueue before recording the idempotency row — enqueue is best-effort and must not change the webhook's 200/500 contract.
+### Idempotency strategy (three layers, given at-least-once + upsert endpoint)
 
-### Key Data Flows
+1. **Endpoint upsert-by-`external_id` (authoritative).** `/api/v1/sync` upserts on `external_id = tenants.id` (immutable). Re-delivery re-asserts the same row — no duplicates by construction. This is the real guarantee; everything else is optimization.
+2. **QStash `deduplicationId` (`xphere:${tenantId}:${reason}`).** Collapses duplicate enqueues within a 10-min window (e.g., a Stripe webhook retry that slips past the idempotency check). Cheap, free with the SDK.
+3. **Optional `Idempotency-Key` header to Xphere** (e.g., `${tenantId}:${reason}`) — belt-and-suspenders if the contract supports it. **Confirm the exact header name against the documented `/api/v1/sync` contract** before relying on it.
 
-1. **Linkage establishment (first sync):** `xphere_*_id` columns are NULL → worker sends a create-style payload with `external_id = tenants.id`; Xphere upserts by `external_id` and returns IDs → worker persists them. Subsequent syncs send the same `external_id`; Xphere updates the existing records (idempotent by design of the shared endpoint).
-2. **Backfill:** Superadmin POSTs `/api/superadmin/xphere/backfill` → route pages through `tenants` (optionally `WHERE xphere_account_id IS NULL`) and calls `enqueueXphereSync(id, 'backfill')` for each → identical worker path. Reuses the producer; no special-case code in the worker.
-3. **Observability read:** `xphere_sync_error IS NOT NULL` surfaces failed tenants in the superadmin tenant list/detail; re-trigger = enqueue again.
+**Do NOT** key idempotency on email/phone — chain owners share emails; that would merge or split tenants. `external_id = tenants.id` only. Email/phone are attributes, never lookup keys.
+
+**Staleness guard:** since the worker fat-reads, the payload always reflects current truth, so an out-of-order retry self-corrects. If the contract ever needs ordering, gate writes on `xphere_synced_at` (don't apply an event older than the last sync) — but with fat-read + full upsert this is usually unnecessary.
+
+### Payload mapping model (tenant/profile/subscription/plan → Account/Contact/Opportunity)
+
+Pure function in `mapping.ts`. Source fields verified against `interface Tenant` (id, slug, name, plan, custom_domain), `interface TenantSettings` (phone, address), `Profile` (full_name, phone, role), and `EffectivePlan` (from `getTenantPlan`).
+
+```
+Account     ← tenants (+ tenant_settings)
+  external_id   = tenants.id            (immutable match key)
+  name          = tenants.name
+  domain/url    = tenants.custom_domain ?? `${NEXT_PUBLIC_APP_URL}/${tenants.slug}`
+  source        = 'xmartmenu'           (always)
+
+Contact     ← profiles (store-admin OWNER only — NOT every staff member)
+  external_id   = `${tenants.id}:owner` (or owner profile id, per contract)
+  name          = profile.full_name
+  email         = owner auth email
+  phone         = profile.phone ?? tenant_settings.phone
+
+Opportunity ← tenant_subscriptions + EffectivePlan + reason
+  external_id   = tenants.id (or `${tenants.id}:opp`)
+  stage         = XPHERE_STAGES[reason]   // Onboarding | Active/Won | At-Risk | Churned
+  amount (MRR)  = plan.monthly_price       // from getTenantPlan → applies grandfathered overrides;
+                                           // NEVER read raw plans.monthly_price
+  plan_name     = plan.name
+```
+
+**MRR rule:** always source the amount from `getTenantPlan()` (`EffectivePlan.monthly_price`), which applies `override_monthly_price` (verified in `tenant-plan.ts` line 100). Reading `plans.monthly_price` directly would ignore grandfathered/custom pricing and report wrong MRR.
+
+**Stage mapping** lives in a central `XPHERE_STAGES` constant in `types.ts` (stage *names* are data-only config in the Xphere org, so map `SyncReason` → the agreed stage label and preflight-assert unknown reasons → permanent 489).
+
+### Superadmin backfill flow
+
+```
+POST /api/superadmin/xphere/backfill
+    ↓
+assertSuperadmin()  → 401 if not superadmin   (existing helper, superadmin-auth.ts)
+    ↓
+service.from('tenants').select('id').order('created_at').range(offset, offset+page)   // paginate
+    ↓  for each tenant (throttled — QStash delay / staggered)
+enqueueXphereSync(tenant.id, 'backfill')
+    ↓  → same worker → same upsert → idempotent, re-runnable
+return { enqueued: n }
+```
+
+Filter internal/test/opt-out tenants at this producer (and the lifecycle producers). **Confirm during planning whether a marketing-consent / internal-tenant flag exists** in the schema; if not, flag to product before syncing PII (LGPD/GDPR).
 
 ---
 
@@ -315,42 +326,48 @@ In the webhook, place each `enqueueXphereSync(...)` **inside the existing branch
 
 | Scale | Architecture Adjustments |
 |-------|--------------------------|
-| 0–1k tenants | No changes. QStash free/low tier handles event volume; one job per lifecycle event is trivial. Backfill loops synchronously. |
-| 1k–100k tenants | Backfill must paginate (e.g. 500/page) and enqueue in batches to avoid a long-running superadmin request; consider `publishJSON` batching. Worker stays single-tenant per message (good — bounded work, clean retries). |
-| 100k+ tenants | Add a QStash URL-group / flow-control to cap concurrency against Xphere's rate limits; debounce rapid repeated events per tenant via `deduplicationId`/short delay so subscription churn bursts don't hammer the CRM. |
+| 0–1k tenants | Default config is sufficient. Backfill in one paginated pass; QStash plan retries handle transient Xphere downtime. |
+| 1k–10k tenants | Throttle backfill fan-out (QStash `delay` / staggered enqueue) to stay under `/api/v1/sync` rate limit. Monitor the DLQ. Honor `Retry-After`/`429` from Xphere (return `500`, let backoff space attempts). |
+| 10k+ tenants | Backfill in chunked batches across time windows. Consider a `failureCallback` route that writes `xphere_sync_error` in bulk for DLQ entries. The fat-read-per-delivery DB cost is the next thing to watch — but Supabase handles it long before this scale. |
 
 ### Scaling Priorities
 
-1. **First bottleneck — Xphere rate limits during backfill.** A full re-sync enqueues N jobs near-simultaneously. Fix: enqueue with a small staggered `delay`, or use QStash flow-control/parallelism caps. The thin-message + fresh-read design means stale ordering is harmless.
-2. **Second bottleneck — duplicate events per tenant.** Stripe can emit several subscription events in seconds. Fix: `deduplicationId = ${tenantId}:${reason}` (already shown) collapses rapid duplicates; the worker is idempotent regardless.
+1. **First bottleneck: `/api/v1/sync` rate limit during backfill.** A naive "enqueue all tenants at once" fan-out bursts every message to Xphere within QStash's delivery window. Fix: staggered enqueue (`delay: i * k` seconds) or QStash flow-control.
+2. **Second bottleneck: poison-message retry storms.** A permanently-bad payload retried on 24h backoff churns the queue. Fix: the 489 + `Upstash-NonRetryable-Error` classification (Pattern 4) routes permanent failures straight to DLQ instead of retrying.
 
 ---
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Calling Xphere synchronously inside the lifecycle request
+### Anti-Pattern 1: Calling Xphere synchronously inside the producer
 
-**What people do:** `await fetch(xphereUrl)` directly inside `/api/onboarding` or the Stripe webhook handler.
-**Why it's wrong:** Couples onboarding/webhook latency and success to a flaky, possibly-not-yet-built external API. A slow or down Xphere would slow onboarding or cause Stripe to see a 500 and retry the *whole* webhook. It also has no durable retry.
-**Do this instead:** `enqueueXphereSync()` (fire-and-forget) → QStash → worker. The request returns immediately; QStash owns retries.
+**What people do:** `await syncToXphere(...)` directly in the onboarding route or the Stripe webhook branch.
+**Why it's wrong:** Xphere downtime would block onboarding or time out the Stripe webhook ack (Stripe then retries the whole event); a CRM mirror failure becomes a core-flow failure.
+**Do this instead:** `enqueueXphereSync(...)` (fire-and-forget) → QStash → worker. The producer stays fast and non-blocking.
 
-### Anti-Pattern 2: Putting a full state snapshot in the queue message
+### Anti-Pattern 2: Fat message (capturing tenant state at enqueue time)
 
-**What people do:** Serialize the entire tenant+subscription into the QStash body.
-**Why it's wrong:** Delivery can be delayed/retried; a snapshot goes stale and you sync outdated data. Bigger messages, contract coupling in the producer.
-**Do this instead:** Send `{ tenantId, reason }`; the worker re-reads canonical state at execution time (Pattern 2). Matches the repo's existing Realtime "re-fetch on event" decision.
+**What people do:** Serialize the full tenant/subscription snapshot into the QStash body.
+**Why it's wrong:** At-least-once + no-ordering means a retry hours later replays a stale snapshot, overwriting newer CRM state.
+**Do this instead:** Thin `{tenantId, reason}` message; the worker fat-reads live state. Retries always send current truth.
 
-### Anti-Pattern 3: Letting an enqueue failure break the caller
+### Anti-Pattern 3: Verifying the signature against re-serialized JSON
 
-**What people do:** `await enqueueXphereSync(...)` that can throw, inside the webhook's success path.
-**Why it's wrong:** A QStash hiccup would flip a successful webhook to 500 → Stripe retries → duplicate processing risk; or aborts onboarding.
-**Do this instead:** `queue.ts` swallows its own errors and logs to Sentry (FAIL-OPEN, like `rate-limit.ts`). The backfill route is the recovery mechanism for dropped enqueues.
+**What people do:** `const body = await req.json()` then `verify({ body: JSON.stringify(body) })`.
+**Why it's wrong:** Re-serialization changes bytes; the JWS hash won't match; every delivery 401s.
+**Do this instead:** `const raw = await req.text()`, verify with `raw`, `JSON.parse(raw)` only after verification — exactly as the Stripe handler reads `request.text()` before `constructEvent`.
 
-### Anti-Pattern 4: Skipping signature verification on the worker route
+### Anti-Pattern 4: Idempotency keyed on email/phone
 
-**What people do:** Treat `/api/internal/xphere-sync` as trusted because it "looks internal."
-**Why it's wrong:** It's a public HTTP endpoint; anyone could POST `{ tenantId }` and trigger CRM writes / enumerate tenants.
-**Do this instead:** `Receiver.verify({ signature, body })` against the raw body before any work — the exact discipline already used for Stripe's `constructEvent`. Reject with 401.
+**What people do:** Match/dedup the CRM record by the owner's email.
+**Why it's wrong:** Restaurant chain owners share an email across tenants → records merge or split; one tenant's churn corrupts another's Opportunity.
+**Do this instead:** Match exclusively on `external_id = tenants.id` (immutable). Email/phone are attributes pushed on every sync, never lookup keys.
+
+### Anti-Pattern 5: Recording sync success before the write-back / on the failure branch
+
+**What people do:** Return 200 (or skip retry) before persisting `xphere_*_id`, or enqueue on a branch where the DB write failed.
+**Why it's wrong:** Loses the CRM linkage / fires syncs for state that didn't persist — diverges from the proven Stripe pattern where the idempotency row is recorded ONLY after business logic succeeds.
+**Do this instead:** Write back `xphere_*_id` + `xphere_synced_at` before returning 200; enqueue ONLY after the lifecycle DB write succeeds.
 
 ---
 
@@ -360,40 +377,81 @@ In the webhook, place each `enqueueXphereSync(...)` **inside the existing branch
 
 | Service | Integration Pattern | Notes |
 |---------|---------------------|-------|
-| Upstash QStash | `Client.publishJSON({ url, body, retries })` to enqueue; `Receiver.verify()` to authenticate delivery on the worker. | NEW dependency `@upstash/qstash`. Env: `QSTASH_TOKEN`, `QSTASH_CURRENT_SIGNING_KEY`, `QSTASH_NEXT_SIGNING_KEY`. Upstash account already in use for Redis. FAIL-OPEN if `QSTASH_TOKEN` unset. |
-| Xphere CRM `POST /api/v1/sync` | `fetch` from `client.ts` with `Authorization: Bearer XPHERE_API_KEY`, `X-Org-Id`, body `{ ...payload, source: 'xmartmenu', external_id: tenantId }`. | Built by separate Xtimator effort — DO NOT modify. Depend on the documented contract via `types.ts`. Gate live calls on `XPHERE_*` env presence. Org `e375f031-…`. |
-| Supabase (service role) | `createServiceClient()` in the worker + backfill to read/write bypassing RLS. | Reuses existing factory. Same trust model as the Stripe webhook. |
-| Sentry | `captureSecurityEvent()` for enqueue failures, bad signatures, sync failures. | Reuses `src/lib/observability.ts`; no-ops without a DSN. |
+| Upstash QStash (publish) | `Client.publishJSON` from `enqueueXphereSync`, env-gated on `QSTASH_TOKEN` | Same Upstash account as existing Redis/ratelimit; separate token. Fail-open if unset. |
+| Upstash QStash (deliver) | Signed POST → worker route; `Receiver.verify` with both signing keys + URL claim | Worker MUST be publicly reachable over HTTPS with **no auth wall** QStash can't satisfy (no Basic Auth / IP allowlist / deployment protection). Security = signature, not network. |
+| Xphere `POST /api/v1/sync` | Native `fetch` from `client.ts`, `Authorization: Bearer XPHERE_API_KEY`, `AbortSignal.timeout(10s)`, body includes `source:'xmartmenu'` + `XPHERE_ORG_ID` + `external_id` | Built by separate Xtimator effort — DO NOT modify that repo. Code against the documented contract; treat shape mismatch as recordable `xphere_sync_error`, not a crash. Confirm atomicity (single call upserts all 3 objects?) + exact `Idempotency-Key` header name. |
+| Supabase (service-role) | `createServiceClient()` in the worker for the fat-read + write-back; bypasses RLS like the Stripe webhook does | Worker has no cookies — same pattern as `stripe/webhooks/route.ts` line 63. |
+| Sentry | `captureSecurityEvent` in the worker catch block | Already wired (`src/lib/observability.ts`); reuse. Scrub `XPHERE_API_KEY` from any error written to `xphere_sync_error`. |
 
 ### Internal Boundaries
 
 | Boundary | Communication | Notes |
 |----------|---------------|-------|
-| Producers ↔ `queue.ts` | Direct function call `enqueueXphereSync(tenantId, reason)` | Single choke-point; producers never import the Xphere HTTP client. |
-| `queue.ts` ↔ worker | Async via QStash (HTTP, signed) | Only coupling is the `{ tenantId, reason }` body shape (define in `types.ts`). |
-| Worker ↔ `mapping.ts` | Pure function call | No I/O in mapping → unit-testable against the contract offline. |
-| Worker ↔ `client.ts` | Function call → `fetch` | Only place that network-touches Xphere; absorbs contract drift. |
-| Worker ↔ Supabase | `createServiceClient()` read + write-back | `tenants.xphere_*` is the persisted linkage + status surface. |
+| producers ↔ queue | direct function call (`enqueueXphereSync`) | One choke-point; fail-open; never throws into producer. |
+| queue ↔ worker | QStash durable async | At-least-once, signed, retried. |
+| worker ↔ mapping | direct (pure function) | `mapping.ts` has zero I/O → unit-testable offline against the documented contract; highest-value test target (note: repo has no test runner yet — flag during planning). |
+| worker ↔ client | direct (`syncToXphere`) | `client.ts` is the only network-touching file; all contract drift absorbed here. |
+| worker ↔ Supabase | service-role read + write-back | Reuse `getTenantPlan(tenantId, supabase)` so MRR honors overrides. |
+| backfill ↔ worker | via queue (same path) | One code path = one set of guarantees. |
 
-### Suggested Build Order (dependency-respecting → phases for the roadmapper)
+### Deployment caveat (flag for requirements)
 
-1. **Migration** — `054_xphere_sync_columns.sql`: `ALTER TABLE tenants ADD COLUMN xphere_account_id text, xphere_contact_id text, xphere_opportunity_id text, xphere_synced_at timestamptz, xphere_sync_error text;` + update `interface Tenant` in `types/database.ts`. (No dependencies; everything below reads/writes these columns.)
-2. **Lib module** — `src/lib/xphere/types.ts` → `mapping.ts` (pure, unit-tested against the documented contract) → `client.ts` (env-gated `fetch`) → `queue.ts` (QStash producer, FAIL-OPEN). Add `@upstash/qstash` to `package.json`. (Depends on migration types; independently testable, no live Xphere.)
-3. **Worker** — `/api/internal/xphere-sync/route.ts`: signature verify → load → map → POST → write-back. (Depends on lib + migration. Testable end-to-end against a local Xphere stub.)
-4. **Hooks** — wire `enqueueXphereSync()` into onboarding, the three Stripe webhook branches, and the Connect callback. (Depends on `queue.ts` + worker existing so enqueued jobs land somewhere.)
-5. **Backfill** — `/api/superadmin/xphere/backfill/route.ts`: `assertSuperadmin()` + paginated enqueue loop. (Depends on producer + worker.)
-6. **Observability** — surface `xphere_sync_error` / `xphere_synced_at` in the superadmin tenant UI; Sentry alerts already wired via `captureSecurityEvent`. (Depends on data being written by the worker.)
+`PROJECT.md`/codebase STACK say **Vercel**, but the repo has a `Dockerfile` + Coolify GHCR `docker-compose` and CI building a GHCR image (production `xmartmenu.skale.club`). Whichever host: (1) the worker URL must be publicly resolvable over HTTPS, (2) no blocking auth in front of it, (3) `publishJSON` `url` must use the public origin (`NEXT_PUBLIC_APP_URL` = `https://xmartmenu.skale.club`), never `localhost` in deployed envs. The SDK code is identical either way — confirm the live target before building so the callback URL is right.
 
-**Decoupling from the unbuilt endpoint:** Steps 1–5 ship and are fully exercisable with `XPHERE_*` unset (client throws "not configured" → error recorded) or pointed at a local stub; unit tests cover `mapping.ts` against the documented contract. The **live integration test** (deferrable, after step 6) only runs once Xtimator ships `/api/v1/sync` and real `XPHERE_*` credentials are set — at which point the env-presence gate activates real calls with zero code change.
+---
+
+## Suggested Build Order (dependency-respecting)
+
+Phases 1–5 are fully buildable and exercisable **offline** against the documented contract (XPHERE_* unset → client skips/throws not-configured, error recorded; or pointed at a local stub). Live integration is deferred until Xtimator ships `/api/v1/sync`; the env-presence gate activates real calls with zero code change.
+
+| Order | Deliverable | New / Modified files | Depends on |
+|-------|-------------|----------------------|-----------|
+| **1. Schema + Contract** | `054_xphere_sync_columns.sql` (add `xphere_account_id`, `xphere_contact_id`, `xphere_opportunity_id`, `xphere_synced_at`, `xphere_sync_error`); `Tenant` interface update; `xphere/types.ts` (contract + `SyncReason` + `XPHERE_STAGES`); `xphere/mapping.ts` (pure, tested) | migration **NEW**, `database.ts` **MOD**, `types.ts`+`mapping.ts` **NEW** | nothing — front-loads the idempotency key + stage mapping (riskiest correctness) |
+| **2. Worker + client** | `api/internal/xphere-sync/route.ts` (verify → fat-read → map → POST → write-back → 2xx/500/489); `xphere/client.ts` (env-gated fetch + `XphereTransientError`/`XpherePermanentError`) | both **NEW** | Phase 1 (reads columns, uses mapping/types). Keystone — the retry/signature contract everything relies on. |
+| **3. Producer hooks** | `xphere/queue.ts` (`enqueueXphereSync`, fail-open); wire into onboarding, 3 webhook branches, connect callback | `queue.ts` **NEW**; onboarding/webhooks/callback **MOD** | Phase 2 (enqueued jobs need somewhere to land). Enforces never-break-core-flows. |
+| **4. Backfill** | `api/superadmin/xphere/backfill/route.ts` (assertSuperadmin + paginated, throttled enqueue) | **NEW** | Phase 3 (reuses producer + worker) |
+| **5. Observability + Ops** | surface `xphere_sync_error`/`xphere_synced_at` in superadmin tenant detail; manual re-sync button; DLQ monitor; secret-scrub; optional `XPHERE_SYNC_ENABLED` kill switch; `.env.example` docs | superadmin UI **MOD**, env docs **MOD** | Phase 4 (uses data the worker writes) |
+| **6. (deferred) Live integration test** | Run against the real `/api/v1/sync` once credentials land; idempotency / out-of-order / stale-retry / signature / partial-failure / missing-stage / backfill+live race / endpoint-down checklist | — | Xtimator ships endpoint + creds |
+
+**Ordering rationale:** dependency-forced (migration+types → lib → worker → hooks → backfill → observability — each layer reads/writes what the one below created) and risk-front-loaded (idempotency key in P1, signature+retry contract in P2, enqueue-only producers in P3 — the three things that, if wrong, cause cross-tenant corruption, an open CRM-write endpoint, or broken onboarding — are built earliest). This matches the consensus phase skeleton already in `SUMMARY.md`.
+
+### Migration sketch (`054_xphere_sync_columns.sql`)
+
+```sql
+-- v2.4 Xphere CRM Sync — persist CRM linkage + last sync status/error on tenants.
+-- external_id for the upsert = tenants.id (immutable). These columns are the
+-- write-back target of the worker; no RLS change needed (service-role only writes).
+ALTER TABLE tenants
+  ADD COLUMN IF NOT EXISTS xphere_account_id     TEXT        NULL,
+  ADD COLUMN IF NOT EXISTS xphere_contact_id     TEXT        NULL,
+  ADD COLUMN IF NOT EXISTS xphere_opportunity_id TEXT        NULL,
+  ADD COLUMN IF NOT EXISTS xphere_synced_at      TIMESTAMPTZ NULL,
+  ADD COLUMN IF NOT EXISTS xphere_sync_error     TEXT        NULL;
+
+-- Optional: partial index for the superadmin sync-health dashboard
+-- (find errored / never-synced tenants fast).
+CREATE INDEX IF NOT EXISTS idx_tenants_xphere_error
+  ON tenants (xphere_synced_at) WHERE xphere_sync_error IS NOT NULL;
+```
+
+Corresponding `interface Tenant` additions in `src/types/database.ts`:
+```typescript
+xphere_account_id: string | null
+xphere_contact_id: string | null
+xphere_opportunity_id: string | null
+xphere_synced_at: string | null
+xphere_sync_error: string | null
+```
 
 ---
 
 ## Sources
 
-- XmartMenu codebase (verified directly): `src/app/api/stripe/webhooks/route.ts`, `src/app/api/onboarding/route.ts`, `src/app/api/stripe/connect/callback/route.ts`, `src/lib/rate-limit.ts`, `src/lib/supabase/server.ts`, `src/lib/observability.ts`, `src/lib/superadmin-auth.ts`, `src/types/database.ts`, `supabase/migrations/*` — HIGH confidence
-- `@upstash/qstash` SDK README (`Client.publishJSON`, `Receiver.verify`, env vars) — HIGH confidence
-- `.planning/PROJECT.md` milestone v2.4 constraints + locked decisions — HIGH confidence
+- XmartMenu codebase (verified directly, 2026-06-21): `src/app/api/stripe/webhooks/route.ts` (idempotency-after-success lines 345-367, raw-body verify lines 36-59, 500-to-retry discipline, plan/connect event branches), `src/app/api/onboarding/route.ts` (tenant + subscription creation point lines 187-198, resume branch lines 91-112), `src/app/api/stripe/connect/callback/route.ts` (service-role upsert lines 69-83), `src/lib/tenant-plan.ts` (`getTenantPlan` override resolution → MRR line 100), `src/lib/superadmin-auth.ts` (`assertSuperadmin` lines 43-53), `src/lib/rate-limit.ts` (fail-open env-gate pattern lines 13, 38, 52), `src/lib/observability.ts` (`captureSecurityEvent`), `src/types/database.ts` (`Tenant`/`TenantSettings` shape lines 85-105), `supabase/migrations/*` (numbering → next free `054`) — **HIGH**
+- `.planning/research/STACK.md` + `SUMMARY.md` (committed v2.4 research: QStash SDK 2.11.1, Receiver/Client APIs, retry/DLQ/489 + `Upstash-NonRetryable-Error`, 10-min dedup, deployment caveat) — **HIGH**
+- `.planning/PROJECT.md` (v2.4 milestone scope, locked decisions: `external_id = tenants.id`, do-not-modify-Xphere, env vars) — **HIGH**
+- Upstash QStash docs (signature/raw-body/two-key verify, exponential backoff, 489 DLQ, deduplicationId) — **HIGH** (via committed STACK.md citations)
 
 ---
-*Architecture research for: Xphere CRM Sync integration (XmartMenu v2.4)*
-*Researched: 2026-06-20*
+*Architecture research for: v2.4 Xphere CRM Sync — integration of QStash-backed outbound CRM sync into existing XmartMenu architecture*
+*Researched: 2026-06-21*
