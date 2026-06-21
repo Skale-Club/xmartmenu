@@ -526,7 +526,7 @@ Plans:
 Plans:
 
 - [x] 51-01-PLAN.md — Install @upstash/qstash@2.11.1 + env-gated client.ts network seam (transient/permanent typed errors) + errors.ts + .env.example docs (FND-06)
-- [ ] 51-02-PLAN.md — Signature-verified /api/internal/xphere-sync worker (Node runtime, raw-body verify-first, fat-read, map, write-back, 401/200/489/500 retry classification) + middleware passthrough (FND-04, FND-05, FND-06)
+- [x] 51-02-PLAN.md — Signature-verified /api/internal/xphere-sync worker (Node runtime, raw-body verify-first, fat-read, map, write-back, 401/200/489/500 retry classification) + middleware passthrough (FND-04, FND-05, FND-06)
 - [ ] 51-03-PLAN.md — Pure classifyWorkerOutcome + offline xphere:worker:check tsx gate (retry table + fat-read->map wiring with stubbed client, no creds) (FND-06)
 
 **UI hint**: no
@@ -628,7 +628,7 @@ Plans:
 | 48. CTA Full-Bleed + Background Image | 0/? | Paused | - |
 | 49. DB Seeds — Color & Branding Defaults | 0/? | Paused | - |
 | 50. Schema & Contract | 3/3 | Complete    | 2026-06-21 |
-| 51. Worker + Client | 1/3 | In Progress|  |
+| 51. Worker + Client | 2/3 | In Progress|  |
 | 52. Producer Hooks | 0/? | Not started | - |
 | 53. Backfill | 0/? | Not started | - |
 | 54. Observability & Ops | 0/? | Not started | - |

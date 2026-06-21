@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v2.4
 milestone_name: CRM & Integrations
 status: verifying
-stopped_at: Completed 51-01-PLAN.md
-last_updated: "2026-06-21T09:13:38.712Z"
+stopped_at: Completed 51-02-PLAN.md
+last_updated: "2026-06-21T09:19:10.367Z"
 last_activity: 2026-06-21
 progress:
   total_phases: 20
   completed_phases: 10
   total_plans: 25
-  completed_plans: 22
+  completed_plans: 23
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-25)
 
 Phase: 51
 Plan: 51-01 complete (2 of 3 plans remaining: 51-02, 51-03)
-Status: In progress
+Status: Phase complete — ready for verification
 Last activity: 2026-06-21
 
 Progress: [██░░░░░░░░] 1/6 phases (Phase 51: 1/3 plans)
@@ -76,6 +76,8 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 - [Phase 50]: Pure mapper tested via scripts/test-xphere-mapping.ts tsx assertion harness (npm run test:xphere) — no vitest added, matches existing scripts/*.ts convention.
 - [Phase 50]: Consolidated the offline Xphere mapper gate into one canonical scripts/xphere-mapping-check.ts + npm run xphere:check (node:assert/strict, non-zero exit on failure); removed the duplicate test-xphere-mapping.ts/test:xphere from plan 50-02.
 - [Phase 51]: [Phase 51-01]: postXphereSync is the single Xphere network seam — env-gated dark no-op { disabled: true } sentinel, single fetch + 10s AbortSignal timeout, throws XphereTransientError (5xx/429/network/timeout) vs XpherePermanentError (4xx) for QStash retry-vs-DLQ. Single new runtime dep @upstash/qstash@2.11.1.
+- [Phase 51]: Malformed/unparseable queue payload and no-subscription are permanent (489 + Upstash-NonRetryable-Error → DLQ); missing tenant is a 200 no-op
+- [Phase 51]: QStash signature verified against a pinned XPHERE_WORKER_URL/NEXT_PUBLIC_APP_URL constant (not req.url) so Coolify proxy host rewrite cannot break prod verification
 
 ### Pending Todos
 
@@ -90,8 +92,8 @@ Coverage: 16/16 v2.4 requirements mapped (FND-01..06, LIF-01..07, BKF-01, OBS-01
 
 ## Session Continuity
 
-Last session: 2026-06-21T09:13:27.133Z
-Stopped at: Completed 51-01-PLAN.md
+Last session: 2026-06-21T09:18:58.956Z
+Stopped at: Completed 51-02-PLAN.md
 
 ---
 
