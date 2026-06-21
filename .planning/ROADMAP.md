@@ -621,7 +621,7 @@ Plans:
 | 47. Features Section Layout | 0/? | Paused | - |
 | 48. CTA Full-Bleed + Background Image | 0/? | Paused | - |
 | 49. DB Seeds — Color & Branding Defaults | 0/? | Paused | - |
-| 50. Schema & Contract | 3/3 | Complete   | 2026-06-21 |
+| 50. Schema & Contract | 3/3 | Complete    | 2026-06-21 |
 | 51. Worker + Client | 0/? | Not started | - |
 | 52. Producer Hooks | 0/? | Not started | - |
 | 53. Backfill | 0/? | Not started | - |
