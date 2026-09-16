@@ -16,7 +16,9 @@
     "xphere:check:queue": "npx tsx scripts/xphere-queue-check.ts",
     "xphere:check:backfill": "npx tsx scripts/xphere-backfill-check.ts",
     "xphere:check:obs": "npx tsx scripts/xphere-obs-check.ts",
-    "xphere:worker:check": "npx tsx scripts/xphere-worker-check.ts"
+    "xphere:worker:check": "npx tsx scripts/xphere-worker-check.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.67",
@@ -43,6 +45,8 @@
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "rss-parser": "^3.13.0",
+    "sanitize-html": "^2.17.7",
     "sharp": "^0.34.5",
     "stripe": "^22.1.1",
     "tailwind-merge": "^3.5.0",
@@ -54,12 +58,15 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/sanitize-html": "^2.16.1",
     "dotenv": "^16.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "schema-dts": "^2.0.0",
     "tailwindcss": "^4",
     "tsx": "^4.19.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vite-tsconfig-paths": "^6.1.1",
+    "vitest": "^3.2.7"
   }
 }

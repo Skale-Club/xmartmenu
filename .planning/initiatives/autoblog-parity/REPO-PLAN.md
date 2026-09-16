@@ -21,50 +21,41 @@ endpoint (MASTER D-07). No new infrastructure is needed.
 Multi-tenant: every table carries `tenant_id`, the super-admin gate applies, and generation
 runs on the **tenant's own** OpenRouter key (MASTER D-05).
 
-## XM-00 — Decision gate (do this before any code)
+## XM-00 — Decision gate: ANSWERED
 
-Does a restaurant/menu tenant want a blog?
+**The blog is Xmartmenu's OWN marketing blog, not a per-tenant feature.**
 
-**Recommendation: yes, gated by plan.** The tenant public site already has SEO plumbing
-(`src/lib/seo.ts`, `src/app/sitemap.ts`, `robots.ts`) and `blog` is already reserved, so the
-surface was anticipated. A per-tenant blog at `/[slug]/blog` is a local-SEO asset for a
-restaurant (menu explainers, seasonal dishes, neighbourhood content). Gate it behind
-`src/lib/tenant-plan.ts` so it is an upsell, not a default cost.
-
-**If the answer is no**, close this plan and record it in `MASTER.md` §1 — four-product
-parity is a legitimate outcome, five-product parity for its own sake is not.
-
-The rest of this file assumes the answer is yes.
-
-## Architecture mapping
-
-| Express repos | Xmartmenu |
-|---|---|
-| `server/routes/blog*.ts` | `src/app/api/blog/**/route.ts`, `src/app/api/internal/blog/**` for cron |
-| `server/services/blog-generator.ts` | `src/lib/blog/generator.ts` |
-| `shared/blog-prompt.ts`, `shared/blog-schedule.ts` | `src/lib/blog/prompt.ts`, `src/lib/blog/schedule.ts` |
-| tenant-scoped `storage.forTenant()` | `src/lib/get-effective-tenant.ts` + tenant-scoped Supabase queries |
-| `node-cron` | **none** — `skale-cron` crontab → `POST /api/internal/blog/cron/*` on `CRON_SECRET` |
-| plaintext key columns | the repo's existing `encryptApiKey`/`decryptApiKey` (`src/lib/crypto.ts`) — **already the best practice in the org** |
+Restaurants do not get a blog. The reader is the restaurant owner we are selling
+to, not their diner. That answer shrinks this phase considerably: no tenancy on
+any table, no per-tenant AI key, no plan gating, no `/[slug]/blog` route, and no
+question about whether a pizzeria wants a CMS. It is the platform site's blog,
+living at `/blog` beside the landing page, edited from superadmin.
 
 ## Tasks
 
-| id | task | notes |
+| id | task | status |
 |---|---|---|
-| **XM-00** | Product decision gate (above) | blocks everything else |
-| **XM-01** | `src/lib/blog/contract.ts` — enums and types from MASTER §3 | |
-| **XM-02** | Migrations: `blog_posts` (tenant-scoped, unique `(tenant_id, slug)`) + `blog_settings`, `blog_generation_jobs`, `blog_post_feedback`, `blog_rss_sources`, `blog_rss_items`, `ai_generation_logs`, `telegram_settings` — **RLS on every table**, public read only for published posts of an active tenant | follow the repo's existing RLS conventions |
-| **XM-03** | Public routes: `/[slug]/blog` (list) and `/[slug]/blog/[post]` under `src/app/(public)/[slug]/`, with metadata via `src/lib/seo.ts`, entries in `sitemap.ts`, and `blog` removed from the blocking behaviour in `reserved-paths.ts` for the blog route itself | tenant branding comes from the existing tenant theme, never hardcoded |
-| **XM-04** | Port `src/lib/blog/prompt.ts` + `schedule.ts` from xkedule, adapted to restaurant context: pillars (dishes, ingredients, seasonality, neighbourhood, events), geography from the tenant address, catalog from the tenant's **menu items**, internal links to menu categories and published posts | the catalog section is the interesting adaptation — a menu is a richer catalog than a service list |
-| **XM-05** | `src/lib/blog/generator.ts` — full pipeline per MASTER §8, on the tenant's own OpenRouter key (decrypted at use), image to the repo's existing storage layer, WebP + 16:9 + fallback cover | |
-| **XM-06** | Port `rss-fetcher`, `rss-selector`, `content-validator`, `ai-retry` from skaleclub | new dep: `rss-parser` |
-| **XM-07** | Scheduling: `POST /api/internal/blog/cron/generate` + `/fetch-rss` behind `CRON_SECRET`, sweeping every tenant with the platform gate on; register both in the `skale-cron` crontab and document the required Coolify env vars in the README | the only scheduling path in this repo — there is no in-process alternative |
-| **XM-08** | DB lock (`blog_settings.lock_acquired_at`, stale after 10 min) | mandatory: the container runs behind a pull-always Coolify deploy and can overlap during a rollout |
-| **XM-09** | Tenant admin under `src/app/(admin)`: Blog (post CRUD) + Automation (settings, posting hour, approval queue, jobs with retry/cancel + timings, preview, RSS sources, feedback, cost) | mirror xkedule's tab layout |
-| **XM-10** | Super-admin under `src/app/(superadmin)`: per-tenant `super_admin_enabled` toggle + `system_prompt` editor, matching xkedule's `/tenants/:id/blog-autopost` | |
-| **XM-11** | Telegram: `telegram_settings` + approvals per MASTER §6 — separate approvals bot, `chat_ids text[]` with group and thread support, `POST /api/telegram/webhook`, `setWebhook` on save, reconcile sweep (ride the same `skale-cron` entry), per-chat test button | this repo has **no** Telegram today |
-| **XM-12** | Plan gating in `src/lib/tenant-plan.ts` — blog + autopost as a capability, hidden entirely when the plan lacks it | |
-| **XM-13** | Tests: schedule, RSS selector, sanitiser bounds, retry classifier, tenant isolation on every new query | |
+| ~~XM-01~~ | ~~`src/lib/blog/contract.ts`~~ | **DONE** (P0) |
+| ~~XM-02~~ | ~~Schema + RLS~~ | **DONE** — `058_platform_blog.sql`. Platform-level, no `tenant_id`. RLS on with no policy everywhere except `blog_posts`, which keeps a public read for published rows because that is the entire point |
+| ~~XM-03~~ | ~~Public routes~~ | **DONE** — `/blog` and `/blog/[slug]` under `(marketing)`, plus sitemap entries in their own try/catch so a blog read failing cannot cost the tenant entries. `blog` was already a reserved slug, so no tenant can shadow it |
+| ~~XM-04~~ | ~~`prompt.ts` + `schedule.ts`~~ | **DONE** — schedule byte-identical; the 8 pillars are this blog's own (menu engineering, margin, delivery vs marketplace, operations, photos and copy, …), written in pt-BR for a Brazilian restaurant owner |
+| **XM-05** | Generator | **DONE except images** — pillar/RSS topic → content → link whitelist → tag allowlist → 600–4000 bounds → draft or publish → job row with stage timings → cost logged. The AI key lives on `blog_settings`, **encrypted at rest**, because this repo has no platform-wide credential. **No cover generation yet** |
+| ~~XM-06~~ | ~~RSS + validator + retry~~ | **DONE** — `rss.ts` (fetcher + ranker), `content-validator.ts`, `ai-retry.ts`. RSS optional: an empty or off-topic feed falls back to the pillar rotation |
+| **XM-07** | Scheduling | **DONE in code** — `POST /api/internal/blog/cron/generate` and `/fetch-rss` behind `CRON_SECRET`. This repo has NO in-process scheduler, so this is the only path, not a break-glass twin. **Still to do: register both in the `skale-cron` crontab and set `CRON_SECRET` in Coolify** |
+| ~~XM-08~~ | ~~DB lock~~ | **DONE** — one conditional UPDATE on `lock_acquired_at`, stale after 10 min. Necessary here: the pull-always Coolify deploy can briefly overlap two instances |
+| **XM-09** | Superadmin surface | **API DONE** — settings (masked key), generate-now, approval queue + job history, RSS sources + fetch-now, Telegram config. All `assertSuperadmin`-gated. **The React panel is not built** |
+| ~~XM-10~~ | ~~Tests~~ | **DONE** — 47 tests in `tests/unit/blog/`. This repo had no test runner at all; it gains a deliberately narrow vitest config rather than shipping these modules unguarded |
+| ~~XM-11~~ | ~~Telegram approvals~~ | **DONE except setWebhook** — separate approvals bot, group + forum-topic delivery, fan-out surviving one bad destination, chat-id validation at save, encrypted tokens, webhook authenticated by the shared secret. **The secret must be registered with Telegram manually** |
+| ~~XM-12~~ | ~~Plan gating~~ | **NOT APPLICABLE** — the blog is the platform's, so there is no tenant plan to gate it behind |
+
+## Still open
+
+- **Cover images.** Posts publish without one; `durations_ms.image` is null.
+- **`setWebhook` on save + a reconcile job.** Without them a revoked token or a
+  domain change leaves the Approve/Reject buttons dead with no signal in the
+  product: sending still works, only the taps go nowhere.
+- **The superadmin React panel.** Every endpoint exists; nothing renders them.
+- **Crontab + `CRON_SECRET`.** Nothing runs on a schedule until both are set.
 
 ## Guardrails specific to this repo
 

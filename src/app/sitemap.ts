@@ -41,5 +41,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Sitemap must never 500 the whole route — fall back to the landing entry.
   }
 
+  // Auto-blog parity XM-03: the platform's own blog. A separate try/catch so a
+  // blog read failing cannot cost us the tenant entries above, and vice versa —
+  // the whole point of a sitemap is that it degrades rather than disappears.
+  try {
+    const supabase = createServiceClient()
+    entries.push({
+      url: `${PLATFORM_BASE}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.7,
+    })
+
+    const { data: posts } = await supabase
+      .from('blog_posts')
+      .select('slug, published_at, updated_at')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(1000)
+
+    for (const post of posts ?? []) {
+      entries.push({
+        url: `${PLATFORM_BASE}/blog/${post.slug}`,
+        lastModified: post.updated_at
+          ? new Date(post.updated_at)
+          : post.published_at
+            ? new Date(post.published_at)
+            : new Date(),
+        changeFrequency: 'monthly',
+        priority: 0.6,
+      })
+    }
+  } catch {
+    // Same reasoning as above.
+  }
+
   return entries
 }
