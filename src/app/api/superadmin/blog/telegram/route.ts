@@ -11,9 +11,10 @@ import { randomBytes } from 'node:crypto'
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
-import { encryptApiKey } from '@/lib/crypto'
+import { encryptApiKey, decryptApiKey } from '@/lib/crypto'
 import { parseTelegramTarget } from '@/lib/blog/contract'
 import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
+import { deleteTelegramWebhook, setTelegramWebhook, webhookUrl } from '@/lib/blog/telegram'
 
 const MASKED = '••••'
 
@@ -84,7 +85,11 @@ export async function PATCH(request: Request) {
     null,
   ).maybeSingle()
   const prevRow = existing as { id: string } | null
-  const current = (existing ?? {}) as { webhook_secret?: string | null }
+  const current = (existing ?? {}) as {
+    webhook_secret?: string | null
+    bot_token?: string | null
+    approvals_bot_token?: string | null
+  }
 
   const update: Record<string, unknown> = { ...scopeColumn(null), updated_at: new Date().toISOString() }
   if (parsed.data.enabled !== undefined) update.enabled = parsed.data.enabled
@@ -117,6 +122,45 @@ export async function PATCH(request: Request) {
   // cada gravação; o `maybeSingle()` da leitura seguinte rebentaria com "multiple
   // rows". O índice único do escopo é PARCIAL (WHERE tenant_id IS NULL) e o
   // ON CONFLICT do PostgREST também não o alcança.
+  // Registar o webhook ao gravar, em vez de exigir um curl à mão. Era uma
+  // lacuna conhecida desta funcionalidade ("o segredo tem de ser registado
+  // manualmente"), e deixou de ser aceitável quando os restaurantes passaram a
+  // ter o mesmo circuito: o que é um incómodo para a equipa da plataforma seria
+  // o fim da funcionalidade para eles.
+  //
+  // ANTES da escrita: se o Telegram recusar, o superadmin vê o motivo e a linha
+  // fica como estava — melhor do que guardar uma configuração que parece ligada
+  // e nunca entrega nada.
+  const plainToken =
+    firstPlainToken(parsed.data.approvalsBotToken, prevRow ? decryptOrNull(current.approvals_bot_token) : null) ??
+    firstPlainToken(parsed.data.botToken, prevRow ? decryptOrNull(current.bot_token) : null)
+
+  const nextApprovals =
+    parsed.data.approvalsEnabled ?? Boolean((existing as { approvals_enabled?: boolean } | null)?.approvals_enabled)
+  const nextEnabled =
+    parsed.data.enabled ?? Boolean((existing as { enabled?: boolean } | null)?.enabled)
+  const nextSecret = (update.webhook_secret as string | null) ?? current.webhook_secret ?? null
+
+  if (nextEnabled && nextApprovals) {
+    if (!plainToken || !nextSecret) {
+      return NextResponse.json(
+        { error: 'Configure o token do bot antes de ativar aprovações.' },
+        { status: 400 },
+      )
+    }
+    const registered = await setTelegramWebhook(plainToken, webhookUrl(siteUrl()), nextSecret)
+    if (!registered.ok) {
+      return NextResponse.json(
+        { error: `Telegram recusou o registo do webhook: ${registered.message}` },
+        { status: 502 },
+      )
+    }
+  } else if (plainToken && current.webhook_secret) {
+    // Desligou: o bot deixa de nos chamar. Uma falha aqui não impede gravar —
+    // o segredo é apagado na mesma, portanto o endpoint já recusa o que chegar.
+    await deleteTelegramWebhook(plainToken)
+  }
+
   const { error } = prevRow
     ? await service.from('telegram_settings').update(update).eq('id', prevRow.id)
     : await service.from('telegram_settings').insert(update)
@@ -126,4 +170,26 @@ export async function PATCH(request: Request) {
   }
 
   return NextResponse.json({ ok: true })
+}
+
+
+/** O token em claro: o que veio no formulário, ou o guardado se ele não mexeu. */
+function firstPlainToken(incoming: string | undefined, stored: string | null): string | null {
+  const trimmed = incoming?.trim()
+  if (trimmed && trimmed !== MASKED) return trimmed
+  return stored
+}
+
+/** Um token que não decifra é um token perdido, não uma exceção a propagar. */
+function decryptOrNull(encrypted: string | null | undefined): string | null {
+  if (!encrypted) return null
+  try {
+    return decryptApiKey(encrypted) || null
+  } catch {
+    return null
+  }
+}
+
+function siteUrl(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com').replace(/\/+$/, '')
 }

@@ -87,7 +87,7 @@ export default function AdminSidebar({
   const isStaff = role === 'store-staff'
 
   const ingredientItem = { href: '/menu/ingredients', label: 'Ingredients', icon: Salad }
-  const blogItem = { href: '/blog', label: 'Blog', icon: Newspaper }
+  const blogItem = { href: '/posts', label: 'Blog', icon: Newspaper }
   const visibleMainItems = [
     ...mainItems,
     ...(ingredientCustomizationEnabled ? [ingredientItem] : []),

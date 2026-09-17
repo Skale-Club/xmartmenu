@@ -50,7 +50,11 @@ import {
 } from '@/lib/blog/prompt'
 import { selectNextRssItem, type RssItemRow } from '@/lib/blog/rss'
 import { logAiUsage } from '@/lib/blog/ai-usage-log'
-import { sendDraftForApproval, type TelegramSettingsRow } from '@/lib/blog/telegram'
+import {
+  sendDraftForApproval,
+  type ApprovalCardTarget,
+  type TelegramSettingsRow,
+} from '@/lib/blog/telegram'
 import {
   MAX_PLAIN_TEXT_CHARS,
   MIN_PLAIN_TEXT_CHARS,
@@ -714,8 +718,10 @@ export async function generateBlogPost(opts: {
     // the approval chats when the site opted in. Fire-and-forget: the post is
     // already saved, and a notification problem must never fail the run.
     if (!publish) {
-      // O link do card aponta para o painel de quem decide: o superadmin no
-      // caso da plataforma, o admin do próprio restaurante no caso dele.
+      // O link do cartão aponta para o painel de QUEM DECIDE, não para a página
+      // pública. Passava o URL público e o cartão colava-lhe "/superadmin/blog"
+      // no fim, o que dava um link que não existia em lado nenhum; e para um
+      // restaurante teria mandado o dono para o painel da plataforma.
       const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com').replace(/\/+$/, '')
       void notifyDraftAwaitingApproval(
         svc,
@@ -726,7 +732,9 @@ export async function generateBlogPost(opts: {
           excerpt: generated.excerpt || null,
           pillarLabel: assignment.pillar.label,
         },
-        tenantContext ? `${siteUrl}/${tenantContext.slug}/blog` : `${siteUrl}/blog`,
+        tenantContext
+          ? { panelUrl: `${siteUrl}/posts`, audience: 'tenant', label: tenantContext.name }
+          : { panelUrl: `${siteUrl}/admin/blog`, audience: 'platform' },
       )
     }
 
@@ -764,7 +772,7 @@ async function notifyDraftAwaitingApproval(
   svc: ServiceClient,
   scope: BlogScope,
   draft: { id: string; title: string; excerpt: string | null; pillarLabel: string },
-  postUrl: string,
+  target: ApprovalCardTarget,
 ): Promise<void> {
   try {
     // Scoped: a restaurant's draft goes to THAT restaurant's chat, never to the
@@ -783,7 +791,7 @@ async function notifyDraftAwaitingApproval(
       approvals_bot_token: raw.approvals_bot_token ? decryptApiKey(raw.approvals_bot_token) : null,
     }
 
-    const result = await sendDraftForApproval(settings, draft, postUrl)
+    const result = await sendDraftForApproval(settings, draft, target)
     if (result && result.failures.length > 0) {
       console.warn(
         `[autoblog] draft notification: ${result.delivered} delivered, failures: ` +

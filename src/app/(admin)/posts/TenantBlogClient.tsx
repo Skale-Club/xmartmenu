@@ -12,12 +12,13 @@
  * campo" de "quero apagar".
  */
 import { useState, useTransition } from 'react'
-import { AlertCircle, CheckCircle2, Clock, ExternalLink, Loader2, Rss, Trash2 } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Clock, ExternalLink, Loader2, Rss, Send, Trash2 } from 'lucide-react'
 
 import {
-  addTenantRssSource, approveTenantDraft, deleteTenantRssSource, fetchTenantRssNow,
-  generateTenantPostNow, loadTenantBlogState, rejectTenantDraft, saveTenantBlogSettings,
-  toggleTenantRssSource, type TenantBlogSettingsInput, type TenantBlogState,
+  addTenantRssSource, approveTenantDraft, checkTenantTelegramWebhook, deleteTenantRssSource,
+  fetchTenantRssNow, generateTenantPostNow, loadTenantBlogState, rejectTenantDraft,
+  saveTenantBlogSettings, saveTenantTelegramSettings, toggleTenantRssSource,
+  type TenantBlogSettingsInput, type TenantBlogState, type TenantTelegramInput,
 } from './actions'
 
 const MASKED = '********'
@@ -51,6 +52,22 @@ interface RssSource {
   error_message: string | null
 }
 
+/**
+ * O formulário parte do que o servidor sabe. Os tokens entram mascarados, nunca
+ * em claro: o sentinela é o que distingue "não mexi neste campo" de "quero
+ * apagar", e é por isso que ele existe em vez de um campo vazio.
+ */
+function telegramFrom(state: TenantBlogState): TenantTelegramInput {
+  return {
+    enabled: state.telegram.enabled,
+    approvalsEnabled: state.telegram.approvalsEnabled,
+    botToken: state.telegram.hasBotToken ? MASKED : '',
+    approvalsBotToken: state.telegram.hasApprovalsBotToken ? MASKED : '',
+    chatIds: state.telegram.chatIds,
+    approvalsChatIds: state.telegram.approvalsChatIds,
+  }
+}
+
 function formFrom(settings: Record<string, unknown> | null): TenantBlogSettingsInput {
   const row = settings ?? {}
   return {
@@ -81,6 +98,8 @@ export default function TenantBlogClient({ initialState }: { initialState: Tenan
   const [state, setState] = useState(initialState)
   const [form, setForm] = useState(() => formFrom(initialState.settings))
   const [apiKey, setApiKey] = useState('')
+  const [tg, setTg] = useState<TenantTelegramInput>(() => telegramFrom(initialState))
+  const [webhookInfo, setWebhookInfo] = useState<string | null>(null)
   const [rssName, setRssName] = useState('')
   const [rssUrl, setRssUrl] = useState('')
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
@@ -91,6 +110,7 @@ export default function TenantBlogClient({ initialState }: { initialState: Tenan
     if (!result.ok) return
     setState(result.data)
     setForm(formFrom(result.data.settings))
+    setTg(telegramFrom(result.data))
   }
 
   /** Toda mutação passa por aqui, para nenhuma esquecer de reler. */
@@ -426,6 +446,114 @@ export default function TenantBlogClient({ initialState }: { initialState: Tenan
       </section>
 
       {/* ── Histórico ──────────────────────────────────────────────────── */}
+
+      {/* ── Telegram ───────────────────────────────────────────────────── */}
+      <section className={`${CARD} space-y-4`}>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-bold text-zinc-950">
+              <Send className="h-4 w-4 text-zinc-400" /> Telegram
+            </h2>
+            <p className="mt-1 text-sm text-zinc-500">
+              Receba cada rascunho no seu Telegram e decida ali mesmo: publicar ou descartar,
+              sem abrir o painel.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm font-bold text-zinc-700">
+            <input
+              type="checkbox"
+              checked={tg.enabled}
+              onChange={(e) => setTg({ ...tg, enabled: e.target.checked })}
+            />
+            Ativo
+          </label>
+        </div>
+
+        <div>
+          <label className={LABEL} htmlFor="tg-bot">Token do bot</label>
+          <input
+            id="tg-bot"
+            className={FIELD}
+            type="password"
+            autoComplete="off"
+            value={tg.botToken ?? ''}
+            onChange={(e) => setTg({ ...tg, botToken: e.target.value })}
+            placeholder="123456:ABC-DEF..."
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            Crie o bot com o @BotFather no Telegram e cole aqui o token que ele dá. Deixe como
+            está para manter o que já está guardado; apague para remover.
+          </p>
+        </div>
+
+        <div>
+          <label className={LABEL} htmlFor="tg-chats">Para onde enviar</label>
+          <input
+            id="tg-chats"
+            className={FIELD}
+            value={tg.chatIds.join(', ')}
+            onChange={(e) =>
+              setTg({ ...tg, chatIds: e.target.value.split(',').map((v) => v.trim()).filter(Boolean) })
+            }
+            placeholder="-1001234567890"
+          />
+          <p className="mt-1 text-xs text-zinc-500">
+            O id do seu grupo ou conversa, separados por vírgula. Num grupo com tópicos, use
+            <code className="mx-1 rounded bg-zinc-100 px-1">id:tópico</code> — sem o tópico a
+            mensagem some ou nem chega.
+          </p>
+        </div>
+
+        <label className="flex items-start gap-2 text-sm text-zinc-700">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={tg.approvalsEnabled}
+            onChange={(e) => setTg({ ...tg, approvalsEnabled: e.target.checked })}
+          />
+          <span>
+            <span className="font-bold">Aprovar pelo Telegram</span>
+            <span className="block text-xs text-zinc-500">
+              O rascunho chega com os botões Aprovar e Rejeitar. Aprovar publica no seu site na
+              hora. Só funciona se o blog estiver configurado para esperar aprovação.
+            </span>
+          </span>
+        </label>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            className={BTN_PRIMARY}
+            disabled={pending}
+            onClick={() =>
+              run(() => saveTenantTelegramSettings(tg), 'Telegram salvo', () => setWebhookInfo(null))
+            }
+          >
+            {pending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Salvar Telegram
+          </button>
+          <button
+            className={BTN_GHOST}
+            disabled={pending}
+            onClick={() =>
+              startTransition(async () => {
+                const result = await checkTenantTelegramWebhook()
+                setWebhookInfo(
+                  result.ok
+                    ? result.data.url === result.data.expected
+                      ? 'Conectado — o Telegram está enviando para o lugar certo.' +
+                        (result.data.lastError ? ` Último erro relatado: ${result.data.lastError}` : '')
+                      : `O Telegram está enviando para ${result.data.url ?? '(nenhum lugar)'}, e não para ${result.data.expected}. Salve novamente para corrigir.`
+                    : result.message ?? 'Não foi possível verificar.',
+                )
+              })
+            }
+          >
+            Testar conexão
+          </button>
+        </div>
+        {webhookInfo && <p className="text-sm text-zinc-600">{webhookInfo}</p>}
+      </section>
+
       {jobs.length > 0 && (
         <section className={`${CARD} space-y-3`}>
           <h2 className="text-lg font-bold text-zinc-950">Últimas tentativas</h2>

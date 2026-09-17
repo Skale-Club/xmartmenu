@@ -302,7 +302,8 @@ ALTER TABLE public.ai_generation_logs ENABLE ROW LEVEL SECURITY;
 
 -- ── telegram_settings ───────────────────────────────────────────────────────
 --
--- Platform-level, for blog approval cards. An entry in either array is a chat
+-- Uma linha por escopo (XM-14), para os cartões de aprovação. Uma entrada de
+-- qualquer dos arrays é um chat
 -- id, optionally with a forum-topic thread: "-1001234567890" or
 -- "-1001234567890:42" (MASTER §6). A supergroup with forum topics enabled
 -- REFUSES a message carrying no message_thread_id when its General topic is

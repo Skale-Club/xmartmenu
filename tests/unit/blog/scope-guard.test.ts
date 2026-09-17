@@ -58,6 +58,34 @@ const FILES = ROOTS.flatMap((root) => {
   }
 }).map((path) => ({ path, source: readFileSync(path, 'utf8') }))
 
+describe('o webhook do Telegram resolve o escopo pelo segredo', () => {
+  const ROUTE = readFileSync('src/app/api/internal/blog/telegram-webhook/route.ts', 'utf8')
+  const MIGRATION_059 = readFileSync('supabase/migrations/059_telegram_webhook_scope.sql', 'utf8')
+
+  it('nunca fixa o escopo — ele vem da linha encontrada pelo segredo', () => {
+    // Um `scope = null` fixo aqui devolveria o endpoint ao estado em que só a
+    // plataforma funcionava, e as aprovações de todos os restaurantes deixariam
+    // de responder — em silêncio, porque o webhook responde 200 a tudo o que
+    // não reconhece, de propósito (um não-2xx faz o Telegram reentregar
+    // durante horas).
+    expect(ROUTE).toMatch(/const scope: BlogScope = settings\.tenant_id/)
+    expect(ROUTE).not.toMatch(/const scope: BlogScope = null/)
+  })
+
+  it('procura a linha pelo segredo, não pelo escopo', () => {
+    expect(ROUTE).toMatch(/\.eq\(\s*'webhook_secret'\s*,\s*provided\s*\)/)
+  })
+
+  it('o segredo é único na tabela — é ele que identifica o escopo', () => {
+    // Sem esta restrição, dois escopos com o mesmo segredo dariam uma confusão
+    // de escopo: o `.maybeSingle()` erraria com "multiple rows" e as aprovações
+    // de ambos parariam sem explicação.
+    expect(MIGRATION_059).toMatch(
+      /CREATE UNIQUE INDEX[\s\S]*telegram_settings_webhook_secret_unique[\s\S]*WHERE webhook_secret IS NOT NULL/i,
+    )
+  })
+})
+
 describe('política de leitura pública da 058', () => {
   const MIGRATION = readFileSync('supabase/migrations/058_platform_blog.sql', 'utf8')
 
