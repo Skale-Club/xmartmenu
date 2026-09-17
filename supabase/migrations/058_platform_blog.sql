@@ -72,22 +72,26 @@ ALTER TABLE public.blog_posts ENABLE ROW LEVEL SECURITY;
 -- The only public read on this migration: both blogs render published posts for
 -- anonymous visitors, which is the entire point of the feature.
 --
--- A tenant's posts also require the tenant to be ACTIVE. A suspended restaurant
--- whose menu has stopped serving must not keep a blog up on the platform's
--- infrastructure — and the check belongs here, in the policy, rather than in
--- every query that forgets it.
+-- A condição é só `status = 'published'`, deliberadamente — o mesmo que
+-- `products_public` e `categories_public` deste repo fazem, e pela mesma razão.
+--
+-- A primeira versão desta política juntava `AND EXISTS (SELECT 1 FROM tenants
+-- WHERE id = blog_posts.tenant_id AND is_active)`, para que um restaurante
+-- suspenso não mantivesse um blog de pé. A intenção estava certa e o efeito era
+-- o oposto: a subconsulta corre sob a RLS de quem lê, e a `tenants` só se deixa
+-- ler pelo superadmin ou pelo próprio tenant autenticado. Para um visitante
+-- anónimo o EXISTS era SEMPRE falso, portanto TODOS os posts de TODOS os
+-- restaurantes ficavam invisíveis ao público — exatamente o contrário do que
+-- XM-11 existe para fazer. Apanhado a correr a migração contra um Postgres a
+-- sério; nem o typecheck nem os testes de unidade lhe tocam.
+--
+-- O gate de tenant inativo fica na aplicação, que é onde o do menu já está:
+-- loadTenantBlogContext e as duas páginas públicas devolvem 404 quando
+-- `is_active` é falso. Pô-lo aqui exigiria uma função SECURITY DEFINER, e a
+-- 051_revoke_securitydefiner_rpc.sql mostra que este repo anda a removê-las.
 DROP POLICY IF EXISTS blog_posts_public_read ON public.blog_posts;
 CREATE POLICY blog_posts_public_read ON public.blog_posts
-  FOR SELECT USING (
-    status = 'published'
-    AND (
-      tenant_id IS NULL
-      OR EXISTS (
-        SELECT 1 FROM public.tenants t
-         WHERE t.id = public.blog_posts.tenant_id AND t.is_active
-      )
-    )
-  );
+  FOR SELECT USING (status = 'published');
 
 -- ── blog_settings ───────────────────────────────────────────────────────────
 --

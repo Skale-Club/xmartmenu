@@ -18,7 +18,8 @@
     "xphere:check:obs": "npx tsx scripts/xphere-obs-check.ts",
     "xphere:worker:check": "npx tsx scripts/xphere-worker-check.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:migrate": "node scripts/apply-migrations.mjs"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.67",

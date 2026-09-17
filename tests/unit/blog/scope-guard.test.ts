@@ -58,6 +58,47 @@ const FILES = ROOTS.flatMap((root) => {
   }
 }).map((path) => ({ path, source: readFileSync(path, 'utf8') }))
 
+describe('política de leitura pública da 058', () => {
+  const MIGRATION = readFileSync('supabase/migrations/058_platform_blog.sql', 'utf8')
+
+  it('não consulta `tenants` dentro de uma política de RLS', () => {
+    // A primeira versão da política juntava um `EXISTS (SELECT 1 FROM tenants
+    // ... AND is_active)` para não servir o blog de um restaurante suspenso. A
+    // intenção era boa e o efeito era o oposto: a subconsulta corre sob a RLS de
+    // QUEM LÊ, e a `tenants` só se deixa ler pelo superadmin ou pelo próprio
+    // tenant autenticado — logo, para um visitante anónimo, o EXISTS era sempre
+    // falso e o blog de TODOS os restaurantes ficava invisível ao público.
+    //
+    // Nada disto aparece no typecheck nem nos testes de unidade: só correndo a
+    // migração contra um Postgres a sério. Daí este guarda de texto.
+    //
+    // O gate de tenant inativo vive na aplicação — loadTenantBlogContext e as
+    // duas páginas públicas devolvem 404 —, que é onde o do menu já está.
+    const policies = MIGRATION.split(/CREATE POLICY/i).slice(1)
+    expect(policies.length).toBeGreaterThan(0)
+    for (const policy of policies) {
+      const body = policy.split(';')[0]
+      expect(body).not.toMatch(/\btenants\b/i)
+    }
+  })
+
+  it('mantém a RLS ligada em todas as tabelas que cria', () => {
+    const created = [...MIGRATION.matchAll(/CREATE TABLE IF NOT EXISTS public\.(\w+)/gi)].map(
+      (m) => m[1],
+    )
+    expect(created.length).toBeGreaterThanOrEqual(7)
+    for (const table of created) {
+      // Sem política, a RLS ligada é o que fecha a tabela ao anon — e é a ÚNICA
+      // coisa que a fecha, porque o Supabase concede SELECT ao anon por omissão
+      // em tabelas novas. Esquecer este ENABLE numa delas publicaria o bot token
+      // do Telegram a quem tivesse a chave anónima.
+      expect(MIGRATION).toMatch(
+        new RegExp(`ALTER TABLE public\\.${table} ENABLE ROW LEVEL SECURITY`, 'i'),
+      )
+    }
+  })
+})
+
 describe('guarda de escopo do blog', () => {
   it('encontra os ficheiros que diz varrer', () => {
     // Um caminho renomeado tornaria todas as asserções abaixo vacuamente
