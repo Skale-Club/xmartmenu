@@ -148,8 +148,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, ignored: true })
   }
 
-  const { data: post } = await scopeFilter(svc.from('blog_posts'), scope)
-    .select('id, title, excerpt, status')
+  const { data: post } = await scopeFilter(svc.from('blog_posts').select('id, title, excerpt, status'), scope)
     .eq('id', parsed.postId)
     .maybeSingle()
 

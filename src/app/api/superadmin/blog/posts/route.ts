@@ -23,15 +23,13 @@ export async function GET() {
   // rascunhos de todos os restaurantes misturados aos da plataforma — e
   // aprovar um publicaria no site de um cliente a partir do console
   // superadmin, sem nem dizer de quem era.
-  const { data: drafts } = await scopeFilter(service.from('blog_posts'), null)
-    .select('id, title, excerpt, created_at')
+  const { data: drafts } = await scopeFilter(service.from('blog_posts').select('id, title, excerpt, created_at'), null)
     .eq('status', 'draft')
     .eq('ai_generated', true)
     .order('created_at', { ascending: false })
     .limit(50)
 
-  const { data: jobs } = await scopeFilter(service.from('blog_generation_jobs'), null)
-    .select('id, status, trigger, source, pillar_id, topic, error_message, durations_ms, created_at, completed_at')
+  const { data: jobs } = await scopeFilter(service.from('blog_generation_jobs').select('id, status, trigger, source, pillar_id, topic, error_message, durations_ms, created_at, completed_at'), null)
     .order('created_at', { ascending: false })
     .limit(20)
 
@@ -53,8 +51,7 @@ export async function POST(request: Request) {
   }
 
   const service = createServiceClient()
-  const { data: post } = await scopeFilter(service.from('blog_posts'), null)
-    .select('id, title, excerpt, status')
+  const { data: post } = await scopeFilter(service.from('blog_posts').select('id, title, excerpt, status'), null)
     .eq('id', parsed.data.postId)
     .maybeSingle()
   if (!post) return NextResponse.json({ error: 'Not found' }, { status: 404 })

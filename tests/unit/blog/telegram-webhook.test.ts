@@ -22,6 +22,17 @@ interface Row { [k: string]: unknown }
  * de que o escopo da plataforma depende.
  */
 function makeClient(tables: Record<string, Row[]>) {
+  /**
+   * `from()` devolve um QUERY builder: só `select`, `insert`, `update` e
+   * `delete`. Os métodos de FILTRO (`eq`, `is`, `gte`, …) só aparecem depois de
+   * um deles — é assim no PostgREST real.
+   *
+   * O duplo respeita isso de propósito. A primeira versão punha os filtros já
+   * no `from()`, e essa permissividade escondeu um bug real: `scopeFilter` a
+   * receber um `from()` cru passava nos testes e dava
+   * `e.is is not a function` em produção. Um duplo mais tolerante que o cliente
+   * real não é conveniência, é um teste que aprova o que não funciona.
+   */
   function builder(table: string) {
     const filters: Array<(r: Row) => boolean> = []
     let op: 'select' | 'update' | 'insert' | 'delete' = 'select'
@@ -38,16 +49,16 @@ function makeClient(tables: Record<string, Row[]>) {
     }
 
     const chain = {
-      select: () => chain,
-      update(next: Row) { op = 'update'; payload = next; return chain },
-      insert(next: Row) { op = 'insert'; payload = next; return chain },
-      delete() { op = 'delete'; return chain },
       eq(col: string, val: unknown) { filters.push((r) => r[col] === val); return chain },
       is(col: string, val: unknown) {
         filters.push((r) => (val === null ? r[col] === null || r[col] === undefined : r[col] === val))
         return chain
       },
       maybeSingle: async () => ({ data: run().data[0] ?? null }),
+      order: () => chain,
+      limit: () => chain,
+      lte: () => chain,
+      not: () => chain,
       // Thenable a sério, e não um atalho: a rota faz
       // `.then(undefined, () => undefined)` no insert de feedback, para que
       // perder o sinal nunca desfaça a decisão já tomada. Um `then` que
@@ -64,7 +75,15 @@ function makeClient(tables: Record<string, Row[]>) {
         }
       },
     }
-    return chain
+    // O query builder: o que `from()` devolve. Sem métodos de filtro.
+    const queryBuilder = {
+      select: () => chain,
+      update(next: Row) { op = 'update'; payload = next; return chain },
+      insert(next: Row) { op = 'insert'; payload = next; return chain },
+      delete() { op = 'delete'; return chain },
+    }
+
+    return queryBuilder
   }
 
   return { tables, from: (table: string) => builder(table) }

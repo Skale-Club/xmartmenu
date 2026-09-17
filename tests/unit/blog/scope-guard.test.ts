@@ -38,6 +38,15 @@ const ROOTS = [
 /** O sitemap é um ficheiro só, não uma pasta — mas lê `blog_posts`. */
 const EXTRA_FILES = ['src/app/sitemap.ts']
 
+/**
+ * `from()` devolve um builder SEM métodos de filtro — `.is`/`.eq` só existem
+ * depois do `.select()` ou do `.delete()`. Passar um `from()` cru ao
+ * `scopeFilter` dá `e.is is not a function` em RUNTIME, e nem o typecheck o
+ * apanha (os tipos do PostgREST são permissivos) nem o build, que só o vê nas
+ * páginas que pré-renderiza.
+ */
+const SCOPE_FILTER_WRONG_ORDER = /scopeFilter\(\s*\w+\s*\n?\s*\.?from\([^)]*\)\s*,/
+
 /** Tabelas que passaram a ter uma linha por escopo em XM-14. */
 const SCOPED_TABLES = [
   'blog_settings',
@@ -140,6 +149,13 @@ describe('política de leitura pública da 058', () => {
 })
 
 describe('guarda de escopo do blog', () => {
+  it('nenhum scopeFilter recebe um from() cru', () => {
+    // Um bug real que os testes deixaram passar porque o duplo do cliente era
+    // mais permissivo do que o PostgREST: punha os filtros já no `from()`.
+    const offenders = FILES.filter(({ source }) => SCOPE_FILTER_WRONG_ORDER.test(source))
+    expect(offenders.map((f) => f.path)).toEqual([])
+  })
+
   it('toda a leitura pública de blog_posts declara o escopo', () => {
     // A regra: um `.from('blog_posts')` numa superfície pública tem de passar
     // por `scopeFilter` OU por `.eq('tenant_id', …)`. Sem uma das duas, a

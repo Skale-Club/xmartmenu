@@ -18,11 +18,9 @@ export async function GET() {
 
   const service = createServiceClient()
   // Escopo da plataforma: os feeds de um restaurante são geridos no admin dele.
-  const { data: sources } = await scopeFilter(service.from('blog_rss_sources'), null)
-    .select('*')
+  const { data: sources } = await scopeFilter(service.from('blog_rss_sources').select('*'), null)
     .order('created_at', { ascending: true })
-  const { data: items } = await scopeFilter(service.from('blog_rss_items'), null)
-    .select('id, source_id, title, url, status, published_at')
+  const { data: items } = await scopeFilter(service.from('blog_rss_items').select('id, source_id, title, url, status, published_at'), null)
     .order('published_at', { ascending: false, nullsFirst: false })
     .limit(50)
 

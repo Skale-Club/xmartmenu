@@ -37,11 +37,15 @@ async function getPost(slug: string): Promise<PostRow | null> {
       // linhas próprias a cada restaurante, esta consulta listaria os posts de
       // TODOS eles no blog da Xmartmenu — e o slug é único POR ESCOPO, portanto
       // /blog/<slug> podia servir o artigo de um cliente no site da plataforma.
-      const { data } = await scopeFilter(service.from('blog_posts'), null)
-      .select(
-        'slug, title, content, excerpt, meta_description, author_name, published_at, reading_time_minutes, cover_image_url',
+      const { data } = await scopeFilter(
+        service
+          .from('blog_posts')
+          .select(
+            'slug, title, content, excerpt, meta_description, author_name, published_at, reading_time_minutes, cover_image_url',
+          ),
+        null,
       )
-      .eq('slug', slug)
+        .eq('slug', slug)
       .eq('status', 'published')
       .maybeSingle()
     return (data as PostRow | null) ?? null

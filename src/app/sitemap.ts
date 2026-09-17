@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next'
 import { createServiceClient } from '@/lib/supabase/server'
 import { PLATFORM_BASE } from '@/lib/seo'
 import { scopeFilter } from '@/lib/blog/scope'
+import { listArchive, listTags } from '@/lib/blog/public-queries'
 
 // Regenerate at most every 5 minutes (active tenants change rarely).
 export const revalidate = 300
@@ -57,11 +58,39 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     // Escopo da PLATAFORMA. Era a pior das três fugas: o sitemap da Xmartmenu
     // listaria os posts de cada restaurante sob URLs da plataforma — a pedir a
     // indexação de páginas que não existem lá.
-    const { data: posts } = await scopeFilter(supabase.from('blog_posts'), null)
-      .select('slug, published_at, updated_at')
+    const { data: posts } = await scopeFilter(supabase.from('blog_posts').select('slug, published_at, updated_at'), null)
       .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(1000)
+
+    // As etiquetas e os arquivos que EXISTEM — a lista vem da contagem, nunca
+    // de um ciclo de 1 a 12. O sitemap não pode prometer páginas que dão 404.
+    const [platformTags, platformArchive] = await Promise.all([
+      listTags(supabase, null).catch(() => []),
+      listArchive(supabase, null).catch(() => []),
+    ])
+
+    for (const tag of platformTags) {
+      entries.push({
+        url: `${PLATFORM_BASE}/blog/tag/${tag.slug}`,
+        changeFrequency: 'weekly',
+        priority: 0.5,
+      })
+    }
+    for (const year of new Set(platformArchive.map((e) => e.year))) {
+      entries.push({
+        url: `${PLATFORM_BASE}/blog/archive/${year}`,
+        changeFrequency: 'monthly',
+        priority: 0.4,
+      })
+    }
+    for (const entry of platformArchive) {
+      entries.push({
+        url: `${PLATFORM_BASE}/blog/archive/${entry.year}/${String(entry.month).padStart(2, '0')}`,
+        changeFrequency: 'monthly',
+        priority: 0.3,
+      })
+    }
 
     for (const post of posts ?? []) {
       entries.push({
