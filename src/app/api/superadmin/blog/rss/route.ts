@@ -32,6 +32,10 @@ export async function GET() {
 const bodySchema = z.union([
   z.object({ action: z.literal('add'), name: z.string().min(1).max(200), url: z.string().url().max(2000) }),
   z.object({ action: z.literal('delete'), id: z.string().uuid() }),
+  // Pausing, not deleting. Deleting and re-adding is what people reach for
+  // otherwise, and it throws away every item already ingested from the feed —
+  // the publisher's whole current window then comes back in as if it were new.
+  z.object({ action: z.literal('toggle'), id: z.string().uuid(), enabled: z.boolean() }),
   z.object({ action: z.literal('fetch') }),
 ])
 
@@ -49,6 +53,15 @@ export async function POST(request: Request) {
     const { error } = await service
       .from('blog_rss_sources')
       .insert({ name: parsed.data.name, url: parsed.data.url, enabled: true })
+    if (error) return NextResponse.json({ error: error.message }, { status: 400 })
+    return NextResponse.json({ ok: true })
+  }
+
+  if (parsed.data.action === 'toggle') {
+    const { error } = await service
+      .from('blog_rss_sources')
+      .update({ enabled: parsed.data.enabled, updated_at: new Date().toISOString() })
+      .eq('id', parsed.data.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ ok: true })
   }
