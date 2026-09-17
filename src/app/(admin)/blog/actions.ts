@@ -1,6 +1,6 @@
 'use server'
 /**
- * Blog do restaurante — ações do admin do tenant (autoblog-parity XM-11).
+ * Blog do restaurante — ações do admin do tenant (autoblog-parity XM-14).
  *
  * TODA ação passa por `requireBlogTenant()`, que faz três coisas em ordem:
  * resolve o tenant da sessão, confere que o plano dele carrega a capacidade

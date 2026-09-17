@@ -1,7 +1,7 @@
 // =============================================================================
 // src/lib/blog/scope.ts
 //
-// Which blog a piece of work belongs to (autoblog-parity XM-11).
+// Which blog a piece of work belongs to (autoblog-parity XM-14).
 //
 //   null          → Xmartmenu's own marketing blog at /blog. Reader: a
 //                   restaurant owner we are selling to.

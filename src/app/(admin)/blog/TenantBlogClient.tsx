@@ -1,6 +1,6 @@
 'use client'
 /**
- * Painel do blog do restaurante (autoblog-parity XM-11).
+ * Painel do blog do restaurante (autoblog-parity XM-14).
  *
  * Escrito para um dono de restaurante, não para um operador de plataforma: sem
  * jargão de pipeline, sem ids na tela, e o que aparece em destaque é o que ele

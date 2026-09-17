@@ -21,22 +21,36 @@ endpoint (MASTER D-07). No new infrastructure is needed.
 Multi-tenant: every table carries `tenant_id`, the super-admin gate applies, and generation
 runs on the **tenant's own** OpenRouter key (MASTER D-05).
 
-## XM-00 — Decision gate: ANSWERED
 
-**The blog is Xmartmenu's OWN marketing blog, not a per-tenant feature.**
+## XM-00 — Decision gate: ANSWERED, DEPOIS REVERTIDO (2026-09-17)
 
-Restaurants do not get a blog. The reader is the restaurant owner we are selling
-to, not their diner. That answer shrinks this phase considerably: no tenancy on
-any table, no per-tenant AI key, no plan gating, no `/[slug]/blog` route, and no
-question about whether a pizzeria wants a CMS. It is the platform site's blog,
-living at `/blog` beside the landing page, edited from superadmin.
+**Primeira resposta:** o blog era só o da Xmartmenu. Os restaurantes não teriam
+blog nenhum — o leitor era o dono do restaurante a quem vendemos, não o cliente
+dele. Isso encolhia a fase: sem tenancy, sem chave de IA por tenant, sem gate de
+plano, sem rota `/[slug]/blog`.
+
+**Resposta atual:** os restaurantes TÊM blog. O argumento que mudou a decisão é
+de SEO: um menu que consegue ranquear localmente vale mais do que um que não
+consegue, e o blog é a peça que o permite. Um restaurante que escreva sobre o
+bairro, sobre um prato, sobre uma data, entra em pesquisas onde um menu sozinho
+nunca entraria — e a plataforma passa a vender isso.
+
+O blog da plataforma **não muda**: continua em `/blog`, editado no superadmin.
+O dos restaurantes vive ao lado, em `/[slug]/blog`, gated pelo plano. As duas
+audiências não se tocam — os pilares editoriais de um falam de margem e de
+operação a um dono de restaurante; os do outro falam de pratos e de bairro a
+quem vai jantar.
+
+O trabalho está em **XM-14**, abaixo. (Os primeiros commits desse trabalho, e
+esta tabela antes desta revisão, chamavam-lhe XM-11, que já era do Telegram; o
+código foi renumerado, o histórico de commits não.)
 
 ## Tasks
 
 | id | task | status |
 |---|---|---|
 | ~~XM-01~~ | ~~`src/lib/blog/contract.ts`~~ | **DONE** (P0) |
-| ~~XM-02~~ | ~~Schema + RLS~~ | **DONE** — `058_platform_blog.sql`. Platform-level, no `tenant_id`. RLS on with no policy everywhere except `blog_posts`, which keeps a public read for published rows because that is the entire point |
+| ~~XM-02~~ | ~~Schema + RLS~~ | **DONE, depois REESCRITA por XM-14** — `058_platform_blog.sql`. As oito tabelas levam `tenant_id` nullable (NULL = plataforma); `blog_settings` e `telegram_settings` deixaram de ser singletons com `id INTEGER DEFAULT 1` e passaram a UUID, uma linha por escopo, com índices únicos **parciais** (os NULLs são distintos num índice único, portanto `UNIQUE (tenant_id, slug)` não garantiria nada às linhas da plataforma). RLS ligada em todas, sem política exceto `blog_posts`, que mantém a leitura pública dos publicados porque é para isso que existe. A migração nunca chegou a produção antes da reescrita, portanto é um ficheiro só, não duas |
 | ~~XM-03~~ | ~~Public routes~~ | **DONE** — `/blog` and `/blog/[slug]` under `(marketing)`, plus sitemap entries in their own try/catch so a blog read failing cannot cost the tenant entries. `blog` was already a reserved slug, so no tenant can shadow it |
 | ~~XM-04~~ | ~~`prompt.ts` + `schedule.ts`~~ | **DONE** — schedule byte-identical; the 8 pillars are this blog's own (menu engineering, margin, delivery vs marketplace, operations, photos and copy, …), written in pt-BR for a Brazilian restaurant owner |
 | **XM-05** | Generator | **DONE** — imagens incluídas (`src/lib/blog/cover-image.ts`: 16:9 + WebP + upload em `_platform/blog/`, best-effort para que um modelo de imagem ocupado nunca custe um post; as páginas públicas e o card de OG passaram a exibi-las) — pillar/RSS topic → content → link whitelist → tag allowlist → 600–4000 bounds → draft or publish → job row with stage timings → cost logged. The AI key lives on `blog_settings`, **encrypted at rest**, because this repo has no platform-wide credential. **No cover generation yet** |
@@ -46,7 +60,9 @@ living at `/blog` beside the landing page, edited from superadmin.
 | **XM-09** | Superadmin surface | — | **DONE** — `/blog` in the superadmin console: schedule (posting hour + timezone + the server-computed next run), voice/models, the encrypted OpenRouter key as a write-only field, approval queue, RSS feeds with fetch-now and per-feed errors, Telegram (separate alert vs approval bots and chats, forum topics), and generation history with per-stage timings. Initial state is read by the SERVER page — the encrypted key is destructured out there, so it never reaches the RSC payload. A `toggle` action was added to the RSS route so pausing a feed does not mean deleting and re-adding it. |
 | ~~XM-10~~ | ~~Tests~~ | **DONE** — 47 tests in `tests/unit/blog/`. This repo had no test runner at all; it gains a deliberately narrow vitest config rather than shipping these modules unguarded |
 | ~~XM-11~~ | ~~Telegram approvals~~ | **DONE except setWebhook** — separate approvals bot, group + forum-topic delivery, fan-out surviving one bad destination, chat-id validation at save, encrypted tokens, webhook authenticated by the shared secret. **The secret must be registered with Telegram manually** |
-| ~~XM-12~~ | ~~Plan gating~~ | **NOT APPLICABLE** — the blog is the platform's, so there is no tenant plan to gate it behind |
+| ~~XM-12~~ | ~~Plan gating~~ | **DONE por XM-14** — era "não aplicável" enquanto o blog fosse só da plataforma. Com o blog por restaurante passou a ser o contrário: `plan.features.includes('blog')` decide se o item aparece no menu do admin, se as ações do painel respondem, e se as rotas públicas `/[slug]/blog` existem ou dão 404. Os três, não só o menu — esconder o link deixaria as rotas abertas |
+| **XM-14** | **Blog por restaurante (tenant)** | **DONE** — reversão do XM-00. `tenant_id` nas 8 tabelas + `src/lib/blog/scope.ts` (`scopeFilter`/`scopeColumn`, e `scope === null` resolve para `.is('tenant_id', null)`, porque no PostgREST um `.eq` com NULL não corresponde a nada e um filtro esquecido devolve as linhas de toda a gente). `TENANT_BLOG_PILLARS`: 8 pilares virados para quem vai jantar, alguns condicionados a haver menu ou morada. `loadTenantBlogContext` fundamenta o prompt no menu, no bairro e nos canais reais do restaurante, e devolve null para tenant inativo. Rotas públicas `/[slug]/blog` e `/[slug]/blog/[postSlug]`, gated por `plan.features.includes('blog')`. Painel em pt-BR no admin do restaurante; o escopo vem sempre da SESSÃO, nunca do corpo do pedido. `runBlogSweep` varre todos os escopos numa chamada, com a falha de um isolada, portanto a entrada do crontab nunca muda à medida que entram restaurantes. O console superadmin foi escopado à plataforma — sem isso passaria a mostrar (e a aprovar) os rascunhos de todos os restaurantes |
+| **XM-15** | **Runner de migrações** | **DONE** — `npm run db:migrate`, registo em `supabase_migrations.schema_migrations` (a mesma tabela do Supabase CLI), simulação por omissão, cada ficheiro numa transação com o seu registo, `--baseline` para bases de dados anteriores ao registo, e deteção de versões duplicadas (este repo tem dois pares). Correr a 058 contra um Postgres real foi o que apanhou o bug de RLS descrito em XM-14 |
 
 ## Still open
 

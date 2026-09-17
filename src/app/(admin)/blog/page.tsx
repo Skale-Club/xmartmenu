@@ -6,7 +6,7 @@ import { loadTenantBlogState } from './actions'
 import TenantBlogClient from './TenantBlogClient'
 
 /**
- * Blog do restaurante (autoblog-parity XM-11).
+ * Blog do restaurante (autoblog-parity XM-14).
  *
  * O estado inicial é lido AQUI, no server component: a rota já é autenticada e
  * já espera o Supabase, então ler aqui não custa nada e o painel renderiza com

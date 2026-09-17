@@ -1,5 +1,5 @@
 // tests/unit/blog/scope.test.ts
-// Auto-blog parity XM-11 — o seletor de escopo.
+// Auto-blog parity XM-14 — o seletor de escopo.
 //
 // Isto parece trivial e não é: em PostgREST, `tenant_id = NULL` não casa com
 // nada. Um `.eq('tenant_id', null)` escrito por hábito devolveria ZERO linhas

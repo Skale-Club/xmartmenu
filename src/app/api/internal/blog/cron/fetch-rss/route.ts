@@ -28,7 +28,7 @@ export async function POST(request: Request) {
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Sweeps every scope that has BOTH the blog and RSS on (autoblog-parity
-  // XM-11) — the platform's own and each restaurant's. A scope with RSS off
+  // XM-14) — the platform's own and each restaurant's. A scope with RSS off
   // opens no sockets at all.
   return NextResponse.json(await runRssSweep())
 }

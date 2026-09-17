@@ -73,7 +73,7 @@ export default function AdminSidebar({
   menus?: SidebarMenu[]
   activeMenuId?: string | null
   ingredientCustomizationEnabled?: boolean
-  /** Plan capability `blog` (autoblog-parity XM-11). Off for every plan that
+  /** Plan capability `blog` (autoblog-parity XM-14). Off for every plan that
    *  does not sell it, which today is all of them until someone adds the key. */
   blogEnabled?: boolean
 }) {

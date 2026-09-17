@@ -1,7 +1,7 @@
 // =============================================================================
 // src/lib/blog/sweep.ts
 //
-// Roda uma volta de geração por TODOS os blogs ativos (autoblog-parity XM-11).
+// Roda uma volta de geração por TODOS os blogs ativos (autoblog-parity XM-14).
 //
 // A plataforma tem um blog; cada restaurante com o recurso ligado tem o dele.
 // O cron chama isto uma vez e cada escopo decide sozinho, com as próprias

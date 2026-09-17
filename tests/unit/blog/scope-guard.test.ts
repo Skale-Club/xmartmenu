@@ -1,7 +1,7 @@
 // =============================================================================
-// Guarda estática do escopo do blog (autoblog-parity XM-11).
+// Guarda estática do escopo do blog (autoblog-parity XM-14).
 //
-// Antes de XM-11 o blog era só da plataforma: `blog_settings` e
+// Antes de XM-14 o blog era só da plataforma: `blog_settings` e
 // `telegram_settings` eram singletons com `id INTEGER PRIMARY KEY DEFAULT 1` e
 // um CHECK a garanti-lo, e nenhuma tabela tinha `tenant_id`. Agora cada
 // restaurante tem as suas linhas, e as duas suposições antigas passaram a ser
@@ -29,7 +29,7 @@ const ROOTS = [
   'src/app/(superadmin)/blog',
 ]
 
-/** Tabelas que passaram a ter uma linha por escopo em XM-11. */
+/** Tabelas que passaram a ter uma linha por escopo em XM-14. */
 const SCOPED_TABLES = [
   'blog_settings',
   'telegram_settings',

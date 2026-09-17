@@ -19,7 +19,7 @@ export async function GET() {
 
   // Generated drafts only. A hand-written draft is someone's work in progress,
   // not something waiting on an approval decision.
-  // Escopo da PLATAFORMA. Sem isto, depois de XM-11, esta fila mostraria os
+  // Escopo da PLATAFORMA. Sem isto, depois de XM-14, esta fila mostraria os
   // rascunhos de todos os restaurantes misturados aos da plataforma — e
   // aprovar um publicaria no site de um cliente a partir do console
   // superadmin, sem nem dizer de quem era.

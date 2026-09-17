@@ -312,7 +312,7 @@ export function sanitizeGeneratedLinks(html: unknown, allowedPaths: string[]): s
   })
 }
 
-// ─── Pilares do blog DE UM RESTAURANTE (autoblog-parity XM-11) ──────────────
+// ─── Pilares do blog DE UM RESTAURANTE (autoblog-parity XM-14) ──────────────
 //
 // O catálogo acima escreve PARA O DONO do restaurante — é o blog de marketing
 // da Xmartmenu, vendendo a plataforma. Estes pilares escrevem para quem vai

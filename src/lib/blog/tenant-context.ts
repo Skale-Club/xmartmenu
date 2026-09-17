@@ -1,7 +1,7 @@
 // =============================================================================
 // src/lib/blog/tenant-context.ts
 //
-// O que o gerador sabe sobre um restaurante (autoblog-parity XM-11).
+// O que o gerador sabe sobre um restaurante (autoblog-parity XM-14).
 //
 // Tudo aqui vem das PRÓPRIAS linhas do restaurante. Nada é inferido, nada tem
 // valor padrão inventado: o post sai no nome do cliente, e um prato que ele não

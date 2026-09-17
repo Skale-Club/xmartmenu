@@ -445,7 +445,7 @@ async function buildSystemMessage(
  */
 export async function generateBlogPost(opts: {
   trigger: 'cron' | 'manual'
-  /** Which blog to write. Defaults to the platform's own (autoblog-parity XM-11). */
+  /** Which blog to write. Defaults to the platform's own (autoblog-parity XM-14). */
   scope?: BlogScope
   svc?: ServiceClient
   now?: Date

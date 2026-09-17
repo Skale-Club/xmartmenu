@@ -82,7 +82,7 @@ ALTER TABLE public.blog_posts ENABLE ROW LEVEL SECURITY;
 -- ler pelo superadmin ou pelo próprio tenant autenticado. Para um visitante
 -- anónimo o EXISTS era SEMPRE falso, portanto TODOS os posts de TODOS os
 -- restaurantes ficavam invisíveis ao público — exatamente o contrário do que
--- XM-11 existe para fazer. Apanhado a correr a migração contra um Postgres a
+-- XM-14 existe para fazer. Apanhado a correr a migração contra um Postgres a
 -- sério; nem o typecheck nem os testes de unidade lhe tocam.
 --
 -- O gate de tenant inativo fica na aplicação, que é onde o do menu já está:
@@ -355,4 +355,4 @@ CREATE INDEX IF NOT EXISTS blog_rss_sources_tenant_idx
 -- a migration that silently switched the feature on for every existing customer
 -- would be this file making that decision on someone else's behalf.
 COMMENT ON COLUMN public.plans.features IS
-  'Capability keys. Recognised today: payments, stripe-connect, blog (per-tenant SEO blog, autoblog-parity XM-11).';
+  'Capability keys. Recognised today: payments, stripe-connect, blog (per-tenant SEO blog, autoblog-parity XM-14).';

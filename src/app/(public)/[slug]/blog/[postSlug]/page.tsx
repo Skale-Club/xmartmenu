@@ -24,7 +24,7 @@ interface PostRow {
 }
 
 /**
- * One post on a restaurant's blog (autoblog-parity XM-11).
+ * One post on a restaurant's blog (autoblog-parity XM-14).
  *
  * `content` is rendered with dangerouslySetInnerHTML, and that is safe for a
  * specific reason: every path that writes this column runs it through

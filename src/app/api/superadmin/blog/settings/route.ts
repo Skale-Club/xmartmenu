@@ -35,7 +35,7 @@ export async function GET() {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
-  // A linha da PLATAFORMA. Depois de XM-11 esta tabela tem uma linha por
+  // A linha da PLATAFORMA. Depois de XM-14 esta tabela tem uma linha por
   // escopo, e o console superadmin edita só a da plataforma — o blog de um
   // restaurante é editado no admin dele.
   const { data } = await scopeFilter(service.from('blog_settings').select('*'), null).maybeSingle()

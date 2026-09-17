@@ -7,7 +7,7 @@
  * feature needs no new infrastructure.
  *
  * One call covers every blog: the platform's own and each restaurant that has
- * the feature on (XM-11). The crontab entry never changes as tenants come and
+ * the feature on (XM-14). The crontab entry never changes as tenants come and
  * go — the sweep reads which scopes are enabled every time it runs.
  */
 import { NextResponse } from 'next/server'
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   const manual = new URL(request.url).searchParams.get('manual') === '1'
 
   // One call sweeps EVERY enabled blog — the platform's and every restaurant's
-  // (autoblog-parity XM-11). Each scope applies its own cadence in its own
+  // (autoblog-parity XM-14). Each scope applies its own cadence in its own
   // timezone, so the crontab entry never has to change as tenants are added.
   const summary = await runBlogSweep({ trigger: manual ? 'manual' : 'cron' })
 

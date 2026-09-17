@@ -21,7 +21,7 @@ interface PostCard {
 }
 
 /**
- * The restaurant's own blog (autoblog-parity XM-11).
+ * The restaurant's own blog (autoblog-parity XM-14).
  *
  * The whole point is local SEO: a menu that can rank for "melhor pizza no
  * <bairro>" is worth more than a menu that cannot. So this page is indexable,

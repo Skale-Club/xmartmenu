@@ -112,7 +112,7 @@ export async function PATCH(request: Request) {
   }
 
   // Update quando a linha existe, insert quando não — nunca upsert. O `id`
-  // deixou de ser o literal 1 e passou a UUID com default (XM-11), portanto um
+  // deixou de ser o literal 1 e passou a UUID com default (XM-14), portanto um
   // upsert por `id` não encontraria conflito nenhum e inseriria uma linha nova a
   // cada gravação; o `maybeSingle()` da leitura seguinte rebentaria com "multiple
   // rows". O índice único do escopo é PARCIAL (WHERE tenant_id IS NULL) e o

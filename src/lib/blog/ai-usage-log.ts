@@ -22,7 +22,7 @@ import { scopeColumn, type BlogScope } from '@/lib/blog/scope'
 const MAX_LOGGED_PROMPT_CHARS = 2000
 
 export interface AiUsageEntry {
-  /** Which blog spent this (autoblog-parity XM-11). A cost row with no scope
+  /** Which blog spent this (autoblog-parity XM-14). A cost row with no scope
    *  lands on the platform's ledger and quietly inflates its cost-per-post. */
   scope: BlogScope
   step: BlogAiStep

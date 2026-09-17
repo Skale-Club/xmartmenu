@@ -65,7 +65,7 @@ export default async function AdminLayout({
         .single(),
     ])
 
-    // autoblog-parity XM-11: the blog is a paid capability, gated the same way
+    // autoblog-parity XM-14: the blog is a paid capability, gated the same way
     // payments and stripe-connect already are. A plan lookup that fails hides
     // the item rather than showing a link to a page that will 403.
     const blogEnabled =

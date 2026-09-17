@@ -1,5 +1,5 @@
 // tests/unit/blog/tenant-blog.test.ts
-// Auto-blog parity XM-11 — o blog do restaurante.
+// Auto-blog parity XM-14 — o blog do restaurante.
 //
 // Duas coisas são testadas aqui porque as duas são caras quando dão errado:
 // um post falando de algo que a casa não tem (o cliente vai até a porta pedir),
