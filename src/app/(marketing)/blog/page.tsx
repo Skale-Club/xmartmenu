@@ -31,6 +31,7 @@ interface PostCard {
   excerpt: string | null
   published_at: string | null
   reading_time_minutes: number | null
+  cover_image_url: string | null
 }
 
 async function getPosts(): Promise<PostCard[]> {
@@ -38,7 +39,7 @@ async function getPosts(): Promise<PostCard[]> {
     const service = createServiceClient()
     const { data } = await service
       .from('blog_posts')
-      .select('slug, title, excerpt, published_at, reading_time_minutes')
+      .select('slug, title, excerpt, published_at, reading_time_minutes, cover_image_url')
       .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(50)
@@ -76,6 +77,21 @@ export default async function BlogIndexPage() {
           {posts.map((post) => (
             <li key={post.slug}>
               <article>
+                {/* Sem <Image> do Next: a URL vem do Supabase Storage e não
+                    está no remotePatterns, então o otimizador recusaria em
+                    produção. `loading="lazy"` + aspect-ratio fixo evitam o
+                    layout shift que o <Image> traria de graça. */}
+                {post.cover_image_url && (
+                  <Link href={`/blog/${post.slug}`} className="mb-4 block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={post.cover_image_url}
+                      alt=""
+                      loading="lazy"
+                      className="aspect-video w-full rounded-xl object-cover"
+                    />
+                  </Link>
+                )}
                 <h2 className="text-xl font-medium tracking-tight">
                   <Link href={`/blog/${post.slug}`} className="hover:underline">
                     {post.title}

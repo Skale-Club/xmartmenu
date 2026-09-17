@@ -26,6 +26,7 @@ interface PostRow {
   author_name: string | null
   published_at: string | null
   reading_time_minutes: number | null
+  cover_image_url: string | null
 }
 
 async function getPost(slug: string): Promise<PostRow | null> {
@@ -34,7 +35,7 @@ async function getPost(slug: string): Promise<PostRow | null> {
     const { data } = await service
       .from('blog_posts')
       .select(
-        'slug, title, content, excerpt, meta_description, author_name, published_at, reading_time_minutes',
+        'slug, title, content, excerpt, meta_description, author_name, published_at, reading_time_minutes, cover_image_url',
       )
       .eq('slug', slug)
       .eq('status', 'published')
@@ -63,6 +64,17 @@ export async function generateMetadata({
       title: post.title,
       description: post.meta_description ?? post.excerpt ?? undefined,
       publishedTime: post.published_at ?? undefined,
+      // Um link compartilhado sem imagem rende um card cinza em toda rede
+      // social. A URL precisa ser ABSOLUTA: o crawler não tem a origem do site.
+      ...(post.cover_image_url
+        ? {
+            images: [
+              post.cover_image_url.startsWith('http')
+                ? post.cover_image_url
+                : `${PLATFORM_BASE}${post.cover_image_url}`,
+            ],
+          }
+        : {}),
     },
   }
 }
@@ -108,6 +120,21 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           {formatDate(post.published_at)}
           {post.reading_time_minutes ? ` · ${post.reading_time_minutes} min de leitura` : ''}
         </p>
+
+        {/* Sem <Image> do Next: a URL vem do Supabase Storage e não está no
+            remotePatterns, então o otimizador recusaria em produção. O
+            aspect-ratio fixo é o que evita o layout shift. Alt vazio de
+            propósito — é uma imagem decorativa, e o <h1> logo acima já diz do
+            que o post trata; um alt redundante só atrapalha quem usa leitor de
+            tela. */}
+        {post.cover_image_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={post.cover_image_url}
+            alt=""
+            className="mt-8 aspect-video w-full rounded-xl object-cover"
+          />
+        )}
 
         <div
           className="prose prose-neutral dark:prose-invert mt-10 max-w-none"

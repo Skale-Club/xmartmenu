@@ -36,6 +36,7 @@ import {
   slugifyTitle,
 } from '@/lib/blog/content-validator'
 import { isRunDue } from '@/lib/blog/schedule'
+import { generateCoverImage } from '@/lib/blog/cover-image'
 import {
   assignPillar,
   buildInternalLinksSection,
@@ -544,11 +545,29 @@ export async function generateBlogPost(opts: {
       )
     }
 
-    timings.image = null
-    timings.upload = 0
-
     const slug = await uniqueSlug(svc, generated.title)
     const publish = settings.auto_publish
+
+    // Autoblog-parity XM-05. Best-effort por construção: um post sem capa é um
+    // post pior, mas uma geração que MORREU porque o modelo de imagem estava
+    // ocupado é uma publicação perdida, o que é pior. generateCoverImage nunca
+    // lança — null só significa sem capa desta vez.
+    //
+    // As etapas de imagem e upload não são separadas aqui porque são uma
+    // chamada só: reportar uma fronteira inventada entre elas seria pior do que
+    // reportar o total honesto em `image`.
+    const coverStartedAt = Date.now()
+    const cover = await generateCoverImage({
+      apiKey: settings.openrouter_api_key,
+      model: settings.image_model,
+      title: generated.title,
+      focusKeyword: generated.focusKeyword || null,
+      slug,
+    })
+    // null quando a etapa foi PULADA (sem modelo configurado) — que não é o
+    // mesmo que uma imagem que levou 0ms, e o contrato distingue os dois.
+    timings.image = settings.image_model?.trim() ? Date.now() - coverStartedAt : null
+    timings.upload = 0
 
     const { data: postRow, error: postError } = await svc
       .from('blog_posts')
@@ -561,6 +580,7 @@ export async function generateBlogPost(opts: {
         focus_keyword: generated.focusKeyword || null,
         tags: generated.tags || null,
         author_name: 'Xmartmenu',
+        cover_image_url: cover?.url ?? null,
         reading_time_minutes: readingTimeMinutes(generated.content),
         ai_generated: true,
         status: publish ? 'published' : 'draft',
