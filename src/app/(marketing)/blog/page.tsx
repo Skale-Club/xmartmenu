@@ -15,6 +15,7 @@ import Link from 'next/link'
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { PLATFORM_BASE } from '@/lib/seo'
+import { scopeFilter } from '@/lib/blog/scope'
 
 export const revalidate = 300
 
@@ -37,8 +38,11 @@ interface PostCard {
 async function getPosts(): Promise<PostCard[]> {
   try {
     const service = createServiceClient()
-    const { data } = await service
-      .from('blog_posts')
+      // Escopo da PLATAFORMA. Sem este filtro, e depois de XM-14 ter dado
+      // linhas próprias a cada restaurante, esta consulta listaria os posts de
+      // TODOS eles no blog da Xmartmenu — e o slug é único POR ESCOPO, portanto
+      // /blog/<slug> podia servir o artigo de um cliente no site da plataforma.
+      const { data } = await scopeFilter(service.from('blog_posts'), null)
       .select('slug, title, excerpt, published_at, reading_time_minutes, cover_image_url')
       .eq('status', 'published')
       .order('published_at', { ascending: false })

@@ -1,6 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { createServiceClient } from '@/lib/supabase/server'
 import { PLATFORM_BASE } from '@/lib/seo'
+import { scopeFilter } from '@/lib/blog/scope'
 
 // Regenerate at most every 5 minutes (active tenants change rarely).
 export const revalidate = 300
@@ -53,8 +54,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     })
 
-    const { data: posts } = await supabase
-      .from('blog_posts')
+    // Escopo da PLATAFORMA. Era a pior das três fugas: o sitemap da Xmartmenu
+    // listaria os posts de cada restaurante sob URLs da plataforma — a pedir a
+    // indexação de páginas que não existem lá.
+    const { data: posts } = await scopeFilter(supabase.from('blog_posts'), null)
       .select('slug, published_at, updated_at')
       .eq('status', 'published')
       .order('published_at', { ascending: false })

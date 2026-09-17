@@ -25,9 +25,18 @@ const ROOTS = [
   'src/lib/blog',
   'src/app/api/superadmin/blog',
   'src/app/api/internal/blog',
-  'src/app/(admin)/blog',
-  'src/app/(superadmin)/blog',
+  'src/app/(admin)/posts',
+  'src/app/(superadmin)/admin/blog',
+  // As superfícies PÚBLICAS. Ficaram de fora na primeira versão deste guarda, e
+  // foi exatamente por isso que três consultas sem escopo sobreviveram: o blog
+  // da plataforma listava os posts de todos os restaurantes, servia-os em
+  // /blog/<slug>, e o sitemap pedia a indexação deles sob URLs da plataforma.
+  'src/app/(marketing)/blog',
+  'src/app/(public)/[slug]/blog',
 ]
+
+/** O sitemap é um ficheiro só, não uma pasta — mas lê `blog_posts`. */
+const EXTRA_FILES = ['src/app/sitemap.ts']
 
 /** Tabelas que passaram a ter uma linha por escopo em XM-14. */
 const SCOPED_TABLES = [
@@ -50,13 +59,16 @@ function sourceFiles(dir: string): string[] {
   return out
 }
 
-const FILES = ROOTS.flatMap((root) => {
-  try {
-    return sourceFiles(root)
-  } catch {
-    return []
-  }
-}).map((path) => ({ path, source: readFileSync(path, 'utf8') }))
+const FILES = [
+  ...ROOTS.flatMap((root) => {
+    try {
+      return sourceFiles(root)
+    } catch {
+      return []
+    }
+  }),
+  ...EXTRA_FILES,
+].map((path) => ({ path, source: readFileSync(path, 'utf8') }))
 
 describe('o webhook do Telegram resolve o escopo pelo segredo', () => {
   const ROUTE = readFileSync('src/app/api/internal/blog/telegram-webhook/route.ts', 'utf8')
@@ -128,6 +140,26 @@ describe('política de leitura pública da 058', () => {
 })
 
 describe('guarda de escopo do blog', () => {
+  it('toda a leitura pública de blog_posts declara o escopo', () => {
+    // A regra: um `.from('blog_posts')` numa superfície pública tem de passar
+    // por `scopeFilter` OU por `.eq('tenant_id', …)`. Sem uma das duas, a
+    // consulta devolve as linhas de toda a gente — e num blog público isso é
+    // servir o artigo de um cliente no site de outro.
+    const offenders: string[] = []
+    for (const { path, source } of FILES) {
+      if (!path.includes('(marketing)') && !path.includes('(public)') && !path.endsWith('sitemap.ts')) {
+        continue
+      }
+      for (const match of source.matchAll(/from\(\s*['"]blog_\w+['"]\s*\)/g)) {
+        const window = source.slice(Math.max(0, match.index! - 200), match.index! + 300)
+        if (!/scopeFilter|tenant_id/.test(window)) {
+          offenders.push(`${path}: ${match[0]}`)
+        }
+      }
+    }
+    expect(offenders).toEqual([])
+  })
+
   it('encontra os ficheiros que diz varrer', () => {
     // Um caminho renomeado tornaria todas as asserções abaixo vacuamente
     // verdadeiras — é exatamente assim que um guarda destes morre em silêncio.
