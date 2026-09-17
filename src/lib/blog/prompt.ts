@@ -85,7 +85,7 @@ export interface BlogPillar {
   titleStyles: readonly string[]
   lengths: readonly BlogLengthProfile['id'][]
   /** Data the pillar cannot work without; used to filter availability. */
-  requires?: 'rss'
+  requires?: 'rss' | 'menu' | 'address'
 }
 
 export const BLOG_PILLARS: readonly BlogPillar[] = [
@@ -159,10 +159,31 @@ export const BLOG_PILLARS: readonly BlogPillar[] = [
 export interface PillarAvailabilityData {
   /** Whether this run has an RSS item to react to. */
   hasRssItem: boolean
+  /** Whether the restaurant has dishes on its menu (tenant blogs only). */
+  hasMenu?: boolean
+  /** Whether the restaurant has an address (tenant blogs only). */
+  hasAddress?: boolean
 }
 
-export function availablePillars(data: PillarAvailabilityData): BlogPillar[] {
-  return BLOG_PILLARS.filter((p) => (p.requires === 'rss' ? data.hasRssItem : true))
+/**
+ * The catalogue a run rotates over.
+ *
+ * `catalogue` defaults to the PLATFORM pillars so every existing caller keeps
+ * its behaviour; a tenant run passes TENANT_BLOG_PILLARS. The two audiences are
+ * genuinely different — see the comment above TENANT_BLOG_PILLARS — and sharing
+ * one list would mean a restaurant's blog lecturing its own diners about menu
+ * engineering.
+ */
+export function availablePillars(
+  data: PillarAvailabilityData,
+  catalogue: readonly BlogPillar[] = BLOG_PILLARS,
+): BlogPillar[] {
+  return catalogue.filter((p) => {
+    if (p.requires === 'rss') return data.hasRssItem
+    if (p.requires === 'menu') return data.hasMenu === true
+    if (p.requires === 'address') return data.hasAddress === true
+    return true
+  })
 }
 
 /**
@@ -219,8 +240,9 @@ export function assignPillar(
   recentPillarIds: string[],
   data: PillarAvailabilityData,
   seed: number,
+  catalogue: readonly BlogPillar[] = BLOG_PILLARS,
 ): PillarAssignment {
-  const pillar = pickNextPillar(recentPillarIds, availablePillars(data))
+  const pillar = pickNextPillar(recentPillarIds, availablePillars(data, catalogue))
   const titleStyleId = pickSeeded(pillar.titleStyles, hashString(`${pillar.id}:${seed}`))
   const lengthId = pickSeeded(pillar.lengths, hashString(`${pillar.id}:len:${seed}`))
   const length = BLOG_LENGTH_PROFILES.find((l) => l.id === lengthId)!
@@ -289,3 +311,93 @@ export function sanitizeGeneratedLinks(html: unknown, allowedPaths: string[]): s
     return allowed.has(href) ? `<a href="${href}">${inner}</a>` : inner
   })
 }
+
+// ─── Pilares do blog DE UM RESTAURANTE (autoblog-parity XM-11) ──────────────
+//
+// O catálogo acima escreve PARA O DONO do restaurante — é o blog de marketing
+// da Xmartmenu, vendendo a plataforma. Estes pilares escrevem para quem vai
+// COMER, e o objetivo é outro: SEO local.
+//
+// A diferença é o produto inteiro. "Engenharia de cardápio" é um assunto que
+// interessa a um dono e a mais ninguém; um cliente procurando onde jantar nunca
+// digitou isso na vida. O que ele digita é "melhor pizza em <bairro>", "onde
+// almoçar com criança no domingo", "restaurante sem glúten perto de mim" — e é
+// exatamente isso que estes pilares atacam.
+//
+// Dois princípios que valem para todos eles:
+//   - NUNCA inventar. Nada de prêmio que o restaurante não ganhou, chef que não
+//     existe, ingrediente que não está no cardápio. O post sai no nome do
+//     cliente, e uma invenção aqui é ele mentindo para o público dele.
+//   - O lugar é o ativo. Bairro, cidade e referências próximas entram onde
+//     couber naturalmente, porque é isso que faz a busca local funcionar.
+
+export const TENANT_BLOG_PILLARS: readonly BlogPillar[] = [
+  {
+    id: 'dish-spotlight',
+    label: 'Um prato por vez',
+    guidance:
+      'Escolha UM prato do cardápio e conte a história dele: o que leva, como é feito, por que tem esse sabor, com o que combina, quando pedir. Trate como comida de verdade, não como copy de anúncio. Só fale de pratos que estão no CARDÁPIO listado — inventar um prato é o cliente mentindo para o público dele.',
+    titleStyles: ['statement', 'question', 'two-part'],
+    lengths: ['quick', 'standard'],
+    requires: 'menu',
+  },
+  {
+    id: 'neighbourhood',
+    label: 'O bairro',
+    guidance:
+      'Escreva sobre onde o restaurante FICA: como chegar, o que tem por perto, qual o melhor horário, como é o movimento, o que a vizinhança tem de particular. É o pilar mais valioso para busca local — alguém procurando "onde comer em <bairro>" precisa achar esta página. Use só o endereço e a região informados; não invente pontos de referência.',
+    titleStyles: ['question', 'statement', 'numbered'],
+    lengths: ['quick', 'standard'],
+    requires: 'address',
+  },
+  {
+    id: 'occasion',
+    label: 'A ocasião',
+    guidance:
+      'Uma ocasião concreta e a resposta prática para ela: almoço de domingo em família, jantar de aniversário, encontro rápido no almoço de trabalho, comemoração com grupo grande. Diga o que pedir, quanto tempo leva, o que funciona para quantas pessoas. É intenção de busca pura — quem procura assim já decidiu que vai sair.',
+    titleStyles: ['question', 'how-to', 'numbered'],
+    lengths: ['quick', 'standard'],
+  },
+  {
+    id: 'dietary',
+    label: 'Restrições e preferências',
+    guidance:
+      'Opções para quem tem restrição ou preferência: vegetariano, vegano, sem glúten, sem lactose, sem açúcar, leve. Liste SOMENTE o que o cardápio realmente oferece e seja honesto sobre o que não há — uma promessa errada aqui vira reclamação na mesa e avaliação ruim. Cauda longa de altíssima intenção.',
+    titleStyles: ['question', 'numbered', 'statement'],
+    lengths: ['quick', 'standard'],
+    requires: 'menu',
+  },
+  {
+    id: 'behind-the-scenes',
+    label: 'Bastidores',
+    guidance:
+      'Como a casa funciona por dentro: a rotina da cozinha, o preparo que começa de madrugada, o cuidado que ninguém vê da mesa. Constrói confiança e dá ao post algo que nenhum concorrente pode copiar. Só conte o que os dados do restaurante sustentam; não invente equipe, prêmio nem história de família.',
+    titleStyles: ['statement', 'two-part'],
+    lengths: ['quick', 'standard'],
+  },
+  {
+    id: 'how-to-order',
+    label: 'Como pedir',
+    guidance:
+      'O prático: como funciona o delivery, a retirada, a reserva, o pedido para grupo grande, o que muda no horário de pico. Responde a dúvida antes de ela virar uma ligação — e é o tipo de página que o Google mostra para "delivery <bairro>". Use só os canais que o restaurante realmente tem.',
+    titleStyles: ['how-to', 'question', 'numbered'],
+    lengths: ['quick', 'standard'],
+  },
+  {
+    id: 'seasonal',
+    label: 'Sazonal',
+    guidance:
+      'O que faz sentido AGORA: o que entrou no cardápio nesta época, o que combina com o clima destes dias, a data comemorativa que está chegando. Ancore na data informada em TODAY IS e nunca em uma estação que já passou — um post sobre inverno publicado em novembro no Brasil é um post errado.',
+    titleStyles: ['statement', 'numbered', 'two-part'],
+    lengths: ['quick', 'standard'],
+  },
+  {
+    id: 'local-reaction',
+    label: 'O que está acontecendo',
+    guidance:
+      'Reaja ao item do feed como um restaurante da região reagiria: o que aquilo significa para quem come aqui, o que muda na prática, o que a casa pensa sobre isso. NÃO resuma nem reescreva a fonte — a matéria é o ponto de partida, o post é original e da casa.',
+    titleStyles: ['statement', 'question', 'two-part'],
+    lengths: ['quick', 'standard'],
+    requires: 'rss',
+  },
+]

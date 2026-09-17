@@ -80,6 +80,10 @@ export const blogSkipReasonSchema = z.enum([
   "locked",
   "already_running",
   "no_topic_source",
+  // The tenant went inactive between being scheduled and being run. Its blog is
+  // already off the air with the rest of its site, so generating would spend on
+  // a post nobody could see. Single-site products never emit it.
+  "tenant_unavailable",
 ]);
 export type BlogSkipReason = z.infer<typeof blogSkipReasonSchema>;
 

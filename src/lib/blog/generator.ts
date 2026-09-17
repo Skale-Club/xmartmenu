@@ -39,6 +39,7 @@ import { isRunDue } from '@/lib/blog/schedule'
 import { generateCoverImage } from '@/lib/blog/cover-image'
 import {
   assignPillar,
+  TENANT_BLOG_PILLARS,
   buildInternalLinksSection,
   buildKeywordDedupSection,
   buildPillarSection,
@@ -58,6 +59,15 @@ import {
   type BlogSkipReason,
   type DurationsMs,
 } from '@/lib/blog/contract'
+import { scopeColumn, scopeFilter, type BlogScope } from '@/lib/blog/scope'
+import {
+  buildBusinessSection,
+  buildChannelsSection,
+  buildLocationSection,
+  buildMenuSection,
+  loadTenantBlogContext,
+  type TenantBlogContext,
+} from '@/lib/blog/tenant-context'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ServiceClient = SupabaseClient<any, any, any>
@@ -112,8 +122,11 @@ const INTERNAL_LINKS: InternalLink[] = [
  * all and strictly better than an exception with no context. A rotated
  * ENCRYPTION_KEY is the usual cause, and the superadmin panel says so.
  */
-export async function loadBlogSettings(svc: ServiceClient): Promise<BlogSettingsRow | null> {
-  const { data } = await svc.from('blog_settings').select('*').eq('id', 1).maybeSingle()
+export async function loadBlogSettings(
+  svc: ServiceClient,
+  scope: BlogScope = null,
+): Promise<BlogSettingsRow | null> {
+  const { data } = await scopeFilter(svc.from('blog_settings').select('*'), scope).maybeSingle()
   if (!data) return null
   const row = data as BlogSettingsRow
   if (!row.openrouter_api_key) return row
@@ -132,26 +145,35 @@ export async function loadBlogSettings(svc: ServiceClient): Promise<BlogSettings
  * database rather than in module state — Next.js runs multiple instances, and
  * the Inngest sweep and the HTTP break-glass endpoint can fire at once (XT-13).
  */
-async function acquireLock(svc: ServiceClient, now: Date): Promise<boolean> {
+async function acquireLock(svc: ServiceClient, scope: BlogScope, now: Date): Promise<boolean> {
   const staleBefore = new Date(now.getTime() - STALE_LOCK_MS).toISOString()
-  const { data } = await svc
-    .from('blog_settings')
-    .update({ lock_acquired_at: now.toISOString(), updated_at: now.toISOString() })
-    .eq('id', 1)
+  // Scoped, so one restaurant's run never blocks another's — and never frees
+  // another's lock either, which is the failure that would let two runs publish
+  // into the same blog at once.
+  const { data } = await scopeFilter(
+    svc
+      .from('blog_settings')
+      .update({ lock_acquired_at: now.toISOString(), updated_at: now.toISOString() }),
+    scope,
+  )
     .or(`lock_acquired_at.is.null,lock_acquired_at.lt.${staleBefore}`)
     .select('id')
   return Array.isArray(data) && data.length > 0
 }
 
-async function releaseLock(svc: ServiceClient): Promise<void> {
-  await svc
-    .from('blog_settings')
-    .update({ lock_acquired_at: null, updated_at: new Date().toISOString() })
-    .eq('id', 1)
+async function releaseLock(svc: ServiceClient, scope: BlogScope): Promise<void> {
+  await scopeFilter(
+    svc
+      .from('blog_settings')
+      .update({ lock_acquired_at: null, updated_at: new Date().toISOString() }),
+    scope,
+  )
 }
 
-/** One chat call against the configured text model, retried and timed. */
+/** One chat call against the configured text model, retried and timed.
+ *  `scope` only rides along so the cost lands on the right blog's ledger. */
 async function callTextModel(
+  scope: BlogScope,
   apiKey: string,
   model: string,
   system: string,
@@ -203,6 +225,7 @@ async function callTextModel(
       if (!content.trim()) throw new AiEmptyResponseError('Blog text returned an empty completion')
 
       void logAiUsage({
+        scope,
         step: 'blog_post',
         provider: 'openrouter',
         model,
@@ -219,6 +242,7 @@ async function callTextModel(
     return text
   } catch (err) {
     void logAiUsage({
+      scope,
       step: 'blog_post',
       provider: 'openrouter',
       model,
@@ -268,12 +292,16 @@ function parseGeneratedPost(raw: string): GeneratedPost {
 }
 
 /** A slug nothing else already holds. */
-async function uniqueSlug(svc: ServiceClient, title: string): Promise<string> {
+async function uniqueSlug(svc: ServiceClient, scope: BlogScope, title: string): Promise<string> {
   const base = slugifyTitle(title) || 'post'
   let slug = base
   let suffix = 2
   for (;;) {
-    const { data } = await svc.from('blog_posts').select('id').eq('slug', slug).maybeSingle()
+    // Scoped: slugs are unique WITHIN a blog, so two restaurants may both have
+    // "cardapio-de-inverno". Checking globally would append -2 for no reason.
+    const { data } = await scopeFilter(svc.from('blog_posts').select('id'), scope)
+      .eq('slug', slug)
+      .maybeSingle()
     if (!data) return slug
     slug = `${base}-${suffix}`
     suffix += 1
@@ -288,13 +316,16 @@ function readingTimeMinutes(html: string): number {
 /** The system message for this run: voice, date, assignment, links, dedup. */
 async function buildSystemMessage(
   svc: ServiceClient,
+  scope: BlogScope,
   settings: BlogSettingsRow,
   assignment: PillarAssignment,
   rssItem: RssItemRow | null,
+  tenant: TenantBlogContext | null,
 ): Promise<{ systemMessage: string; allowedLinkPaths: string[] }> {
-  const { data: recentPosts } = await svc
-    .from('blog_posts')
-    .select('title, slug, status, focus_keyword')
+  const { data: recentPosts } = await scopeFilter(
+    svc.from('blog_posts').select('title, slug, status, focus_keyword'),
+    scope,
+  )
     .order('created_at', { ascending: false })
     .limit(12)
 
@@ -305,19 +336,41 @@ async function buildSystemMessage(
     focus_keyword: string | null
   }>
 
+  // Os links internos de um restaurante são as páginas DELE — o cardápio e os
+  // posts dele. Oferecer os links da plataforma mandaria o cliente do
+  // restaurante para o site de quem vende o software para ele.
+  const blogBase = tenant ? `/${tenant.slug}/blog` : '/blog'
   const links: InternalLink[] = [
-    ...INTERNAL_LINKS,
+    ...(tenant
+      ? [{ label: `Cardápio do ${tenant.name}`, path: `/${tenant.slug}` }]
+      : INTERNAL_LINKS),
     ...posts
       .filter((p) => p.status === 'published' && p.slug)
       .slice(0, 4)
-      .map((p) => ({ label: p.title, path: `/blog/${p.slug}` })),
+      .map((p) => ({ label: p.title, path: `${blogBase}/${p.slug}` })),
   ]
 
   const sections: string[] = [
-    'Você escreve o blog do Xmartmenu, uma plataforma brasileira de cardápio digital e pedidos para restaurantes. Seu leitor é o DONO ou gerente do restaurante — quem monta o cardápio, negocia com fornecedor, olha a margem e aguenta o pico do sábado. Escreva em português brasileiro, para ele, e nunca troque algo útil por propaganda do produto: o Xmartmenu aparece como ferramenta quando ajuda, nunca como assunto.',
+    tenant
+      ? `Você escreve o blog do ${tenant.name}${tenant.businessType ? `, ${tenant.businessType}` : ''}. Seu leitor é um CLIENTE em potencial: alguém decidindo onde comer, o que pedir ou se vale a pena ir até lá. Escreva em português brasileiro, na voz da casa ("a gente", "aqui"), como alguém que trabalha lá escreveria — não como uma agência escrevendo sobre um restaurante. Você NUNCA inventa: prato, prêmio, chef, história ou endereço que não esteja nos dados abaixo simplesmente não existe, e escrever sobre ele faz um cliente ir até a porta pedir algo que não há.`
+      : 'Você escreve o blog do Xmartmenu, uma plataforma brasileira de cardápio digital e pedidos para restaurantes. Seu leitor é o DONO ou gerente do restaurante — quem monta o cardápio, negocia com fornecedor, olha a margem e aguenta o pico do sábado. Escreva em português brasileiro, para ele, e nunca troque algo útil por propaganda do produto: o Xmartmenu aparece como ferramenta quando ajuda, nunca como assunto.',
     todaySection(new Date(), settings.timezone || 'UTC'),
     buildPillarSection(assignment),
   ]
+
+  // O aterramento do restaurante entra logo após a pauta, antes de qualquer
+  // preferência editorial: é o que o modelo pode afirmar, e tem que estar no
+  // prompt antes de ele começar a escolher o que dizer.
+  if (tenant) {
+    for (const section of [
+      buildBusinessSection(tenant),
+      buildLocationSection(tenant.address),
+      buildMenuSection(tenant),
+      buildChannelsSection(tenant),
+    ]) {
+      if (section) sections.push(section)
+    }
+  }
 
   if (rssItem) {
     sections.push(
@@ -354,9 +407,10 @@ async function buildSystemMessage(
   }
 
   // Feedback loop: the editor's past decisions steer the next post.
-  const { data: feedback } = await svc
-    .from('blog_post_feedback')
-    .select('post_title, verdict, reason')
+  const { data: feedback } = await scopeFilter(
+    svc.from('blog_post_feedback').select('post_title, verdict, reason'),
+    scope,
+  )
     .order('created_at', { ascending: false })
     .limit(16)
 
@@ -391,14 +445,24 @@ async function buildSystemMessage(
  */
 export async function generateBlogPost(opts: {
   trigger: 'cron' | 'manual'
+  /** Which blog to write. Defaults to the platform's own (autoblog-parity XM-11). */
+  scope?: BlogScope
   svc?: ServiceClient
   now?: Date
 }): Promise<GenerationResult> {
   const svc = opts.svc ?? createServiceClient()
   const now = opts.now ?? new Date()
+  const scope = opts.scope ?? null
 
-  const settings = await loadBlogSettings(svc)
+  const settings = await loadBlogSettings(svc, scope)
   if (!settings) return { status: 'skipped', reason: 'no_settings' }
+
+  // A restaurant's context is read once, up front: the pillar catalogue, the
+  // grounding sections and the public URLs all depend on it, and a tenant that
+  // has gone inactive must not generate at all (its blog is already off the
+  // air — see the read policy in migration 058).
+  const tenantContext = scope === null ? null : await loadTenantBlogContext(svc, scope)
+  if (scope !== null && !tenantContext) return { status: 'skipped', reason: 'tenant_unavailable' }
 
   // An unconfigured model is a blank to fill in, not a reason to refuse: fall
   // back to the house model. A missing KEY is still a hard stop — there is no
@@ -430,7 +494,7 @@ export async function generateBlogPost(opts: {
   const apiKey = settings.openrouter_api_key
   if (!apiKey) return { status: 'skipped', reason: 'not_configured' }
 
-  if (!(await acquireLock(svc, now))) return { status: 'skipped', reason: 'locked' }
+  if (!(await acquireLock(svc, scope, now))) return { status: 'skipped', reason: 'locked' }
 
   const timings: Partial<DurationsMs> = {}
   const runStartedAt = Date.now()
@@ -443,15 +507,16 @@ export async function generateBlogPost(opts: {
     let rssItem: RssItemRow | null = null
     if (settings.rss_enabled) {
       try {
-        rssItem = (await selectNextRssItem(svc, settings.seo_keywords, now))?.item ?? null
+        rssItem = (await selectNextRssItem(svc, settings.seo_keywords, now, scope))?.item ?? null
       } catch {
         // A missing table or a transient read must never cost the day's post.
       }
     }
 
-    const { data: recentJobs } = await svc
-      .from('blog_generation_jobs')
-      .select('pillar_id')
+    const { data: recentJobs } = await scopeFilter(
+      svc.from('blog_generation_jobs').select('pillar_id'),
+      scope,
+    )
       .eq('status', 'completed')
       .order('created_at', { ascending: false })
       .limit(12)
@@ -465,6 +530,7 @@ export async function generateBlogPost(opts: {
     const { data: jobRow, error: jobError } = await svc
       .from('blog_generation_jobs')
       .insert({
+        ...scopeColumn(scope),
         status: 'running',
         trigger: opts.trigger,
         source,
@@ -479,24 +545,46 @@ export async function generateBlogPost(opts: {
 
     // The rotation seed varies per run but is stable for a given job, so a test
     // with a fixed id is deterministic.
-    const assignment = assignPillar(recentPillarIds, { hasRssItem: !!rssItem }, hashSeed(jobId))
+    // Two audiences, two catalogues. The platform writes for restaurant OWNERS
+    // it is selling to; a restaurant writes for DINERS, and "engenharia de
+    // cardápio" is a subject no diner has ever searched for.
+    const assignment = assignPillar(
+      recentPillarIds,
+      {
+        hasRssItem: !!rssItem,
+        hasMenu: (tenantContext?.dishes.length ?? 0) > 0,
+        hasAddress: Boolean(tenantContext?.address?.trim()),
+      },
+      hashSeed(jobId),
+      tenantContext ? TENANT_BLOG_PILLARS : undefined,
+    )
     await svc.from('blog_generation_jobs').update({ pillar_id: assignment.pillar.id }).eq('id', jobId)
 
     // The cadence clock advances on ATTEMPT, not on success: a persistently
     // failing configuration retries at its posts-per-day rate instead of
     // burning the AI budget every time the sweep runs.
     if (opts.trigger === 'cron') {
-      await svc
-        .from('blog_settings')
-        .update({ last_run_at: now.toISOString(), updated_at: now.toISOString() })
-        .eq('id', 1)
+      await scopeFilter(
+        svc
+          .from('blog_settings')
+          .update({ last_run_at: now.toISOString(), updated_at: now.toISOString() }),
+        scope,
+      )
     }
 
-    const { systemMessage, allowedLinkPaths } = await buildSystemMessage(svc, settings, assignment, rssItem)
+    const { systemMessage, allowedLinkPaths } = await buildSystemMessage(
+      svc,
+      scope,
+      settings,
+      assignment,
+      rssItem,
+      tenantContext,
+    )
 
     const topicStartedAt = Date.now()
     const topic = (
       await callTextModel(
+        scope,
         apiKey,
         textModel,
         systemMessage,
@@ -509,6 +597,7 @@ export async function generateBlogPost(opts: {
 
     const contentStartedAt = Date.now()
     const raw = await callTextModel(
+      scope,
       apiKey,
       textModel,
       systemMessage,
@@ -545,7 +634,7 @@ export async function generateBlogPost(opts: {
       )
     }
 
-    const slug = await uniqueSlug(svc, generated.title)
+    const slug = await uniqueSlug(svc, scope, generated.title)
     const publish = settings.auto_publish
 
     // Autoblog-parity XM-05. Best-effort por construção: um post sem capa é um
@@ -558,6 +647,9 @@ export async function generateBlogPost(opts: {
     // reportar o total honesto em `image`.
     const coverStartedAt = Date.now()
     const cover = await generateCoverImage({
+      // Escopo na CHAVE do storage: as capas de um restaurante ficam sob a
+      // pasta dele, não misturadas com as da plataforma.
+      scope,
       apiKey: settings.openrouter_api_key,
       model: settings.image_model,
       title: generated.title,
@@ -572,6 +664,7 @@ export async function generateBlogPost(opts: {
     const { data: postRow, error: postError } = await svc
       .from('blog_posts')
       .insert({
+        ...scopeColumn(scope),
         title: generated.title,
         slug,
         content: generated.content,
@@ -579,7 +672,9 @@ export async function generateBlogPost(opts: {
         meta_description: generated.metaDescription || null,
         focus_keyword: generated.focusKeyword || null,
         tags: generated.tags || null,
-        author_name: 'Xmartmenu',
+        // The byline is the business the post belongs to, not the platform:
+        // a restaurant's post signed "Xmartmenu" reads as someone else's page.
+        author_name: tenantContext?.name ?? 'Xmartmenu',
         cover_image_url: cover?.url ?? null,
         reading_time_minutes: readingTimeMinutes(generated.content),
         ai_generated: true,
@@ -594,9 +689,12 @@ export async function generateBlogPost(opts: {
     // Only AFTER the insert succeeds. Marking earlier would burn the item on a
     // run that then failed, and the subject would never be covered.
     if (rssItem) {
-      await svc
-        .from('blog_rss_items')
-        .update({ status: 'used', used_at: now.toISOString(), used_post_id: postId })
+      await scopeFilter(
+        svc
+          .from('blog_rss_items')
+          .update({ status: 'used', used_at: now.toISOString(), used_post_id: postId }),
+        scope,
+      )
         .eq('id', rssItem.id)
         .then(undefined, () => undefined)
     }
@@ -616,12 +714,20 @@ export async function generateBlogPost(opts: {
     // the approval chats when the site opted in. Fire-and-forget: the post is
     // already saved, and a notification problem must never fail the run.
     if (!publish) {
-      void notifyDraftAwaitingApproval(svc, {
-        id: postId,
-        title: generated.title,
-        excerpt: generated.excerpt || null,
-        pillarLabel: assignment.pillar.label,
-      })
+      // O link do card aponta para o painel de quem decide: o superadmin no
+      // caso da plataforma, o admin do próprio restaurante no caso dele.
+      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com').replace(/\/+$/, '')
+      void notifyDraftAwaitingApproval(
+        svc,
+        scope,
+        {
+          id: postId,
+          title: generated.title,
+          excerpt: generated.excerpt || null,
+          pillarLabel: assignment.pillar.label,
+        },
+        tenantContext ? `${siteUrl}/${tenantContext.slug}/blog` : `${siteUrl}/blog`,
+      )
     }
 
     return { status: 'generated', postId, jobId, title: generated.title }
@@ -645,7 +751,7 @@ export async function generateBlogPost(opts: {
   } finally {
     // Releasing must not throw out of the generator: the post is already saved,
     // and a stuck lock expires on its own in ten minutes.
-    await releaseLock(svc).then(undefined, () => undefined)
+    await releaseLock(svc, scope).then(undefined, () => undefined)
   }
 }
 
@@ -656,10 +762,14 @@ export async function generateBlogPost(opts: {
  */
 async function notifyDraftAwaitingApproval(
   svc: ServiceClient,
+  scope: BlogScope,
   draft: { id: string; title: string; excerpt: string | null; pillarLabel: string },
+  postUrl: string,
 ): Promise<void> {
   try {
-    const { data } = await svc.from('telegram_settings').select('*').eq('id', 1).maybeSingle()
+    // Scoped: a restaurant's draft goes to THAT restaurant's chat, never to the
+    // platform's ops group — and vice versa.
+    const { data } = await scopeFilter(svc.from('telegram_settings').select('*'), scope).maybeSingle()
     if (!data) return
 
     // Both bot tokens are encrypted at rest here, like every other credential
@@ -673,8 +783,7 @@ async function notifyDraftAwaitingApproval(
       approvals_bot_token: raw.approvals_bot_token ? decryptApiKey(raw.approvals_bot_token) : null,
     }
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com'
-    const result = await sendDraftForApproval(settings, draft, siteUrl)
+    const result = await sendDraftForApproval(settings, draft, postUrl)
     if (result && result.failures.length > 0) {
       console.warn(
         `[autoblog] draft notification: ${result.delivered} delivered, failures: ` +

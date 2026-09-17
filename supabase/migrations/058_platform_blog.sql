@@ -2,22 +2,36 @@
 --
 -- Auto-blog parity XM-02 (.planning/initiatives/autoblog-parity/MASTER.md §3).
 --
--- SCOPE: this is Xmartmenu's OWN marketing blog, at /blog on the platform site.
--- It is NOT a per-tenant feature — restaurants do not get a blog, and nothing
--- here carries a tenant_id. That decision closes XM-00: the reader is the
--- restaurant owner we are selling to, not their diner.
+-- SCOPE: TWO audiences, ONE schema.
 --
--- Everything is platform-level and edited from the superadmin panel, which is
--- why the tables sit next to platform_settings rather than next to the tenant
--- tables, and why RLS is on with no policy on every operational table: nothing
--- public reads them, the server uses the service role, and an empty policy set
--- denies anon and authenticated outright. blog_posts is the exception — the
--- public site reads published rows.
+--   tenant_id IS NULL  → Xmartmenu's own marketing blog at /blog. The reader is
+--                        a restaurant OWNER we are selling to.
+--   tenant_id IS NOT NULL → that restaurant's own blog at /<slug>/blog. The
+--                        reader is a DINER, and the point is local SEO: a
+--                        restaurant that ranks for "melhor pizza no <bairro>"
+--                        is a restaurant this platform made money for.
+--
+-- XM-00 originally closed as platform-only. It reopened: a tenant menu that can
+-- rank is worth more than a menu that cannot, so tenants get a blog too.
+--
+-- One nullable column rather than a second set of tables, because every moving
+-- part downstream — the generator, the RSS pipeline, the approval flow, the
+-- Telegram cards, the cost ledger — would otherwise exist twice and drift. The
+-- platform is simply the scope with no tenant.
+--
+-- RLS is on everywhere. The operational tables carry no policy at all: nothing
+-- public reads them, the server goes through the service role, and an empty
+-- policy set denies anon and authenticated outright. blog_posts is the
+-- exception, because the public site renders published rows for anonymous
+-- visitors — which is the entire point of the feature.
 
 -- ── blog_posts ──────────────────────────────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS public.blog_posts (
   id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NULL = the platform's own blog. Non-null = that restaurant's blog.
+  -- CASCADE: a deleted tenant's posts have no site left to appear on.
+  tenant_id            UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   title                TEXT NOT NULL,
   slug                 TEXT NOT NULL,
   content              TEXT NOT NULL,
@@ -38,24 +52,52 @@ CREATE TABLE IF NOT EXISTS public.blog_posts (
   CONSTRAINT blog_posts_status_check CHECK (status IN ('draft', 'published'))
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS blog_posts_slug_unique ON public.blog_posts (slug);
-CREATE INDEX IF NOT EXISTS blog_posts_published_idx ON public.blog_posts (status, published_at DESC);
+-- Slugs are unique WITHIN a scope, not globally: two restaurants may both have
+-- a "cardapio-de-inverno" post, and their URLs differ by the tenant segment.
+--
+-- TWO partial indexes rather than one UNIQUE (tenant_id, slug), because
+-- Postgres treats NULLs as distinct in a unique index — that single index would
+-- enforce nothing at all for the platform's own rows.
+DROP INDEX IF EXISTS blog_posts_slug_unique;
+CREATE UNIQUE INDEX IF NOT EXISTS blog_posts_platform_slug_unique
+  ON public.blog_posts (slug) WHERE tenant_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS blog_posts_tenant_slug_unique
+  ON public.blog_posts (tenant_id, slug) WHERE tenant_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS blog_posts_published_idx
+  ON public.blog_posts (tenant_id, status, published_at DESC);
 
 ALTER TABLE public.blog_posts ENABLE ROW LEVEL SECURITY;
 
--- The only public read on this migration: the marketing site renders published
--- posts for anonymous visitors, which is the entire point of the feature.
+-- The only public read on this migration: both blogs render published posts for
+-- anonymous visitors, which is the entire point of the feature.
+--
+-- A tenant's posts also require the tenant to be ACTIVE. A suspended restaurant
+-- whose menu has stopped serving must not keep a blog up on the platform's
+-- infrastructure — and the check belongs here, in the policy, rather than in
+-- every query that forgets it.
 DROP POLICY IF EXISTS blog_posts_public_read ON public.blog_posts;
 CREATE POLICY blog_posts_public_read ON public.blog_posts
-  FOR SELECT USING (status = 'published');
+  FOR SELECT USING (
+    status = 'published'
+    AND (
+      tenant_id IS NULL
+      OR EXISTS (
+        SELECT 1 FROM public.tenants t
+         WHERE t.id = public.blog_posts.tenant_id AND t.is_active
+      )
+    )
+  );
 
 -- ── blog_settings ───────────────────────────────────────────────────────────
 --
--- One row, pinned to id = 1 by the check constraint, so an upsert can never
--- quietly create a second configuration that nothing reads.
+-- ONE ROW PER SCOPE: one for the platform (tenant_id NULL) and one per tenant
+-- that turns the feature on. The unique indexes below are what stop an upsert
+-- quietly creating a second configuration for the same scope that nothing reads.
 
 CREATE TABLE IF NOT EXISTS public.blog_settings (
-  id                    INTEGER PRIMARY KEY DEFAULT 1,
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id             UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   enabled               BOOLEAN NOT NULL DEFAULT FALSE,
   posts_per_day         INTEGER NOT NULL DEFAULT 1,
   -- Anchor hour 0-23 in the timezone below. NULL keeps a drifting cadence, so
@@ -83,12 +125,18 @@ CREATE TABLE IF NOT EXISTS public.blog_settings (
   text_model            TEXT NOT NULL DEFAULT '',
   image_model           TEXT NOT NULL DEFAULT '',
   updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT blog_settings_singleton CHECK (id = 1),
   CONSTRAINT blog_settings_posting_hour_range
     CHECK (posting_hour IS NULL OR (posting_hour >= 0 AND posting_hour <= 23)),
   CONSTRAINT blog_settings_posts_per_day_range
     CHECK (posts_per_day >= 0 AND posts_per_day <= 24)
 );
+
+-- Same two-partial-index shape as blog_posts, and for the same reason: a single
+-- UNIQUE (tenant_id) would enforce nothing for the platform's NULL row.
+CREATE UNIQUE INDEX IF NOT EXISTS blog_settings_platform_unique
+  ON public.blog_settings ((TRUE)) WHERE tenant_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS blog_settings_tenant_unique
+  ON public.blog_settings (tenant_id) WHERE tenant_id IS NOT NULL;
 
 ALTER TABLE public.blog_settings ENABLE ROW LEVEL SECURITY;
 
@@ -99,6 +147,8 @@ COMMENT ON COLUMN public.blog_settings.openrouter_api_key IS
 
 CREATE TABLE IF NOT EXISTS public.blog_generation_jobs (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NULL = the platform's own blog; non-null scopes the row to one restaurant.
+  tenant_id     UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   -- NULL until the post exists: the job row is created BEFORE generation runs.
   post_id       UUID REFERENCES public.blog_posts(id) ON DELETE SET NULL,
   status        TEXT NOT NULL DEFAULT 'pending',
@@ -124,6 +174,8 @@ CREATE TABLE IF NOT EXISTS public.blog_generation_jobs (
     CHECK (source IS NULL OR source IN ('pillar', 'rss', 'manual'))
 );
 
+CREATE INDEX IF NOT EXISTS blog_generation_jobs_tenant_created_idx
+  ON public.blog_generation_jobs (tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS blog_generation_jobs_created_idx
   ON public.blog_generation_jobs (created_at DESC);
 
@@ -136,6 +188,8 @@ ALTER TABLE public.blog_generation_jobs ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS public.blog_post_feedback (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NULL = the platform's own blog; non-null scopes the row to one restaurant.
+  tenant_id    UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   post_id      UUID REFERENCES public.blog_posts(id) ON DELETE SET NULL,
   post_title   TEXT NOT NULL,
   post_excerpt TEXT,
@@ -148,6 +202,8 @@ CREATE TABLE IF NOT EXISTS public.blog_post_feedback (
   CONSTRAINT blog_post_feedback_decided_by_check CHECK (decided_by IN ('admin', 'telegram'))
 );
 
+CREATE INDEX IF NOT EXISTS blog_post_feedback_tenant_created_idx
+  ON public.blog_post_feedback (tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS blog_post_feedback_created_idx
   ON public.blog_post_feedback (created_at DESC);
 
@@ -157,6 +213,8 @@ ALTER TABLE public.blog_post_feedback ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS public.blog_rss_sources (
   id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NULL = the platform's own blog; non-null scopes the row to one restaurant.
+  tenant_id    UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   name                TEXT NOT NULL,
   url                 TEXT NOT NULL,
   enabled             BOOLEAN NOT NULL DEFAULT TRUE,
@@ -173,6 +231,8 @@ ALTER TABLE public.blog_rss_sources ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS public.blog_rss_items (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NULL = the platform's own blog; non-null scopes the row to one restaurant.
+  tenant_id    UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   source_id    UUID NOT NULL REFERENCES public.blog_rss_sources(id) ON DELETE CASCADE,
   -- Feed <guid>/<id>, else the link, else a deterministic hash. The unique index
   -- below IS the de-duplication strategy, which is why the fetcher needs no lock.
@@ -194,6 +254,8 @@ CREATE TABLE IF NOT EXISTS public.blog_rss_items (
 CREATE UNIQUE INDEX IF NOT EXISTS blog_rss_items_source_guid_uniq
   ON public.blog_rss_items (source_id, guid);
 
+CREATE INDEX IF NOT EXISTS blog_rss_items_tenant_status_idx
+  ON public.blog_rss_items (tenant_id, status, published_at DESC);
 CREATE INDEX IF NOT EXISTS blog_rss_items_status_idx
   ON public.blog_rss_items (status, published_at DESC);
 
@@ -207,6 +269,8 @@ ALTER TABLE public.blog_rss_items ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS public.ai_generation_logs (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- NULL = the platform's own blog; non-null scopes the row to one restaurant.
+  tenant_id     UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   step          TEXT NOT NULL,
   provider      TEXT NOT NULL,
   model         TEXT NOT NULL,
@@ -225,6 +289,8 @@ CREATE TABLE IF NOT EXISTS public.ai_generation_logs (
   CONSTRAINT ai_generation_logs_status_check CHECK (status IN ('success', 'failure', 'skipped'))
 );
 
+CREATE INDEX IF NOT EXISTS ai_generation_logs_tenant_created_idx
+  ON public.ai_generation_logs (tenant_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS ai_generation_logs_created_idx
   ON public.ai_generation_logs (created_at DESC);
 
@@ -240,7 +306,10 @@ ALTER TABLE public.ai_generation_logs ENABLE ROW LEVEL SECURITY;
 -- invisible from inside the product.
 
 CREATE TABLE IF NOT EXISTS public.telegram_settings (
-  id                  INTEGER PRIMARY KEY DEFAULT 1,
+  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- One row per scope, same as blog_settings: NULL is the platform's, and a
+  -- restaurant that wants approval cards in its own group gets its own row.
+  tenant_id           UUID REFERENCES public.tenants(id) ON DELETE CASCADE,
   enabled             BOOLEAN NOT NULL DEFAULT FALSE,
   -- Both tokens are ENCRYPTED AT REST (src/lib/crypto.ts), like every other
   -- credential this repo stores.
@@ -259,8 +328,27 @@ CREATE TABLE IF NOT EXISTS public.telegram_settings (
   -- nothing on its own.
   webhook_secret      TEXT,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT telegram_settings_singleton CHECK (id = 1)
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE UNIQUE INDEX IF NOT EXISTS telegram_settings_platform_unique
+  ON public.telegram_settings ((TRUE)) WHERE tenant_id IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS telegram_settings_tenant_unique
+  ON public.telegram_settings (tenant_id) WHERE tenant_id IS NOT NULL;
+
 ALTER TABLE public.telegram_settings ENABLE ROW LEVEL SECURITY;
+
+CREATE INDEX IF NOT EXISTS blog_rss_sources_tenant_idx
+  ON public.blog_rss_sources (tenant_id);
+
+-- ── The tenant-facing feature flag ──────────────────────────────────────────
+--
+-- A tenant blog is a PAID capability, gated the same way payments and
+-- stripe-connect already are: plans.features carries the key, and the admin
+-- surface checks plan.features.includes('blog').
+--
+-- Not granted to anyone here. Adding it to a plan is a commercial decision, and
+-- a migration that silently switched the feature on for every existing customer
+-- would be this file making that decision on someone else's behalf.
+COMMENT ON COLUMN public.plans.features IS
+  'Capability keys. Recognised today: payments, stripe-connect, blog (per-tenant SEO blog, autoblog-parity XM-11).';

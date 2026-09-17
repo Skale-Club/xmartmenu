@@ -17,10 +17,14 @@
 // =============================================================================
 import { createServiceClient } from '@/lib/supabase/server'
 import type { BlogAiStep } from '@/lib/blog/contract'
+import { scopeColumn, type BlogScope } from '@/lib/blog/scope'
 
 const MAX_LOGGED_PROMPT_CHARS = 2000
 
 export interface AiUsageEntry {
+  /** Which blog spent this (autoblog-parity XM-11). A cost row with no scope
+   *  lands on the platform's ledger and quietly inflates its cost-per-post. */
+  scope: BlogScope
   step: BlogAiStep
   provider: 'openrouter'
   model: string
@@ -37,6 +41,7 @@ export async function logAiUsage(entry: AiUsageEntry): Promise<void> {
   try {
     const svc = createServiceClient()
     await svc.from('ai_generation_logs').insert({
+      ...scopeColumn(entry.scope),
       step: entry.step,
       provider: entry.provider,
       model: entry.model,

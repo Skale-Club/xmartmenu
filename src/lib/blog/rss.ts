@@ -14,6 +14,8 @@ import { createHash } from 'node:crypto'
 import Parser from 'rss-parser'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
+import { scopeColumn, scopeFilter, type BlogScope } from '@/lib/blog/scope'
+
 const MAX_ITEMS_PER_SOURCE = 20
 const MAX_SUMMARY_CHARS = 1000
 const MAX_TITLE_CHARS = 1000
@@ -68,17 +70,20 @@ type ServiceClient = SupabaseClient<any, any, any>
  * otherwise open twenty sockets and twenty writes at once for no benefit — this
  * runs on a schedule, not on a request path.
  */
-export async function fetchAllRssSources(svc: ServiceClient): Promise<FetchSummary> {
+export async function fetchAllRssSources(
+  svc: ServiceClient,
+  scope: BlogScope = null,
+): Promise<FetchSummary> {
   const summary: FetchSummary = { sourcesProcessed: 0, itemsUpserted: 0, errors: [] }
 
-  const { data: sources } = await svc
-    .from('blog_rss_sources')
-    .select('id, name, url, enabled, last_fetched_at')
-    .eq('enabled', true)
+  const { data: sources } = await scopeFilter(
+    svc.from('blog_rss_sources').select('id, name, url, enabled, last_fetched_at'),
+    scope,
+  ).eq('enabled', true)
 
   for (const source of (sources ?? []) as RssSourceRow[]) {
     try {
-      const upserted = await processSource(svc, source)
+      const upserted = await processSource(svc, scope, source)
       summary.itemsUpserted += upserted
 
       await svc
@@ -116,7 +121,11 @@ export async function fetchAllRssSources(svc: ServiceClient): Promise<FetchSumma
   return summary
 }
 
-async function processSource(svc: ServiceClient, source: RssSourceRow): Promise<number> {
+async function processSource(
+  svc: ServiceClient,
+  scope: BlogScope,
+  source: RssSourceRow,
+): Promise<number> {
   const feed = await parser.parseURL(source.url)
   const items = (feed.items ?? []).slice(0, MAX_ITEMS_PER_SOURCE)
   const lastFetchedAt = source.last_fetched_at ? new Date(source.last_fetched_at) : null
@@ -146,6 +155,7 @@ async function processSource(svc: ServiceClient, source: RssSourceRow): Promise<
     // is also why this fetcher needs no lock of its own.
     const { error } = await svc.from('blog_rss_items').upsert(
       {
+        ...scopeColumn(scope),
         source_id: source.id,
         guid: resolveGuid(item, source.id),
         url,
@@ -299,10 +309,12 @@ export async function selectNextRssItem(
   svc: ServiceClient,
   seoKeywords: string | null | undefined,
   now: Date = new Date(),
+  scope: BlogScope = null,
 ): Promise<RssSelection | null> {
-  const { data } = await svc
-    .from('blog_rss_items')
-    .select('id, source_id, guid, url, title, summary, published_at, status')
+  const { data } = await scopeFilter(
+    svc.from('blog_rss_items').select('id, source_id, guid, url, title, summary, published_at, status'),
+    scope,
+  )
     .eq('status', 'pending')
     .order('published_at', { ascending: false, nullsFirst: false })
     .limit(PENDING_BATCH_SIZE)

@@ -4,10 +4,8 @@
  */
 import { NextResponse } from 'next/server'
 import { timingSafeEqual } from 'node:crypto'
+import { runRssSweep } from '@/lib/blog/sweep'
 
-import { createServiceClient } from '@/lib/supabase/server'
-import { fetchAllRssSources } from '@/lib/blog/rss'
-import { loadBlogSettings } from '@/lib/blog/generator'
 
 function isAuthorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET
@@ -29,10 +27,8 @@ export async function POST(request: Request) {
   }
   if (!isAuthorized(request)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const service = createServiceClient()
-  const settings = await loadBlogSettings(service)
-  // No point opening sockets for a feature that is switched off.
-  if (!settings?.rss_enabled) return NextResponse.json({ skipped: true, reason: 'rss_disabled' })
-
-  return NextResponse.json(await fetchAllRssSources(service))
+  // Sweeps every scope that has BOTH the blog and RSS on (autoblog-parity
+  // XM-11) — the platform's own and each restaurant's. A scope with RSS off
+  // opens no sockets at all.
+  return NextResponse.json(await runRssSweep())
 }

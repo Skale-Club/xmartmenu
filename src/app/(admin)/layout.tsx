@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import AdminSidebar from '@/components/admin/AdminSidebar'
+import { getTenantPlan } from '@/lib/tenant-plan'
 import DemoBanner from '@/components/demo/DemoBanner'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
@@ -64,6 +65,12 @@ export default async function AdminLayout({
         .single(),
     ])
 
+    // autoblog-parity XM-11: the blog is a paid capability, gated the same way
+    // payments and stripe-connect already are. A plan lookup that fails hides
+    // the item rather than showing a link to a page that will 403.
+    const blogEnabled =
+      (await getTenantPlan(tenant.id).catch(() => null))?.features.includes('blog') ?? false
+
     const previewPrimary = (tenantSettings as any)?.primary_color ?? '#F52323'
     const previewAccent = (tenantSettings as any)?.accent_color ?? '#09090b'
     const previewPrimaryFg = computePrimaryForeground(previewPrimary)
@@ -87,6 +94,7 @@ export default async function AdminLayout({
               menus={menus ?? []}
               activeMenuId={activeMenu?.id ?? null}
               ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
+              blogEnabled={blogEnabled}
             />
           </div>
          </div>
@@ -111,6 +119,9 @@ export default async function AdminLayout({
       .single(),
   ])
 
+  const blogEnabled =
+    (await getTenantPlan(tenantId).catch(() => null))?.features.includes('blog') ?? false
+
   const adminPrimary = (tenantSettings as any)?.primary_color ?? '#F52323'
   const adminAccent = (tenantSettings as any)?.accent_color ?? '#09090b'
   const adminPrimaryFg = computePrimaryForeground(adminPrimary)
@@ -127,6 +138,7 @@ export default async function AdminLayout({
         menus={menus ?? []}
         activeMenuId={activeMenu?.id ?? null}
         ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
+        blogEnabled={blogEnabled}
       />
        <main className="flex-1 overflow-y-auto bg-zinc-100">
          {children}

@@ -34,6 +34,8 @@ const ASPECT_TOLERANCE = 0.05
 const IMAGE_TIMEOUT_MS = 90_000
 const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
 
+import type { BlogScope } from '@/lib/blog/scope'
+
 export interface CoverImageResult {
   url: string
   durationMs: number
@@ -149,6 +151,8 @@ async function normaliseTo16x9(
  * o tempo da etapa e segue — o post é publicado de todo jeito.
  */
 export async function generateCoverImage(args: {
+  /** null = blog da plataforma; um uuid escopa a chave no storage. */
+  scope?: BlogScope
   apiKey: string | null
   model: string
   title: string
@@ -169,7 +173,11 @@ export async function generateCoverImage(args: {
     // imutável, então uma republicação nunca sobrescreve uma capa que já está
     // em cache na borda.
     const safeSlug = args.slug.replace(/[^a-z0-9-]/gi, '').slice(0, 60) || 'post'
-    const path = `_platform/blog/${Date.now()}-${safeSlug}.${normalised.extension}`
+    // A pasta separa os dois: `_platform/blog/` continua sendo o blog da
+    // Xmartmenu, e cada restaurante recebe a sua. Sem isso, apagar um tenant
+    // deixaria as capas dele para sempre no meio das da plataforma.
+    const folder = args.scope ? `tenants/${args.scope}/blog` : '_platform/blog'
+    const path = `${folder}/${Date.now()}-${safeSlug}.${normalised.extension}`
 
     const url = await getStorageClient().upload('tenant-assets', path, normalised.buffer, {
       contentType: normalised.mime,
