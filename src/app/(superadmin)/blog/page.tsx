@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { nextScheduledRun } from '@/lib/blog/schedule'
+import { scopeFilter } from '@/lib/blog/scope'
 import BlogAutomationClient, { type BlogAutomationState } from './BlogAutomationClient'
 
 export const dynamic = 'force-dynamic'
@@ -24,29 +25,27 @@ export default async function SuperadminBlogPage() {
 
   const [{ data: settings }, { data: drafts }, { data: jobs }, { data: sources }, { count: pendingItems }, { data: telegram }] =
     await Promise.all([
-      service.from('blog_settings').select('*').eq('id', 1).maybeSingle(),
-      service
-        .from('blog_posts')
-        .select('id, title, excerpt, created_at')
+      scopeFilter(service.from('blog_settings').select('*'), null).maybeSingle(),
+      scopeFilter(service.from('blog_posts').select('id, title, excerpt, created_at'), null)
         .eq('status', 'draft')
         .eq('ai_generated', true)
         .order('created_at', { ascending: false })
         .limit(50),
-      service
-        .from('blog_generation_jobs')
-        .select('id, status, trigger, source, pillar_id, topic, error_message, durations_ms, created_at')
+      scopeFilter(service.from('blog_generation_jobs').select('id, status, trigger, source, pillar_id, topic, error_message, durations_ms, created_at'), null)
         .order('created_at', { ascending: false })
         .limit(20),
-      service
-        .from('blog_rss_sources')
-        .select('id, name, url, enabled, last_fetched_at, last_fetched_status, error_message')
+      scopeFilter(service.from('blog_rss_sources').select('id, name, url, enabled, last_fetched_at, last_fetched_status, error_message'), null)
         .order('created_at', { ascending: true }),
-      service.from('blog_rss_items').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-      service
-        .from('telegram_settings')
-        .select('enabled, bot_token, chat_ids, approvals_enabled, approvals_bot_token, approvals_chat_ids')
-        .eq('id', 1)
-        .maybeSingle(),
+      scopeFilter(service.from('blog_rss_items').select('id', { count: 'exact', head: true }), null).eq(
+        'status',
+        'pending',
+      ),
+      scopeFilter(
+        service
+          .from('telegram_settings')
+          .select('enabled, bot_token, chat_ids, approvals_enabled, approvals_bot_token, approvals_chat_ids'),
+        null,
+      ).maybeSingle(),
     ])
 
   const settingsRow = settings as (Record<string, unknown> & {

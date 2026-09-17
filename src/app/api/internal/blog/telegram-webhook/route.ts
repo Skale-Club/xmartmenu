@@ -15,6 +15,7 @@ import { timingSafeEqual } from 'node:crypto'
 import { createServiceClient } from '@/lib/supabase/server'
 import { parseApprovalCallbackData, type TelegramSettingsRow } from '@/lib/blog/telegram'
 import { revalidatePath } from 'next/cache'
+import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
 
 function secretMatches(provided: string | null, expected: string): boolean {
   if (!provided) return false
@@ -30,7 +31,9 @@ function secretMatches(provided: string | null, expected: string): boolean {
 
 export async function POST(request: Request) {
   const svc = createServiceClient()
-  const { data } = await svc.from('telegram_settings').select('*').eq('id', 1).maybeSingle()
+  // O webhook da PLATAFORMA. O blog de um restaurante que queira aprovações no
+  // Telegram usa a linha dele — e um webhook próprio, não este.
+  const { data } = await scopeFilter(svc.from('telegram_settings').select('*'), null).maybeSingle()
   const settings = data as TelegramSettingsRow | null
 
   // No configured secret means no registered webhook, so nothing legitimate can
@@ -57,8 +60,12 @@ export async function POST(request: Request) {
   const parsed = parseApprovalCallbackData(callbackData)
   if (!parsed) return NextResponse.json({ ok: true, ignored: true })
 
-  const { data: post } = await svc
-    .from('blog_posts')
+  // Escopado à PLATAFORMA, e não só por arrumação: o id do post vem do
+  // callback_data do Telegram. Sem este filtro, quem descobrisse o segredo do
+  // webhook publicaria o rascunho de um restaurante no site dele a partir daqui.
+  // O restaurante que quiser aprovações no Telegram usa a linha dele e um
+  // webhook próprio — nunca este.
+  const { data: post } = await scopeFilter(svc.from('blog_posts'), null)
     .select('id, title, excerpt, status')
     .eq('id', parsed.postId)
     .maybeSingle()
@@ -82,6 +89,7 @@ export async function POST(request: Request) {
       await svc
         .from('blog_post_feedback')
         .insert({
+          ...scopeColumn(null),
           post_id: row.id,
           post_title: row.title,
           post_excerpt: row.excerpt,
@@ -98,6 +106,7 @@ export async function POST(request: Request) {
   // title and excerpt, because the whole point is that the signal survives the
   // post it came from.
   await svc.from('blog_post_feedback').insert({
+    ...scopeColumn(null),
     post_id: row.id,
     post_title: row.title,
     post_excerpt: row.excerpt,

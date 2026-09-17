@@ -16,7 +16,6 @@ import { generateBlogPost, type GenerationResult } from '@/lib/blog/generator'
 import { fetchAllRssSources } from '@/lib/blog/rss'
 import { describeScope, type BlogScope } from '@/lib/blog/scope'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ServiceClient = ReturnType<typeof createServiceClient>
 
 export interface SweepEntry {

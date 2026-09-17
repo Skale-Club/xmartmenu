@@ -10,6 +10,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { encryptApiKey, maskApiKey, decryptApiKey } from '@/lib/crypto'
 import { nextScheduledRun } from '@/lib/blog/schedule'
+import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
 
 const MASKED = '••••'
 
@@ -34,7 +35,10 @@ export async function GET() {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
-  const { data } = await service.from('blog_settings').select('*').eq('id', 1).maybeSingle()
+  // A linha da PLATAFORMA. Depois de XM-11 esta tabela tem uma linha por
+  // escopo, e o console superadmin edita só a da plataforma — o blog de um
+  // restaurante é editado no admin dele.
+  const { data } = await scopeFilter(service.from('blog_settings').select('*'), null).maybeSingle()
   if (!data) return NextResponse.json({ settings: null, nextScheduledRunAt: null })
 
   const row = data as Record<string, unknown> & {
@@ -84,13 +88,13 @@ export async function PATCH(request: Request) {
   }
 
   const service = createServiceClient()
-  const { data: existing } = await service
-    .from('blog_settings')
-    .select('openrouter_api_key')
-    .eq('id', 1)
-    .maybeSingle()
+  const { data: existing } = await scopeFilter(
+    service.from('blog_settings').select('id, openrouter_api_key'),
+    null,
+  ).maybeSingle()
+  const prev = existing as { id: string; openrouter_api_key: string | null } | null
 
-  const update: Record<string, unknown> = { id: 1, updated_at: new Date().toISOString() }
+  const update: Record<string, unknown> = { ...scopeColumn(null), updated_at: new Date().toISOString() }
   const map: Record<string, string> = {
     enabled: 'enabled',
     postsPerDay: 'posts_per_day',
@@ -113,11 +117,16 @@ export async function PATCH(request: Request) {
   if (incoming !== undefined && incoming !== MASKED) {
     // Empty clears the key; anything else is encrypted before it touches the row.
     update.openrouter_api_key = incoming ? encryptApiKey(incoming) : null
-  } else if (existing) {
-    update.openrouter_api_key = (existing as { openrouter_api_key: string | null }).openrouter_api_key
+  } else if (prev) {
+    update.openrouter_api_key = prev.openrouter_api_key
   }
 
-  const { error } = await service.from('blog_settings').upsert(update, { onConflict: 'id' })
+  // Update quando a linha existe, insert quando não. Um upsert por tenant_id
+  // não funcionaria: o índice único é PARCIAL (WHERE tenant_id IS NULL) e o
+  // ON CONFLICT do PostgREST não o alcança.
+  const { error } = prev
+    ? await service.from('blog_settings').update(update).eq('id', prev.id)
+    : await service.from('blog_settings').insert(update)
   if (error) {
     console.error('PATCH /api/superadmin/blog/settings:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

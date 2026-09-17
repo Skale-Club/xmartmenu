@@ -13,6 +13,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { encryptApiKey } from '@/lib/crypto'
 import { parseTelegramTarget } from '@/lib/blog/contract'
+import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
 
 const MASKED = '••••'
 
@@ -29,7 +30,7 @@ export async function GET() {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
-  const { data } = await service.from('telegram_settings').select('*').eq('id', 1).maybeSingle()
+  const { data } = await scopeFilter(service.from('telegram_settings').select('*'), null).maybeSingle()
   if (!data) return NextResponse.json({ settings: null })
 
   const row = data as Record<string, unknown> & {
@@ -78,10 +79,14 @@ export async function PATCH(request: Request) {
   }
 
   const service = createServiceClient()
-  const { data: existing } = await service.from('telegram_settings').select('*').eq('id', 1).maybeSingle()
+  const { data: existing } = await scopeFilter(
+    service.from('telegram_settings').select('*'),
+    null,
+  ).maybeSingle()
+  const prevRow = existing as { id: string } | null
   const current = (existing ?? {}) as { webhook_secret?: string | null }
 
-  const update: Record<string, unknown> = { id: 1, updated_at: new Date().toISOString() }
+  const update: Record<string, unknown> = { ...scopeColumn(null), updated_at: new Date().toISOString() }
   if (parsed.data.enabled !== undefined) update.enabled = parsed.data.enabled
   if (parsed.data.approvalsEnabled !== undefined) update.approvals_enabled = parsed.data.approvalsEnabled
   if (chatIds) update.chat_ids = chatIds
@@ -106,7 +111,15 @@ export async function PATCH(request: Request) {
     update.webhook_secret = null
   }
 
-  const { error } = await service.from('telegram_settings').upsert(update, { onConflict: 'id' })
+  // Update quando a linha existe, insert quando não — nunca upsert. O `id`
+  // deixou de ser o literal 1 e passou a UUID com default (XM-11), portanto um
+  // upsert por `id` não encontraria conflito nenhum e inseriria uma linha nova a
+  // cada gravação; o `maybeSingle()` da leitura seguinte rebentaria com "multiple
+  // rows". O índice único do escopo é PARCIAL (WHERE tenant_id IS NULL) e o
+  // ON CONFLICT do PostgREST também não o alcança.
+  const { error } = prevRow
+    ? await service.from('telegram_settings').update(update).eq('id', prevRow.id)
+    : await service.from('telegram_settings').insert(update)
   if (error) {
     console.error('PATCH /api/superadmin/blog/telegram:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

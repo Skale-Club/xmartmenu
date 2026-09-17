@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache'
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
+import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
 
 export async function GET() {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -18,16 +19,18 @@ export async function GET() {
 
   // Generated drafts only. A hand-written draft is someone's work in progress,
   // not something waiting on an approval decision.
-  const { data: drafts } = await service
-    .from('blog_posts')
+  // Escopo da PLATAFORMA. Sem isto, depois de XM-11, esta fila mostraria os
+  // rascunhos de todos os restaurantes misturados aos da plataforma — e
+  // aprovar um publicaria no site de um cliente a partir do console
+  // superadmin, sem nem dizer de quem era.
+  const { data: drafts } = await scopeFilter(service.from('blog_posts'), null)
     .select('id, title, excerpt, created_at')
     .eq('status', 'draft')
     .eq('ai_generated', true)
     .order('created_at', { ascending: false })
     .limit(50)
 
-  const { data: jobs } = await service
-    .from('blog_generation_jobs')
+  const { data: jobs } = await scopeFilter(service.from('blog_generation_jobs'), null)
     .select('id, status, trigger, source, pillar_id, topic, error_message, durations_ms, created_at, completed_at')
     .order('created_at', { ascending: false })
     .limit(20)
@@ -50,8 +53,7 @@ export async function POST(request: Request) {
   }
 
   const service = createServiceClient()
-  const { data: post } = await service
-    .from('blog_posts')
+  const { data: post } = await scopeFilter(service.from('blog_posts'), null)
     .select('id, title, excerpt, status')
     .eq('id', parsed.data.postId)
     .maybeSingle()
@@ -77,6 +79,7 @@ export async function POST(request: Request) {
       await service
         .from('blog_post_feedback')
         .insert({
+          ...scopeColumn(null),
           post_id: row.id,
           post_title: row.title,
           post_excerpt: row.excerpt,
@@ -94,6 +97,7 @@ export async function POST(request: Request) {
   // reason is the strongest part of it — it tells the next run what to avoid,
   // not merely that something was wrong.
   await service.from('blog_post_feedback').insert({
+    ...scopeColumn(null),
     post_id: row.id,
     post_title: row.title,
     post_excerpt: row.excerpt,

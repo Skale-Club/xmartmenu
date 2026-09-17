@@ -11,17 +11,17 @@ import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { fetchAllRssSources } from '@/lib/blog/rss'
+import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
 
 export async function GET() {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
-  const { data: sources } = await service
-    .from('blog_rss_sources')
+  // Escopo da plataforma: os feeds de um restaurante são geridos no admin dele.
+  const { data: sources } = await scopeFilter(service.from('blog_rss_sources'), null)
     .select('*')
     .order('created_at', { ascending: true })
-  const { data: items } = await service
-    .from('blog_rss_items')
+  const { data: items } = await scopeFilter(service.from('blog_rss_items'), null)
     .select('id, source_id, title, url, status, published_at')
     .order('published_at', { ascending: false, nullsFirst: false })
     .limit(50)
@@ -52,27 +52,32 @@ export async function POST(request: Request) {
   if (parsed.data.action === 'add') {
     const { error } = await service
       .from('blog_rss_sources')
-      .insert({ name: parsed.data.name, url: parsed.data.url, enabled: true })
+      .insert({ ...scopeColumn(null), name: parsed.data.name, url: parsed.data.url, enabled: true })
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ ok: true })
   }
 
   if (parsed.data.action === 'toggle') {
-    const { error } = await service
-      .from('blog_rss_sources')
-      .update({ enabled: parsed.data.enabled, updated_at: new Date().toISOString() })
-      .eq('id', parsed.data.id)
+    const { error } = await scopeFilter(
+      service
+        .from('blog_rss_sources')
+        .update({ enabled: parsed.data.enabled, updated_at: new Date().toISOString() }),
+      null,
+    ).eq('id', parsed.data.id)
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ ok: true })
   }
 
   if (parsed.data.action === 'delete') {
     // blog_rss_items.source_id cascades, so the source's items go with it.
-    const { error } = await service.from('blog_rss_sources').delete().eq('id', parsed.data.id)
+    const { error } = await scopeFilter(service.from('blog_rss_sources').delete(), null).eq(
+      'id',
+      parsed.data.id,
+    )
     if (error) return NextResponse.json({ error: error.message }, { status: 400 })
     return NextResponse.json({ ok: true })
   }
 
-  const summary = await fetchAllRssSources(service)
+  const summary = await fetchAllRssSources(service, null)
   return NextResponse.json(summary)
 }
