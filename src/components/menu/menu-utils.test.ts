@@ -38,6 +38,6 @@ test('feed media always puts videos before images and preserves display order wi
 test('feed slides have explicit time limits', () => {
   assert.equal(getFeedSlideDuration('image'), FEED_IMAGE_SLIDE_DURATION_MS)
   assert.equal(getFeedSlideDuration('video'), FEED_VIDEO_SLIDE_DURATION_MS)
-  assert.equal(FEED_IMAGE_SLIDE_DURATION_MS, 8_000)
-  assert.equal(FEED_VIDEO_SLIDE_DURATION_MS, 15_000)
+  assert.equal(FEED_IMAGE_SLIDE_DURATION_MS, 12_000)
+  assert.equal(FEED_VIDEO_SLIDE_DURATION_MS, 22_500)
 })

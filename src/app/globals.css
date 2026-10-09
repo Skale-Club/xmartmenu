@@ -137,12 +137,12 @@ input[type="file"] {
 }
 
 @keyframes menu-feed-horizontal-drift {
-  from { transform: scale(1.1) translate3d(-2.75%, 0, 0); }
-  to   { transform: scale(1.1) translate3d(2.75%, 0, 0); }
+  from { transform: scale(1.16) translate3d(-5.25%, 0, 0); }
+  to   { transform: scale(1.16) translate3d(5.25%, 0, 0); }
 }
 
 .menu-feed-image-pan {
-  animation: menu-feed-horizontal-drift 9s ease-in-out infinite alternate;
+  animation: menu-feed-horizontal-drift 12s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
   will-change: transform;
 }
 
