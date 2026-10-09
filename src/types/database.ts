@@ -133,6 +133,10 @@ export interface TenantSettings {
   tip_percentage_2: number          // SEED-017: second tip preset % (default 18)
   tip_percentage_3: number          // SEED-017: third tip preset % (default 20)
   table_management_enabled: boolean // SEED-023: table management feature flag (migration 043, default false)
+  analytics_enabled: boolean        // First-party anonymous product analytics
+  visual_feed_enabled: boolean      // Tenant rollout flag for the visual feed
+  menu_default_view: 'list' | 'feed' // Initial public-menu presentation
+  feed_autoplay_videos: boolean     // Muted viewport-aware direct video autoplay
   updated_at: string
   // AI-04: New fields added in migration 022
   business_type: string | null
@@ -225,6 +229,63 @@ export interface ScanEvent {
   country: string | null
 }
 
+export type MenuAnalyticsEventName =
+  | 'menu_session_started'
+  | 'product_impression'
+  | 'product_engagement'
+  | 'product_detail_opened'
+  | 'media_started'
+  | 'media_completed'
+  | 'media_swiped'
+  | 'category_selected'
+  | 'search_performed'
+  | 'product_customization_started'
+  | 'add_to_cart'
+  | 'remove_from_cart'
+  | 'checkout_started'
+  | 'order_created'
+  | 'order_completed'
+  | 'order_cancelled'
+
+export interface MenuSession {
+  id: string
+  tenant_id: string
+  menu_id: string
+  location_id: string | null
+  qr_code_id: string | null
+  started_at: string
+  last_seen_at: string
+  ended_at: string | null
+  entry_source: 'qr' | 'direct' | 'custom_domain' | 'unknown'
+  device_class: 'mobile' | 'tablet' | 'desktop' | 'unknown'
+  language: string | null
+  is_test: boolean
+  created_at: string
+}
+
+export interface MenuEvent {
+  id: string
+  client_event_id: string
+  server_event_key: string | null
+  tenant_id: string
+  session_id: string
+  menu_id: string
+  location_id: string | null
+  product_id: string | null
+  category_id: string | null
+  order_id: string | null
+  event_name: MenuAnalyticsEventName
+  occurred_at: string
+  duration_ms: number | null
+  quantity: number | null
+  source: 'grid' | 'featured' | 'detail' | 'cart' | 'checkout' | 'feed' | 'search' | 'unknown' | null
+  media_type: 'image' | 'video' | null
+  media_index: number | null
+  query_length: number | null
+  amount: number | null
+  created_at: string
+}
+
 // Joined types
 export interface ProductWithCategory extends Product {
   category: Category | null
@@ -292,6 +353,7 @@ export interface Order {
   delivery_notes: string | null                      // SEED-020 (migration 041)
   delivery_zone_id: string | null                    // SEED-020 (migration 041)
   table_name: string | null                           // SEED-023 (migration 043)
+  analytics_session_id: string | null                 // anonymous menu attribution
   notes: string | null
   created_at: string
   updated_at: string

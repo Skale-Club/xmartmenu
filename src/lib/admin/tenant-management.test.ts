@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  getSafeExitPreviewDestination,
   getSafePreviewDestination,
   isPendingTenantAssignment,
   validateTenantSlug,
@@ -31,4 +32,12 @@ test('preview redirects only allow local application paths', () => {
   assert.equal(getSafePreviewDestination('//example.com'), '/dashboard')
   assert.equal(getSafePreviewDestination('/\\example.com'), '/dashboard')
   assert.equal(getSafePreviewDestination(undefined), '/dashboard')
+})
+
+test('exiting preview only returns to tenant management pages', () => {
+  assert.equal(getSafeExitPreviewDestination('/tenants/0e62fa0c-b4c6-460c-bf29-f2d1f93fa2db'), '/tenants/0e62fa0c-b4c6-460c-bf29-f2d1f93fa2db')
+  assert.equal(getSafeExitPreviewDestination('/tenants'), '/tenants')
+  assert.equal(getSafeExitPreviewDestination('/dashboard'), '/tenants')
+  assert.equal(getSafeExitPreviewDestination('https://example.com'), '/tenants')
+  assert.equal(getSafeExitPreviewDestination('//example.com'), '/tenants')
 })

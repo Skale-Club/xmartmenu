@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import type { IngredientModifications } from '@/types/database'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { phoneMatchKey } from '@/lib/phone'
+import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
 
 interface CartEditorState {
   singleSelections?: Record<string, string>
@@ -39,12 +40,14 @@ interface CreateOrderRequest {
   tip_cents?: number
   menu_id?: string | null
   table_name?: string | null
+  analytics_session_id?: string | null
 }
 
 // KDS query bounds (shared intent with orders/page.tsx). A kitchen board only
 // needs recent orders; older history lives elsewhere.
 const ORDERS_WINDOW_MS = 2 * 24 * 60 * 60 * 1000 // 48h
 const ORDERS_MAX_ROWS = 500
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 function sanitizeNote(raw: string | undefined | null): string | null {
   if (!raw) return null
@@ -129,7 +132,7 @@ export async function POST(request: Request) {
     if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
 
     const body: CreateOrderRequest = await request.json()
-    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId, table_name: rawTableName } = body
+    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId, table_name: rawTableName, analytics_session_id: rawAnalyticsSessionId } = body
 
     if (!tenant_id?.trim()) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 })
@@ -185,6 +188,24 @@ export async function POST(request: Request) {
     const settings = (tenantSettings.tenant_settings as any)
     if (!settings?.orders_enabled) {
       return NextResponse.json({ error: 'Orders not enabled for this tenant' }, { status: 403 })
+    }
+
+    // Analytics attribution is best-effort and can never block an order. Only a
+    // real session owned by this tenant is attached; invalid or unavailable
+    // analytics data is silently ignored.
+    let analyticsSessionId: string | null = null
+    if (rawAnalyticsSessionId && UUID_PATTERN.test(rawAnalyticsSessionId)) {
+      const { data: analyticsSession } = await service
+        .from('menu_sessions')
+        .select('id, menu_id, location_id')
+        .eq('id', rawAnalyticsSessionId)
+        .eq('tenant_id', tenant_id)
+        .maybeSingle()
+      const menuMatches = !rawMenuId || analyticsSession?.menu_id === rawMenuId
+      const locationMatches = !rawLocationId || analyticsSession?.location_id === rawLocationId
+      if (analyticsSession && menuMatches && locationMatches) {
+        analyticsSessionId = analyticsSession.id
+      }
     }
 
     // Payment gating by order origin:
@@ -343,6 +364,7 @@ export async function POST(request: Request) {
         location_id: locationId,
         tip_cents: tipCents,
         table_name: rawTableName?.trim() || null,
+        analytics_session_id: analyticsSessionId,
       })
       .select()
       .single()
@@ -372,6 +394,8 @@ export async function POST(request: Request) {
       await service.from('orders').delete().eq('id', order.id)
       return NextResponse.json({ error: 'Failed to create order items' }, { status: 500 })
     }
+
+    if (analyticsSessionId) await recordTrustedOrderAnalyticsEvent(order.id, 'order_created')
 
     return NextResponse.json({ id: order.id, status: order.status, total: order.total, order_type: order.order_type, requires_payment: requiresPayment })
   } catch (error) {

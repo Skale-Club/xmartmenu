@@ -11,6 +11,7 @@ export default function DashboardShell({
   contextName,
   logoUrl,
   eyebrow,
+  headerAction,
   backgroundClassName = 'bg-zinc-100',
 }: {
   children: ReactNode
@@ -19,6 +20,7 @@ export default function DashboardShell({
   contextName: string
   logoUrl?: string | null
   eyebrow?: string
+  headerAction?: ReactNode
   backgroundClassName?: string
 }) {
   const [open, setOpen] = useState(false)
@@ -56,10 +58,11 @@ export default function DashboardShell({
           height={32}
           className="size-8 rounded-lg object-contain outline outline-1 -outline-offset-1 outline-black/10"
         />
-        <div className="min-w-0 leading-tight">
+        <div className="min-w-0 flex-1 leading-tight">
           <p className="truncate text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">{eyebrow ?? appName}</p>
           <p className="truncate text-sm font-black text-zinc-900">{contextName}</p>
         </div>
+        {headerAction && <div className="shrink-0">{headerAction}</div>}
       </header>
 
       <button

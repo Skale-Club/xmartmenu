@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatPrice, getInitials } from '@/lib/utils'
+import { MenuAnalyticsTracker } from '@/lib/analytics/client'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { UI_COPY, type CartItem, type CartEditorState, buildCartKey, getProductImages } from './menu-utils'
@@ -21,13 +22,17 @@ import {
   Camera,
   MessageCircle,
   Mail,
-  ShoppingBag
+  ShoppingBag,
+  LayoutGrid,
+  Rows3
 } from 'lucide-react'
 
 const ProductModal = dynamic(() => import('./ProductModal'), { ssr: false })
 const CartPanel = dynamic(() => import('./CartPanel'), { ssr: false })
 const CheckoutModal = dynamic(() => import('./CheckoutModal'), { ssr: false })
 const AiChatWidget = dynamic(() => import('./AiChatWidget'), { ssr: false })
+const MenuFeed = dynamic(() => import('./MenuFeed'))
+const AnalyticsDebugPanel = dynamic(() => import('./AnalyticsDebugPanel'), { ssr: false })
 
 interface Props {
   tenant: TenantWithSettings
@@ -71,12 +76,18 @@ function getTranslatedMenuField(
 
 export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
   const router = useRouter()
+  const [feedPreview, setFeedPreview] = useState(false)
+  const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? false) || feedPreview
+  const [menuView, setMenuView] = useState<'list' | 'feed'>(() =>
+    feedEnabled && tenant.tenant_settings?.menu_default_view === 'feed' ? 'feed' : 'list'
+  )
   const defaultOrderType = (tenant.tenant_settings?.dine_in_enabled ?? true) ? 'dine_in'
     : (tenant.tenant_settings?.pickup_enabled ?? false) ? 'pickup'
     : 'delivery'
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [selectedProductSource, setSelectedProductSource] = useState<'grid' | 'featured' | 'detail' | 'cart' | 'feed'>('detail')
   const [showFooterAtEnd, setShowFooterAtEnd] = useState(false)
   const [footerHeight, setFooterHeight] = useState(0)
   const [pauseFeaturedAutoScroll, setPauseFeaturedAutoScroll] = useState(false)
@@ -102,6 +113,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const [deliveryCity, setDeliveryCity] = useState('')
   const [deliveryNotes, setDeliveryNotes] = useState('')
   const [tipCents, setTipCents] = useState(0)
+  const [analyticsTracker, setAnalyticsTracker] = useState<MenuAnalyticsTracker | null>(null)
+  const [analyticsDebug, setAnalyticsDebug] = useState(false)
   const footerRef = useRef<HTMLElement | null>(null)
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
   const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
@@ -120,6 +133,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const deliveryFeeCents = settings?.delivery_fee_cents ?? 0
   const orderTypeConfig = { dineIn: dineInEnabled, pickup: pickupEnabled, delivery: deliveryEnabled, deliveryFeeCents }
   const tipsEnabled = settings?.tips_enabled ?? false
+  const analyticsEnabled = settings?.analytics_enabled ?? true
+  const feedAutoplayVideos = settings?.feed_autoplay_videos ?? true
   const tipPercentages: [number, number, number] = [
     settings?.tip_percentage_1 ?? 15,
     settings?.tip_percentage_2 ?? 18,
@@ -131,6 +146,14 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const ui = UI_COPY[selectedLanguage] ?? UI_COPY.en
   const menuTitle = getTranslatedMenuField(menu, selectedLanguage, 'name', menu?.name ?? tenant.name)
   const menuDescription = getTranslatedMenuField(menu, selectedLanguage, 'description', menu?.description ?? '')
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return
+    if (new URLSearchParams(window.location.search).get('feed_preview') === '1') {
+      setFeedPreview(true)
+      setMenuView('feed')
+    }
+  }, [])
 
   const filtered = products.filter(p => {
     const matchSearch = search === '' ||
@@ -160,10 +183,15 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
   const directOrdersEnabled = settings?.direct_orders_enabled ?? false
 
+  function openProduct(product: Product, source: 'grid' | 'featured' | 'detail' | 'cart' | 'feed') {
+    setSelectedProductSource(source)
+    setSelectedProduct(product)
+  }
+
   const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed') {
     const key = buildCartKey(product.id, selectedOptions)
     setCart(prev => {
       const existing = prev.find(item => item.cartKey === key)
@@ -173,6 +201,12 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         )
       }
       return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications, editorState }]
+    })
+    analyticsTracker?.track({
+      event_name: 'add_to_cart',
+      product_id: product.id,
+      quantity: 1,
+      source: source ?? (selectedProduct?.id === product.id ? 'detail' : 'grid'),
     })
   }
 
@@ -199,18 +233,36 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     const item = cart.find(i => i.cartKey === itemCartKey)
     if (!item) return
     setEditingCartKey(itemCartKey)
-    setSelectedProduct(item.product)
+    openProduct(item.product, 'cart')
     setCartOpen(false)
   }
 
   function removeFromCart(itemCartKey: string) {
+    const item = cart.find(cartItem => cartItem.cartKey === itemCartKey)
+    if (item) {
+      analyticsTracker?.track({
+        event_name: 'remove_from_cart',
+        product_id: item.product.id,
+        quantity: item.quantity,
+        source: 'cart',
+      })
+    }
     setCart(prev => prev.filter(item => item.cartKey !== itemCartKey))
   }
 
   function updateCartQuantity(itemCartKey: string, quantity: number) {
+    const item = cart.find(cartItem => cartItem.cartKey === itemCartKey)
     if (quantity <= 0) {
       removeFromCart(itemCartKey)
       return
+    }
+    if (item && quantity !== item.quantity) {
+      analyticsTracker?.track({
+        event_name: quantity > item.quantity ? 'add_to_cart' : 'remove_from_cart',
+        product_id: item.product.id,
+        quantity: Math.abs(quantity - item.quantity),
+        source: 'cart',
+      })
     }
     setCart(prev =>
       prev.map(item =>
@@ -256,6 +308,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           location_id: location?.id ?? null,
           tip_cents: tipCents,
           menu_id: menu?.id ?? null,
+          analytics_session_id: analyticsTracker?.sessionId ?? null,
           items: cart.map(item => ({
             product_id: item.product.id,
             product_name: item.product.name,
@@ -311,6 +364,179 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     : null
   const hasContact = settings?.phone || settings?.instagram || settings?.whatsapp || settings?.address || email
   const hasFixedFooter = hasContact || footerBrand
+
+  useEffect(() => {
+    if (!menu?.id || !analyticsEnabled) return
+    const isTest = new URLSearchParams(window.location.search).get('analytics_debug') === '1'
+    setAnalyticsDebug(isTest)
+    const tracker = new MenuAnalyticsTracker({
+      tenantId: tenant.id,
+      menuId: menu.id,
+      locationId: location?.id ?? null,
+      language: initialLanguage ?? menu.language,
+      isTest,
+    })
+    setAnalyticsTracker(tracker)
+    if (tracker.isNewSession) {
+      tracker.track({ event_name: 'menu_session_started' })
+      void tracker.flush()
+    }
+    return () => {
+      tracker.destroy()
+      setAnalyticsTracker(current => current === tracker ? null : current)
+    }
+  }, [tenant.id, menu?.id, menu?.language, location?.id, initialLanguage, analyticsEnabled])
+
+  useEffect(() => {
+    if (!analyticsTracker || !selectedProduct) return
+    analyticsTracker.track({
+      event_name: 'product_detail_opened',
+      product_id: selectedProduct.id,
+      source: selectedProductSource,
+    })
+  }, [analyticsTracker, selectedProduct, selectedProductSource])
+
+  useEffect(() => {
+    if (!analyticsTracker || !checkoutOpen) return
+    analyticsTracker.track({ event_name: 'checkout_started', source: 'checkout' })
+    void analyticsTracker.flush()
+  }, [analyticsTracker, checkoutOpen])
+
+  useEffect(() => {
+    if (!analyticsTracker || !search.trim()) return
+    const timeout = window.setTimeout(() => {
+      analyticsTracker.track({
+        event_name: 'search_performed',
+        query_length: search.trim().length,
+        source: 'search',
+      })
+    }, 500)
+    return () => window.clearTimeout(timeout)
+  }, [analyticsTracker, search])
+
+  useEffect(() => {
+    if (!analyticsTracker) return
+    const timers = new Map<Element, ReturnType<typeof setTimeout>>()
+    const engagement = new Map<string, {
+      targets: Set<Element>
+      startedAt: number | null
+      accumulatedMs: number
+      source: 'featured' | 'grid' | 'feed'
+    }>()
+
+    const readProduct = (element: Element) => {
+      const htmlElement = element as HTMLElement
+      const productId = htmlElement.dataset.analyticsProductId
+      const source = htmlElement.dataset.analyticsSource === 'featured'
+        ? 'featured' as const
+        : htmlElement.dataset.analyticsSource === 'feed'
+          ? 'feed' as const
+          : 'grid' as const
+      return productId ? { productId, source } : null
+    }
+
+    const pauseEngagement = (state: { startedAt: number | null; accumulatedMs: number }) => {
+      if (state.startedAt === null) return
+      state.accumulatedMs += performance.now() - state.startedAt
+      state.startedAt = null
+    }
+
+    const emitEngagement = (productId: string, state: { startedAt: number | null; accumulatedMs: number; source: 'featured' | 'grid' | 'feed' }) => {
+      pauseEngagement(state)
+      const durationMs = Math.min(3_600_000, Math.round(state.accumulatedMs))
+      if (durationMs >= 1_000) {
+        analyticsTracker.track({
+          event_name: 'product_engagement',
+          product_id: productId,
+          duration_ms: durationMs,
+          source: state.source,
+        })
+      }
+    }
+
+    const startEngagement = (element: Element) => {
+      const product = readProduct(element)
+      if (!product) return
+      const state = engagement.get(product.productId) ?? {
+        targets: new Set<Element>(),
+        startedAt: null,
+        accumulatedMs: 0,
+        source: product.source,
+      }
+      const wasEmpty = state.targets.size === 0
+      state.targets.add(element)
+      if (wasEmpty && document.visibilityState === 'visible') state.startedAt = performance.now()
+      engagement.set(product.productId, state)
+    }
+
+    const stopEngagement = (element: Element) => {
+      const product = readProduct(element)
+      if (!product) return
+      const state = engagement.get(product.productId)
+      if (!state) return
+      state.targets.delete(element)
+      if (state.targets.size === 0) {
+        emitEngagement(product.productId, state)
+        engagement.delete(product.productId)
+      }
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        engagement.forEach(state => pauseEngagement(state))
+        void analyticsTracker.flush(true)
+      } else {
+        const now = performance.now()
+        engagement.forEach(state => {
+          if (state.targets.size > 0 && state.startedAt === null) state.startedAt = now
+        })
+      }
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const existingTimer = timers.get(entry.target)
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          startEngagement(entry.target)
+          if (existingTimer) continue
+          const timer = setTimeout(() => {
+            const product = readProduct(entry.target)
+            if (product) analyticsTracker.trackProductImpression(product.productId, product.source)
+            timers.delete(entry.target)
+          }, 1_000)
+          timers.set(entry.target, timer)
+        } else {
+          stopEngagement(entry.target)
+          if (existingTimer) {
+            clearTimeout(existingTimer)
+            timers.delete(entry.target)
+          }
+        }
+      }
+    }, { threshold: [0, 0.5] })
+
+    const elements = document.querySelectorAll('[data-analytics-product-id]')
+    elements.forEach(element => observer.observe(element))
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      timers.forEach(timer => clearTimeout(timer))
+      engagement.forEach((state, productId) => emitEngagement(productId, state))
+      void analyticsTracker.flush(true)
+    }
+  }, [analyticsTracker, activeCategory, search, filtered.length, featured.length, menuView])
+
+  function selectCategory(categoryId: string | null) {
+    const nextCategory = categoryId && activeCategory === categoryId ? null : categoryId
+    setActiveCategory(nextCategory)
+    if (nextCategory) {
+      analyticsTracker?.track({
+        event_name: 'category_selected',
+        category_id: nextCategory,
+      })
+    }
+  }
 
   useEffect(() => {
     const onScroll = () => {
@@ -416,6 +642,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
   function closeProductModal() {
     setSelectedProduct(null)
+    setSelectedProductSource('detail')
     setEditingCartKey(null)
     if (cart.length > 0 && typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
       setCartOpen(true)
@@ -536,7 +763,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       </motion.header>
 
       {/* Modern Category Filter */}
-      {categories.length > 0 && (
+      {(categories.length > 0 || feedEnabled) && (
         <div className="sticky top-0 z-30 bg-zinc-50/80 backdrop-blur-xl border-b border-zinc-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div ref={categoryFilterRef} className="flex gap-2 justify-center items-center overflow-x-auto py-4 scrollbar-hide no-scrollbar">
@@ -576,7 +803,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                     className="flex gap-2"
                   >
                     <button
-                      onClick={() => setActiveCategory(null)}
+                      onClick={() => selectCategory(null)}
                       style={!activeCategory && !visibleCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
                       className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
                         !activeCategory && !visibleCategory ? 'shadow-md scale-105' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:scale-105'
@@ -588,7 +815,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                       <button
                         key={cat.id}
                         ref={el => { categoryButtonRefs.current[cat.id] = el }}
-                        onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
+                        onClick={() => selectCategory(cat.id)}
                         style={activeCategory === cat.id || visibleCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
                         className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
                           activeCategory === cat.id || visibleCategory === cat.id ? 'shadow-md scale-105' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:scale-105'
@@ -603,19 +830,42 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
               <button
                 onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
+                aria-label={showSearch ? 'Close search' : 'Search menu'}
                 className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${
                   showSearch ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300 shadow-sm'
                 }`}
               >
                 {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
               </button>
+              {feedEnabled && (
+                <div className="flex flex-shrink-0 rounded-full border border-zinc-200 bg-white p-1 shadow-sm" aria-label="Menu view">
+                  <button
+                    type="button"
+                    onClick={() => setMenuView('feed')}
+                    aria-pressed={menuView === 'feed'}
+                    aria-label="Feed view"
+                    className={`flex h-8 w-9 items-center justify-center rounded-full transition ${menuView === 'feed' ? 'bg-zinc-950 text-white' : 'text-zinc-400 hover:text-zinc-900'}`}
+                  >
+                    <LayoutGrid className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMenuView('list')}
+                    aria-pressed={menuView === 'list'}
+                    aria-label="List view"
+                    className={`flex h-8 w-9 items-center justify-center rounded-full transition ${menuView === 'list' ? 'bg-zinc-950 text-white' : 'text-zinc-400 hover:text-zinc-900'}`}
+                  >
+                    <Rows3 className="size-4" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
       {/* Featured Section — full viewport width, outside max-w container */}
-      {featured.length > 0 && !search && !activeCategory && (
+      {menuView === 'list' && featured.length > 0 && !search && !activeCategory && (
         <section className="relative w-full pt-10 sm:pt-16 pb-0">
           <div className="scrollbar-hide w-full overflow-x-auto pb-4 md:overflow-hidden">
             <div className="absolute top-3 sm:top-5 left-4 sm:left-6 lg:left-8 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-100">
@@ -626,10 +876,12 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
               {[...featuredBase, ...featuredBase].map((p, idx) => (
                 <motion.div
                   key={`${p.id}-${idx}`}
+                  data-analytics-product-id={p.id}
+                  data-analytics-source="featured"
                   role="button"
                   tabIndex={0}
-                  onClick={() => setSelectedProduct(p)}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedProduct(p) } }}
+                  onClick={() => openProduct(p, 'featured')}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProduct(p, 'featured') } }}
                   whileHover={{ y: -8 }}
                   className="flex-shrink-0 w-64 sm:w-80 bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-lg shadow-zinc-200/50 hover:shadow-xl transition-all duration-500 cursor-pointer"
                 >
@@ -697,8 +949,44 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           </div>
         )}
 
+        {menuView === 'feed' && filtered.length > 0 ? (
+          <MenuFeed
+            products={filtered}
+            productMediaByProductId={productMediaByProductId}
+            currency={currency}
+            primaryColor={primaryColor}
+            accentColor={accentColor}
+            autoplayVideos={feedAutoplayVideos}
+            directOrdersEnabled={directOrdersEnabled}
+            hasCustomization={productId =>
+              (optionGroupsByProductId[productId]?.length ?? 0) > 0
+              || (ingredientCustomizationEnabled && (productIngredientsByProductId[productId]?.length ?? 0) > 0)
+            }
+            quantityFor={productId => cart.find(item => item.cartKey === buildCartKey(productId, {}))?.quantity ?? 0}
+            onOpen={product => openProduct(product, 'feed')}
+            onAdd={product => addToCart(product, {}, product.price, undefined, undefined, undefined, 'feed')}
+            onIncrement={product => {
+              const key = buildCartKey(product.id, {})
+              const quantity = cart.find(item => item.cartKey === key)?.quantity ?? 0
+              updateCartQuantity(key, quantity + 1)
+            }}
+            onDecrement={product => {
+              const key = buildCartKey(product.id, {})
+              const quantity = cart.find(item => item.cartKey === key)?.quantity ?? 0
+              updateCartQuantity(key, quantity - 1)
+            }}
+            onMediaEvent={(eventName, product, mediaType, mediaIndex) => analyticsTracker?.track({
+              event_name: eventName,
+              product_id: product.id,
+              source: 'feed',
+              media_type: mediaType,
+              media_index: mediaIndex,
+            })}
+          />
+        ) : menuView === 'list' ? (
+          <>
         {/* Regular Sections */}
-        {groupedByCategory.map(({ category, items }, catIdx) => (
+        {groupedByCategory.map(({ category, items }) => (
           <section
             key={category.id}
             ref={el => { categoryRefs.current[category.id] = el }}
@@ -724,7 +1012,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                     primaryColor={primaryColor}
                     currency={currency}
                     lang={selectedLanguage}
-                    onClick={() => setSelectedProduct(p)}
+                    onClick={() => openProduct(p, 'grid')}
                     {...(directOrdersEnabled ? {
                       cartQuantity: qty,
                       onAdd: () => addToCart(p, {}, p.price),
@@ -756,7 +1044,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                     primaryColor={primaryColor}
                     currency={currency}
                     lang={selectedLanguage}
-                    onClick={() => setSelectedProduct(p)}
+                    onClick={() => openProduct(p, 'grid')}
                     {...(directOrdersEnabled ? {
                       cartQuantity: qty,
                       onAdd: () => addToCart(p, {}, p.price),
@@ -769,6 +1057,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
             </div>
           </section>
         )}
+          </>
+        ) : null}
       </main>
 
       {/* Desktop: floating button to re-open the side panel after it's collapsed */}
@@ -862,8 +1152,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         return (
         <ProductModal
           product={selectedProduct}
-          onPrevProduct={!editingCartKey && prevProduct ? () => setSelectedProduct(prevProduct) : undefined}
-          onNextProduct={!editingCartKey && nextProduct ? () => setSelectedProduct(nextProduct) : undefined}
+          onPrevProduct={!editingCartKey && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
+          onNextProduct={!editingCartKey && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           accentColor={accentColor}
           currency={currency}
           whatsapp={whatsapp}
@@ -877,6 +1167,11 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
           initialEditorState={editingItem?.editorState ?? null}
           submitLabel={editingCartKey ? 'Update item' : 'Order'}
+          onCustomizationStarted={() => analyticsTracker?.track({
+            event_name: 'product_customization_started',
+            product_id: selectedProduct.id,
+            source: selectedProductSource === 'feed' ? 'feed' : 'detail',
+          })}
           onAddToCart={directOrdersEnabled
             ? (selectedOptions, unitPrice, note, ingredientModifications, editorState) => {
                 if (editingCartKey) {
@@ -901,6 +1196,13 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           onAddToCart={addToCart}
         />
       )}
+
+      {analyticsDebug ? (
+        <AnalyticsDebugPanel
+          sessionId={analyticsTracker?.sessionId ?? null}
+          onClose={() => setAnalyticsDebug(false)}
+        />
+      ) : null}
 
       <AnimatePresence>
         {showHoursModal && (
@@ -1025,6 +1327,8 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
   const images = getProductImages(product)
   return (
     <motion.div
+      data-analytics-product-id={product.id}
+      data-analytics-source="grid"
       role="button"
       tabIndex={0}
       onClick={onClick}

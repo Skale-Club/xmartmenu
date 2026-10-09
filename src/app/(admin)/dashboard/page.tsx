@@ -12,9 +12,7 @@ import {
   ArrowRight,
   TrendingUp,
   LayoutDashboard,
-  CheckCircle2,
   Settings,
-  Menu as MenuIcon
 } from 'lucide-react'
 
 export default async function DashboardPage() {
@@ -24,10 +22,12 @@ export default async function DashboardPage() {
   const activeMenu = tenantId ? await getActiveMenuForTenant(tenantId) : null
 
   const [
+    { data: publicMenus },
     { count: totalProducts },
     { count: totalCategories },
     { count: scansToday },
   ] = await Promise.all([
+    supabase.from('menus').select('id, name, slug').eq('tenant_id', tenantId).eq('is_active', true).order('position'),
     supabase.from('products').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
     supabase.from('categories').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
     supabase.from('scan_events')
@@ -74,39 +74,46 @@ export default async function DashboardPage() {
   ]
 
   return (
-    <div className="p-8 w-full space-y-10">
+    <div className="w-full space-y-6 p-4 sm:p-6 lg:space-y-8 lg:p-8">
       {/* Header Section */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 pb-4 border-b border-zinc-200">
+      <div className="flex flex-col justify-between gap-5 border-b border-zinc-200 pb-5 xl:flex-row xl:items-end">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <LayoutDashboard className="w-5 h-5 text-primary" />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Dashboard</span>
           </div>
-          <h1 className="text-4xl font-black text-zinc-950 tracking-tight">Welcome back!</h1>
+          <h1 className="text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">Welcome back!</h1>
           <p className="text-sm font-bold text-zinc-500 mt-1">Here is what is happening with your menu today.</p>
         </div>
         {effective?.slug && (
-          <CopyMenuUrl path={`/${effective.slug}${activeMenu && !activeMenu.is_default ? `/${activeMenu.slug}` : ''}`} />
+          <CopyMenuUrl
+            homePath={`/${effective.slug}`}
+            menus={(publicMenus ?? []).map(menu => ({
+              name: menu.name,
+              path: `/${effective.slug}/${menu.slug}`,
+              isActive: menu.id === activeMenu?.id,
+            }))}
+          />
         )}
       </div>
 
        {/* Stats Cards */}
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+       <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-6">
          {stats.map((stat) => (
            <div 
              key={stat.label} 
-             className="group relative bg-white rounded-[1.25rem] p-8 border border-zinc-100 transition-all hover:border-primary/50"
+             className="group relative min-w-0 rounded-2xl border border-zinc-100 bg-white p-3 transition-[border-color,box-shadow] duration-150 hover:border-primary/50 hover:shadow-sm sm:p-4 lg:p-8"
            >
-             <div className="flex items-center gap-5">
-               <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${stat.color === 'primary' ? 'bg-primary text-primary-foreground' : 'bg-zinc-100 text-zinc-400'} transition-colors group-hover:scale-110 duration-300`}>
-                 <stat.icon className="w-6 h-6" />
+             <div className="flex flex-col items-start gap-3 lg:flex-row lg:items-center lg:gap-5">
+               <div className={`flex size-10 flex-shrink-0 items-center justify-center rounded-xl lg:size-12 ${stat.color === 'primary' ? 'bg-primary text-primary-foreground' : 'bg-zinc-100 text-zinc-400'} transition-[background-color,scale] duration-150 group-hover:scale-105`}>
+                 <stat.icon className="size-5 lg:size-6" />
                </div>
-               <div className="flex-1">
-                 <p className="text-4xl font-black text-zinc-950 tracking-tighter">{stat.value}</p>
-                 <p className="text-xs font-black uppercase tracking-widest text-zinc-400 mt-1">{stat.label}</p>
+               <div className="min-w-0 flex-1">
+                 <p className="text-2xl font-black tracking-tighter text-zinc-950 tabular-nums sm:text-3xl lg:text-4xl">{stat.value}</p>
+                 <p className="mt-0.5 text-[9px] font-black uppercase leading-tight tracking-wider text-zinc-400 sm:text-[10px] lg:mt-1 lg:text-xs lg:tracking-widest">{stat.label}</p>
                </div>
              </div>
-             <div className="absolute top-8 right-8">
+             <div className="absolute right-8 top-8 hidden lg:block">
                <TrendingUp className="w-4 h-4 text-zinc-200 group-hover:text-primary transition-colors" />
              </div>
            </div>

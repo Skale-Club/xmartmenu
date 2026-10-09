@@ -23,6 +23,7 @@ import { stripe, toStripeAmount } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
 import { captureSecurityEvent } from '@/lib/observability'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
+import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
 
 type UpdateResult = { success: boolean; error?: string }
 
@@ -136,6 +137,8 @@ export async function POST(request: NextRequest) {
           if (updateError) {
             console.error('Failed to update order to paid:', updateError)
             updateResult = { success: false, error: updateError.message }
+          } else {
+            await recordTrustedOrderAnalyticsEvent(orderId, 'order_completed')
           }
         }
         break
@@ -179,6 +182,8 @@ export async function POST(request: NextRequest) {
           if (updateError) {
             console.error('Failed to cancel awaiting_payment order:', updateError)
             updateResult = { success: false, error: updateError.message }
+          } else {
+            await recordTrustedOrderAnalyticsEvent(orderId, 'order_cancelled')
           }
         }
         break

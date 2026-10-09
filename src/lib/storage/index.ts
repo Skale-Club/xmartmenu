@@ -136,6 +136,15 @@ class S3StorageClient implements IStorageClient {
         secretAccessKey: this.secretAccessKey,
       },
       forcePathStyle: true, // required for Hetzner and most non-AWS S3 providers
+      // A stuck request must fail, never hang. The SDK ships with no request
+      // timeout and a 50-socket pool, so one socket that is never released stays
+      // checked out for the life of the process; enough of them and every later
+      // call queues behind them with nothing to break the wait.
+      requestHandler: {
+        connectionTimeout: 5_000,
+        requestTimeout: 30_000,
+        httpsAgent: { maxSockets: 200 },
+      },
     })
   }
 

@@ -1,32 +1,13 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  Users, 
-  Search, 
-  Mail, 
-  Shield, 
-  Building2, 
-  Trash2, 
-  Save, 
-  MoreVertical, 
-  Filter,
-  CheckCircle2,
-  XCircle,
-  Calendar,
-  ChevronDown
-} from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowDownAZ, Building2, Calendar, ChevronDown, Filter, LogIn, Mail, RotateCcw, Save, Search, Shield, Trash2, Users, X, XCircle } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { getInitials } from '@/lib/utils'
 
-interface TenantOption {
-  id: string
-  name: string
-  slug: string
-}
-
+interface TenantOption { id: string; name: string; slug: string }
 interface UserRow {
   id: string
   email: string | undefined
@@ -38,292 +19,246 @@ interface UserRow {
   created_at: string
   last_sign_in_at: string | null
 }
+type SortOrder = 'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'recent-login'
 
-function roleNeedsTenant(role: string) {
-  return role === 'store-admin' || role === 'store-staff'
+const roleOptions = [
+  { value: '', label: 'No role' },
+  { value: 'superadmin', label: 'Super Admin' },
+  { value: 'store-admin', label: 'Store Admin' },
+  { value: 'store-staff', label: 'Store Staff' },
+  { value: 'customer', label: 'Customer' },
+]
+
+function roleNeedsTenant(role: string) { return role === 'store-admin' || role === 'store-staff' }
+function formatDate(date: string | null) {
+  if (!date) return 'Never'
+  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(date))
 }
 
-export default function UsersClient({ users: initial, tenants }: { users: UserRow[]; tenants: TenantOption[] }) {
+export default function UsersClient({ users: initial, tenants, currentUserId }: {
+  users: UserRow[]
+  tenants: TenantOption[]
+  currentUserId: string | null
+}) {
   const [users, setUsers] = useState(initial)
   const [loading, setLoading] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [confirmEmail, setConfirmEmail] = useState('')
   const [search, setSearch] = useState('')
-  const [roleFilter, setRoleFilter] = useState<string>('all')
-  
+  const [roleFilter, setRoleFilter] = useState('all')
+  const [tenantFilter, setTenantFilter] = useState('all')
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest')
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
   const router = useRouter()
 
+  const hasSecondaryFilters = roleFilter !== 'all' || tenantFilter !== 'all' || sortOrder !== 'newest'
+  const hasActiveFilters = search.trim() !== '' || hasSecondaryFilters
   const filteredUsers = useMemo(() => {
-    return users.filter(u => {
-      const matchesSearch = 
-        (u.email?.toLowerCase() || '').includes(search.toLowerCase()) ||
-        (u.full_name?.toLowerCase() || '').includes(search.toLowerCase())
-      
-      const matchesRole = roleFilter === 'all' || u.role === roleFilter
-      
-      return matchesSearch && matchesRole
+    const query = search.trim().toLowerCase()
+    const result = users.filter(user => {
+      const assignedTenant = tenants.find(tenant => tenant.id === user.tenant_id)
+      const searchable = [user.full_name, user.email, user.role, user.provider, assignedTenant?.name, assignedTenant?.slug]
+        .filter(Boolean).join(' ').toLowerCase()
+      return (!query || searchable.includes(query))
+        && (roleFilter === 'all' || user.role === roleFilter || (roleFilter === 'none' && !user.role))
+        && (tenantFilter === 'all' || user.tenant_id === tenantFilter || (tenantFilter === 'unassigned' && !user.tenant_id))
     })
-  }, [users, search, roleFilter])
+    return [...result].sort((a, b) => {
+      if (sortOrder === 'name-asc' || sortOrder === 'name-desc') {
+        const comparison = (a.full_name || a.email || '').localeCompare(b.full_name || b.email || '')
+        return sortOrder === 'name-asc' ? comparison : -comparison
+      }
+      if (sortOrder === 'recent-login') return new Date(b.last_sign_in_at || 0).getTime() - new Date(a.last_sign_in_at || 0).getTime()
+      const comparison = new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      return sortOrder === 'newest' ? comparison : -comparison
+    })
+  }, [users, tenants, search, roleFilter, tenantFilter, sortOrder])
+
+  function clearFilters() {
+    setSearch(''); setRoleFilter('all'); setTenantFilter('all'); setSortOrder('newest'); setMobileFiltersOpen(false)
+  }
 
   async function handleAssign(userId: string, tenantId: string, role: string) {
-    setLoading(userId)
-    setError(null)
-    const res = await fetch(`/api/superadmin/users/${userId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenant_id: tenantId || null, role: role || null }),
-    })
-    if (res.ok) {
-      const tenant = tenants.find(t => t.id === tenantId) ?? null
-      setUsers(users.map(u =>
-        u.id === userId ? { ...u, tenant_id: tenantId || null, tenant, role: role || null } : u
-      ))
+    setLoading(userId); setError(null)
+    try {
+      const res = await fetch(`/api/superadmin/users/${userId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenant_id: tenantId || null, role: role || null }),
+      })
+      if (!res.ok) { const data = await res.json(); throw new Error(data.error || 'Unable to update user') }
+      const selectedTenant = tenants.find(tenant => tenant.id === tenantId) ?? null
+      setUsers(current => current.map(user => user.id === userId
+        ? { ...user, tenant_id: tenantId || null, tenant: selectedTenant, role: role || null }
+        : user))
       router.refresh()
-    } else {
-      const data = await res.json()
-      setError('Error updating user: ' + data.error)
-    }
-    setLoading(null)
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to update user')
+    } finally { setLoading(null) }
   }
 
   async function confirmDelete() {
     if (!confirmId) return
-    const res = await fetch(`/api/superadmin/users/${confirmId}`, { method: 'DELETE' })
-    if (res.ok) {
-      setUsers(users.filter(u => u.id !== confirmId))
-    } else {
-      const data = await res.json()
-      setError('Error deleting user: ' + data.error)
-    }
-    setConfirmId(null)
+    setError(null)
+    try {
+      const res = await fetch(`/api/superadmin/users/${confirmId}`, { method: 'DELETE' })
+      if (!res.ok) { const data = await res.json(); throw new Error(data.error || 'Unable to delete user') }
+      setUsers(current => current.filter(user => user.id !== confirmId))
+    } catch (requestError) {
+      setError(requestError instanceof Error ? requestError.message : 'Unable to delete user')
+    } finally { setConfirmId(null) }
   }
 
   return (
-    <div className="p-8 w-full">
-      <ConfirmDialog
-        open={!!confirmId}
-        title="Delete User"
-        message={`Delete "${confirmEmail}"? This user will lose access to all associated tenants.`}
-        onConfirm={confirmDelete}
-        onCancel={() => setConfirmId(null)}
-      />
+    <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:p-6 lg:p-8">
+      <ConfirmDialog open={!!confirmId} title="Delete user"
+        message={`Delete “${confirmEmail}”? This user will lose access to every associated restaurant.`}
+        onConfirm={confirmDelete} onCancel={() => setConfirmId(null)} />
 
-      <motion.div 
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="mb-10"
-      >
-        <div className="flex items-center gap-3 mb-1">
-          <Users className="w-5 h-5 text-indigo-600" />
-          <h1 className="text-3xl font-black text-zinc-900 tracking-tight">Users Management</h1>
+      <header className="mb-6">
+        <div className="mb-1 flex items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600"><Users className="size-5" aria-hidden="true" /></span>
+          <h1 className="text-2xl font-black tracking-tight text-zinc-950 sm:text-3xl">Users Management</h1>
         </div>
-        <p className="text-sm text-zinc-500 font-medium">{users.length} registered accounts in the platform</p>
-      </motion.div>
+        <p className="pl-12 text-sm font-medium text-zinc-500">{users.length} registered {users.length === 1 ? 'account' : 'accounts'} on the platform</p>
+      </header>
 
-      {error && (
-        <div className="bg-red-50 border border-red-100 rounded-2xl px-5 py-4 mb-8 text-sm text-red-700 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-3">
-            <XCircle className="w-5 h-5" />
-            {error}
+      {error && <div role="alert" className="mb-5 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+        <XCircle className="size-5 shrink-0" aria-hidden="true" /><span className="min-w-0 flex-1">{error}</span>
+        <button type="button" onClick={() => setError(null)} aria-label="Dismiss error"
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl text-red-500 transition-colors hover:bg-red-100 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500">
+          <X className="size-4" aria-hidden="true" />
+        </button>
+      </div>}
+
+      <section aria-labelledby="user-filters-title" className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600"><Filter className="size-4" aria-hidden="true" /></span>
+          <div className="min-w-0 flex-1"><h2 id="user-filters-title" className="text-sm font-bold text-zinc-900">Find users</h2><p className="text-xs text-zinc-500">{filteredUsers.length} of {users.length} {users.length === 1 ? 'result' : 'results'}</p></div>
+          {hasActiveFilters && <button type="button" onClick={clearFilters}
+            className="hidden min-h-10 items-center gap-2 rounded-xl px-3 text-xs font-bold text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 min-[560px]:flex">
+            <RotateCcw className="size-3.5" aria-hidden="true" />Reset
+          </button>}
+        </div>
+
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2 min-[560px]:grid-cols-[minmax(150px,1.5fr)_minmax(105px,.8fr)_minmax(120px,1fr)_minmax(110px,.8fr)]">
+          <label className="relative min-w-0"><span className="sr-only">Search users</span>
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
+            <input type="search" placeholder="Name, email, restaurant…" value={search} onChange={event => setSearch(event.target.value)}
+              className="min-h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-10 pr-3 text-sm text-zinc-900 outline-none transition-[border-color,box-shadow,background-color] placeholder:text-zinc-400 hover:bg-white focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100" />
+          </label>
+          <button type="button" onClick={() => setMobileFiltersOpen(open => !open)} aria-expanded={mobileFiltersOpen}
+            className={`relative flex min-h-10 items-center gap-2 rounded-xl border px-3 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 min-[560px]:hidden ${mobileFiltersOpen || hasSecondaryFilters ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-zinc-200 bg-zinc-50 text-zinc-700 hover:bg-zinc-100'}`}>
+            <Filter className="size-4" aria-hidden="true" />Filters{hasSecondaryFilters && <span className="size-1.5 rounded-full bg-indigo-600" aria-label="Filters active" />}
+          </button>
+          <div className={`${mobileFiltersOpen ? 'contents' : 'hidden'} min-[560px]:contents`}>
+            <FilterSelect label="Filter by role" value={roleFilter} onChange={setRoleFilter}>
+              <option value="all">All roles</option><option value="superadmin">Super Admins</option><option value="store-admin">Store Admins</option><option value="store-staff">Store Staff</option><option value="customer">Customers</option><option value="none">No role</option>
+            </FilterSelect>
+            <FilterSelect label="Filter by restaurant" value={tenantFilter} onChange={setTenantFilter}>
+              <option value="all">All restaurants</option><option value="unassigned">Unassigned</option>{tenants.map(tenant => <option key={tenant.id} value={tenant.id}>{tenant.name}</option>)}
+            </FilterSelect>
+            <label className="relative col-span-2 min-[560px]:col-span-1"><span className="sr-only">Sort users</span>
+              <ArrowDownAZ className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
+              <select value={sortOrder} onChange={event => setSortOrder(event.target.value as SortOrder)}
+                className="min-h-10 w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-10 pr-8 text-sm font-medium text-zinc-700 outline-none transition-[border-color,box-shadow,background-color] hover:bg-white focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100">
+                <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="name-asc">Name: A–Z</option><option value="name-desc">Name: Z–A</option><option value="recent-login">Recent sign-in</option>
+              </select><ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
+            </label>
           </div>
-          <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 ml-4">✕</button>
         </div>
-      )}
+        {hasActiveFilters && <button type="button" onClick={clearFilters} className="mt-2 min-h-10 text-xs font-bold text-indigo-600 hover:text-indigo-800 min-[560px]:hidden">Reset all filters</button>}
+      </section>
 
-      {/* Filters */}
-      <div className="mb-8 flex flex-col items-stretch gap-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 md:flex-row md:items-center md:rounded-3xl">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-          <input 
-            type="text" 
-            placeholder="Search by name or email..." 
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-zinc-50 border border-zinc-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-          />
-        </div>
-        <div className="flex w-full items-center gap-2 md:w-auto">
-          <Filter className="w-4 h-4 text-zinc-400" />
-          <select 
-            value={roleFilter}
-            onChange={e => setRoleFilter(e.target.value)}
-            className="min-h-11 min-w-0 flex-1 appearance-none rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm transition-[box-shadow,background-color] focus:outline-none focus:ring-2 focus:ring-indigo-500 md:min-w-[140px]"
-          >
-            <option value="all">All Roles</option>
-            <option value="superadmin">Super Admins</option>
-            <option value="store-admin">Store Admins</option>
-            <option value="store-staff">Store Staff</option>
-            <option value="customer">Customers</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="min-w-[900px] w-full text-sm">
-            <thead>
-              <tr className="bg-zinc-50 border-b border-zinc-100">
-                <th className="text-left px-8 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Account Information</th>
-                <th className="text-left px-6 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Access & Provider</th>
-                <th className="text-left px-6 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Permissions</th>
-                <th className="text-left px-6 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Assignment</th>
-                <th className="px-8 py-5" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-50">
-              <AnimatePresence mode="popLayout">
-                {filteredUsers.map((user, idx) => (
-                  <motion.tr 
-                    key={user.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 10 }}
-                    transition={{ delay: idx * 0.02 }}
-                    className="group hover:bg-zinc-50/50 transition-colors"
-                  >
-                    <UserRowComponent
-                      user={user}
-                      tenants={tenants}
-                      loading={loading === user.id}
-                      onAssign={handleAssign}
-                      onDeleteRequest={(id, email) => { setConfirmId(id); setConfirmEmail(email ?? '') }}
-                    />
-                  </motion.tr>
-                ))}
-              </AnimatePresence>
-            </tbody>
-          </table>
-        </div>
-
-        {filteredUsers.length === 0 && (
-          <div className="text-center py-24 bg-zinc-50/30">
-            <div className="w-16 h-16 bg-zinc-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users className="w-8 h-8 text-zinc-300" />
-            </div>
-            <p className="text-sm font-bold text-zinc-900">No users found</p>
-            <p className="text-xs text-zinc-400 mt-1">Try adjusting your search or filters</p>
-          </div>
-        )}
-      </div>
-    </div>
+      <section aria-label="User accounts" className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+        <AnimatePresence initial={false} mode="popLayout">
+          {filteredUsers.map(user => <UserCard key={user.id} user={user} tenants={tenants} loading={loading === user.id}
+            isCurrentUser={user.id === currentUserId} onAssign={handleAssign}
+            onDeleteRequest={(id, email) => { setConfirmId(id); setConfirmEmail(email ?? '') }} />)}
+        </AnimatePresence>
+        {filteredUsers.length === 0 && <div className="px-5 py-14 text-center">
+          <span className="mx-auto mb-3 flex size-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400"><Users className="size-6" aria-hidden="true" /></span>
+          <p className="text-sm font-bold text-zinc-900">No users found</p><p className="mt-1 text-xs text-zinc-500">Try another search or reset the filters.</p>
+          {hasActiveFilters && <button type="button" onClick={clearFilters} className="mt-4 min-h-10 rounded-xl bg-zinc-900 px-4 text-xs font-bold text-white hover:bg-zinc-800">Reset filters</button>}
+        </div>}
+      </section>
+    </main>
   )
 }
 
-function UserRowComponent({
-  user,
-  tenants,
-  loading,
-  onAssign,
-  onDeleteRequest,
-}: {
-  user: UserRow
-  tenants: TenantOption[]
-  loading: boolean
+function FilterSelect({ label, value, onChange, children }: { label: string; value: string; onChange: (value: string) => void; children: React.ReactNode }) {
+  return <label className="relative col-span-2 min-[420px]:col-span-1"><span className="sr-only">{label}</span>
+    <select value={value} onChange={event => onChange(event.target.value)}
+      className="min-h-10 w-full appearance-none rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 pr-8 text-sm font-medium text-zinc-700 outline-none transition-[border-color,box-shadow,background-color] hover:bg-white focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100">{children}</select>
+    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
+  </label>
+}
+
+function UserCard({ user, tenants, loading, isCurrentUser, onAssign, onDeleteRequest }: {
+  user: UserRow; tenants: TenantOption[]; loading: boolean; isCurrentUser: boolean
   onAssign: (userId: string, tenantId: string, role: string) => void
   onDeleteRequest: (id: string, email: string | undefined) => void
 }) {
   const [tenant, setTenant] = useState(user.tenant_id ?? '')
   const [role, setRole] = useState(user.role ?? '')
-  const missingRequiredTenant = roleNeedsTenant(role) && !tenant
+  const needsTenant = roleNeedsTenant(role)
+  const missingRequiredTenant = needsTenant && !tenant
   const changed = tenant !== (user.tenant_id ?? '') || role !== (user.role ?? '')
 
-  return (
-    <>
-      <td className="px-8 py-4">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs ring-2 ring-white">
-            {getInitials(user.full_name || user.email)}
+  return <motion.article layout initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }} transition={{ duration: 0.16 }}
+    className="border-b border-zinc-100 p-4 last:border-b-0 sm:p-5">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-xs font-black text-indigo-600">{getInitials(user.full_name || user.email)}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2"><h2 className="truncate text-sm font-bold text-zinc-950 sm:text-base">{user.full_name || 'Unnamed user'}</h2>
+            {isCurrentUser && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">You</span>}
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${user.provider === 'google' ? 'bg-blue-50 text-blue-700' : 'bg-zinc-100 text-zinc-600'}`}>{user.provider}</span>
           </div>
-          <div className="min-w-0">
-            <p className="font-bold text-zinc-900 truncate">{user.full_name || 'Anonymous User'}</p>
-            <p className="text-[11px] text-zinc-400 flex items-center gap-1">
-              <Mail className="w-3 h-3" />
-              {user.email}
-            </p>
+          <p className="mt-1 flex min-w-0 items-center gap-1.5 text-xs text-zinc-500"><Mail className="size-3.5 shrink-0" aria-hidden="true" /><span className="truncate">{user.email || 'No email address'}</span></p>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] font-medium text-zinc-400">
+            <span className="flex items-center gap-1.5"><Calendar className="size-3.5" aria-hidden="true" />Joined {formatDate(user.created_at)}</span>
+            <span className="flex items-center gap-1.5"><LogIn className="size-3.5" aria-hidden="true" />Signed in {formatDate(user.last_sign_in_at)}</span>
           </div>
         </div>
-      </td>
-      <td className="px-6 py-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-1.5">
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-tight ${
-              user.provider === 'google' ? 'bg-blue-50 text-blue-600' : 'bg-zinc-100 text-zinc-500'
-            }`}>
-              {user.provider}
-            </span>
-          </div>
-          <p className="text-[10px] text-zinc-400 flex items-center gap-1 font-medium">
-            <Calendar className="w-3 h-3" />
-            Since {new Date(user.created_at).toLocaleDateString()}
-          </p>
-        </div>
-      </td>
-      <td className="px-6 py-4">
-        <div className="relative group/select">
-          <Shield className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 group-hover/select:text-indigo-500 transition-colors pointer-events-none" />
-          <select
-            value={role}
-            onChange={e => {
-              const nextRole = e.target.value
-              setRole(nextRole)
-              if (!roleNeedsTenant(nextRole)) setTenant('')
-            }}
-            className="w-full pl-8 pr-8 py-2 bg-zinc-50 border border-zinc-100 rounded-xl text-xs font-bold text-zinc-700 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer hover:bg-white transition-all min-w-[130px]"
-          >
-            <option value="">No role</option>
-            <option value="superadmin">Super Admin</option>
-            <option value="store-admin">Store Admin</option>
-            <option value="store-staff">Store Staff</option>
-            <option value="customer">Customer</option>
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-        </div>
-      </td>
-      <td className="px-6 py-4">
-        <div className="relative group/select">
-          <Building2 className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 group-hover/select:text-indigo-500 transition-colors pointer-events-none ${missingRequiredTenant ? 'text-red-500' : 'text-zinc-400'}`} />
-          <select
-            value={tenant}
-            onChange={e => setTenant(e.target.value)}
-            className={`w-full pl-8 pr-8 py-2 bg-zinc-50 border rounded-xl text-xs font-bold text-zinc-700 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer hover:bg-white transition-all max-w-[180px] ${
-              missingRequiredTenant ? 'border-red-200' : 'border-zinc-100'
-            }`}
-          >
-            <option value="">No tenant</option>
-            {tenants.map(t => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-400 pointer-events-none" />
-        </div>
-      </td>
-      <td className="px-8 py-4">
-        <div className="flex items-center gap-2 justify-end">
-          {changed && (
-            <button
-              onClick={() => onAssign(user.id, tenant, role)}
-              disabled={loading || missingRequiredTenant}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-100 active:scale-95"
-            >
-              {loading ? (
-                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <Save className="w-3.5 h-3.5" />
-              )}
-              {loading ? '...' : 'Save'}
-            </button>
-          )}
-          <button
-            onClick={() => onDeleteRequest(user.id, user.email)}
-            className="p-2 text-zinc-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-            title="Delete User"
-          >
-            <Trash2 className="w-4 h-4" />
+      </div>
+      <div className="grid min-w-0 gap-2 border-t border-zinc-100 pt-4 sm:grid-cols-[minmax(120px,.8fr)_minmax(160px,1.2fr)_auto] lg:w-[570px] lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+        <ControlSelect label="Role" icon={<Shield className="size-4" aria-hidden="true" />} value={role} disabled={isCurrentUser}
+          onChange={nextRole => { setRole(nextRole); if (!roleNeedsTenant(nextRole)) setTenant('') }}>
+          {roleOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+        </ControlSelect>
+        <ControlSelect label="Restaurant" icon={<Building2 className="size-4" aria-hidden="true" />} value={tenant}
+          disabled={isCurrentUser || !needsTenant} invalid={missingRequiredTenant} onChange={setTenant}>
+          <option value="">{needsTenant ? 'Select restaurant' : 'Not required'}</option>{tenants.map(option => <option key={option.id} value={option.id}>{option.name}</option>)}
+        </ControlSelect>
+        <div className="flex items-end gap-2 sm:justify-end">
+          <motion.button type="button" whileTap={!loading && changed && !missingRequiredTenant && !isCurrentUser ? { scale: 0.97 } : undefined}
+            onClick={() => onAssign(user.id, tenant, role)} disabled={loading || !changed || missingRequiredTenant || isCurrentUser}
+            className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 sm:flex-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2">
+            {loading ? <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Save className="size-4" aria-hidden="true" />}{loading ? 'Saving' : 'Save'}
+          </motion.button>
+          <button type="button" onClick={() => onDeleteRequest(user.id, user.email)} disabled={isCurrentUser}
+            aria-label={isCurrentUser ? 'You cannot delete your own account' : `Delete ${user.full_name || user.email || 'user'}`}
+            title={isCurrentUser ? 'You cannot delete your own account' : 'Delete user'}
+            className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 transition-[border-color,color,background-color] hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:border-zinc-100 disabled:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500">
+            <Trash2 className="size-4" aria-hidden="true" />
           </button>
         </div>
-      </td>
-    </>
-  )
+      </div>
+    </div>
+    {missingRequiredTenant && <p className="mt-2 text-right text-xs font-medium text-red-600">Choose a restaurant before saving this role.</p>}
+  </motion.article>
+}
+
+function ControlSelect({ label, icon, value, disabled, invalid = false, onChange, children }: {
+  label: string; icon: React.ReactNode; value: string; disabled: boolean; invalid?: boolean
+  onChange: (value: string) => void; children: React.ReactNode
+}) {
+  return <label className="min-w-0"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-zinc-400">{label}</span>
+    <span className="relative block"><span className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 ${invalid ? 'text-red-500' : 'text-zinc-400'}`}>{icon}</span>
+      <select value={value} disabled={disabled} aria-invalid={invalid} onChange={event => onChange(event.target.value)}
+        className={`min-h-10 w-full appearance-none truncate rounded-xl border bg-zinc-50 py-2 pl-9 pr-8 text-xs font-bold text-zinc-700 outline-none transition-[border-color,box-shadow,background-color] hover:bg-white focus:bg-white focus:ring-2 focus:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-500 ${invalid ? 'border-red-300 focus:border-red-500' : 'border-zinc-200 focus:border-indigo-500'}`}>{children}</select>
+      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 size-4 -translate-y-1/2 text-zinc-400" aria-hidden="true" />
+    </span>
+  </label>
 }

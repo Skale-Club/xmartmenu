@@ -7,13 +7,14 @@ import { useRouter } from 'next/navigation'
 import {
   CheckCircle2,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Edit3,
+  Eye,
   ExternalLink,
   Globe,
   LayoutDashboard,
   Mail,
-  Menu as MenuIcon,
   Plus,
   Search,
   Settings,
@@ -129,6 +130,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
   const [planFilter, setPlanFilter] = useState('all')
   const [sortOrder, setSortOrder] = useState<'name-asc' | 'name-desc' | 'newest' | 'oldest'>('name-asc')
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false)
 
   const restaurants = useMemo(() => clients.filter(client => client.id), [clients])
   const pendingUsers = useMemo(() => clients.filter(client => !client.id), [clients])
@@ -169,12 +171,14 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
       })
   }, [restaurants, searchQuery, statusFilter, planFilter, sortOrder])
   const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all' || planFilter !== 'all' || sortOrder !== 'name-asc'
+  const hasSecondaryFilters = statusFilter !== 'all' || planFilter !== 'all' || sortOrder !== 'name-asc'
 
   function clearFilters() {
     setSearchQuery('')
     setStatusFilter('all')
     setPlanFilter('all')
     setSortOrder('name-asc')
+    setMobileFiltersOpen(false)
   }
 
   async function copyCredentials(value: string) {
@@ -546,24 +550,37 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
         </form>
       )}
 
-      <section aria-label="Restaurant filters" className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      <section aria-label="Restaurant filters" className="mb-4 rounded-2xl border border-zinc-200 bg-white p-3 shadow-sm sm:p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600"><SlidersHorizontal className="h-4 w-4" /></span>
-            <div>
+            <span className="flex size-8 items-center justify-center rounded-lg bg-zinc-100 text-zinc-600"><SlidersHorizontal className="h-4 w-4" /></span>
+            <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
               <h2 className="text-sm font-bold text-zinc-900">Find restaurants</h2>
               <p aria-live="polite" className="text-xs tabular-nums text-zinc-500">{filteredRestaurants.length} of {restaurants.length} result(s)</p>
             </div>
           </div>
-          {hasActiveFilters && (
-            <button type="button" onClick={clearFilters} className="flex min-h-10 items-center rounded-xl px-3 text-xs font-bold text-zinc-500 transition-[background-color,color,scale] duration-150 hover:bg-zinc-100 hover:text-zinc-900 active:scale-96">
-              Clear filters
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(open => !open)}
+              aria-expanded={mobileFiltersOpen}
+              aria-controls="secondary-restaurant-filters"
+              className="relative flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-bold text-zinc-600 transition-[background-color,color,scale] duration-150 hover:bg-zinc-100 hover:text-zinc-900 active:scale-96 min-[560px]:hidden"
+            >
+              Filters
+              {hasSecondaryFilters && <span className="size-1.5 rounded-full bg-indigo-500" aria-label="Secondary filters active" />}
+              <ChevronDown className={`size-3.5 transition-transform duration-150 ${mobileFiltersOpen ? 'rotate-180' : ''}`} />
             </button>
-          )}
+            {hasActiveFilters && (
+              <button type="button" onClick={clearFilters} className="flex min-h-10 items-center rounded-xl px-3 text-xs font-bold text-zinc-500 transition-[background-color,color,scale] duration-150 hover:bg-zinc-100 hover:text-zinc-900 active:scale-96">
+                Clear
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(18rem,2fr)_repeat(3,minmax(9rem,1fr))]">
-          <label className="relative block sm:col-span-2 xl:col-span-1">
+        <div className="grid grid-cols-1 gap-2 min-[560px]:grid-cols-[minmax(10rem,1.8fr)_repeat(3,minmax(6rem,1fr))]">
+          <label className="relative block">
             <span className="sr-only">Search restaurants</span>
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
             <input
@@ -571,13 +588,14 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
               value={searchQuery}
               onChange={event => setSearchQuery(event.target.value)}
               placeholder="Search name, slug, email or plan…"
-              className="min-h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-4 text-sm text-zinc-900 outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-zinc-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+              className="min-h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-10 pr-4 text-sm text-zinc-900 outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-zinc-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
             />
           </label>
 
+          <div id="secondary-restaurant-filters" className={mobileFiltersOpen || hasSecondaryFilters ? 'contents' : 'hidden min-[560px]:contents'}>
           <label className="block">
             <span className="sr-only">Filter by status</span>
-            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as 'all' | 'active' | 'inactive')} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50">
+            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as 'all' | 'active' | 'inactive')} className="min-h-10 w-full rounded-xl border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 min-[700px]:px-3 min-[700px]:text-sm">
               <option value="all">All statuses</option>
               <option value="active">Active only</option>
               <option value="inactive">Inactive only</option>
@@ -586,7 +604,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
 
           <label className="block">
             <span className="sr-only">Filter by plan</span>
-            <select value={planFilter} onChange={event => setPlanFilter(event.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50">
+            <select value={planFilter} onChange={event => setPlanFilter(event.target.value)} className="min-h-10 w-full rounded-xl border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 min-[700px]:px-3 min-[700px]:text-sm">
               <option value="all">All plans</option>
               {availablePlans.map(([slug, name]) => <option key={slug} value={slug}>{name}</option>)}
               <option value="no-plan">No plan</option>
@@ -595,13 +613,14 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
 
           <label className="block">
             <span className="sr-only">Sort restaurants</span>
-            <select value={sortOrder} onChange={event => setSortOrder(event.target.value as 'name-asc' | 'name-desc' | 'newest' | 'oldest')} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50">
+            <select value={sortOrder} onChange={event => setSortOrder(event.target.value as 'name-asc' | 'name-desc' | 'newest' | 'oldest')} className="min-h-10 w-full rounded-xl border border-zinc-200 bg-white px-2.5 text-xs font-medium text-zinc-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50 min-[700px]:px-3 min-[700px]:text-sm">
               <option value="name-asc">Name: A–Z</option>
               <option value="name-desc">Name: Z–A</option>
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
             </select>
           </label>
+          </div>
         </div>
       </section>
 
@@ -649,8 +668,8 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
 
                 <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 pt-4">
                   <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                    <Link href={`/tenants/${tenantId}`} className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-900 px-3 text-xs font-bold text-white transition-[background-color,scale] duration-150 hover:bg-zinc-800 active:scale-96">Manage <ExternalLink className="h-3.5 w-3.5" /></Link>
-                    <a href={`/${client.slug}`} target="_blank" rel="noopener noreferrer" className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-50 px-3 text-xs font-bold text-zinc-600 transition-[background-color,scale] duration-150 hover:bg-zinc-100 active:scale-96"><MenuIcon className="h-4 w-4" />View</a>
+                    <a href={`/${client.slug}`} target="_blank" rel="noopener noreferrer" aria-label={`View live menu for ${client.name}`} className="group flex min-h-11 items-center justify-center gap-2 rounded-xl bg-zinc-900 pl-4 pr-3.5 text-xs font-bold text-white shadow-sm shadow-zinc-200 transition-[background-color,box-shadow,scale] duration-150 hover:bg-zinc-800 hover:shadow-md active:scale-96"><Eye className="h-4 w-4" />Live menu <ExternalLink className="h-3.5 w-3.5 opacity-60 transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" /></a>
+                    <Link href={`/tenants/${tenantId}`} className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-50 px-3 text-xs font-bold text-zinc-700 transition-[background-color,scale] duration-150 hover:bg-zinc-100 active:scale-96">Manage <ChevronRight className="h-3.5 w-3.5" /></Link>
                     <a href={`/api/admin/enter-preview?tenant=${tenantId}`} className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-50 px-3 text-xs font-bold text-zinc-600 transition-[background-color,scale] duration-150 hover:bg-zinc-100 active:scale-96"><LayoutDashboard className="h-4 w-4" />Dashboard</a>
                     <a href={`/api/admin/enter-preview?tenant=${tenantId}&next=${encodeURIComponent('/settings/branding')}`} className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-50 px-3 text-xs font-bold text-zinc-600 transition-[background-color,scale] duration-150 hover:bg-zinc-100 active:scale-96"><Settings className="h-4 w-4" />Branding</a>
                   </div>

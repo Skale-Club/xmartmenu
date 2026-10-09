@@ -73,6 +73,7 @@ export default async function TenantDetailPage({ params }: Props) {
       businessType={settings?.business_type ?? null}
       initialSubscription={subscription ?? null}
       availablePlans={availablePlans ?? []}
+      canUseAiTools={profile?.role === 'superadmin'}
     />
   )
 }

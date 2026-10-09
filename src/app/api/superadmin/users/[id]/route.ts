@@ -7,7 +7,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = await assertSuperadmin()
+  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  if (currentUser?.id === id) {
+    return NextResponse.json({ error: 'You cannot change your own access.' }, { status: 400 })
+  }
 
   const body = await request.json()
   const service = await createServiceClient()
@@ -65,7 +70,12 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = await assertSuperadmin()
+  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  if (currentUser?.id === id) {
+    return NextResponse.json({ error: 'You cannot delete your own account.' }, { status: 400 })
+  }
 
   const service = await createServiceClient()
   const { error } = await service.auth.admin.deleteUser(id)

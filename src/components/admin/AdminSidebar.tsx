@@ -27,11 +27,13 @@ import {
   Building2,
   Bot,
   Inbox,
-  Search
+  Search,
+  BarChart3
 } from 'lucide-react'
 
 const mainItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/menus', label: 'Menus', icon: ClipboardList },
   { href: '/menu/categories', label: 'Categories', icon: FolderOpen },
   { href: '/menu/products', label: 'Products', icon: UtensilsCrossed },
@@ -96,7 +98,7 @@ export default function AdminSidebar({
 
   const activeMenu = menus.find(menu => menu.id === selectedMenuId) ?? menus.find(menu => menu.is_default) ?? menus[0]
   const menuPublicPath = tenantSlug
-    ? `/${tenantSlug}${activeMenu && !activeMenu.is_default ? `/${activeMenu.slug}` : ''}`
+    ? `/${tenantSlug}${activeMenu ? `/${activeMenu.slug}` : ''}`
     : null
 
   async function handleSelectMenu(menuId: string) {
@@ -221,7 +223,7 @@ export default function AdminSidebar({
             className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold text-zinc-500 hover:bg-zinc-900 hover:text-white transition-all"
           >
             <ExternalLink className="w-4 h-4 text-zinc-500" />
-            View public menu
+            View active menu
           </a>
         )}
         <button 

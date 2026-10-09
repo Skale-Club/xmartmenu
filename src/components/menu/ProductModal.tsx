@@ -84,10 +84,11 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, submitLabel = 'Order', onPrevProduct, onNextProduct }: {
+export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, submitLabel = 'Order', onPrevProduct, onNextProduct }: {
   product: Product; accentColor: string; currency: string; whatsapp?: string | null;
   lang: string; onClose: () => void; onWhatsApp: () => void;
   onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void;
+  onCustomizationStarted?: () => void
   optionGroups?: GroupWithOptions[]
   itemNotesEnabled?: boolean
   ingredientCustomizationEnabled?: boolean
@@ -138,6 +139,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>(initialEditorState?.ingredientSteppers ?? {})
   const [addedIngredients, setAddedIngredients] = useState<string[]>(initialEditorState?.addedIngredients ?? [])
   const [showAddIngredient, setShowAddIngredient] = useState(false)
+  const customizationTrackedRef = useRef(false)
 
   useEffect(() => {
     // Re-open in Edit mode pre-fills from initialEditorState; otherwise resets for a fresh product.
@@ -148,8 +150,15 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
     setIngredientSteppers(initialEditorState?.ingredientSteppers ?? {})
     setAddedIngredients(initialEditorState?.addedIngredients ?? [])
     setShowAddIngredient(false)
+    customizationTrackedRef.current = false
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id])
+
+  function notifyCustomizationStarted() {
+    if (customizationTrackedRef.current) return
+    customizationTrackedRef.current = true
+    onCustomizationStarted?.()
+  }
 
   const canAddToCart = optionGroups.every(group => {
     if (!group.required) return true
@@ -432,7 +441,10 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                                   name={group.id}
                                   value={opt.id}
                                   checked={isSelected}
-                                  onChange={() => setSingleSelections(prev => ({ ...prev, [group.id]: opt.id }))}
+                                  onChange={() => {
+                                    notifyCustomizationStarted()
+                                    setSingleSelections(prev => ({ ...prev, [group.id]: opt.id }))
+                                  }}
                                   className="sr-only"
                                 />
                                 <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`} />
@@ -473,6 +485,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                                     value={opt.id}
                                     checked={isChecked}
                                     onChange={() => {
+                                      notifyCustomizationStarted()
                                       setMultiSelections(prev => {
                                         const cur = prev[group.id] ?? []
                                         return {
@@ -537,10 +550,13 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                                           name={`${group.id}-${halfKey}`}
                                           value={opt.id}
                                           checked={isSelected}
-                                          onChange={() => setHalfSelections(prev => ({
-                                            ...prev,
-                                            [group.id]: { ...(prev[group.id] ?? { half1: null, half2: null }), [halfKey]: opt.id },
-                                          }))}
+                                          onChange={() => {
+                                            notifyCustomizationStarted()
+                                            setHalfSelections(prev => ({
+                                              ...prev,
+                                              [group.id]: { ...(prev[group.id] ?? { half1: null, half2: null }), [halfKey]: opt.id },
+                                            }))
+                                          }}
                                           className="sr-only"
                                         />
                                         <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`} />
@@ -589,7 +605,10 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                         {([-1, 0, 1] as const).map(val => (
                           <button
                             key={val}
-                            onClick={() => setIngredientSteppers(prev => ({ ...prev, [pi.ingredient_id]: val }))}
+                            onClick={() => {
+                              notifyCustomizationStarted()
+                              setIngredientSteppers(prev => ({ ...prev, [pi.ingredient_id]: val }))
+                            }}
                             className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors
                               ${stepperVal === val
                                 ? 'bg-zinc-900 text-white'
@@ -608,7 +627,10 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
               {productIngredients.filter(pi => !pi.is_default && !addedIngredients.includes(pi.ingredient_id)).length > 0 && (
                 <div className="mt-3">
                   <button
-                    onClick={() => setShowAddIngredient(v => !v)}
+                    onClick={() => {
+                      notifyCustomizationStarted()
+                      setShowAddIngredient(v => !v)
+                    }}
                     className="text-sm text-zinc-600 underline underline-offset-2 hover:text-zinc-900"
                   >
                     + Add ingredient
@@ -628,6 +650,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                                 )}
                                 <button
                                   onClick={() => {
+                                    notifyCustomizationStarted()
                                     setAddedIngredients(prev => [...prev, pi.ingredient_id])
                                     setShowAddIngredient(false)
                                   }}
@@ -657,7 +680,10 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                           {pi.ingredient.name}{addPrice > 0 ? ` +${formatPrice(addPrice, currency)}` : ''}
                         </span>
                         <button
-                          onClick={() => setAddedIngredients(prev => prev.filter(id => id !== ingId))}
+                          onClick={() => {
+                            notifyCustomizationStarted()
+                            setAddedIngredients(prev => prev.filter(id => id !== ingId))
+                          }}
                           className="text-green-500 hover:text-green-700 text-xs leading-none ml-0.5"
                           aria-label={`Remove ${pi.ingredient.name}`}
                         >

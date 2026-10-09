@@ -27,3 +27,9 @@ export function getSafePreviewDestination(value: unknown): string {
   if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\')) return '/dashboard'
   return value
 }
+
+export function getSafeExitPreviewDestination(value: unknown): string {
+  if (typeof value !== 'string') return '/tenants'
+  if (!/^\/tenants(?:\/[a-zA-Z0-9-]+)?$/.test(value)) return '/tenants'
+  return value
+}
