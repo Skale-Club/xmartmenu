@@ -1,11 +1,11 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import type { Product, ProductMedia } from '@/types/database'
-import { getProductImages } from './menu-utils'
+import { getFeedSlideDuration, getProductImages, orderFeedMedia } from './menu-utils'
 
 interface FeedProps {
   products: Product[]
@@ -48,6 +48,13 @@ export default function MenuFeed({
   onDecrement,
   onMediaEvent,
 }: FeedProps) {
+  const feedScrollerRef = useRef<HTMLDivElement | null>(null)
+  const advanceDish = useCallback((dishIndex: number) => {
+    const scroller = feedScrollerRef.current
+    if (!scroller || dishIndex >= products.length - 1) return
+    scroller.scrollTo({ top: (dishIndex + 1) * scroller.clientHeight, behavior: 'smooth' })
+  }, [products.length])
+
   return (
     <section className="fixed inset-0 z-40 bg-zinc-950 text-white md:hidden" aria-label="Visual menu feed">
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
@@ -78,7 +85,7 @@ export default function MenuFeed({
         )}
       </div>
 
-      <div tabIndex={0} aria-label="Swipe vertically through dishes" className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain scroll-smooth touch-pan-y outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div ref={feedScrollerRef} tabIndex={0} aria-label="Swipe vertically through dishes" className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain scroll-smooth touch-pan-y outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {products.map((product, index) => {
           const quantity = quantityFor(product.id)
           const customizable = hasCustomization(product.id)
@@ -97,6 +104,8 @@ export default function MenuFeed({
                 priority={index === 0}
                 panDirection={index % 2 === 0 ? 'alternate' : 'alternate-reverse'}
                 autoplay={autoplayVideos}
+                dishIndex={index}
+                onAdvanceDish={advanceDish}
                 onOpen={() => onOpen(product)}
                 onMediaEvent={(event, mediaType, mediaIndex) => onMediaEvent(event, product, mediaType, mediaIndex)}
               />
@@ -176,6 +185,8 @@ function FeedMedia({
   priority,
   panDirection,
   autoplay,
+  dishIndex,
+  onAdvanceDish,
   onOpen,
   onMediaEvent,
 }: {
@@ -184,6 +195,8 @@ function FeedMedia({
   priority: boolean
   panDirection: 'alternate' | 'alternate-reverse'
   autoplay: boolean
+  dishIndex: number
+  onAdvanceDish: (dishIndex: number) => void
   onOpen: () => void
   onMediaEvent: (event: 'media_started' | 'media_completed' | 'media_swiped', mediaType: 'image' | 'video', index: number) => void
 }) {
@@ -191,17 +204,42 @@ function FeedMedia({
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const startedRef = useRef(false)
   const completedRef = useRef(false)
+  const advanceGuardRef = useRef(false)
   const [nearViewport, setNearViewport] = useState(priority)
   const [active, setActive] = useState(false)
   const [mediaIndex, setMediaIndex] = useState(0)
-  const orderedMedia = [...media].sort((a, b) => a.display_order - b.display_order)
-  const images = getProductImages(product)
-  const slides: Array<{ type: 'image' | 'video'; url: string }> = orderedMedia.length > 0
-    ? orderedMedia.map(item => ({ type: item.type, url: item.url }))
-    : images.map(url => ({ type: 'image' as const, url }))
+  const orderedMedia = useMemo(() => orderFeedMedia(media), [media])
+  const images = useMemo(() => getProductImages(product), [product])
+  const slides = useMemo<Array<{ type: 'image' | 'video'; url: string }>>(() => (
+    orderedMedia.length > 0
+      ? orderedMedia.map(item => ({ type: item.type, url: item.url }))
+      : images.map(url => ({ type: 'image' as const, url }))
+  ), [images, orderedMedia])
   const current = slides[mediaIndex] ?? null
   const directVideo = current?.type === 'video' && /\.(mp4|webm|ogg)(?:$|\?)/i.test(current.url)
   const imageUrl = current?.type === 'image' ? current.url : null
+
+  const advanceTimed = useCallback(() => {
+    if (!current || advanceGuardRef.current) return
+    advanceGuardRef.current = true
+
+    if (!completedRef.current) {
+      completedRef.current = true
+      onMediaEvent('media_completed', current.type, mediaIndex)
+    }
+
+    if (mediaIndex < slides.length - 1) {
+      const nextIndex = mediaIndex + 1
+      const next = slides[nextIndex]
+      startedRef.current = false
+      completedRef.current = false
+      setMediaIndex(nextIndex)
+      onMediaEvent('media_swiped', next.type, nextIndex)
+      return
+    }
+
+    onAdvanceDish(dishIndex)
+  }, [current, dishIndex, mediaIndex, onAdvanceDish, onMediaEvent, slides])
 
   useEffect(() => {
     const node = containerRef.current
@@ -227,12 +265,37 @@ function FeedMedia({
     }
   }, [active, autoplay, nearViewport, mediaIndex])
 
+  useEffect(() => {
+    startedRef.current = false
+    completedRef.current = false
+    advanceGuardRef.current = false
+  }, [current?.url, mediaIndex])
+
+  useEffect(() => {
+    if (active) advanceGuardRef.current = false
+  }, [active])
+
+  useEffect(() => {
+    if (!active || !current) return
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    const timeout = window.setTimeout(advanceTimed, getFeedSlideDuration(current.type))
+    return () => window.clearTimeout(timeout)
+  }, [active, advanceTimed, current])
+
+  useEffect(() => {
+    if (!active || current?.type !== 'image' || startedRef.current) return
+    startedRef.current = true
+    onMediaEvent('media_started', 'image', mediaIndex)
+  }, [active, current?.type, mediaIndex, onMediaEvent])
+
   function moveMedia(direction: -1 | 1) {
     if (slides.length < 2) return
     const nextIndex = (mediaIndex + direction + slides.length) % slides.length
     const next = slides[nextIndex]
     startedRef.current = false
     completedRef.current = false
+    advanceGuardRef.current = false
     setMediaIndex(nextIndex)
     onMediaEvent('media_swiped', next.type, nextIndex)
   }
@@ -246,7 +309,6 @@ function FeedMedia({
           src={current.url}
           poster={images[0]}
           muted
-          loop
           playsInline
           controls={!autoplay}
           preload="metadata"
@@ -257,6 +319,7 @@ function FeedMedia({
             startedRef.current = true
             onMediaEvent('media_started', 'video', mediaIndex)
           }}
+          onEnded={advanceTimed}
           onTimeUpdate={event => {
             const video = event.currentTarget
             if (completedRef.current || !Number.isFinite(video.duration) || video.duration <= 0) return
@@ -290,10 +353,24 @@ function FeedMedia({
         <>
           <button type="button" onClick={() => moveMedia(-1)} aria-label={`Previous media for ${product.name}`} className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition active:scale-90"><ChevronLeft className="size-5" /></button>
           <button type="button" onClick={() => moveMedia(1)} aria-label={`Next media for ${product.name}`} className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition active:scale-90"><ChevronRight className="size-5" /></button>
-          <div className="absolute left-1/2 top-[max(5rem,calc(env(safe-area-inset-top)+4rem))] z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-2 backdrop-blur" aria-label={`Media ${mediaIndex + 1} of ${slides.length}`}>
-            {slides.map((slide, index) => <span key={`${slide.url}-${index}`} className={`h-1.5 rounded-full transition-all ${index === mediaIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/45'}`} />)}
-          </div>
         </>
+      ) : null}
+
+      {slides.length > 0 ? (
+        <div className="absolute inset-x-4 top-[max(4.5rem,calc(env(safe-area-inset-top)+3.75rem))] z-10 flex gap-1" aria-label={`Media ${mediaIndex + 1} of ${slides.length}`}>
+          {slides.map((slide, index) => (
+            <span key={`${slide.url}-${index}`} className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/30 shadow-sm">
+              {index < mediaIndex ? <span className="absolute inset-0 bg-white" /> : null}
+              {index === mediaIndex ? (
+                <span
+                  key={`${slide.url}-${active ? 'active' : 'inactive'}`}
+                  className="menu-feed-slide-progress absolute inset-0 bg-white"
+                  style={{ animationDuration: `${getFeedSlideDuration(slide.type)}ms`, animationPlayState: active ? 'running' : 'paused' }}
+                />
+              ) : null}
+            </span>
+          ))}
+        </div>
       ) : null}
     </div>
   )

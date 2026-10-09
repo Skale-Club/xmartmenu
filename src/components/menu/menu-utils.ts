@@ -10,6 +10,20 @@ export function isProductVisibleInFeed(product: { show_in_feed?: boolean | null 
   return product.show_in_feed !== false
 }
 
+export const FEED_IMAGE_SLIDE_DURATION_MS = 8_000
+export const FEED_VIDEO_SLIDE_DURATION_MS = 15_000
+
+export function orderFeedMedia<T extends { type: 'image' | 'video'; display_order: number }>(media: readonly T[]) {
+  return [...media].sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'video' ? -1 : 1
+    return a.display_order - b.display_order
+  })
+}
+
+export function getFeedSlideDuration(mediaType: 'image' | 'video') {
+  return mediaType === 'video' ? FEED_VIDEO_SLIDE_DURATION_MS : FEED_IMAGE_SLIDE_DURATION_MS
+}
+
 export type UICopyEntry = {
   search: string; all: string; featured: string; noItems: string; tryAnother: string;
   other: string; createAccount: string; hoursBtn: string; hoursTitle: string;

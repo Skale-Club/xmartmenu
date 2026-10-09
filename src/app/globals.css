@@ -146,6 +146,19 @@ input[type="file"] {
   will-change: transform;
 }
 
+@keyframes menu-feed-slide-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.menu-feed-slide-progress {
+  animation-name: menu-feed-slide-progress;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+  transform-origin: left center;
+  will-change: transform;
+}
+
 @keyframes marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
@@ -167,6 +180,11 @@ input[type="file"] {
   .menu-feed-image-pan {
     animation: none;
     transform: scale(1.04);
+  }
+
+  .menu-feed-slide-progress {
+    animation: none;
+    transform: scaleX(0);
   }
 
   .animate-marquee {
