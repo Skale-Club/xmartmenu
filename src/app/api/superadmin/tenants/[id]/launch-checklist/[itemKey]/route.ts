@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
-import { isLaunchChecklistKey, isLaunchChecklistStatus, type LaunchChecklistEntry } from '@/lib/launch-checklist'
-import { isMissingLaunchChecklistTable } from '@/lib/admin/launch-checklist-data'
+import { isLaunchChecklistKey, isLaunchChecklistStatus } from '@/lib/launch-checklist'
+import { LaunchChecklistSetupError, setLaunchChecklistItem } from '@/lib/admin/launch-checklist-data'
 
 // Set one launch-checklist item for one restaurant (super-admin → Clients →
 // Launch checklist). Body: { status: 'pending' | 'done' | 'na', note?: string }.
@@ -26,40 +26,19 @@ export async function PUT(
   const note = typeof body.note === 'string' ? body.note.trim() : undefined
 
   const { data: { user } } = await supabase.auth.getUser()
-  const service = createServiceClient()
-  const { data: tenant } = await service.from('tenants').select('id').eq('id', id).maybeSingle()
-  if (!tenant) return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
-
-  const row: Record<string, unknown> = {
-    tenant_id: id,
-    item_key: itemKey,
-    status: body.status,
-    updated_by: user?.email ?? null,
-    updated_at: new Date().toISOString(),
-  }
-  if (note !== undefined) row.note = note
-
-  const { data, error } = await service
-    .from('launch_checklist_items')
-    .upsert(row, { onConflict: 'tenant_id,item_key' })
-    .select('status, note, updated_by, updated_at')
-    .single()
-  if (error) {
-    if (isMissingLaunchChecklistTable(error)) {
-      return NextResponse.json(
-        { error: 'The launch checklist table does not exist yet — apply supabase/migrations/20261009120000_launch_checklist_items.sql' },
-        { status: 503 },
-      )
-    }
+  try {
+    const entry = await setLaunchChecklistItem(createServiceClient(), {
+      tenantId: id,
+      itemKey,
+      status: body.status,
+      note,
+      updatedBy: user?.email ?? null,
+    })
+    if (!entry) return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
+    return NextResponse.json(entry)
+  } catch (error) {
+    if (error instanceof LaunchChecklistSetupError) return NextResponse.json({ error: error.message }, { status: 503 })
     console.error('PUT /api/superadmin/tenants/[id]/launch-checklist/[itemKey]:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
-
-  const entry: LaunchChecklistEntry = {
-    status: data.status,
-    note: data.note,
-    updatedBy: data.updated_by,
-    updatedAt: data.updated_at,
-  }
-  return NextResponse.json(entry)
 }

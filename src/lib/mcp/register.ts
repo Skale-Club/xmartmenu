@@ -16,6 +16,7 @@ import {
 import { registerOrderReadTools } from './tools/orders'
 import { registerStaffReadTools, registerStaffWriteTools, registerStaffDestructiveTools } from './tools/staff'
 import { registerBrandingWriteTools } from './tools/branding'
+import { registerLaunchChecklistReadTools, registerLaunchChecklistWriteTools } from './tools/launch-checklist'
 
 /**
  * Registers every xmartmenu MCP tool on the server instance.
@@ -36,6 +37,7 @@ export function registerMcpTools(server: McpServer): void {
   registerLocationReadTools(server)
   registerOrderReadTools(server)
   registerStaffReadTools(server)
+  registerLaunchChecklistReadTools(server)
 
   // Write (create/update)
   registerTenantWriteTools(server)
@@ -46,6 +48,7 @@ export function registerMcpTools(server: McpServer): void {
   registerLocationWriteTools(server)
   registerStaffWriteTools(server)
   registerBrandingWriteTools(server)
+  registerLaunchChecklistWriteTools(server)
 
   // Destructive (gated at call time)
   registerTenantDestructiveTools(server)
