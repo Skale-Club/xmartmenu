@@ -6,6 +6,7 @@ import Link from 'next/link'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import {
   ArrowLeft,
+  Rocket,
   CheckCircle2,
   ChevronDown,
   CreditCard,
@@ -500,6 +501,13 @@ export default function TenantDetailClient({
               <LayoutDashboard className="size-4" />
               Dashboard
             </a>
+            <Link
+              href={`/tenants/launch?tenant=${tenant.id}`}
+              className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 text-xs font-bold text-zinc-700 transition-[background-color,scale] duration-150 hover:bg-zinc-200 active:scale-96 lg:col-span-1"
+            >
+              <Rocket className="size-4" />
+              Launch checklist
+            </Link>
           </div>
         </div>
       </header>

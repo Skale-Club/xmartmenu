@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, ClipboardList, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react'
+import { Building2, ClipboardList, LayoutDashboard, LogOut, Rocket, Settings, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const items = [
   { href: '/overview', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/tenants', label: 'Clients', icon: Building2 },
+  { href: '/tenants/launch', label: 'Launch checklist', icon: Rocket },
   { href: '/users', label: 'Users', icon: Users },
   { href: '/plans', label: 'Plans', icon: ClipboardList, separated: true },
   { href: '/admin', label: 'Settings', icon: Settings },
@@ -28,7 +29,10 @@ export default function SuperadminSidebar({ appName, logoUrl }: { appName: strin
 
       <nav className="flex-1 space-y-1 overflow-y-auto p-4 scrollbar-hide" aria-label="Super admin navigation">
         {items.map(({ href, label, icon: Icon, separated }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`)
+          // Longest match wins, so /tenants/launch highlights only "Launch
+          // checklist", not "Clients" as well.
+          const matches = (h: string) => pathname === h || pathname.startsWith(`${h}/`)
+          const active = matches(href) && !items.some((other) => other.href.length > href.length && matches(other.href))
           return (
             <div key={href} className={separated ? 'pt-4' : undefined}>
               {separated && <div className="mb-4 h-px bg-zinc-800/50" />}
