@@ -15,9 +15,10 @@ const supabase = createClient(supabaseUrl, serviceKey, {
 
 const shouldApply = process.argv.includes('--apply')
 const tenantSlug = 'bella-vista'
-const assetBaseUrl = 'https://xmartmenu.skale.club/brands/bella-vista'
-const logoUrl = `${assetBaseUrl}/logo.webp`
-const bannerUrl = `${assetBaseUrl}/banner.webp`
+const assetBasePath = '/brands/bella-vista'
+const publicBaseUrl = 'https://xmartmenu.skale.club'
+const logoUrl = `${assetBasePath}/logo.webp`
+const bannerUrl = `${assetBasePath}/banner.webp`
 
 const productAssets: Record<string, string> = {
   'Fresh Orange Juice': 'fresh-orange-juice.webp',
@@ -87,13 +88,17 @@ async function main() {
 
   const { error: settingsError } = await supabase
     .from('tenant_settings')
-    .update({ logo_url: logoUrl, banner_url: bannerUrl, seo_og_image_url: bannerUrl })
+    .update({
+      logo_url: logoUrl,
+      banner_url: bannerUrl,
+      seo_og_image_url: `${publicBaseUrl}${bannerUrl}`,
+    })
     .eq('tenant_id', tenant.id)
 
   if (settingsError) throw settingsError
 
   for (const product of mapped) {
-    const imageUrl = `${assetBaseUrl}/${productAssets[product.name]}`
+    const imageUrl = `${assetBasePath}/${productAssets[product.name]}`
     const { error: productError } = await supabase
       .from('products')
       .update({ image_url: imageUrl, image_urls: [imageUrl] })
