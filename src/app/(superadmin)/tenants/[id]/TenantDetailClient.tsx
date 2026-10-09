@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 
 interface Tenant {
@@ -67,12 +68,14 @@ export default function TenantDetailClient({
   initialMenus,
   businessType,
   initialSubscription,
+  availablePlans,
 }: {
   tenant: Tenant
   initialStaff: StaffMember[]
   initialMenus: Menu[]
   businessType: string | null
   initialSubscription: Subscription | null
+  availablePlans: Array<{ id: string; name: string; slug: string }>
 }) {
   const [tab, setTab] = useState<'staff' | 'menus' | 'subscription'>('staff')
   const [staff, setStaff] = useState(initialStaff)
@@ -401,6 +404,7 @@ export default function TenantDetailClient({
 
   // Subscription form state
   const [subscription, setSubscription] = useState(initialSubscription)
+  const [selectedPlanId, setSelectedPlanId] = useState(initialSubscription?.plan_id ?? availablePlans[0]?.id ?? '')
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>(initialSubscription?.billing_cycle ?? 'monthly')
   const [overrideMonthlyPrice, setOverrideMonthlyPrice] = useState(initialSubscription?.override_monthly_price?.toString() ?? '')
   const [overrideAnnualPrice, setOverrideAnnualPrice] = useState(initialSubscription?.override_annual_price?.toString() ?? '')
@@ -425,7 +429,7 @@ export default function TenantDetailClient({
 
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
-        <a href="/tenants" className="text-sm text-zinc-400 hover:text-zinc-600 transition-colors">← Clients</a>
+        <Link href="/tenants" className="text-sm text-zinc-400 hover:text-zinc-600 transition-colors">← Clients</Link>
         <div className="w-px h-4 bg-zinc-200" />
         <div className="flex items-center gap-3">
           {tenant.logo_url
@@ -571,7 +575,16 @@ export default function TenantDetailClient({
       {tab === 'menus' && (
         <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
           {menus.length === 0 ? (
-            <div className="py-12 text-center text-zinc-400 text-sm">No menus yet</div>
+            <div className="py-12 text-center">
+              <p className="text-zinc-500 text-sm font-medium">No menus yet</p>
+              <p className="text-zinc-400 text-xs mt-1 mb-4">Create a menu before adding categories, products, or AI-generated content.</p>
+              <a
+                href={`/api/admin/enter-preview?tenant=${tenant.id}&next=${encodeURIComponent('/menus')}`}
+                className="inline-flex px-4 py-2 bg-zinc-900 text-white rounded-lg text-xs font-bold hover:bg-zinc-700 transition-colors"
+              >
+                Create menu
+              </a>
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead>
@@ -610,9 +623,44 @@ export default function TenantDetailClient({
       {tab === 'subscription' && (
         <div className="bg-white border border-zinc-200 rounded-xl p-5">
           {!subscription?.plan ? (
-            <p className="text-sm text-zinc-400 text-center py-8">
-              No subscription found. This tenant needs to be assigned to a plan first.
-            </p>
+            <div className="max-w-md mx-auto py-8 text-center">
+              <p className="text-sm font-semibold text-zinc-800">Assign a subscription plan</p>
+              <p className="text-xs text-zinc-400 mt-1 mb-4">Choose the plan that controls this restaurant&apos;s available features.</p>
+              <div className="flex gap-2">
+                <select
+                  value={selectedPlanId}
+                  onChange={event => setSelectedPlanId(event.target.value)}
+                  className="flex-1 px-3 py-2 border border-zinc-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                >
+                  {availablePlans.length === 0 && <option value="">No active plans available</option>}
+                  {availablePlans.map(plan => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
+                </select>
+                <button
+                  disabled={!selectedPlanId || subscriptionLoading}
+                  onClick={async () => {
+                    setSubscriptionLoading(true)
+                    setError(null)
+                    try {
+                      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/subscription`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ plan_id: selectedPlanId }),
+                      })
+                      const data = await res.json().catch(() => null)
+                      if (!res.ok) throw new Error(data?.error ?? 'Failed to assign plan')
+                      setSubscription(data)
+                    } catch (cause) {
+                      setError(cause instanceof Error ? cause.message : 'Failed to assign plan')
+                    } finally {
+                      setSubscriptionLoading(false)
+                    }
+                  }}
+                  className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                >
+                  {subscriptionLoading ? 'Assigning...' : 'Assign plan'}
+                </button>
+              </div>
+            </div>
           ) : (
             <div className="space-y-6">
               {/* Current Plan */}
@@ -752,9 +800,9 @@ export default function TenantDetailClient({
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
                         billing_cycle: billingCycle,
-                        override_monthly_price: overrideMonthlyPrice === '' ? null : parseFloat(overrideMonthlyPrice) || null,
-                        override_annual_price: overrideAnnualPrice === '' ? null : parseFloat(overrideAnnualPrice) || null,
-                        override_transaction_fee_pct: overrideTransactionFee === '' ? null : parseFloat(overrideTransactionFee) || null,
+                        override_monthly_price: overrideMonthlyPrice === '' ? null : Number(overrideMonthlyPrice),
+                        override_annual_price: overrideAnnualPrice === '' ? null : Number(overrideAnnualPrice),
+                        override_transaction_fee_pct: overrideTransactionFee === '' ? null : Number(overrideTransactionFee),
                         override_notes: overrideNotes || null,
                       }),
                     })

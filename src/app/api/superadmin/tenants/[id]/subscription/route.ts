@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
+import { revalidatePath } from 'next/cache'
+import { enqueueXphereSync } from '@/lib/xphere/queue'
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -56,6 +58,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
   const service = await createServiceClient()
 
   let body: {
+    plan_id?: string
     billing_cycle?: 'monthly' | 'annual'
     override_monthly_price?: number | null
     override_annual_price?: number | null
@@ -69,7 +72,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { billing_cycle, override_monthly_price, override_annual_price, override_transaction_fee_pct, override_notes } = body
+  const { plan_id, billing_cycle, override_monthly_price, override_annual_price, override_transaction_fee_pct, override_notes } = body
 
   // Validation
   if (override_monthly_price !== null && override_monthly_price !== undefined && override_monthly_price < 0) {
@@ -87,11 +90,22 @@ export async function PUT(request: Request, { params }: RouteParams) {
   // Check if subscription exists
   const { data: existing } = await service
     .from('tenant_subscriptions')
-    .select('id')
+    .select('id, plan_id')
     .eq('tenant_id', tenantId)
-    .single()
+    .maybeSingle()
+
+  const { data: selectedPlan } = plan_id
+    ? await service.from('plans').select('id, slug').eq('id', plan_id).eq('is_active', true).maybeSingle()
+    : { data: null }
+  if (plan_id && !selectedPlan) {
+    return NextResponse.json({ error: 'Selected plan was not found or is inactive' }, { status: 400 })
+  }
 
   const updateData: Record<string, unknown> = {}
+
+  if (plan_id !== undefined) {
+    updateData.plan_id = plan_id
+  }
 
   if (billing_cycle !== undefined) {
     updateData.billing_cycle = billing_cycle
@@ -130,19 +144,42 @@ export async function PUT(request: Request, { params }: RouteParams) {
     data = result.data
     error = result.error
   } else {
-    // No subscription yet — caller must pick a plan first via the plans endpoint.
-    // We can't derive plan_id from the legacy text `tenants.plan` field (free/pro/enterprise),
-    // since plan_id is a UUID FK to the canonical `plans` table (slugs: menu/orders/payments).
-    return NextResponse.json(
-      { error: 'No subscription exists for this tenant. Assign a plan before editing billing details.' },
-      { status: 400 }
-    )
+    if (!plan_id) {
+      return NextResponse.json(
+        { error: 'Select a plan before editing billing details.' },
+        { status: 400 }
+      )
+    }
+    const result = await service
+      .from('tenant_subscriptions')
+      .insert({
+        tenant_id: tenantId,
+        plan_id,
+        billing_cycle: billing_cycle ?? 'monthly',
+        status: 'active',
+        override_monthly_price: override_monthly_price ?? null,
+        override_annual_price: override_annual_price ?? null,
+        override_transaction_fee_pct: override_transaction_fee_pct ?? null,
+        override_notes: override_notes ?? null,
+      })
+      .select('*, plan:plans(*)')
+      .single()
+    data = result.data
+    error = result.error
   }
 
   if (error) {
     console.error('Failed to update subscription:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
+
+  if (selectedPlan) {
+    await service.from('tenants').update({ plan: selectedPlan.slug }).eq('id', tenantId)
+  }
+  const { data: tenant } = await service.from('tenants').select('slug').eq('id', tenantId).maybeSingle()
+  revalidatePath('/tenants')
+  if (tenant?.slug) revalidatePath(`/${tenant.slug}`, 'layout')
+  await enqueueXphereSync(tenantId, existing ? 'plan_changed' : 'plan_activated')
 
   return NextResponse.json(data)
 }

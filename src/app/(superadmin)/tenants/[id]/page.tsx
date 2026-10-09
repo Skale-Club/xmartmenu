@@ -59,6 +59,12 @@ export default async function TenantDetailPage({ params }: Props) {
     .eq('tenant_id', id)
     .single()
 
+  const { data: availablePlans } = await service
+    .from('plans')
+    .select('id, name, slug')
+    .eq('is_active', true)
+    .order('sort_order')
+
   return (
     <TenantDetailClient
       tenant={{ ...tenant, logo_url: settings?.logo_url ?? null }}
@@ -66,6 +72,7 @@ export default async function TenantDetailPage({ params }: Props) {
       initialMenus={menus ?? []}
       businessType={settings?.business_type ?? null}
       initialSubscription={subscription ?? null}
+      availablePlans={availablePlans ?? []}
     />
   )
 }

@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:tenant-management": "tsx --test src/lib/admin/tenant-management.test.ts",
     "check:routes": "npx tsx scripts/check-blocked-slugs.ts",
     "seed": "npx tsx scripts/seed.ts",
     "stripe:setup-plans": "npx tsx scripts/stripe-setup-plans.ts",

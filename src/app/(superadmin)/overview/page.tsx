@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
+import { isPendingTenantAssignment } from '@/lib/admin/tenant-management'
 import DashboardOverview from './DashboardOverview'
 
 export default async function OverviewPage() {
@@ -43,7 +44,7 @@ export default async function OverviewPage() {
     pro: allTenants.filter(t => t.plan === 'pro').length,
     enterprise: allTenants.filter(t => t.plan === 'enterprise').length,
   }
-  const unassigned = allProfiles.filter(p => !p.tenant_id && p.role !== 'superadmin').length
+  const unassigned = allProfiles.filter(p => isPendingTenantAssignment(p)).length
   const recent = [...allTenants]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5)

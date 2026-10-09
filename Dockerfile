@@ -29,8 +29,8 @@ ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_SENTRY_DSN
 # Needed at BUILD time too: the root layout reads platform_settings via the
 # service client in generateMetadata/generateViewport, which runs while
-# prerendering static pages (e.g. /_not-found). Vercel made all env available
-# at build; we mirror that. Declared ONLY in this builder stage, so it is NOT
+# prerendering static pages (e.g. /_not-found). The CI image build therefore
+# supplies it explicitly. Declared ONLY in this builder stage, so it is NOT
 # present in the final `runner` image (kept clean of the service-role key).
 ARG SUPABASE_SERVICE_ROLE_KEY
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \

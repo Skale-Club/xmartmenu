@@ -2,15 +2,18 @@ export const dynamic = 'force-dynamic'
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
-import TenantsClient from './TenantsClient'
+import { isPendingTenantAssignment } from '@/lib/admin/tenant-management'
+import TenantDirectoryClient from './TenantDirectoryClient'
 
 export default async function TenantsPage() {
   const service = await createServiceClient()
 
-  const [{ data: tenants }, authUsers, { data: profiles }] = await Promise.all([
+  const [{ data: tenants }, authUsers, { data: profiles }, { data: plans }, { data: subscriptions }] = await Promise.all([
     service.from('tenants').select('id, name, slug, plan, is_active, created_at, tenant_settings(logo_url)').order('created_at', { ascending: false }),
     listAllAuthUsers(service),
     service.from('profiles').select('id, role, tenant_id, full_name'),
+    service.from('plans').select('id, name, slug, is_active').eq('is_active', true).order('sort_order'),
+    service.from('tenant_subscriptions').select('tenant_id, plan_id, status, plan:plans(id, name, slug)'),
   ])
 
   const authMap = new Map(authUsers.map(u => [u.id, u]))
@@ -23,16 +26,25 @@ export default async function TenantsPage() {
       adminProfileByTenant.set(p.tenant_id, p)
     }
   }
+  const subscriptionByTenant = new Map((subscriptions ?? []).map(subscription => [subscription.tenant_id, subscription]))
 
   // Build combined list: each client = tenant + admin user
   const clients = (tenants ?? []).map(tenant => {
     const profile = adminProfileByTenant.get(tenant.id) ?? null
     const authUser = profile ? authMap.get(profile.id) : null
+    const subscription = subscriptionByTenant.get(tenant.id) ?? null
+    const plan = subscription
+      ? (Array.isArray(subscription.plan) ? subscription.plan[0] : subscription.plan)
+      : null
     return {
       id: tenant.id,
       name: tenant.name,
       slug: tenant.slug,
       plan: tenant.plan,
+      plan_id: subscription?.plan_id ?? null,
+      plan_name: plan?.name ?? null,
+      plan_slug: plan?.slug ?? null,
+      subscription_status: subscription?.status ?? null,
       is_active: tenant.is_active,
       created_at: tenant.created_at,
       logo_url: ((tenant.tenant_settings as unknown as Array<{ logo_url: string | null }> | null)?.[0]?.logo_url) ?? null,
@@ -48,13 +60,17 @@ export default async function TenantsPage() {
   const unassigned = authUsers
     .filter(u => {
       const profile = profileById.get(u.id)
-      return !profile?.tenant_id && profile?.role !== 'superadmin'
+      return isPendingTenantAssignment(profile)
     })
     .map(u => ({
       id: null,
       name: null,
       slug: null,
       plan: null,
+      plan_id: null,
+      plan_name: null,
+      plan_slug: null,
+      subscription_status: null,
       is_active: null,
       created_at: u.created_at,
       logo_url: null,
@@ -64,5 +80,5 @@ export default async function TenantsPage() {
       provider: (u.app_metadata?.provider as string) ?? 'email',
     }))
 
-  return <TenantsClient clients={[...clients, ...unassigned]} />
+  return <TenantDirectoryClient clients={[...clients, ...unassigned]} plans={plans ?? []} />
 }

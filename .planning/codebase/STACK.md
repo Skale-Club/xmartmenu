@@ -100,9 +100,13 @@
 - Supabase project (local or remote)
 
 **Production:**
-- Deployment target: Vercel (Next.js optimized) or any Node.js-compatible platform
-- Environment variables must include Supabase credentials
-- Requires Supabase PostgreSQL backend
+- Deployment target: Docker/Next.js standalone on Coolify (`coolify.skale.club`)
+- Production URL: `https://xmartmenu.skale.club`
+- Images are built by GitHub Actions and published to `ghcr.io/skale-club/xmartmenu`
+- Coolify pulls the prebuilt image through `docker-compose.yaml`; it does not build on the VPS
+- Runtime environment variables and secrets are managed in Coolify
+- Build-time `NEXT_PUBLIC_*` variables are provided by GitHub Actions
+- Requires Supabase PostgreSQL, Auth, and Storage
 
 ## Build & Run Commands
 
@@ -116,4 +120,4 @@ npm run seed       # Execute TypeScript seed script
 
 ---
 
-*Stack analysis: 2026-05-05*
+*Stack analysis updated: 2026-10-08*
