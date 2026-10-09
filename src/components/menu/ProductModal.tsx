@@ -301,7 +301,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={onClose}>
-      <div className="relative w-full sm:max-w-md lg:max-w-lg" onClick={e => e.stopPropagation()}>
+      <div className="relative max-h-dvh w-full sm:max-h-[calc(100dvh-2rem)] sm:max-w-md lg:max-w-lg" onClick={e => e.stopPropagation()}>
       {onPrevProduct && (
         <button
           onClick={onPrevProduct}
@@ -320,7 +320,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
           ›
         </button>
       )}
-      <div className="bg-white w-full rounded-t-2xl sm:rounded-2xl overflow-hidden">
+      <div role="dialog" aria-modal="true" aria-label={product.name} className="max-h-dvh w-full overflow-y-auto rounded-t-2xl bg-white overscroll-contain sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
         {mediaSlides.length > 0 && (
           <div
             className="relative w-full aspect-video bg-zinc-100 overflow-hidden"
@@ -376,7 +376,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
         <div className="p-5 sm:p-6" onTouchStart={handleBodyTouchStart} onTouchEnd={handleBodyTouchEnd}>
           <div className="flex items-start justify-between gap-2 mb-2">
             <h3 className="text-lg font-bold text-zinc-900">{product.name}</h3>
-            <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 text-xl leading-none flex-shrink-0">✕</button>
+            <button onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full text-xl leading-none text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600">✕</button>
           </div>
           {product.tags?.length > 0 && (
             <div className="flex gap-1.5 mb-3 flex-wrap">

@@ -83,7 +83,7 @@ export default function LoginPage() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] opacity-40 pointer-events-none" />
 
       <div className="w-full max-w-sm relative z-10">
-        <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-[1.25rem] p-8">
+        <div className="rounded-[1.25rem] border border-white/10 bg-zinc-900/50 p-5 backdrop-blur-xl sm:p-8">
           {/* Marca */}
           <div className="mb-8 text-center">
             <img src={logoUrl} alt="Logo" className="w-12 h-12 mx-auto mb-5" />

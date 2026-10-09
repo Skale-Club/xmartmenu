@@ -427,14 +427,14 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
         loading={staffMutationLoading}
       />
 
-      <header className="mb-10 flex items-center justify-between gap-4">
+      <header className="mb-8 flex flex-col items-stretch justify-between gap-4 sm:mb-10 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-zinc-900">Tenants Management</h1>
           <p className="mt-1 text-sm font-medium text-zinc-500">{activeCount} active of {restaurants.length} restaurant(s)</p>
         </div>
         <button
           onClick={() => { setShowCreate(true); setNewCredentials(null) }}
-          className="flex items-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-zinc-200 hover:bg-zinc-800"
+          className="flex min-h-11 items-center justify-center gap-2 rounded-2xl bg-zinc-900 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-zinc-200 hover:bg-zinc-800"
         >
           <Plus className="h-4 w-4" /> New Restaurant
         </button>
@@ -462,7 +462,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
       )}
 
       {showCreate && (
-        <form onSubmit={handleCreate} className="mb-8 grid max-w-2xl grid-cols-1 gap-5 rounded-3xl border border-zinc-200 bg-white p-8 shadow-xl shadow-zinc-100 md:grid-cols-2">
+        <form onSubmit={handleCreate} className="mb-8 grid max-w-2xl grid-cols-1 gap-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl shadow-zinc-100 sm:p-6 md:grid-cols-2 lg:rounded-3xl lg:p-8">
           <div className="md:col-span-2 flex items-center justify-between">
             <h2 className="text-xl font-bold">Add New Restaurant</h2>
             <button type="button" onClick={() => setShowCreate(false)} aria-label="Close form"><XCircle className="h-6 w-6 text-zinc-400" /></button>
@@ -497,7 +497,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
           const tab = expandedTab[tenantId] ?? 'staff'
           return (
             <section key={tenantId} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-shadow hover:shadow-sm">
-              <div className="flex flex-col gap-5 p-5 lg:flex-row lg:items-center">
+              <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:gap-5">
                 <div className="flex min-w-0 flex-1 items-center gap-4">
                   <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
                     {client.logo_url ? <Image src={client.logo_url} alt={client.name ?? ''} width={48} height={48} className="object-contain" /> : <span className="text-xl font-bold text-zinc-300">{getInitials(client.name)}</span>}
@@ -522,7 +522,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
                   <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold uppercase ${client.plan_slug === 'payments' ? 'border-purple-100 bg-purple-50 text-purple-700' : client.plan_slug === 'orders' ? 'border-blue-100 bg-blue-50 text-blue-700' : 'border-zinc-100 bg-zinc-50 text-zinc-600'}`}>{client.plan_name ?? client.plan_slug ?? 'No plan'}</span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 lg:ml-auto">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center lg:ml-auto">
                   <Link href={`/tenants/${tenantId}`} className="flex items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-2 text-xs font-bold text-white hover:bg-zinc-800">Manage <ExternalLink className="h-3.5 w-3.5" /></Link>
                   <a href={`/${client.slug}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-xl bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-600"><MenuIcon className="h-4 w-4" />View</a>
                   <a href={`/api/admin/enter-preview?tenant=${tenantId}`} className="flex items-center gap-1 rounded-xl bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-600"><LayoutDashboard className="h-4 w-4" />Dashboard</a>
@@ -553,7 +553,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
                         {(['staff', 'menus'] as const).map(item => <button key={item} onClick={() => setExpandedTab(current => ({ ...current, [tenantId]: item }))} className={`border-b-2 px-4 py-3 text-xs font-bold capitalize ${tab === item ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-400'}`}>{item} ({item === 'staff' ? data?.staff.length ?? 0 : data?.menus.length ?? 0})</button>)}
                       </div>
                       {tab === 'staff' ? (
-                        <div className="space-y-5 p-6">
+                        <div className="space-y-5 p-4 sm:p-6">
                           {data?.staffError && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{data.staffError}</div>}
                           {data?.credentials && <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-xs text-green-800"><p className="mb-2 font-bold">Credentials for {data.credentials.owner}</p><p className="font-mono">{data.credentials.email} · {data.credentials.password}</p><button onClick={() => copyCredentials(`Email: ${data.credentials!.email}\nPassword: ${data.credentials!.password}`)} className="mt-3 font-bold underline">{copied ? 'Copied!' : 'Copy credentials'}</button></div>}
                           <form onSubmit={event => { event.preventDefault(); handleInvite(tenantId) }} className="flex flex-col gap-2 rounded-2xl border border-zinc-100 bg-zinc-50 p-4 sm:flex-row">
@@ -568,7 +568,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
                           )}
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 gap-3 p-6 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 p-4 sm:p-6 md:grid-cols-2">
                           {!data?.menus.length ? <p className="col-span-full py-8 text-center text-xs text-zinc-400">No menus created yet</p> : data.menus.map(menu => <a key={menu.id} href={`/${client.slug}/${menu.slug}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between rounded-2xl border border-zinc-100 bg-zinc-50 p-4"><span><span className="block text-sm font-bold text-zinc-900">{menu.name}</span><span className="text-xs text-zinc-400">/{menu.slug}</span></span><span className={`text-xs font-bold ${menu.is_active ? 'text-green-600' : 'text-zinc-400'}`}>{menu.is_active ? 'Active' : 'Draft'}</span></a>)}
                         </div>
                       )}
@@ -585,7 +585,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
         <section className="mt-12">
           <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400"><Shield className="h-5 w-5 text-amber-500" />Pending Assignment</h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {pendingUsers.map(user => <div key={user.user_id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-100 bg-white p-4"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 font-bold text-amber-600">{(user.full_name ?? user.email ?? '?')[0].toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{user.email}</p><p className="text-xs text-zinc-400">{user.full_name ?? 'Anonymous user'}</p></div>{user.provider === 'google' && <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600">Google</span>}<button onClick={() => setDeleteTarget(user)} className="p-2 text-zinc-300 hover:text-red-600" aria-label={`Delete ${user.email}`}><Trash2 className="h-4 w-4" /></button><div className="basis-full flex gap-2 border-t border-amber-50 pt-3"><select value={user.user_id ? assignmentTenant[user.user_id] ?? '' : ''} onChange={event => user.user_id && setAssignmentTenant(current => ({ ...current, [user.user_id!]: event.target.value }))} className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs"><option value="">Choose restaurant…</option>{restaurants.map(tenant => <option key={tenant.id} value={tenant.id!}>{tenant.name}</option>)}</select><button onClick={() => handleAssign(user)} disabled={!user.user_id || !assignmentTenant[user.user_id] || assignmentLoading === user.user_id} className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{assignmentLoading === user.user_id ? 'Assigning…' : 'Assign'}</button></div></div>)}
+            {pendingUsers.map(user => <div key={user.user_id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-100 bg-white p-4"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 font-bold text-amber-600">{(user.full_name ?? user.email ?? '?')[0].toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{user.email}</p><p className="text-xs text-zinc-400">{user.full_name ?? 'Anonymous user'}</p></div>{user.provider === 'google' && <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600">Google</span>}<button onClick={() => setDeleteTarget(user)} className="flex size-10 items-center justify-center text-zinc-300 hover:text-red-600" aria-label={`Delete ${user.email}`}><Trash2 className="h-4 w-4" /></button><div className="basis-full flex flex-col gap-2 border-t border-amber-50 pt-3 sm:flex-row"><select value={user.user_id ? assignmentTenant[user.user_id] ?? '' : ''} onChange={event => user.user_id && setAssignmentTenant(current => ({ ...current, [user.user_id!]: event.target.value }))} className="min-h-11 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs"><option value="">Choose restaurant…</option>{restaurants.map(tenant => <option key={tenant.id} value={tenant.id!}>{tenant.name}</option>)}</select><button onClick={() => handleAssign(user)} disabled={!user.user_id || !assignmentTenant[user.user_id] || assignmentLoading === user.user_id} className="min-h-11 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{assignmentLoading === user.user_id ? 'Assigning…' : 'Assign'}</button></div></div>)}
           </div>
         </section>
       )}

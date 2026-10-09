@@ -617,7 +617,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       {/* Featured Section — full viewport width, outside max-w container */}
       {featured.length > 0 && !search && !activeCategory && (
         <section className="relative w-full pt-10 sm:pt-16 pb-0">
-          <div className="w-full overflow-hidden pb-4">
+          <div className="scrollbar-hide w-full overflow-x-auto pb-4 md:overflow-hidden">
             <div className="absolute top-3 sm:top-5 left-4 sm:left-6 lg:left-8 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-100">
               <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
               <span className="text-xs font-black text-zinc-900 uppercase tracking-widest">{ui.featured}</span>
@@ -904,22 +904,25 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
       <AnimatePresence>
         {showHoursModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm" onClick={() => setShowHoursModal(false)}>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setShowHoursModal(false)}>
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white w-full max-w-sm rounded-lg shadow-2xl overflow-hidden" 
+              role="dialog"
+              aria-modal="true"
+              aria-label={ui.hoursTitle}
+              className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:max-w-sm sm:rounded-lg"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
+              <div className="sticky top-0 flex items-center justify-between border-b border-zinc-50 bg-zinc-50 px-4 py-4 sm:p-8">
                 <h3 className="text-xl font-black text-zinc-900 tracking-tight flex items-center gap-3">
                   <Clock className="w-5 h-5 text-primary" />
                   {ui.hoursTitle}
                 </h3>
-                <button onClick={() => setShowHoursModal(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
+                <button onClick={() => setShowHoursModal(false)} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-white transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
               </div>
-              <div className="p-8 space-y-4">
+              <div className="space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-8">
                 {Object.entries(DAYS).map(([key, label]) => {
                   const value = hours?.[key as keyof typeof hours]
                   if (!value) return null

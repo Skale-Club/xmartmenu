@@ -449,10 +449,10 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
             <Package className="w-5 h-5 text-primary" />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Kitchen Display</span>
           </div>
-          <h1 className="text-4xl font-black text-zinc-950 tracking-tight">Orders Queue</h1>
+          <h1 className="text-3xl font-black text-zinc-950 tracking-tight sm:text-4xl">Orders Queue</h1>
           <p className="text-sm font-bold text-zinc-500 mt-1">Real-time order management and fulfillment</p>
         </div>
-        <div className="flex items-center gap-4 shrink-0">
+        <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-start sm:gap-4">
           <div className="text-right mr-2 hidden sm:block">
             <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Volume</p>
             <p className="text-lg font-black text-zinc-950">{filteredOrders.length} active</p>
@@ -571,7 +571,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
           <p className="text-sm text-zinc-500 max-w-xs mx-auto font-medium">All caught up! New orders will appear here automatically.</p>
         </div>
       ) : view === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
           {filteredOrders.map((order) => (
             <OrderCard
               key={order.id}
@@ -589,7 +589,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
       ) : (
         <div className="bg-white border border-zinc-100 rounded-[1.5rem] overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="min-w-[900px] w-full text-left">
               <thead>
                 <tr className="bg-zinc-50 border-b border-zinc-100">
                   <th className="px-8 py-5 text-[10px] font-black uppercase tracking-widest text-zinc-400">Order ID</th>
@@ -647,23 +647,23 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
 
       {/* Details Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4" onClick={() => setSelectedOrder(null)}>
-          <div className="w-full max-w-2xl bg-white rounded-[1.5rem] border border-zinc-200 shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-10 py-8 border-b border-zinc-100 bg-zinc-50/50">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setSelectedOrder(null)}>
+          <div className="max-h-[calc(100dvh-0.5rem)] w-full max-w-2xl overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-[1.5rem]" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-4 py-4 sm:px-10 sm:py-8">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-[1.25rem] bg-zinc-950 flex items-center justify-center text-primary shadow-xl shadow-zinc-950/10">
                   <Package className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-black text-zinc-950 tracking-tight">Order Details</h2>
+                  <h2 className="text-xl font-black text-zinc-950 tracking-tight sm:text-2xl">Order Details</h2>
                   <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-0.5">Reference #{selectedOrder.id.slice(0, 8)}</p>
                 </div>
               </div>
               <button onClick={() => setSelectedOrder(null)} className="p-3 hover:bg-zinc-100 rounded-full transition-colors"><X className="w-6 h-6 text-zinc-400" /></button>
             </div>
             
-            <div className="p-10 space-y-10 max-h-[70vh] overflow-y-auto custom-scrollbar">
-              <div className="grid grid-cols-2 gap-10">
+            <div className="max-h-[calc(100dvh-6rem)] space-y-6 overflow-y-auto p-4 custom-scrollbar sm:max-h-[70vh] sm:space-y-10 sm:p-10">
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-10">
                 <div className="space-y-6">
                   <div>
                     <label className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1.5 block">Customer</label>
@@ -779,12 +779,12 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
               </div>
             </div>
 
-            <div className="p-10 bg-zinc-50/50 border-t border-zinc-100 flex gap-4">
-              <div className="flex-1 flex gap-3">
+            <div className="flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50/50 p-4 sm:flex-row sm:gap-4 sm:p-10">
+              <div className="flex flex-1 gap-3">
                 {selectedOrder.status === 'pending' && (
                   <button
                     onClick={() => updateStatus(selectedOrder.id, 'preparing')}
-                    className="flex-1 py-5 bg-zinc-950 text-white rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all shadow-xl shadow-zinc-950/10"
+                    className="min-h-12 flex-1 rounded-full bg-zinc-950 px-4 py-3 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-zinc-950/10 transition-colors hover:bg-primary hover:text-primary-foreground sm:py-5"
                   >
                     Start preparing
                   </button>
@@ -824,7 +824,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
               </div>
               <button 
                 onClick={() => updateStatus(selectedOrder.id, 'cancelled')}
-                className="px-10 py-5 rounded-full text-sm font-black uppercase tracking-widest text-zinc-400 hover:bg-red-50 hover:text-red-500 transition-all"
+                className="min-h-12 rounded-full px-6 py-3 text-sm font-black uppercase tracking-widest text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-500 sm:px-10 sm:py-5"
               >
                 Cancel
               </button>

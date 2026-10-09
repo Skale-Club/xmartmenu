@@ -75,7 +75,7 @@ function RegisterForm() {
   }
 
   return (
-    <div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-[1.25rem] p-8">
+    <div className="rounded-[1.25rem] border border-white/10 bg-zinc-900/50 p-5 backdrop-blur-xl sm:p-8">
       <div className="mb-8 text-center">
         <img src={logoSrc} alt="Logo" className="w-12 h-12 mx-auto mb-5" />
         <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">XmartMenu</a>
@@ -229,7 +229,7 @@ export default function RegisterPage() {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] opacity-40 pointer-events-none" />
       
       <div className="w-full max-w-sm relative z-10 py-12">
-        <Suspense fallback={<div className="bg-zinc-900/50 backdrop-blur-xl border border-white/10 rounded-[1.25rem] p-8 h-[500px] animate-pulse" />}>
+        <Suspense fallback={<div className="h-[500px] animate-pulse rounded-[1.25rem] border border-white/10 bg-zinc-900/50 p-5 backdrop-blur-xl sm:p-8" />}>
           <RegisterForm />
         </Suspense>
         <p className="text-[10px] font-bold text-zinc-700 text-center mt-8 uppercase tracking-[0.2em]">

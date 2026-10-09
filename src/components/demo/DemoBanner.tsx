@@ -105,15 +105,19 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center px-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:px-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-sm rounded-[1.25rem] border border-white/10 bg-zinc-900/95 p-8 shadow-2xl backdrop-blur-xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Demo access"
+        className="relative max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-white/10 bg-zinc-900/95 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl sm:max-w-sm sm:rounded-[1.25rem] sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute right-4 top-4 rounded-full bg-white/5 p-1.5 transition-colors hover:bg-white/10"
+          aria-label="Close"
+          className="absolute right-3 top-3 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/5 transition-colors hover:bg-white/10 sm:right-4 sm:top-4"
         >
           <X className="h-4 w-4 text-zinc-400" />
         </button>

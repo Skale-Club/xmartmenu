@@ -68,19 +68,22 @@ function LocationModal({
 }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-[1.5rem] w-full max-w-lg shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="flex max-h-[calc(100dvh-0.5rem)] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-w-lg sm:rounded-[1.5rem]"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-8 py-6 border-b border-zinc-100">
+        <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-4 sm:px-8 sm:py-6">
           <h2 className="text-lg font-black text-zinc-950 tracking-tight">{title}</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 transition-colors">
+          <button onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-zinc-100 transition-colors">
             <X className="w-4 h-4 text-zinc-500" />
           </button>
         </div>
 
-        <div className="overflow-y-auto flex-1 px-8 py-6 space-y-5">
+        <div className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
           {error && (
             <div className="bg-red-50 border border-red-100 rounded-xl px-5 py-3 text-sm font-bold text-red-600 flex items-center gap-3">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -88,8 +91,8 @@ function LocationModal({
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
               <label className={labelClassName}>Branch Name</label>
               <input
                 value={form.name}
@@ -245,7 +248,7 @@ function LocationModal({
           </div>
         </div>
 
-        <div className="px-8 py-5 border-t border-zinc-100 flex gap-3">
+        <div className="flex gap-3 border-t border-zinc-100 px-4 py-4 sm:px-8 sm:py-5">
           <button
             onClick={onClose}
             className="flex-1 py-3 rounded-full border border-zinc-200 text-sm font-black text-zinc-500 hover:bg-zinc-50 transition-all"
@@ -307,23 +310,26 @@ function QRModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-[1.5rem] w-full max-w-sm shadow-2xl overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="QR Code"
+        className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:max-w-sm sm:rounded-[1.5rem]"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-8 py-6 border-b border-zinc-100">
+        <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-4 sm:px-8 sm:py-6">
           <div>
             <h2 className="text-lg font-black text-zinc-950 tracking-tight">QR Code</h2>
             <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-0.5">{location.name}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-zinc-100 transition-colors">
+          <button onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-zinc-100 transition-colors">
             <X className="w-4 h-4 text-zinc-500" />
           </button>
         </div>
 
-        <div className="px-8 py-6 flex flex-col items-center gap-6">
-          <div className="bg-zinc-950 p-6 rounded-[1.25rem]">
+        <div className="flex flex-col items-center gap-6 px-4 py-6 sm:px-8">
+          <div className="max-w-full rounded-[1.25rem] bg-zinc-950 p-4 sm:p-6">
             <canvas ref={canvasRef} className="rounded-xl max-w-full" />
           </div>
           <p className="text-[10px] font-mono text-zinc-400 text-center break-all">{url}</p>

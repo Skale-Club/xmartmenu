@@ -94,17 +94,21 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-sm bg-zinc-900/95 backdrop-blur-xl border border-white/10 rounded-[1.25rem] p-8 shadow-2xl"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Admin sign in"
+        className="relative max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-white/10 bg-zinc-900/95 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl sm:max-w-sm sm:rounded-[1.25rem] sm:p-8"
         onClick={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+          aria-label="Close"
+          className="absolute right-3 top-3 flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/5 hover:bg-white/10 transition-colors sm:right-4 sm:top-4"
         >
           <X className="w-4 h-4 text-zinc-400" />
         </button>

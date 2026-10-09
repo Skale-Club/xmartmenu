@@ -148,7 +148,7 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
       <div className="w-full max-w-lg">
-        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-8">
+        <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-5 sm:p-8">
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm font-bold text-zinc-900">XmartMenu</span>
@@ -192,7 +192,7 @@ export default function OnboardingPage() {
                   <legend className="block text-sm font-medium text-zinc-700 mb-1.5">
                     Business type *
                   </legend>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {BUSINESS_TYPES.map(type => (
                       <button
                         key={`${type.value}-${type.label}`}

@@ -117,8 +117,8 @@ export default function AdminSidebar({
   }
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-zinc-950 text-zinc-400 flex flex-col border-r border-zinc-800">
-      <div className="p-6 border-b border-zinc-800/50">
+    <aside className="flex h-full w-full flex-col border-r border-zinc-800 bg-zinc-950 text-zinc-400">
+      <div className="border-b border-zinc-800/50 p-6 pr-16 lg:pr-6">
         <div className="flex items-center gap-2 mb-4">
           <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-contain object-center rounded-sm" />
           <Link href="/" className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] hover:text-primary transition-colors">{appName}</Link>
@@ -157,7 +157,7 @@ export default function AdminSidebar({
               key={href}
               href={href}
               className={cn(
-                'group flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200',
+                'group flex min-h-11 items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold transition-[background-color,color,scale] duration-150 active:scale-[0.98]',
                 active
                   ? 'bg-primary text-primary-foreground'
                   : 'text-zinc-500 hover:bg-zinc-900 hover:text-white'
@@ -174,7 +174,7 @@ export default function AdminSidebar({
           <button
             onClick={() => setPanelOpen(o => !o)}
             className={cn(
-              'w-full group flex items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200',
+              'w-full group flex min-h-11 items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-sm font-bold transition-[background-color,color,scale] duration-150 active:scale-[0.98]',
               isInSettings 
                 ? 'bg-zinc-900 text-white' 
                 : 'text-zinc-500 hover:bg-zinc-900 hover:text-white'
@@ -196,7 +196,7 @@ export default function AdminSidebar({
                     key={href}
                     href={href}
                     className={cn(
-                      'group flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-bold transition-all duration-200',
+                      'group flex min-h-10 items-center gap-3 px-3 py-2 rounded-lg text-sm font-bold transition-[color,scale] duration-150 active:scale-[0.98]',
                       active
                         ? 'text-primary'
                         : 'text-zinc-500 hover:text-white'
@@ -212,7 +212,7 @@ export default function AdminSidebar({
         </div>
       </nav>
 
-      <div className="p-4 border-t border-zinc-800/50 space-y-1">
+      <div className="space-y-1 border-t border-zinc-800/50 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {menuPublicPath && (
           <a 
             href={menuPublicPath} 

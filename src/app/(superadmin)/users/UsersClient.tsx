@@ -132,7 +132,7 @@ export default function UsersClient({ users: initial, tenants }: { users: UserRo
       )}
 
       {/* Filters */}
-      <div className="bg-white border border-zinc-200 rounded-3xl p-6 mb-8 flex flex-col md:flex-row items-center gap-4 shadow-sm">
+      <div className="mb-8 flex flex-col items-stretch gap-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 md:flex-row md:items-center md:rounded-3xl">
         <div className="relative flex-1 w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
           <input 
@@ -143,12 +143,12 @@ export default function UsersClient({ users: initial, tenants }: { users: UserRo
             className="w-full pl-11 pr-4 py-3 bg-zinc-50 border border-zinc-100 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
           />
         </div>
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex w-full items-center gap-2 md:w-auto">
           <Filter className="w-4 h-4 text-zinc-400" />
           <select 
             value={roleFilter}
             onChange={e => setRoleFilter(e.target.value)}
-            className="bg-zinc-50 border border-zinc-100 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all min-w-[140px] appearance-none cursor-pointer"
+            className="min-h-11 min-w-0 flex-1 appearance-none rounded-2xl border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm transition-[box-shadow,background-color] focus:outline-none focus:ring-2 focus:ring-indigo-500 md:min-w-[140px]"
           >
             <option value="all">All Roles</option>
             <option value="superadmin">Super Admins</option>
@@ -162,7 +162,7 @@ export default function UsersClient({ users: initial, tenants }: { users: UserRo
       {/* Table */}
       <div className="bg-white border border-zinc-200 rounded-3xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="min-w-[900px] w-full text-sm">
             <thead>
               <tr className="bg-zinc-50 border-b border-zinc-100">
                 <th className="text-left px-8 py-5 text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Account Information</th>

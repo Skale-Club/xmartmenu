@@ -168,7 +168,7 @@ function Nav({ appName, logoUrl, onLoginOpen }: { appName?: string | null; logoU
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className="fixed top-0 inset-x-0 z-50 h-16 border-b border-white/10 bg-zinc-950/50 backdrop-blur-xl flex items-center px-4 sm:px-6"
     >
-      <div className="w-full max-w-[1320px] mx-auto px-8 flex items-center justify-between">
+      <div className="mx-auto flex w-full max-w-[1320px] items-center justify-between px-0 sm:px-8">
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
             <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-8 h-8 object-contain object-center" />
@@ -250,7 +250,7 @@ function Hero({ s, onLoginOpen }: { s: HeroSettings; onLoginOpen: () => void }) 
         </>
       )}
 
-      <div className="max-w-[1320px] mx-auto px-8 pt-20 pb-12 relative z-10 text-center">
+      <div className="relative z-10 mx-auto max-w-[1320px] px-4 pb-12 pt-20 text-center sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -321,7 +321,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
 
   return (
     <section id="how-it-works" className="pt-[57px] md:pt-[86px] pb-[86px] px-4 relative select-none">
-      <div className="max-w-[1320px] mx-auto px-8">
+      <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -375,7 +375,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
   return (
     <section className="pt-[57px] md:pt-[86px] pb-[86px] px-4 relative select-none">
       <div className="absolute inset-0 bg-zinc-950" />
-      <div className="max-w-[1320px] mx-auto px-8 relative z-10">
+      <div className="relative z-10 mx-auto max-w-[1320px] px-4 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -421,7 +421,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
 function FAQ() {
   return (
     <section className="pt-[57px] md:pt-[86px] pb-[86px] md:pb-[172px] lg:pb-[86px] px-4">
-      <div className="max-w-[1320px] mx-auto px-8">
+      <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -481,7 +481,7 @@ function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOp
           />
         )}
         <div className="absolute inset-0 bg-zinc-950/60 md:bg-zinc-950/50 lg:bg-zinc-950/40" />
-        <div className="relative z-20 max-w-[1320px] mx-auto px-8 sm:px-20 py-24 text-center">
+        <div className="relative z-20 mx-auto max-w-[1320px] px-4 py-16 text-center sm:px-20 sm:py-24">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -524,7 +524,7 @@ function Footer({ data, appName, logoUrl }: { data?: FooterData | null; appName?
 
   return (
     <footer className="border-t border-white/10 bg-zinc-950 px-4 pt-16 md:pt-32 lg:pt-16 pb-8">
-      <div className="max-w-[1320px] mx-auto px-8">
+      <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Logo + tagline */}
           <div>

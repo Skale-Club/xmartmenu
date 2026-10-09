@@ -428,15 +428,15 @@ export default function TenantDetailClient({
       />
 
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="mb-6 flex flex-wrap items-center gap-3 sm:gap-4">
         <Link href="/tenants" className="text-sm text-zinc-400 hover:text-zinc-600 transition-colors">← Clients</Link>
         <div className="w-px h-4 bg-zinc-200" />
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           {tenant.logo_url
             ? <Image src={tenant.logo_url} alt={tenant.name} width={40} height={40} className="rounded-lg object-contain border border-zinc-100" />
             : <div className="w-10 h-10 rounded-lg bg-zinc-100 flex items-center justify-center text-lg">🏪</div>}
-          <div>
-            <h1 className="text-xl font-bold text-zinc-900">{tenant.name}</h1>
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-bold text-zinc-900">{tenant.name}</h1>
             <p className="text-xs text-zinc-400">/{tenant.slug}</p>
           </div>
         </div>
@@ -444,10 +444,10 @@ export default function TenantDetailClient({
         <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${tenant.is_active ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
           {tenant.is_active ? 'Active' : 'Inactive'}
         </span>
-        <div className="ml-auto flex gap-2">
+        <div className="basis-full grid grid-cols-2 gap-2 sm:ml-auto sm:flex sm:basis-auto">
           <a
             href={`/api/admin/enter-preview?tenant=${tenant.id}`}
-            className="text-xs px-3 py-1.5 rounded-lg bg-zinc-900 text-white hover:bg-zinc-700 transition-colors font-medium"
+            className="flex min-h-10 items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-zinc-700"
           >
             Dashboard
           </a>
@@ -455,7 +455,7 @@ export default function TenantDetailClient({
             href={`/${tenant.slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs px-3 py-1.5 rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 transition-colors"
+            className="flex min-h-10 items-center justify-center rounded-lg border border-zinc-200 px-3 py-1.5 text-xs text-zinc-600 transition-colors hover:bg-zinc-50"
           >
             View menu
           </a>
@@ -485,12 +485,12 @@ export default function TenantDetailClient({
       )}
 
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 border-b border-zinc-200">
+      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-zinc-200 scrollbar-hide">
         {(['staff', 'menus', 'subscription'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${tab === t ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-400 hover:text-zinc-700'}`}
+            className={`-mb-px min-h-11 flex-shrink-0 border-b-2 px-4 py-2 text-sm font-medium capitalize transition-colors ${tab === t ? 'border-zinc-900 text-zinc-900' : 'border-transparent text-zinc-400 hover:text-zinc-700'}`}
           >
             {t === 'staff' ? `Staff (${staff.length})` : t === 'menus' ? `Menus (${menus.length})` : 'Subscription'}
           </button>
@@ -503,7 +503,7 @@ export default function TenantDetailClient({
           <div className="bg-white border border-zinc-200 rounded-xl p-5 mb-4">
             <h2 className="text-sm font-semibold text-zinc-900 mb-4">Add staff member</h2>
             <form onSubmit={handleInvite} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Name</label>
                   <input required value={inviteName} onChange={e => setInviteName(e.target.value)} placeholder="Jane Doe" className={input} />
@@ -523,11 +523,11 @@ export default function TenantDetailClient({
             </form>
           </div>
 
-          <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
             {staff.length === 0 ? (
               <div className="py-12 text-center text-zinc-400 text-sm">No staff members yet</div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="min-w-[640px] w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-100 bg-zinc-50">
                     <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Member</th>
@@ -573,7 +573,7 @@ export default function TenantDetailClient({
 
       {/* Menus tab */}
       {tab === 'menus' && (
-        <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+        <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
           {menus.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-zinc-500 text-sm font-medium">No menus yet</p>
@@ -586,7 +586,7 @@ export default function TenantDetailClient({
               </a>
             </div>
           ) : (
-            <table className="w-full text-sm">
+            <table className="min-w-[640px] w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 bg-zinc-50">
                   <th className="text-left px-5 py-3 text-xs font-semibold text-zinc-500 uppercase tracking-wider">Menu</th>
