@@ -23,7 +23,7 @@ export default function DemoBanner() {
 
   return (
     <>
-      <div className="fixed bottom-4 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-zinc-900/95 px-4 py-3 text-white shadow-2xl backdrop-blur-xl">
+      <div data-demo-banner className="fixed bottom-4 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-zinc-900/95 px-4 py-3 text-white shadow-2xl backdrop-blur-xl">
         <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Sparkles className="h-4 w-4" />
         </span>

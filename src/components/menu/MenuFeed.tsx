@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Eye, Play, ShoppingBag, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import type { Product, ProductMedia } from '@/types/database'
 import { getProductImages } from './menu-utils'
@@ -15,8 +15,12 @@ interface FeedProps {
   accentColor: string
   autoplayVideos: boolean
   directOrdersEnabled: boolean
+  cartCount: number
+  exitLabel: string
   hasCustomization: (productId: string) => boolean
   quantityFor: (productId: string) => number
+  onExit: () => void
+  onOpenCart: () => void
   onOpen: (product: Product) => void
   onAdd: (product: Product) => void
   onIncrement: (product: Product) => void
@@ -32,8 +36,12 @@ export default function MenuFeed({
   accentColor,
   autoplayVideos,
   directOrdersEnabled,
+  cartCount,
+  exitLabel,
   hasCustomization,
   quantityFor,
+  onExit,
+  onOpenCart,
   onOpen,
   onAdd,
   onIncrement,
@@ -41,78 +49,122 @@ export default function MenuFeed({
   onMediaEvent,
 }: FeedProps) {
   return (
-    <section className="mx-auto max-w-2xl space-y-7 pb-6" aria-label="Visual menu feed">
-      <div className="flex items-center justify-between px-1">
-        <div>
-          <p className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.24em]" style={{ color: primaryColor }}><Sparkles className="size-3.5" /> Discover</p>
-          <h2 className="mt-1 text-2xl font-black tracking-tight text-zinc-950">Made to tempt. Ready to order.</h2>
-        </div>
-        <span className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-[10px] font-black uppercase tracking-widest text-zinc-400">{products.length} dishes</span>
+    <section className="fixed inset-0 z-40 bg-zinc-950 text-white md:hidden" aria-label="Visual menu feed">
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
+        <button
+          type="button"
+          onClick={onExit}
+          className="pointer-events-auto inline-flex min-h-11 items-center gap-2 rounded-full border border-white/15 bg-black/45 px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white shadow-xl backdrop-blur-xl transition active:scale-95"
+        >
+          <Rows3 className="size-4" /> {exitLabel}
+        </button>
+
+        {directOrdersEnabled && cartCount > 0 ? (
+          <button
+            type="button"
+            onClick={onOpenCart}
+            aria-label={`Open order with ${cartCount} items`}
+            className="pointer-events-auto relative flex size-11 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white shadow-xl backdrop-blur-xl transition active:scale-95"
+          >
+            <ShoppingBag className="size-4" />
+            <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full px-1 text-[9px] font-black text-white ring-2 ring-zinc-950" style={{ backgroundColor: primaryColor }}>
+              {cartCount}
+            </span>
+          </button>
+        ) : (
+          <span className="rounded-full border border-white/15 bg-black/45 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white/75 backdrop-blur-xl">
+            {products.length} dishes
+          </span>
+        )}
       </div>
 
-      {products.map((product, index) => {
-        const quantity = quantityFor(product.id)
-        const customizable = hasCustomization(product.id)
-        return (
-          <article
-            key={product.id}
-            data-analytics-product-id={product.id}
-            data-analytics-source="feed"
-            className="group snap-start overflow-hidden rounded-[1.75rem] border border-zinc-200 bg-white shadow-[0_24px_70px_-40px_rgba(9,9,11,0.55)]"
-          >
-            <FeedMedia
-              product={product}
-              media={productMediaByProductId[product.id] ?? []}
-              priority={index === 0}
-              autoplay={autoplayVideos}
-              onOpen={() => onOpen(product)}
-              onMediaEvent={(event, mediaType, mediaIndex) => onMediaEvent(event, product, mediaType, mediaIndex)}
-            />
+      <div tabIndex={0} aria-label="Swipe vertically through dishes" className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain scroll-smooth touch-pan-y outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {products.map((product, index) => {
+          const quantity = quantityFor(product.id)
+          const customizable = hasCustomization(product.id)
 
-            <div className="p-5 sm:p-7">
-              <div className="flex items-start justify-between gap-5">
-                <div className="min-w-0">
-                  <div className="mb-2 flex flex-wrap gap-1.5">
-                    {product.is_featured ? <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-amber-800">Chef pick</span> : null}
-                    {product.tags?.slice(0, 3).map(tag => <span key={tag} className="rounded-full bg-zinc-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-zinc-600">{tag}</span>)}
-                  </div>
-                  <h3 className="text-2xl font-black leading-tight tracking-tight text-zinc-950">{product.name}</h3>
+          return (
+            <article
+              key={product.id}
+              data-analytics-product-id={product.id}
+              data-analytics-source="feed"
+              aria-label={`${product.name}, dish ${index + 1} of ${products.length}`}
+              className="group relative h-[100dvh] min-h-[100dvh] snap-start snap-always overflow-hidden bg-zinc-950"
+            >
+              <FeedMedia
+                product={product}
+                media={productMediaByProductId[product.id] ?? []}
+                priority={index === 0}
+                autoplay={autoplayVideos}
+                onOpen={() => onOpen(product)}
+                onMediaEvent={(event, mediaType, mediaIndex) => onMediaEvent(event, product, mediaType, mediaIndex)}
+              />
+
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/95" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-28">
+                <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/65">
+                  <span>{String(index + 1).padStart(2, '0')} / {String(products.length).padStart(2, '0')}</span>
+                  <span className="h-px w-8 bg-white/35" />
+                  <span>Swipe for next dish</span>
                 </div>
-                <p className="shrink-0 text-xl font-black tracking-tight" style={{ color: accentColor }}>{formatPrice(product.price, currency)}</p>
-              </div>
 
-              {product.description ? <p className="mt-3 line-clamp-3 text-sm font-medium leading-relaxed text-zinc-500">{product.description}</p> : null}
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  {product.is_featured ? <span className="rounded-full border border-amber-300/30 bg-amber-300/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-amber-100 backdrop-blur">Chef pick</span> : null}
+                  {product.tags?.slice(0, 2).map(tag => <span key={tag} className="rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-white/85 backdrop-blur">{tag}</span>)}
+                </div>
 
-              <div className="mt-6 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => onOpen(product)}
-                  className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full border border-zinc-200 px-5 text-xs font-black uppercase tracking-widest text-zinc-800 transition hover:border-zinc-400 hover:bg-zinc-50"
-                >
-                  <Eye className="size-4" /> Details
-                </button>
-                {directOrdersEnabled && quantity === 0 ? (
+                <div className="flex items-end justify-between gap-5">
+                  <h2 className="max-w-[72%] text-[clamp(1.75rem,8vw,2.65rem)] font-black leading-[0.95] tracking-[-0.045em] text-white drop-shadow-lg">{product.name}</h2>
+                  <p className="shrink-0 text-xl font-black tracking-tight text-white drop-shadow-lg">{formatPrice(product.price, currency)}</p>
+                </div>
+
+                {product.description ? <p className="mt-3 line-clamp-2 max-w-[90%] text-sm font-medium leading-relaxed text-white/75 drop-shadow">{product.description}</p> : null}
+
+                <div className="pointer-events-auto mt-5 flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => customizable ? onOpen(product) : onAdd(product)}
-                    className="inline-flex min-h-12 flex-[1.25] items-center justify-center gap-2 rounded-full px-5 text-xs font-black uppercase tracking-widest text-white shadow-lg transition hover:-translate-y-0.5 hover:opacity-90 active:translate-y-0"
-                    style={{ backgroundColor: primaryColor }}
+                    onClick={() => onOpen(product)}
+                    aria-label={`View details for ${product.name}`}
+                    className="flex size-12 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-xl transition active:scale-90"
                   >
-                    <ShoppingBag className="size-4" /> {customizable ? 'Customize' : 'Order now'}
+                    <Eye className="size-4" />
                   </button>
-                ) : null}
-                {directOrdersEnabled && quantity > 0 ? (
-                  <div className="flex min-h-12 flex-[1.25] items-center justify-between overflow-hidden rounded-full border border-zinc-200 bg-zinc-950 text-white">
-                    <button type="button" aria-label={`Remove one ${product.name}`} onClick={() => onDecrement(product)} className="flex h-12 w-12 items-center justify-center hover:bg-white/10"><ChevronLeft className="size-4" /></button>
-                    <span className="text-sm font-black tabular-nums">{quantity} in order</span>
-                    <button type="button" aria-label={`Add one ${product.name}`} onClick={() => onIncrement(product)} className="flex h-12 w-12 items-center justify-center hover:bg-white/10"><ChevronRight className="size-4" /></button>
-                  </div>
-                ) : null}
+
+                  {directOrdersEnabled && quantity === 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => customizable ? onOpen(product) : onAdd(product)}
+                      className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-5 text-xs font-black uppercase tracking-widest text-white shadow-2xl transition active:scale-[0.98]"
+                      style={{ backgroundColor: primaryColor, boxShadow: `0 18px 45px ${primaryColor}45` }}
+                    >
+                      <ShoppingBag className="size-4" /> {customizable ? 'Customize' : 'Order now'}
+                    </button>
+                  ) : null}
+
+                  {directOrdersEnabled && quantity > 0 ? (
+                    <div className="flex min-h-12 flex-1 items-center justify-between overflow-hidden rounded-full border border-white/20 bg-white text-zinc-950 shadow-2xl">
+                      <button type="button" aria-label={`Remove one ${product.name}`} onClick={() => onDecrement(product)} className="flex h-12 w-12 items-center justify-center transition hover:bg-zinc-100 active:scale-90"><Minus className="size-4" /></button>
+                      <span className="text-xs font-black uppercase tracking-wider tabular-nums">{quantity} in order</span>
+                      <button type="button" aria-label={`Add one ${product.name}`} onClick={() => onIncrement(product)} className="flex h-12 w-12 items-center justify-center transition hover:bg-zinc-100 active:scale-90"><Plus className="size-4" /></button>
+                    </div>
+                  ) : null}
+
+                  {!directOrdersEnabled ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpen(product)}
+                      className="min-h-12 flex-1 rounded-full bg-white px-5 text-xs font-black uppercase tracking-widest"
+                      style={{ color: accentColor }}
+                    >
+                      View dish
+                    </button>
+                  ) : null}
+                </div>
               </div>
-            </div>
-          </article>
-        )
-      })}
+            </article>
+          )
+        })}
+      </div>
     </section>
   )
 }
@@ -155,8 +207,8 @@ function FeedMedia({
       const entry = entries[0]
       if (!entry) return
       if (entry.isIntersecting) setNearViewport(true)
-      setActive(entry.isIntersecting && entry.intersectionRatio >= 0.65)
-    }, { threshold: [0, 0.65], rootMargin: '300px 0px' })
+      setActive(entry.isIntersecting && entry.intersectionRatio >= 0.7)
+    }, { threshold: [0, 0.7] })
     observer.observe(node)
     return () => observer.disconnect()
   }, [])
@@ -183,7 +235,7 @@ function FeedMedia({
   }
 
   return (
-    <div ref={containerRef} className="relative aspect-[4/5] overflow-hidden bg-zinc-950 sm:aspect-[5/4]">
+    <div ref={containerRef} className="absolute inset-0 overflow-hidden bg-zinc-950">
       {directVideo && nearViewport ? (
         <video
           key={current.url}
@@ -212,25 +264,26 @@ function FeedMedia({
           }}
         />
       ) : imageUrl ? (
-        <Image src={imageUrl} alt={product.name} fill priority={priority} className="object-cover transition-transform duration-700 group-hover:scale-[1.025]" sizes="(max-width: 768px) 100vw, 672px" />
+        <Image src={imageUrl} alt={product.name} fill priority={priority} className="object-cover" sizes="100vw" />
       ) : (
-        <button type="button" onClick={onOpen} className="flex h-full w-full flex-col items-center justify-center gap-3 text-white/60">
-          <span className="text-6xl">🍽️</span><span className="text-[10px] font-black uppercase tracking-[0.24em]">View dish</span>
+        <button type="button" onClick={onOpen} className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_center,_#27272a,_#09090b_70%)] text-white/60">
+          <span className="text-7xl">🍽️</span><span className="text-[10px] font-black uppercase tracking-[0.24em]">View dish</span>
         </button>
       )}
+
       {current?.type === 'video' && !directVideo ? (
         <button type="button" onClick={onOpen} className="absolute inset-0 flex items-center justify-center bg-black/15" aria-label={`Open ${product.name} video in details`}><span className="flex size-14 items-center justify-center rounded-full border border-white/40 bg-black/45 text-white backdrop-blur"><Play className="ml-1 size-5 fill-current" /></span></button>
       ) : null}
+
       {slides.length > 1 ? (
         <>
-          <button type="button" onClick={() => moveMedia(-1)} aria-label={`Previous media for ${product.name}`} className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition hover:bg-black/55"><ChevronLeft className="size-5" /></button>
-          <button type="button" onClick={() => moveMedia(1)} aria-label={`Next media for ${product.name}`} className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition hover:bg-black/55"><ChevronRight className="size-5" /></button>
-          <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/30 px-2.5 py-2 backdrop-blur" aria-label={`Media ${mediaIndex + 1} of ${slides.length}`}>
+          <button type="button" onClick={() => moveMedia(-1)} aria-label={`Previous media for ${product.name}`} className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition active:scale-90"><ChevronLeft className="size-5" /></button>
+          <button type="button" onClick={() => moveMedia(1)} aria-label={`Next media for ${product.name}`} className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition active:scale-90"><ChevronRight className="size-5" /></button>
+          <div className="absolute left-1/2 top-[max(5rem,calc(env(safe-area-inset-top)+4rem))] z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-black/25 px-2.5 py-2 backdrop-blur" aria-label={`Media ${mediaIndex + 1} of ${slides.length}`}>
             {slides.map((slide, index) => <span key={`${slide.url}-${index}`} className={`h-1.5 rounded-full transition-all ${index === mediaIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/45'}`} />)}
           </div>
         </>
       ) : null}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/45 to-transparent" />
     </div>
   )
 }

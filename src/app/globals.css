@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+body[data-menu-feed="open"] [data-demo-banner] {
+  display: none;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

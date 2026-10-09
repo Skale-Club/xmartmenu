@@ -178,6 +178,22 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     }
   }, [])
 
+  useEffect(() => {
+    if (activeMenuView !== 'feed') return
+    const previousBodyOverflow = document.body.style.overflow
+    const previousOverscroll = document.documentElement.style.overscrollBehavior
+    const previousFeedState = document.body.dataset.menuFeed
+    document.body.style.overflow = 'hidden'
+    document.body.dataset.menuFeed = 'open'
+    document.documentElement.style.overscrollBehavior = 'none'
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      if (previousFeedState === undefined) delete document.body.dataset.menuFeed
+      else document.body.dataset.menuFeed = previousFeedState
+      document.documentElement.style.overscrollBehavior = previousOverscroll
+    }
+  }, [activeMenuView])
+
   const filtered = products.filter(p => {
     const matchSearch = search === '' ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -956,7 +972,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         style={hasFixedFooter ? { paddingBottom: `${footerHeight + 40}px` } : undefined}
       >
 
-        {filtered.length === 0 && (
+        {activeMenuView === 'list' && filtered.length === 0 && (
           <div className="text-center py-24 bg-white rounded-xl border border-zinc-100 shadow-sm">
             <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-6">
               <Search className="w-10 h-10 text-zinc-300" />
@@ -975,6 +991,10 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
             accentColor={accentColor}
             autoplayVideos={feedAutoplayVideos}
             directOrdersEnabled={directOrdersEnabled}
+            cartCount={cartCount}
+            exitLabel={ui.viewMenu}
+            onExit={() => setMenuView('list')}
+            onOpenCart={() => setCartOpen(true)}
             hasCustomization={productId =>
               (optionGroupsByProductId[productId]?.length ?? 0) > 0
               || (ingredientCustomizationEnabled && (productIngredientsByProductId[productId]?.length ?? 0) > 0)
@@ -1000,13 +1020,13 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
               media_index: mediaIndex,
             })}
           />
-        ) : activeMenuView === 'feed' && filtered.length > 0 ? (
-          <div className="rounded-2xl border border-zinc-100 bg-white px-6 py-16 text-center shadow-sm" role="status">
+        ) : activeMenuView === 'feed' ? (
+          <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-zinc-950 px-6 text-center text-white md:hidden" role="status">
             <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-zinc-50">
               <Sparkles className="size-7 text-zinc-300" />
             </div>
-            <h3 className="text-xl font-black tracking-tight text-zinc-900">{ui.feedEmptyTitle}</h3>
-            <p className="mx-auto mt-2 max-w-sm text-sm font-medium text-zinc-500">{ui.feedEmptyDescription}</p>
+            <h3 className="text-xl font-black tracking-tight">{ui.feedEmptyTitle}</h3>
+            <p className="mx-auto mt-2 max-w-sm text-sm font-medium text-white/60">{ui.feedEmptyDescription}</p>
             <button
               type="button"
               onClick={() => setMenuView('list')}
@@ -1095,7 +1115,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       </main>
 
       {/* Desktop: floating button to re-open the side panel after it's collapsed */}
-      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && (
+      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && activeMenuView === 'list' && (
         <motion.button
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -1115,7 +1135,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       )}
 
       {/* Mobile: bottom order bar that opens the cart drawer */}
-      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && (
+      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && activeMenuView === 'list' && (
         <motion.button
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -1134,7 +1154,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       )}
 
       {/* Footer */}
-      {hasFixedFooter && (
+      {hasFixedFooter && activeMenuView === 'list' && (
         <footer ref={footerRef} className={`fixed bottom-0 inset-x-0 z-40 border-t border-zinc-100 bg-white/90 backdrop-blur-2xl transition-all duration-500 ${panelPushing ? 'lg:right-[380px]' : ''} ${showFooterAtEnd ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
           <div className="max-w-7xl mx-auto px-4 py-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -1219,7 +1239,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         )
       })()}
 
-      {chatAddonEnabled && (
+      {chatAddonEnabled && activeMenuView === 'list' && (
         <AiChatWidget
           tenantSlug={tenant.slug}
           tenantName={tenant.name}
