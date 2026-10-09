@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -15,8 +15,10 @@ import {
   Mail,
   Menu as MenuIcon,
   Plus,
+  Search,
   Settings,
   Shield,
+  SlidersHorizontal,
   Star,
   Trash2,
   Users,
@@ -85,6 +87,14 @@ const emptyTenantData: TenantData = {
   credentials: null,
 }
 
+function normalizeSearchValue(value: string | null | undefined) {
+  return (value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase()
+    .trim()
+}
+
 async function getResponseError(response: Response, fallback: string) {
   const data = await response.json().catch(() => null)
   return typeof data?.error === 'string' ? data.error : fallback
@@ -115,10 +125,57 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
   const [staffMutationLoading, setStaffMutationLoading] = useState(false)
   const [assignmentTenant, setAssignmentTenant] = useState<Record<string, string>>({})
   const [assignmentLoading, setAssignmentLoading] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all')
+  const [planFilter, setPlanFilter] = useState('all')
+  const [sortOrder, setSortOrder] = useState<'name-asc' | 'name-desc' | 'newest' | 'oldest'>('name-asc')
 
-  const restaurants = clients.filter(client => client.id)
-  const pendingUsers = clients.filter(client => !client.id)
+  const restaurants = useMemo(() => clients.filter(client => client.id), [clients])
+  const pendingUsers = useMemo(() => clients.filter(client => !client.id), [clients])
   const activeCount = restaurants.filter(client => client.is_active).length
+  const availablePlans = useMemo(() => {
+    const planNames = new Map<string, string>()
+    restaurants.forEach(restaurant => {
+      if (restaurant.plan_slug) planNames.set(restaurant.plan_slug, restaurant.plan_name ?? restaurant.plan_slug)
+    })
+    return [...planNames].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [restaurants])
+  const filteredRestaurants = useMemo(() => {
+    const terms = normalizeSearchValue(searchQuery).split(/\s+/).filter(Boolean)
+    return restaurants
+      .filter(restaurant => {
+        const haystack = normalizeSearchValue([
+          restaurant.name,
+          restaurant.slug,
+          restaurant.email,
+          restaurant.full_name,
+          restaurant.plan_name,
+          restaurant.plan_slug,
+        ].filter(Boolean).join(' '))
+        const matchesSearch = terms.every(term => haystack.includes(term))
+        const matchesStatus = statusFilter === 'all'
+          || (statusFilter === 'active' ? restaurant.is_active : !restaurant.is_active)
+        const matchesPlan = planFilter === 'all'
+          || (planFilter === 'no-plan' ? !restaurant.plan_slug : restaurant.plan_slug === planFilter)
+        return matchesSearch && matchesStatus && matchesPlan
+      })
+      .sort((a, b) => {
+        if (sortOrder === 'newest' || sortOrder === 'oldest') {
+          const difference = new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          return sortOrder === 'newest' ? -difference : difference
+        }
+        const difference = (a.name ?? '').localeCompare(b.name ?? '', undefined, { sensitivity: 'base' })
+        return sortOrder === 'name-desc' ? -difference : difference
+      })
+  }, [restaurants, searchQuery, statusFilter, planFilter, sortOrder])
+  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all' || planFilter !== 'all' || sortOrder !== 'name-asc'
+
+  function clearFilters() {
+    setSearchQuery('')
+    setStatusFilter('all')
+    setPlanFilter('all')
+    setSortOrder('name-asc')
+  }
 
   async function copyCredentials(value: string) {
     try {
@@ -489,47 +546,121 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
         </form>
       )}
 
+      <section aria-label="Restaurant filters" className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600"><SlidersHorizontal className="h-4 w-4" /></span>
+            <div>
+              <h2 className="text-sm font-bold text-zinc-900">Find restaurants</h2>
+              <p aria-live="polite" className="text-xs tabular-nums text-zinc-500">{filteredRestaurants.length} of {restaurants.length} result(s)</p>
+            </div>
+          </div>
+          {hasActiveFilters && (
+            <button type="button" onClick={clearFilters} className="flex min-h-10 items-center rounded-xl px-3 text-xs font-bold text-zinc-500 transition-[background-color,color,scale] duration-150 hover:bg-zinc-100 hover:text-zinc-900 active:scale-96">
+              Clear filters
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(18rem,2fr)_repeat(3,minmax(9rem,1fr))]">
+          <label className="relative block sm:col-span-2 xl:col-span-1">
+            <span className="sr-only">Search restaurants</span>
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={event => setSearchQuery(event.target.value)}
+              placeholder="Search name, slug, email or plan…"
+              className="min-h-11 w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2.5 pl-10 pr-4 text-sm text-zinc-900 outline-none transition-[border-color,background-color,box-shadow] duration-150 placeholder:text-zinc-400 focus:border-indigo-300 focus:bg-white focus:ring-4 focus:ring-indigo-50"
+            />
+          </label>
+
+          <label className="block">
+            <span className="sr-only">Filter by status</span>
+            <select value={statusFilter} onChange={event => setStatusFilter(event.target.value as 'all' | 'active' | 'inactive')} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50">
+              <option value="all">All statuses</option>
+              <option value="active">Active only</option>
+              <option value="inactive">Inactive only</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="sr-only">Filter by plan</span>
+            <select value={planFilter} onChange={event => setPlanFilter(event.target.value)} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50">
+              <option value="all">All plans</option>
+              {availablePlans.map(([slug, name]) => <option key={slug} value={slug}>{name}</option>)}
+              <option value="no-plan">No plan</option>
+            </select>
+          </label>
+
+          <label className="block">
+            <span className="sr-only">Sort restaurants</span>
+            <select value={sortOrder} onChange={event => setSortOrder(event.target.value as 'name-asc' | 'name-desc' | 'newest' | 'oldest')} className="min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 outline-none focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50">
+              <option value="name-asc">Name: A–Z</option>
+              <option value="name-desc">Name: Z–A</option>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
       <div className="space-y-4">
-        {restaurants.map(client => {
+        {filteredRestaurants.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-zinc-200 bg-white px-5 py-12 text-center">
+            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-400"><Search className="h-5 w-5" /></div>
+            <h2 className="text-sm font-bold text-zinc-900">No restaurants found</h2>
+            <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-zinc-500">Try a different name, email, slug, status or subscription plan.</p>
+            <button type="button" onClick={clearFilters} className="mt-4 min-h-10 rounded-xl bg-zinc-900 px-4 text-xs font-bold text-white transition-[background-color,scale] duration-150 hover:bg-zinc-800 active:scale-96">Clear filters</button>
+          </div>
+        ) : filteredRestaurants.map(client => {
           const tenantId = client.id!
           const data = tenantData[tenantId]
           const expanded = expandedId === tenantId
           const tab = expandedTab[tenantId] ?? 'staff'
           return (
-            <section key={tenantId} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-shadow hover:shadow-sm">
-              <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:gap-5">
-                <div className="flex min-w-0 flex-1 items-center gap-4">
-                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
-                    {client.logo_url ? <Image src={client.logo_url} alt={client.name ?? ''} width={48} height={48} className="object-contain" /> : <span className="text-xl font-bold text-zinc-300">{getInitials(client.name)}</span>}
-                  </div>
-                  <div className="min-w-0">
-                    <h2 className="flex items-center gap-2 font-bold text-zinc-900">
-                      <Link href={`/tenants/${tenantId}`} className="truncate hover:text-indigo-600">{client.name}</Link>
-                      {client.plan_slug !== 'menu' && <Star className="h-3.5 w-3.5 flex-shrink-0 fill-blue-500 text-blue-500" />}
-                    </h2>
-                    <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-zinc-500">
-                      <span className="flex items-center gap-1"><Globe className="h-3 w-3" />/{client.slug}</span>
-                      <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{client.email ?? 'No administrator'}</span>
+            <section key={tenantId} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-shadow duration-150 hover:shadow-sm">
+              <div className="p-4 sm:p-5">
+                <div className="flex flex-col gap-3">
+                  <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                    <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50">
+                      {client.logo_url ? <Image src={client.logo_url} alt={client.name ?? ''} width={48} height={48} className="object-contain outline outline-1 -outline-offset-1 outline-black/10" /> : <span className="text-xl font-bold text-zinc-300">{getInitials(client.name)}</span>}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="flex min-w-0 items-center gap-2 font-bold text-zinc-900">
+                        <Link href={`/tenants/${tenantId}`} className="truncate hover:text-indigo-600">{client.name}</Link>
+                        {client.plan_slug !== 'menu' && <Star className="h-3.5 w-3.5 flex-shrink-0 fill-blue-500 text-blue-500" />}
+                      </h2>
+                      <div className="mt-1 grid min-w-0 gap-1 text-xs text-zinc-500 sm:grid-cols-2 sm:gap-x-4">
+                        <span className="flex min-w-0 items-center gap-1"><Globe className="h-3 w-3 flex-shrink-0" /><span className="truncate">/{client.slug}</span></span>
+                        <span className="flex min-w-0 items-center gap-1" title={client.email ?? 'No administrator'}><Mail className="h-3 w-3 flex-shrink-0" /><span className="truncate">{client.email ?? 'No administrator'}</span></span>
+                      </div>
                     </div>
                   </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pl-[3.75rem]">
+                    <button onClick={() => toggleStatus(client)} disabled={statusLoadingId === tenantId} className={`flex min-h-10 items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-[background-color,color,scale] duration-150 active:scale-96 disabled:opacity-60 ${client.is_active ? 'bg-green-50 text-green-700 hover:bg-green-100' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}>
+                      {statusLoadingId === tenantId ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : client.is_active ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
+                      {statusLoadingId === tenantId ? 'Saving' : client.is_active ? 'Active' : 'Inactive'}
+                    </button>
+                    <span className={`flex min-h-8 max-w-full items-center rounded-full border px-3 text-xs font-semibold uppercase ${client.plan_slug === 'payments' ? 'border-purple-100 bg-purple-50 text-purple-700' : client.plan_slug === 'orders' ? 'border-blue-100 bg-blue-50 text-blue-700' : 'border-zinc-100 bg-zinc-50 text-zinc-600'}`}>{client.plan_name ?? client.plan_slug ?? 'No plan'}</span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <button onClick={() => toggleStatus(client)} disabled={statusLoadingId === tenantId} className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold disabled:opacity-60 ${client.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
-                    {statusLoadingId === tenantId ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" /> : client.is_active ? <CheckCircle2 className="h-3.5 w-3.5" /> : <XCircle className="h-3.5 w-3.5" />}
-                    {statusLoadingId === tenantId ? 'Saving' : client.is_active ? 'Active' : 'Inactive'}
-                  </button>
-                  <span className={`rounded-full border px-2.5 py-1 text-xs font-semibold uppercase ${client.plan_slug === 'payments' ? 'border-purple-100 bg-purple-50 text-purple-700' : client.plan_slug === 'orders' ? 'border-blue-100 bg-blue-50 text-blue-700' : 'border-zinc-100 bg-zinc-50 text-zinc-600'}`}>{client.plan_name ?? client.plan_slug ?? 'No plan'}</span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center lg:ml-auto">
-                  <Link href={`/tenants/${tenantId}`} className="flex items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-2 text-xs font-bold text-white hover:bg-zinc-800">Manage <ExternalLink className="h-3.5 w-3.5" /></Link>
-                  <a href={`/${client.slug}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 rounded-xl bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-600"><MenuIcon className="h-4 w-4" />View</a>
-                  <a href={`/api/admin/enter-preview?tenant=${tenantId}`} className="flex items-center gap-1 rounded-xl bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-600"><LayoutDashboard className="h-4 w-4" />Dashboard</a>
-                  <a href={`/api/admin/enter-preview?tenant=${tenantId}&next=${encodeURIComponent('/settings/branding')}`} className="flex items-center gap-1 rounded-xl bg-zinc-50 px-3 py-2 text-xs font-bold text-zinc-600"><Settings className="h-4 w-4" />Branding</a>
-                  <button onClick={() => editingId === tenantId ? setEditingId(null) : startEdit(client)} className="rounded-xl p-2 text-zinc-500 hover:bg-zinc-100" aria-label={`Edit ${client.name}`}><Edit3 className="h-4 w-4" /></button>
-                  <button onClick={() => toggleDetails(tenantId)} className={`flex items-center gap-1 rounded-xl px-3 py-2 text-xs font-bold ${expanded ? 'bg-indigo-600 text-white' : 'text-indigo-600 hover:bg-indigo-50'}`}><Users className="h-4 w-4" />Details {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
-                  <button onClick={() => setDeleteTarget(client)} className="rounded-xl p-2 text-zinc-400 hover:bg-red-50 hover:text-red-600" aria-label={`Delete ${client.name}`}><Trash2 className="h-4 w-4" /></button>
+                <div className="mt-4 flex flex-col gap-3 border-t border-zinc-100 pt-4">
+                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                    <Link href={`/tenants/${tenantId}`} className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-900 px-3 text-xs font-bold text-white transition-[background-color,scale] duration-150 hover:bg-zinc-800 active:scale-96">Manage <ExternalLink className="h-3.5 w-3.5" /></Link>
+                    <a href={`/${client.slug}`} target="_blank" rel="noopener noreferrer" className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-50 px-3 text-xs font-bold text-zinc-600 transition-[background-color,scale] duration-150 hover:bg-zinc-100 active:scale-96"><MenuIcon className="h-4 w-4" />View</a>
+                    <a href={`/api/admin/enter-preview?tenant=${tenantId}`} className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-50 px-3 text-xs font-bold text-zinc-600 transition-[background-color,scale] duration-150 hover:bg-zinc-100 active:scale-96"><LayoutDashboard className="h-4 w-4" />Dashboard</a>
+                    <a href={`/api/admin/enter-preview?tenant=${tenantId}&next=${encodeURIComponent('/settings/branding')}`} className="flex min-h-10 items-center justify-center gap-1.5 rounded-xl bg-zinc-50 px-3 text-xs font-bold text-zinc-600 transition-[background-color,scale] duration-150 hover:bg-zinc-100 active:scale-96"><Settings className="h-4 w-4" />Branding</a>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <button onClick={() => toggleDetails(tenantId)} className={`flex min-h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-bold transition-[background-color,color,scale] duration-150 active:scale-96 ${expanded ? 'bg-indigo-600 text-white' : 'text-indigo-600 hover:bg-indigo-50'}`}><Users className="h-4 w-4" />Details {expanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}</button>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => editingId === tenantId ? setEditingId(null) : startEdit(client)} className="flex size-10 items-center justify-center rounded-xl text-zinc-500 transition-[background-color,color,scale] duration-150 hover:bg-zinc-100 active:scale-96" aria-label={`Edit ${client.name}`}><Edit3 className="h-4 w-4" /></button>
+                      <button onClick={() => setDeleteTarget(client)} className="flex size-10 items-center justify-center rounded-xl text-zinc-400 transition-[background-color,color,scale] duration-150 hover:bg-red-50 hover:text-red-600 active:scale-96" aria-label={`Delete ${client.name}`}><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </div>
                 </div>
               </div>
 
