@@ -59,7 +59,7 @@ export default function AnalyticsSettingsPanel({
             <Sparkles className="size-3.5" /> Experience controls
           </div>
           <h2 className="text-lg font-black tracking-tight text-zinc-950">Visual menu rollout</h2>
-          <p className="mt-1 text-xs font-medium text-zinc-500">Turn the feed on per restaurant while keeping List view available.</p>
+          <p className="mt-1 text-xs font-medium text-zinc-500">The mobile feed is enabled by default while desktop keeps the classic menu.</p>
         </div>
         {canEdit ? (
           <button
@@ -84,7 +84,7 @@ export default function AnalyticsSettingsPanel({
         />
         <SettingToggle
           label="Visual feed"
-          description="Allow guests to switch between Feed and List."
+          description="Show the highlighted Feed button on mobile menus."
           checked={settings.visual_feed_enabled}
           onChange={checked => update({ visual_feed_enabled: checked })}
           disabled={!canEdit}

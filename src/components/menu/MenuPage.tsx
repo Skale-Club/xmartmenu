@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -33,6 +33,22 @@ const CheckoutModal = dynamic(() => import('./CheckoutModal'), { ssr: false })
 const AiChatWidget = dynamic(() => import('./AiChatWidget'), { ssr: false })
 const MenuFeed = dynamic(() => import('./MenuFeed'))
 const AnalyticsDebugPanel = dynamic(() => import('./AnalyticsDebugPanel'), { ssr: false })
+
+const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)'
+
+function subscribeToMobileViewport(onChange: () => void) {
+  const mediaQuery = window.matchMedia(MOBILE_VIEWPORT_QUERY)
+  mediaQuery.addEventListener('change', onChange)
+  return () => mediaQuery.removeEventListener('change', onChange)
+}
+
+function getMobileViewportSnapshot() {
+  return window.matchMedia(MOBILE_VIEWPORT_QUERY).matches
+}
+
+function getServerMobileViewportSnapshot() {
+  return false
+}
 
 interface Props {
   tenant: TenantWithSettings
@@ -77,10 +93,16 @@ function getTranslatedMenuField(
 export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
-  const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? false) || feedPreview
+  const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
   const [menuView, setMenuView] = useState<'list' | 'feed'>(() =>
     feedEnabled && tenant.tenant_settings?.menu_default_view === 'feed' ? 'feed' : 'list'
   )
+  const isMobileViewport = useSyncExternalStore(
+    subscribeToMobileViewport,
+    getMobileViewportSnapshot,
+    getServerMobileViewportSnapshot,
+  )
+  const activeMenuView = isMobileViewport ? menuView : 'list'
   const defaultOrderType = (tenant.tenant_settings?.dine_in_enabled ?? true) ? 'dine_in'
     : (tenant.tenant_settings?.pickup_enabled ?? false) ? 'pickup'
     : 'delivery'
@@ -525,7 +547,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       engagement.forEach((state, productId) => emitEngagement(productId, state))
       void analyticsTracker.flush(true)
     }
-  }, [analyticsTracker, activeCategory, search, filtered.length, featured.length, menuView])
+  }, [analyticsTracker, activeCategory, search, filtered.length, featured.length, activeMenuView])
 
   function selectCategory(categoryId: string | null) {
     const nextCategory = categoryId && activeCategory === categoryId ? null : categoryId
@@ -766,7 +788,22 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       {(categories.length > 0 || feedEnabled) && (
         <div className="sticky top-0 z-30 bg-zinc-50/80 backdrop-blur-xl border-b border-zinc-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div ref={categoryFilterRef} className="flex gap-2 justify-center items-center overflow-x-auto py-4 scrollbar-hide no-scrollbar">
+            <div ref={categoryFilterRef} className="flex gap-2 justify-start md:justify-center items-center overflow-x-auto py-4 scrollbar-hide no-scrollbar">
+              {feedEnabled && (
+                <button
+                  type="button"
+                  onClick={() => setMenuView(activeMenuView === 'feed' ? 'list' : 'feed')}
+                  aria-pressed={activeMenuView === 'feed'}
+                  aria-label={activeMenuView === 'feed' ? ui.viewMenu : ui.viewFeed}
+                  style={activeMenuView === 'feed'
+                    ? { backgroundColor: accentColor }
+                    : { backgroundColor: primaryColor, boxShadow: `0 10px 24px ${primaryColor}35` }}
+                  className="md:hidden flex h-10 flex-shrink-0 items-center gap-2 rounded-full px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white transition-all active:scale-95"
+                >
+                  {activeMenuView === 'feed' ? <Rows3 className="size-4" /> : <LayoutGrid className="size-4" />}
+                  <span>{activeMenuView === 'feed' ? ui.viewMenu : ui.viewFeed}</span>
+                </button>
+              )}
               {hasHours && (
                 <button
                   onClick={() => setShowHoursModal(true)}
@@ -837,35 +874,13 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
               >
                 {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
               </button>
-              {feedEnabled && (
-                <div className="flex flex-shrink-0 rounded-full border border-zinc-200 bg-white p-1 shadow-sm" aria-label="Menu view">
-                  <button
-                    type="button"
-                    onClick={() => setMenuView('feed')}
-                    aria-pressed={menuView === 'feed'}
-                    aria-label="Feed view"
-                    className={`flex h-8 w-9 items-center justify-center rounded-full transition ${menuView === 'feed' ? 'bg-zinc-950 text-white' : 'text-zinc-400 hover:text-zinc-900'}`}
-                  >
-                    <LayoutGrid className="size-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMenuView('list')}
-                    aria-pressed={menuView === 'list'}
-                    aria-label="List view"
-                    className={`flex h-8 w-9 items-center justify-center rounded-full transition ${menuView === 'list' ? 'bg-zinc-950 text-white' : 'text-zinc-400 hover:text-zinc-900'}`}
-                  >
-                    <Rows3 className="size-4" />
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
       )}
 
       {/* Featured Section — full viewport width, outside max-w container */}
-      {menuView === 'list' && featured.length > 0 && !search && !activeCategory && (
+      {activeMenuView === 'list' && featured.length > 0 && !search && !activeCategory && (
         <section className="relative w-full pt-10 sm:pt-16 pb-0">
           <div className="scrollbar-hide w-full overflow-x-auto pb-4 md:overflow-hidden">
             <div className="absolute top-3 sm:top-5 left-4 sm:left-6 lg:left-8 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-100">
@@ -949,7 +964,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           </div>
         )}
 
-        {menuView === 'feed' && filtered.length > 0 ? (
+        {activeMenuView === 'feed' && filtered.length > 0 ? (
           <MenuFeed
             products={filtered}
             productMediaByProductId={productMediaByProductId}
@@ -983,7 +998,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
               media_index: mediaIndex,
             })}
           />
-        ) : menuView === 'list' ? (
+        ) : activeMenuView === 'list' ? (
           <>
         {/* Regular Sections */}
         {groupedByCategory.map(({ category, items }) => (

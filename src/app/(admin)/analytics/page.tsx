@@ -86,7 +86,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
   const currency = settingsResult.data?.currency ?? 'USD'
   const settings: AnalyticsExperienceSettings = {
     analytics_enabled: settingsResult.data?.analytics_enabled ?? true,
-    visual_feed_enabled: settingsResult.data?.visual_feed_enabled ?? false,
+    visual_feed_enabled: settingsResult.data?.visual_feed_enabled ?? true,
     menu_default_view: settingsResult.data?.menu_default_view === 'feed' ? 'feed' : 'list',
     feed_autoplay_videos: settingsResult.data?.feed_autoplay_videos ?? true,
   }

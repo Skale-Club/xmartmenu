@@ -30,7 +30,7 @@ Started on 2026-10-08. The end-to-end MVP is implemented and its database founda
 - [x] Contract tests, TypeScript validation, targeted lint, and production build.
 - [x] Active product-attention duration with Page Visibility pause/resume.
 - [x] Trusted order-completed and order-cancelled events from payment/order status transitions.
-- [x] Tenant-controlled visual Feed/List experience with portrait cards, multi-media navigation, viewport-aware direct video, reduced-motion handling, customization, cart, and checkout compatibility.
+- [x] Mobile-only visual Feed/List experience, enabled by default, with a highlighted entry point, portrait cards, multi-media navigation, viewport-aware direct video, reduced-motion handling, customization, cart, and checkout compatibility.
 - [x] Tenant analytics dashboard with period/menu/location filters, KPIs, funnel, product performance, prior-period deltas, and low-data states.
 - [x] Explainable, deterministic product recommendations with minimum sample thresholds and direct editor links.
 - [x] Tenant settings for analytics collection, visual-feed rollout, default view, and video autoplay.
@@ -111,7 +111,7 @@ Event delivery is best-effort, batched, rate-limited, and fail-open. Menu render
 ### In Scope
 
 - Mobile-first visual feed for public menus.
-- Feed/List view switch with tenant-level default.
+- Highlighted mobile Feed/List switch with tenant-level default; desktop remains on the classic menu.
 - Short-form image and video presentation.
 - First-party anonymous session and event collection.
 - Product exposure, engagement, intent, funnel, and conversion metrics.
