@@ -95,6 +95,7 @@ export default function MenuFeed({
                 product={product}
                 media={productMediaByProductId[product.id] ?? []}
                 priority={index === 0}
+                panDirection={index % 2 === 0 ? 'alternate' : 'alternate-reverse'}
                 autoplay={autoplayVideos}
                 onOpen={() => onOpen(product)}
                 onMediaEvent={(event, mediaType, mediaIndex) => onMediaEvent(event, product, mediaType, mediaIndex)}
@@ -173,6 +174,7 @@ function FeedMedia({
   product,
   media,
   priority,
+  panDirection,
   autoplay,
   onOpen,
   onMediaEvent,
@@ -180,6 +182,7 @@ function FeedMedia({
   product: Product
   media: ProductMedia[]
   priority: boolean
+  panDirection: 'alternate' | 'alternate-reverse'
   autoplay: boolean
   onOpen: () => void
   onMediaEvent: (event: 'media_started' | 'media_completed' | 'media_swiped', mediaType: 'image' | 'video', index: number) => void
@@ -264,7 +267,15 @@ function FeedMedia({
           }}
         />
       ) : imageUrl ? (
-        <Image src={imageUrl} alt={product.name} fill priority={priority} className="object-cover" sizes="100vw" />
+        <Image
+          src={imageUrl}
+          alt={product.name}
+          fill
+          priority={priority}
+          className={`object-cover ${active ? 'menu-feed-image-pan' : 'scale-[1.08]'}`}
+          style={{ animationDirection: panDirection }}
+          sizes="100vw"
+        />
       ) : (
         <button type="button" onClick={onOpen} className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_center,_#27272a,_#09090b_70%)] text-white/60">
           <span className="text-7xl">🍽️</span><span className="text-[10px] font-black uppercase tracking-[0.24em]">View dish</span>

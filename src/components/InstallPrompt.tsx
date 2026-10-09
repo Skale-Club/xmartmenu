@@ -60,7 +60,7 @@ export default function InstallPrompt() {
   if (!visible) return null
 
   return (
-    <div className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full bg-zinc-900 pl-4 pr-2 py-2 shadow-lg">
+    <div data-install-prompt className="fixed bottom-4 left-4 z-50 flex items-center gap-2 rounded-full bg-zinc-900 pl-4 pr-2 py-2 shadow-lg">
       <button
         onClick={install}
         className="flex items-center gap-2 text-[12px] font-black uppercase tracking-widest text-white"

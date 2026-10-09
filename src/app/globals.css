@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
-body[data-menu-feed="open"] [data-demo-banner] {
+body[data-menu-feed="open"] [data-demo-banner],
+body[data-menu-feed="open"] [data-install-prompt] {
   display: none;
 }
 
@@ -135,6 +136,16 @@ input[type="file"] {
   display: none;
 }
 
+@keyframes menu-feed-horizontal-drift {
+  from { transform: scale(1.1) translate3d(-2.75%, 0, 0); }
+  to   { transform: scale(1.1) translate3d(2.75%, 0, 0); }
+}
+
+.menu-feed-image-pan {
+  animation: menu-feed-horizontal-drift 9s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
 @keyframes marquee {
   from { transform: translateX(0); }
   to   { transform: translateX(-50%); }
@@ -153,6 +164,11 @@ input[type="file"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .menu-feed-image-pan {
+    animation: none;
+    transform: scale(1.04);
+  }
+
   .animate-marquee {
     animation: none;
   }
