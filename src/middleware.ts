@@ -3,6 +3,7 @@ import { updateSession } from './lib/supabase/middleware'
 // Zero-import module — safe for the Edge bundle. See that file for the
 // invariant (no entry may have a named route) and the regression history.
 import { BLOCKED_TENANT_SLUGS } from './lib/marketing/blocked-tenant-slugs'
+import { resolveFeedRewritePath } from './lib/feed-route'
 
 // Cache BOTH hits and misses. Without caching misses, every request carrying an
 // unknown Host header (bots hitting the raw IP, preview hosts, misconfigured
@@ -74,6 +75,15 @@ export async function middleware(request: NextRequest) {
 
   if (host) {
     const tenantSlug = await resolveTenantSlugFromHost(host)
+
+    const feedRewritePath = resolveFeedRewritePath(pathname, tenantSlug)
+    if (feedRewritePath) {
+      const url = request.nextUrl.clone()
+      url.pathname = feedRewritePath
+      url.searchParams.set('view', 'feed')
+      return await updateSession(request, url)
+    }
+
     if (tenantSlug && !pathname.startsWith(`/${tenantSlug}`)) {
       const url = request.nextUrl.clone()
       url.pathname = `/${tenantSlug}${pathname === '/' ? '' : pathname}`

@@ -24,7 +24,7 @@ import {
 
 interface Props {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ lang?: string }>
+  searchParams: Promise<{ lang?: string; view?: string }>
 }
 
 const getTenantBySlug = cache(async (slug: string) => {
@@ -82,7 +82,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicMenuPage({ params, searchParams }: Props) {
   const { slug } = await params
-  const { lang } = await searchParams
+  const { lang, view } = await searchParams
 
   const tenant = await getTenantBySlug(slug)
   if (!tenant) notFound()
@@ -108,7 +108,12 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     return (
       <>
         <style>{`:root{--primary:${safeCssColor(primaryColor)};--primary-foreground:${primaryForeground};--accent:${safeCssColor(accentColor)};}`}</style>
-        <BranchPicker tenantName={tenant.name} tenantSlug={slug} locations={activeLocations!} />
+        <BranchPicker
+          tenantName={tenant.name}
+          tenantSlug={slug}
+          locations={activeLocations!}
+          initialView={view === 'feed' ? 'feed' : 'list'}
+        />
       </>
     )
   }
@@ -227,6 +232,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
         products={products}
         menu={resolvedMenu ?? null}
         initialLanguage={lang}
+        initialView={view === 'feed' ? 'feed' : undefined}
         footerBrand={footerBrand}
         ingredientCustomizationEnabled={ingredientCustomizationEnabled}
         productIngredientsByProductId={productIngredientsByProductId}

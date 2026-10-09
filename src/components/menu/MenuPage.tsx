@@ -65,6 +65,7 @@ interface Props {
   } | null
   location?: { id: string; name: string } | null
   initialLanguage?: string
+  initialView?: 'list' | 'feed'
   footerBrand?: string
   optionGroupsByProductId?: Record<string, GroupWithOptions[]>
   ingredientCustomizationEnabled?: boolean
@@ -91,12 +92,14 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
+export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
   const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
   const [menuView, setMenuView] = useState<'list' | 'feed'>(() =>
-    feedEnabled && tenant.tenant_settings?.menu_default_view === 'feed' ? 'feed' : 'list'
+    feedEnabled && (initialView === 'feed' || tenant.tenant_settings?.menu_default_view === 'feed')
+      ? 'feed'
+      : 'list'
   )
   const isMobileViewport = useSyncExternalStore(
     subscribeToMobileViewport,

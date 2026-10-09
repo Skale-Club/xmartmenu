@@ -28,7 +28,7 @@ import {
 
 interface Props {
   params: Promise<{ slug: string; menuSlug: string }>
-  searchParams: Promise<{ lang?: string }>
+  searchParams: Promise<{ lang?: string; view?: string }>
 }
 
 const getTenantBySlug = cache(async (slug: string) => {
@@ -89,7 +89,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicMenuSlugPage({ params, searchParams }: Props) {
   const { slug, menuSlug } = await params
-  const { lang } = await searchParams
+  const { lang, view } = await searchParams
   const supabase = createServiceClient()
 
   const tenant = await getTenantBySlug(slug)
@@ -273,6 +273,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       menu={menu}
       location={location ? { id: location.id, name: location.name } : null}
       initialLanguage={lang}
+      initialView={view === 'feed' ? 'feed' : undefined}
       footerBrand={footerBrand}
       optionGroupsByProductId={optionGroupsByProductId}
       ingredientCustomizationEnabled={ingredientCustomizationEnabled}
