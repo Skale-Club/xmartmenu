@@ -73,9 +73,45 @@ jobs:
             exit 0
           fi
           echo "Triggering Coolify pull for app ${APP_UUID}…"
-          curl --fail-with-body -sS --retry 3 --retry-all-errors \
+          deploy_response="$(curl --fail-with-body -sS --retry 3 --retry-all-errors \
             --request POST \
             "${COOLIFY_BASE}/api/v1/deploy?uuid=${APP_UUID}" \
-            -H "Authorization: Bearer ${COOLIFY_TOKEN}"
+            -H "Authorization: Bearer ${COOLIFY_TOKEN}")"
+          echo "${deploy_response}"
+
+          deployment_uuid="$(jq -r '.deployments[0].deployment_uuid // empty' <<<"${deploy_response}")"
+          if [ -z "${deployment_uuid}" ]; then
+            echo "::error::Coolify did not return a deployment UUID."
+            exit 1
+          fi
+
+          echo "Coolify deployment ${deployment_uuid} queued; waiting for completion…"
+          for attempt in $(seq 1 60); do
+            deployment="$(curl --fail-with-body -sS --retry 3 --retry-all-errors \
+              "${COOLIFY_BASE}/api/v1/deployments/${deployment_uuid}" \
+              -H "Authorization: Bearer ${COOLIFY_TOKEN}")"
+            status="$(jq -r '.status // empty' <<<"${deployment}")"
+            echo "Coolify status (${attempt}/60): ${status:-unknown}"
+
+            case "${status}" in
+              finished)
+                break
+                ;;
+              failed|cancelled-by-user)
+                echo "::error::Coolify deployment ended with status ${status}."
+                exit 1
+                ;;
+            esac
+
+            if [ "${attempt}" -eq 60 ]; then
+              echo "::error::Timed out waiting for Coolify deployment ${deployment_uuid}."
+              exit 1
+            fi
+            sleep 5
+          done
+
+          echo "Coolify deployment finished; checking production health…"
+          curl --fail-with-body -sS --retry 12 --retry-delay 5 --retry-all-errors \
+            "https://xmartmenu.skale.club/api/health"
           echo
-          echo "Deploy queued. Coolify will pull ghcr.io/…:latest and restart."
+          echo "Production is healthy."
