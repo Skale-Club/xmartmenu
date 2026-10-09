@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { formatPrice } from '@/lib/utils'
-import { ChevronUp, ChevronDown, Pencil, Trash2, Plus } from 'lucide-react'
+import { ChevronUp, ChevronDown, Pencil, Trash2, Plus, GalleryVerticalEnd, Star } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { Product, ProductOption, OptionGroupType, Ingredient, ProductIngredient } from '@/types/database'
 import { type GroupWithOptions } from './page'
@@ -281,6 +281,7 @@ export default function ProductDetailClient({
     original_price: product.original_price ? String(product.original_price) : '',
     category_id: product.category_id ?? '',
     is_featured: product.is_featured,
+    show_in_feed: product.show_in_feed ?? true,
     tags: product.tags ?? [],
   })
   const [productSaving, setProductSaving] = useState(false)
@@ -330,6 +331,7 @@ export default function ProductDetailClient({
         original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
         category_id: productForm.category_id || null,
         is_featured: productForm.is_featured,
+        show_in_feed: productForm.show_in_feed,
         tags: productForm.tags,
       })
       .eq('id', product.id)
@@ -693,16 +695,32 @@ export default function ProductDetailClient({
               </div>
             </div>
           </div>
-          {/* is_featured checkbox */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={productForm.is_featured}
-              onChange={e => setProductForm(f => ({ ...f, is_featured: e.target.checked }))}
-              className="w-4 h-4 rounded border-zinc-300"
-            />
-            <span className="text-sm text-zinc-700">Featured product</span>
-          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4 focus-within:ring-2 focus-within:ring-zinc-900">
+              <input
+                type="checkbox"
+                checked={productForm.is_featured}
+                onChange={e => setProductForm(f => ({ ...f, is_featured: e.target.checked }))}
+                className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+              />
+              <span>
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-zinc-900"><Star size={15} /> Featured product</span>
+                <span className="mt-1 block text-xs text-zinc-500">Highlight this item in the menu.</span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 focus-within:ring-2 focus-within:ring-emerald-500">
+              <input
+                type="checkbox"
+                checked={productForm.show_in_feed}
+                onChange={e => setProductForm(f => ({ ...f, show_in_feed: e.target.checked }))}
+                className="mt-0.5 h-4 w-4 rounded border-emerald-300 text-emerald-600"
+              />
+              <span>
+                <span className="flex items-center gap-1.5 text-sm font-semibold text-zinc-900"><GalleryVerticalEnd size={15} /> Show in visual feed</span>
+                <span className="mt-1 block text-xs text-zinc-500">Include this product in the mobile discovery feed.</span>
+              </span>
+            </label>
+          </div>
           {/* error */}
           {productError && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{productError}</p>

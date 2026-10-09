@@ -7,7 +7,7 @@ import { formatPrice } from '@/lib/utils'
 import type { Product, Category } from '@/types/database'
 import Image from 'next/image'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import { Plus, Package, Trash2, Edit3, X, ChevronRight, AlertCircle, ShieldCheck, Star, Utensils, Tag, Image as ImageIcon, CheckCircle2 } from 'lucide-react'
+import { Plus, Package, Trash2, Edit3, X, ChevronRight, AlertCircle, ShieldCheck, Star, Utensils, Tag, Image as ImageIcon, CheckCircle2, GalleryVerticalEnd } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ProductWithCategory extends Product {
@@ -90,6 +90,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
     image_url: '',
     image_urls: [] as string[],
     is_featured: false,
+    show_in_feed: true,
     tags: [] as string[],
   })
 
@@ -128,6 +129,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
       image_url: '',
       image_urls: [],
       is_featured: false,
+      show_in_feed: true,
       tags: [],
     })
     setEditingId(null)
@@ -147,6 +149,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
       image_url: images[0] ?? '',
       image_urls: images,
       is_featured: p.is_featured,
+      show_in_feed: p.show_in_feed ?? true,
       tags: p.tags ?? [],
     })
     setEditingId(p.id)
@@ -220,6 +223,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
       image_url: form.image_urls[0] || form.image_url || null,
       image_urls: form.image_urls,
       is_featured: form.is_featured,
+      show_in_feed: form.show_in_feed,
       tags: form.tags,
       position: editingId ? undefined : products.length,
     }
@@ -511,7 +515,8 @@ export default function ProductsClient({ products: initial, categories, tenantId
                 })}
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer p-4 bg-zinc-50 rounded-lg border border-zinc-100 hover:bg-zinc-100 transition-all">
+              <div className="grid gap-3 md:grid-cols-2">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-4 transition-all hover:bg-zinc-100 focus-within:ring-2 focus-within:ring-primary">
                 <div className={cn(
                   "w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all",
                   form.is_featured ? "bg-primary border-primary" : "bg-white border-zinc-200"
@@ -522,13 +527,32 @@ export default function ProductsClient({ products: initial, categories, tenantId
                   type="checkbox"
                   checked={form.is_featured}
                   onChange={e => setForm(f => ({ ...f, is_featured: e.target.checked }))}
-                  className="hidden"
+                  className="sr-only"
                 />
                 <div>
                   <span className="block text-sm font-black text-zinc-950 uppercase tracking-tight">Feature this product</span>
                   <span className="block text-[10px] text-zinc-500 font-medium">Highlight on top of categories and home page.</span>
                 </div>
               </label>
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50/60 p-4 transition-all hover:bg-emerald-50 focus-within:ring-2 focus-within:ring-emerald-500">
+                <div className={cn(
+                  "flex h-6 w-6 items-center justify-center rounded-lg border-2 transition-all",
+                  form.show_in_feed ? "border-emerald-600 bg-emerald-600" : "border-zinc-200 bg-white"
+                )}>
+                  {form.show_in_feed && <GalleryVerticalEnd className="h-4 w-4 text-white" />}
+                </div>
+                <input
+                  type="checkbox"
+                  checked={form.show_in_feed}
+                  onChange={e => setForm(f => ({ ...f, show_in_feed: e.target.checked }))}
+                  className="sr-only"
+                />
+                <div>
+                  <span className="block text-sm font-black uppercase tracking-tight text-zinc-950">Show in visual feed</span>
+                  <span className="block text-[10px] font-medium text-zinc-500">Include this product in the mobile discovery feed.</span>
+                </div>
+              </label>
+              </div>
             </div>
 
             {formError && (
@@ -587,6 +611,12 @@ export default function ProductsClient({ products: initial, categories, tenantId
                     <div className="bg-primary text-primary-foreground text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
                       <Star className="w-3 h-3 fill-current" />
                       Featured
+                    </div>
+                  )}
+                  {product.show_in_feed !== false && (
+                    <div className="flex items-center gap-1.5 rounded-full bg-emerald-600 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white shadow-lg">
+                      <GalleryVerticalEnd className="h-3 w-3" />
+                      Feed
                     </div>
                   )}
                   {!product.is_available && (

@@ -9,7 +9,7 @@ import { formatPrice, getInitials } from '@/lib/utils'
 import { MenuAnalyticsTracker } from '@/lib/analytics/client'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import { UI_COPY, type CartItem, type CartEditorState, buildCartKey, getProductImages } from './menu-utils'
+import { UI_COPY, type CartItem, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed } from './menu-utils'
 import {
   MapPin,
   Phone,
@@ -24,7 +24,8 @@ import {
   Mail,
   ShoppingBag,
   LayoutGrid,
-  Rows3
+  Rows3,
+  Sparkles
 } from 'lucide-react'
 
 const ProductModal = dynamic(() => import('./ProductModal'), { ssr: false })
@@ -184,6 +185,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     const matchCategory = !activeCategory || p.category_id === activeCategory
     return matchSearch && matchCategory
   })
+  const feedProducts = filtered.filter(isProductVisibleInFeed)
 
   const categoryIds = new Set(categories.map(c => c.id))
 
@@ -964,9 +966,9 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           </div>
         )}
 
-        {activeMenuView === 'feed' && filtered.length > 0 ? (
+        {activeMenuView === 'feed' && feedProducts.length > 0 ? (
           <MenuFeed
-            products={filtered}
+            products={feedProducts}
             productMediaByProductId={productMediaByProductId}
             currency={currency}
             primaryColor={primaryColor}
@@ -998,6 +1000,22 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
               media_index: mediaIndex,
             })}
           />
+        ) : activeMenuView === 'feed' && filtered.length > 0 ? (
+          <div className="rounded-2xl border border-zinc-100 bg-white px-6 py-16 text-center shadow-sm" role="status">
+            <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-zinc-50">
+              <Sparkles className="size-7 text-zinc-300" />
+            </div>
+            <h3 className="text-xl font-black tracking-tight text-zinc-900">{ui.feedEmptyTitle}</h3>
+            <p className="mx-auto mt-2 max-w-sm text-sm font-medium text-zinc-500">{ui.feedEmptyDescription}</p>
+            <button
+              type="button"
+              onClick={() => setMenuView('list')}
+              style={{ backgroundColor: primaryColor }}
+              className="mt-6 min-h-11 rounded-full px-6 text-xs font-black uppercase tracking-[0.14em] text-white transition-transform active:scale-95"
+            >
+              {ui.viewMenu}
+            </button>
+          </div>
         ) : activeMenuView === 'list' ? (
           <>
         {/* Regular Sections */}

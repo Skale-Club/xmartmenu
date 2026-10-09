@@ -100,7 +100,7 @@ export function registerMenuReadTools(server: McpServer): void {
       if (!tenantId) return errorResult(`Tenant não encontrado: ${tenant}`)
       let query = service
         .from('products')
-        .select('id, menu_id, category_id, name, description, price, original_price, image_url, is_available, is_featured, tags, position, created_at')
+        .select('id, menu_id, category_id, name, description, price, original_price, image_url, is_available, is_featured, show_in_feed, tags, position, created_at')
         .eq('tenant_id', tenantId)
         .order('position', { ascending: true })
         .limit(limit ?? 500)
@@ -314,12 +314,13 @@ export function registerMenuWriteTools(server: McpServer): void {
         image_url: z.string().nullable().optional(),
         is_available: z.boolean().optional(),
         is_featured: z.boolean().optional(),
+        show_in_feed: z.boolean().optional().describe('Exibir no feed visual mobile (default true)'),
         tags: z.array(z.string()).optional(),
         position: z.number().int().optional(),
       },
       annotations: { readOnlyHint: false },
     },
-    async ({ tenant, name, price, description, original_price, category_id, menu_id, image_url, is_available, is_featured, tags, position }, extra) => {
+    async ({ tenant, name, price, description, original_price, category_id, menu_id, image_url, is_available, is_featured, show_in_feed, tags, position }, extra) => {
       const service = createServiceClient()
       const tenantId = await resolveTenantId(service, tenant)
       if (!tenantId) return errorResult(`Tenant não encontrado: ${tenant}`)
@@ -349,6 +350,7 @@ export function registerMenuWriteTools(server: McpServer): void {
           image_url: image_url ?? null,
           is_available: is_available ?? true,
           is_featured: is_featured ?? false,
+          show_in_feed: show_in_feed ?? true,
           tags: tags ?? [],
           position: position ?? 0,
         })
@@ -376,6 +378,7 @@ export function registerMenuWriteTools(server: McpServer): void {
         image_url: z.string().nullable().optional(),
         is_available: z.boolean().optional(),
         is_featured: z.boolean().optional(),
+        show_in_feed: z.boolean().optional().describe('Exibir no feed visual mobile'),
         tags: z.array(z.string()).optional(),
         position: z.number().int().optional(),
       },

@@ -205,6 +205,7 @@ export interface Product {
   image_urls: string[]
   is_available: boolean
   is_featured: boolean
+  show_in_feed: boolean
   tags: string[]
   position: number
   created_at: string
