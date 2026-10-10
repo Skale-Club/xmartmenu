@@ -26,15 +26,19 @@ export async function POST() {
     return NextResponse.json({ error: 'No active subscription' }, { status: 400 })
   }
 
-  // Find the addon subscription on this customer
+  // Find ALL addon subscriptions on this customer. Cancel every one — a prior
+  // double-checkout bug could have created duplicates, and stopping only the
+  // first would leave the rest billing forever.
   const subs = await stripe.subscriptions.list({
     customer: sub.stripe_customer_id,
     status: 'active',
-    limit: 20,
+    limit: 100,
   })
-  const addonSub = subs.data.find((s) => s.metadata?.addon === 'chat')
-  if (!addonSub) return NextResponse.json({ error: 'Addon subscription not found' }, { status: 404 })
+  const addonSubs = subs.data.filter((s) => s.metadata?.addon === 'chat')
+  if (addonSubs.length === 0) return NextResponse.json({ error: 'Addon subscription not found' }, { status: 404 })
 
-  await stripe.subscriptions.update(addonSub.id, { cancel_at_period_end: true })
+  for (const addonSub of addonSubs) {
+    await stripe.subscriptions.update(addonSub.id, { cancel_at_period_end: true })
+  }
   return NextResponse.json({ ok: true })
 }

@@ -15,7 +15,7 @@ async function assertSuperadminAndStaff(tenantId: string, staffId: string) {
   const service = await createServiceClient()
   const { data: staffProfile } = await service
     .from('profiles')
-    .select('id, role, tenant_id, full_name')
+    .select('id, role, tenant_id, full_name, must_change_password, password_changed_at')
     .eq('id', staffId)
     .single()
 
@@ -33,18 +33,35 @@ export async function PATCH(_req: Request, { params }: Props) {
 
   const password = generatePassword()
   const { data: authUser, error: authError } = await ctx.service.auth.admin.getUserById(staffId)
-  if (authError) return NextResponse.json({ error: authError.message }, { status: 500 })
+  if (authError) {
+    console.error('PATCH /api/superadmin/tenants/[id]/staff/[staffId]:', authError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 
   const email = authUser.user?.email ?? null
   if (!email) return NextResponse.json({ error: 'Staff email not found' }, { status: 400 })
+
+  const { error: profileUpdateError } = await ctx.service
+    .from('profiles')
+    .update({ must_change_password: true, password_changed_at: null })
+    .eq('id', staffId)
+  if (profileUpdateError) {
+    console.error('PATCH /api/superadmin/tenants/[id]/staff/[staffId] profile:', profileUpdateError)
+    return NextResponse.json({ error: 'Failed to prepare password reset' }, { status: 500 })
+  }
 
   const { error: updateAuthError } = await ctx.service.auth.admin.updateUserById(staffId, {
     password,
     user_metadata: { full_name: ctx.staffProfile.full_name ?? undefined },
   })
-  if (updateAuthError) return NextResponse.json({ error: updateAuthError.message }, { status: 500 })
-
-  await ctx.service.from('profiles').update({ must_change_password: true, password_changed_at: null }).eq('id', staffId)
+  if (updateAuthError) {
+    await ctx.service.from('profiles').update({
+      must_change_password: ctx.staffProfile.must_change_password,
+      password_changed_at: ctx.staffProfile.password_changed_at,
+    }).eq('id', staffId)
+    console.error('PATCH /api/superadmin/tenants/[id]/staff/[staffId]:', updateAuthError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 
   return NextResponse.json({
     ok: true,
@@ -63,7 +80,8 @@ export async function DELETE(_req: Request, { params }: Props) {
     .update({ role: 'customer', tenant_id: null })
     .eq('id', staffId)
   if (demoteError) {
-    return NextResponse.json({ error: demoteError.message }, { status: 500 })
+    console.error('DELETE /api/superadmin/tenants/[id]/staff/[staffId]:', demoteError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }

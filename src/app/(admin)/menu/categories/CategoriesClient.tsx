@@ -27,13 +27,13 @@ function Modal({
 }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4">
-      <div className="w-full max-w-xl bg-white rounded-lg border border-zinc-200 shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-8 py-6 border-b border-zinc-100">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4">
+      <div role="dialog" aria-modal="true" aria-label={title} className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:max-w-xl sm:rounded-lg">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-100 bg-white px-4 py-4 sm:px-8 sm:py-6">
           <h2 className="text-xl font-black text-zinc-950 tracking-tight">{title}</h2>
-          <button type="button" onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-zinc-100 transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
         </div>
-        <div className="p-8">{children}</div>
+        <div className="p-4 sm:p-8">{children}</div>
       </div>
     </div>
   )
@@ -211,7 +211,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
               className={inputClassName}
             />
           </div>
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
             <button
               type="submit"
               disabled={loading}
@@ -219,7 +219,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
             >
               {loading ? 'Processing...' : 'Save Category'}
             </button>
-            <button type="button" onClick={cancelForm} className="px-8 py-4 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">
+            <button type="button" onClick={cancelForm} className="min-h-12 px-8 py-3 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">
               Cancel
             </button>
           </div>

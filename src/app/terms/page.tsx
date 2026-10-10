@@ -1,19 +1,15 @@
-export const metadata = {
-  title: 'Terms of Service | XmartMenu',
+import LegalPage, { getLegalDoc, legalTitle } from '@/components/legal/LegalPage'
+
+// Matches the marketing pages: edits published from the admin panel appear
+// within a minute even without the explicit revalidate on save.
+export const revalidate = 60
+
+export async function generateMetadata() {
+  // Bare title on purpose: the root layout's '%s | XmartMenu' template appends
+  // the brand, so adding it here too would double the suffix.
+  return { title: legalTitle('terms', await getLegalDoc('terms')) }
 }
 
 export default function TermsPage() {
-  return (
-    <main className="max-w-2xl mx-auto px-4 py-16">
-      <h1 className="text-3xl font-bold text-zinc-900 mb-6">Terms of Service</h1>
-      <p className="text-base text-zinc-600 leading-relaxed">
-        Coming soon | our legal documents are being prepared.
-      </p>
-      <div className="mt-8">
-        <a href="/" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">
-          ← Back to home
-        </a>
-      </div>
-    </main>
-  )
+  return <LegalPage docKey="terms" />
 }

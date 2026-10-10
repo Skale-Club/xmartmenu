@@ -1,0 +1,33 @@
+# Build artifacts & deps — rebuilt inside the image
+node_modules
+.next
+out
+dist
+
+# VCS / CI / planning
+.git
+.github
+.planning
+.paul
+scratch
+
+# Local env & secrets (never bake into an image layer)
+.env
+.env.*
+!.env.example
+
+# Tests & coverage
+coverage
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Editor / OS / misc
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.log
+README.md
+tsconfig.tsbuildinfo

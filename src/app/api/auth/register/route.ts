@@ -1,6 +1,8 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { randomSuffix } from '@/lib/auth/password-gen'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { getRequestOrigin } from '@/lib/site-url'
 
 function getSafeRedirect(value: unknown) {
   if (typeof value !== 'string') return '/'
@@ -16,6 +18,9 @@ function generateCustomerCredentials() {
 }
 
 export async function POST(request: Request) {
+  const rl = await rateLimit('auth-register', getClientIp(request), 5, '10 m')
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+
   const body = await request.json()
   const { name, email, phone, password, redirectTo } = body
   const safeRedirectTo = getSafeRedirect(redirectTo)
@@ -80,7 +85,7 @@ export async function POST(request: Request) {
 
   if (rawPassword.length < 8) return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
 
-  const { origin } = new URL(request.url)
+  const origin = getRequestOrigin(request)
   const supabase = await createClient()
   const { data, error } = await supabase.auth.signUp({
     email: normalizedEmail,

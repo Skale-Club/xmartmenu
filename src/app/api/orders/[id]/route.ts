@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
+import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
 
 const VALID_STATUSES = [
   'pending', 'paid', 'payment_failed', 'preparing', 'ready', 'done', 'cancelled',
@@ -59,6 +60,12 @@ export async function PATCH(
     if (error || !order) {
       console.error('orders.update_error', error)
       return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
+    }
+
+    if (status === 'done') {
+      await recordTrustedOrderAnalyticsEvent(order.id, 'order_completed')
+    } else if (status === 'cancelled') {
+      await recordTrustedOrderAnalyticsEvent(order.id, 'order_cancelled')
     }
 
     return NextResponse.json({ id: order.id, status: order.status })

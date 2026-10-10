@@ -1,13 +1,15 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { formatPrice, getInitials } from '@/lib/utils'
+import { MenuAnalyticsTracker } from '@/lib/analytics/client'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import { UI_COPY, type CartItem, buildCartKey, getProductImages } from './menu-utils'
+import { UI_COPY, type CartItem, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed } from './menu-utils'
 import {
   MapPin,
   Phone,
@@ -20,12 +22,34 @@ import {
   Camera,
   MessageCircle,
   Mail,
-  ShoppingBag
+  ShoppingBag,
+  LayoutGrid,
+  Rows3,
+  Sparkles
 } from 'lucide-react'
 
 const ProductModal = dynamic(() => import('./ProductModal'), { ssr: false })
-const CartModal = dynamic(() => import('./CartModal'), { ssr: false })
+const CartPanel = dynamic(() => import('./CartPanel'), { ssr: false })
+const CheckoutModal = dynamic(() => import('./CheckoutModal'), { ssr: false })
 const AiChatWidget = dynamic(() => import('./AiChatWidget'), { ssr: false })
+const MenuFeed = dynamic(() => import('./MenuFeed'))
+const AnalyticsDebugPanel = dynamic(() => import('./AnalyticsDebugPanel'), { ssr: false })
+
+const MOBILE_VIEWPORT_QUERY = '(max-width: 767px)'
+
+function subscribeToMobileViewport(onChange: () => void) {
+  const mediaQuery = window.matchMedia(MOBILE_VIEWPORT_QUERY)
+  mediaQuery.addEventListener('change', onChange)
+  return () => mediaQuery.removeEventListener('change', onChange)
+}
+
+function getMobileViewportSnapshot() {
+  return window.matchMedia(MOBILE_VIEWPORT_QUERY).matches
+}
+
+function getServerMobileViewportSnapshot() {
+  return false
+}
 
 interface Props {
   tenant: TenantWithSettings
@@ -41,6 +65,7 @@ interface Props {
   } | null
   location?: { id: string; name: string } | null
   initialLanguage?: string
+  initialView?: 'list' | 'feed'
   footerBrand?: string
   optionGroupsByProductId?: Record<string, GroupWithOptions[]>
   ingredientCustomizationEnabled?: boolean
@@ -67,13 +92,28 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
+export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
+  const router = useRouter()
+  const [feedPreview, setFeedPreview] = useState(false)
+  const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
+  const [menuView, setMenuView] = useState<'list' | 'feed'>(() =>
+    feedEnabled && (initialView === 'feed' || tenant.tenant_settings?.menu_default_view === 'feed')
+      ? 'feed'
+      : 'list'
+  )
+  const isMobileViewport = useSyncExternalStore(
+    subscribeToMobileViewport,
+    getMobileViewportSnapshot,
+    getServerMobileViewportSnapshot,
+  )
+  const activeMenuView = isMobileViewport ? menuView : 'list'
   const defaultOrderType = (tenant.tenant_settings?.dine_in_enabled ?? true) ? 'dine_in'
     : (tenant.tenant_settings?.pickup_enabled ?? false) ? 'pickup'
     : 'delivery'
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [selectedProductSource, setSelectedProductSource] = useState<'grid' | 'featured' | 'detail' | 'cart' | 'feed'>('detail')
   const [showFooterAtEnd, setShowFooterAtEnd] = useState(false)
   const [footerHeight, setFooterHeight] = useState(0)
   const [pauseFeaturedAutoScroll, setPauseFeaturedAutoScroll] = useState(false)
@@ -81,7 +121,9 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const [visibleCategory, setVisibleCategory] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [showSearch, setShowSearch] = useState(false)
-  const [showCartModal, setShowCartModal] = useState(false)
+  const [cartOpen, setCartOpen] = useState(false)
+  const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [editingCartKey, setEditingCartKey] = useState<string | null>(null)
   const [showHoursModal, setShowHoursModal] = useState(false)
   const [customerName, setCustomerName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
@@ -97,10 +139,13 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const [deliveryCity, setDeliveryCity] = useState('')
   const [deliveryNotes, setDeliveryNotes] = useState('')
   const [tipCents, setTipCents] = useState(0)
+  const [analyticsTracker, setAnalyticsTracker] = useState<MenuAnalyticsTracker | null>(null)
+  const [analyticsDebug, setAnalyticsDebug] = useState(false)
   const footerRef = useRef<HTMLElement | null>(null)
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
   const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   const categoryFilterRef = useRef<HTMLDivElement | null>(null)
+  const autoOpenedRef = useRef(false)
 
   const settings = tenant.tenant_settings
   const primaryColor = settings?.primary_color ?? '#F52323'
@@ -114,6 +159,8 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const deliveryFeeCents = settings?.delivery_fee_cents ?? 0
   const orderTypeConfig = { dineIn: dineInEnabled, pickup: pickupEnabled, delivery: deliveryEnabled, deliveryFeeCents }
   const tipsEnabled = settings?.tips_enabled ?? false
+  const analyticsEnabled = settings?.analytics_enabled ?? true
+  const feedAutoplayVideos = settings?.feed_autoplay_videos ?? true
   const tipPercentages: [number, number, number] = [
     settings?.tip_percentage_1 ?? 15,
     settings?.tip_percentage_2 ?? 18,
@@ -126,6 +173,30 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const menuTitle = getTranslatedMenuField(menu, selectedLanguage, 'name', menu?.name ?? tenant.name)
   const menuDescription = getTranslatedMenuField(menu, selectedLanguage, 'description', menu?.description ?? '')
 
+  useEffect(() => {
+    if (process.env.NODE_ENV !== 'development') return
+    if (new URLSearchParams(window.location.search).get('feed_preview') === '1') {
+      setFeedPreview(true)
+      setMenuView('feed')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (activeMenuView !== 'feed') return
+    const previousBodyOverflow = document.body.style.overflow
+    const previousOverscroll = document.documentElement.style.overscrollBehavior
+    const previousFeedState = document.body.dataset.menuFeed
+    document.body.style.overflow = 'hidden'
+    document.body.dataset.menuFeed = 'open'
+    document.documentElement.style.overscrollBehavior = 'none'
+    return () => {
+      document.body.style.overflow = previousBodyOverflow
+      if (previousFeedState === undefined) delete document.body.dataset.menuFeed
+      else document.body.dataset.menuFeed = previousFeedState
+      document.documentElement.style.overscrollBehavior = previousOverscroll
+    }
+  }, [activeMenuView])
+
   const filtered = products.filter(p => {
     const matchSearch = search === '' ||
       p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -133,6 +204,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     const matchCategory = !activeCategory || p.category_id === activeCategory
     return matchSearch && matchCategory
   })
+  const feedProducts = filtered.filter(isProductVisibleInFeed)
 
   const categoryIds = new Set(categories.map(c => c.id))
 
@@ -143,6 +215,9 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
   const uncategorized = filtered.filter(p => !p.category_id || !categoryIds.has(p.category_id))
 
+  // Flat list in display order — used for prev/next navigation inside the product modal.
+  const orderedProducts = [...groupedByCategory.flatMap(g => g.items), ...uncategorized]
+
   function openWhatsApp(product: Product) {
     if (!whatsapp) return
     const msg = encodeURIComponent(`Hi! I'd like to order: ${product.name} | ${formatPrice(product.price, currency)}`)
@@ -151,30 +226,86 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
   const directOrdersEnabled = settings?.direct_orders_enabled ?? false
 
+  function openProduct(product: Product, source: 'grid' | 'featured' | 'detail' | 'cart' | 'feed') {
+    setSelectedProductSource(source)
+    setSelectedProduct(product)
+  }
+
   const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null) {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed') {
     const key = buildCartKey(product.id, selectedOptions)
     setCart(prev => {
       const existing = prev.find(item => item.cartKey === key)
       if (existing) {
         return prev.map(item =>
-          item.cartKey === key ? { ...item, quantity: item.quantity + 1, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications } : item
+          item.cartKey === key ? { ...item, quantity: item.quantity + 1, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications, editorState: editorState ?? item.editorState } : item
         )
       }
-      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications }]
+      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications, editorState }]
+    })
+    analyticsTracker?.track({
+      event_name: 'add_to_cart',
+      product_id: product.id,
+      quantity: 1,
+      source: source ?? (selectedProduct?.id === product.id ? 'detail' : 'grid'),
     })
   }
 
+  // Re-save an edited item: drop the original entry and re-insert under its new
+  // cart key, preserving the original quantity. Merges into an identical existing
+  // item instead of creating a duplicate.
+  function replaceCartItem(oldKey: string, product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) {
+    const newKey = buildCartKey(product.id, selectedOptions)
+    setCart(prev => {
+      const old = prev.find(item => item.cartKey === oldKey)
+      const qty = old?.quantity ?? 1
+      const without = prev.filter(item => item.cartKey !== oldKey)
+      const existing = without.find(item => item.cartKey === newKey)
+      if (existing) {
+        return without.map(item =>
+          item.cartKey === newKey ? { ...item, quantity: item.quantity + qty, unitPrice, note, ingredientModifications, editorState } : item
+        )
+      }
+      return [...without, { product, quantity: qty, selectedOptions, unitPrice, cartKey: newKey, note, ingredientModifications, editorState }]
+    })
+  }
+
+  function editItem(itemCartKey: string) {
+    const item = cart.find(i => i.cartKey === itemCartKey)
+    if (!item) return
+    setEditingCartKey(itemCartKey)
+    openProduct(item.product, 'cart')
+    setCartOpen(false)
+  }
+
   function removeFromCart(itemCartKey: string) {
+    const item = cart.find(cartItem => cartItem.cartKey === itemCartKey)
+    if (item) {
+      analyticsTracker?.track({
+        event_name: 'remove_from_cart',
+        product_id: item.product.id,
+        quantity: item.quantity,
+        source: 'cart',
+      })
+    }
     setCart(prev => prev.filter(item => item.cartKey !== itemCartKey))
   }
 
   function updateCartQuantity(itemCartKey: string, quantity: number) {
+    const item = cart.find(cartItem => cartItem.cartKey === itemCartKey)
     if (quantity <= 0) {
       removeFromCart(itemCartKey)
       return
+    }
+    if (item && quantity !== item.quantity) {
+      analyticsTracker?.track({
+        event_name: quantity > item.quantity ? 'add_to_cart' : 'remove_from_cart',
+        product_id: item.product.id,
+        quantity: Math.abs(quantity - item.quantity),
+        source: 'cart',
+      })
     }
     setCart(prev =>
       prev.map(item =>
@@ -220,6 +351,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           location_id: location?.id ?? null,
           tip_cents: tipCents,
           menu_id: menu?.id ?? null,
+          analytics_session_id: analyticsTracker?.sessionId ?? null,
           items: cart.map(item => ({
             product_id: item.product.id,
             product_name: item.product.name,
@@ -228,6 +360,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
             selected_options: item.selectedOptions,
             notes: item.note || undefined,
             ingredient_modifications: item.ingredientModifications || null,
+            editor_state: item.editorState || null,
           })),
         }),
       })
@@ -236,6 +369,15 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to submit order')
+      }
+
+      // Customer (QR / public-menu) orders that require online payment skip the
+      // "order placed" screen and go straight to the Stripe checkout. The order
+      // already exists in 'awaiting_payment' and only reaches the kitchen once
+      // the payment webhook flips it to 'paid'.
+      if (data.requires_payment) {
+        router.push(`/checkout/${data.id}`)
+        return
       }
 
       setConfirmedCart([...cart])
@@ -265,6 +407,179 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     : null
   const hasContact = settings?.phone || settings?.instagram || settings?.whatsapp || settings?.address || email
   const hasFixedFooter = hasContact || footerBrand
+
+  useEffect(() => {
+    if (!menu?.id || !analyticsEnabled) return
+    const isTest = new URLSearchParams(window.location.search).get('analytics_debug') === '1'
+    setAnalyticsDebug(isTest)
+    const tracker = new MenuAnalyticsTracker({
+      tenantId: tenant.id,
+      menuId: menu.id,
+      locationId: location?.id ?? null,
+      language: initialLanguage ?? menu.language,
+      isTest,
+    })
+    setAnalyticsTracker(tracker)
+    if (tracker.isNewSession) {
+      tracker.track({ event_name: 'menu_session_started' })
+      void tracker.flush()
+    }
+    return () => {
+      tracker.destroy()
+      setAnalyticsTracker(current => current === tracker ? null : current)
+    }
+  }, [tenant.id, menu?.id, menu?.language, location?.id, initialLanguage, analyticsEnabled])
+
+  useEffect(() => {
+    if (!analyticsTracker || !selectedProduct) return
+    analyticsTracker.track({
+      event_name: 'product_detail_opened',
+      product_id: selectedProduct.id,
+      source: selectedProductSource,
+    })
+  }, [analyticsTracker, selectedProduct, selectedProductSource])
+
+  useEffect(() => {
+    if (!analyticsTracker || !checkoutOpen) return
+    analyticsTracker.track({ event_name: 'checkout_started', source: 'checkout' })
+    void analyticsTracker.flush()
+  }, [analyticsTracker, checkoutOpen])
+
+  useEffect(() => {
+    if (!analyticsTracker || !search.trim()) return
+    const timeout = window.setTimeout(() => {
+      analyticsTracker.track({
+        event_name: 'search_performed',
+        query_length: search.trim().length,
+        source: 'search',
+      })
+    }, 500)
+    return () => window.clearTimeout(timeout)
+  }, [analyticsTracker, search])
+
+  useEffect(() => {
+    if (!analyticsTracker) return
+    const timers = new Map<Element, ReturnType<typeof setTimeout>>()
+    const engagement = new Map<string, {
+      targets: Set<Element>
+      startedAt: number | null
+      accumulatedMs: number
+      source: 'featured' | 'grid' | 'feed'
+    }>()
+
+    const readProduct = (element: Element) => {
+      const htmlElement = element as HTMLElement
+      const productId = htmlElement.dataset.analyticsProductId
+      const source = htmlElement.dataset.analyticsSource === 'featured'
+        ? 'featured' as const
+        : htmlElement.dataset.analyticsSource === 'feed'
+          ? 'feed' as const
+          : 'grid' as const
+      return productId ? { productId, source } : null
+    }
+
+    const pauseEngagement = (state: { startedAt: number | null; accumulatedMs: number }) => {
+      if (state.startedAt === null) return
+      state.accumulatedMs += performance.now() - state.startedAt
+      state.startedAt = null
+    }
+
+    const emitEngagement = (productId: string, state: { startedAt: number | null; accumulatedMs: number; source: 'featured' | 'grid' | 'feed' }) => {
+      pauseEngagement(state)
+      const durationMs = Math.min(3_600_000, Math.round(state.accumulatedMs))
+      if (durationMs >= 1_000) {
+        analyticsTracker.track({
+          event_name: 'product_engagement',
+          product_id: productId,
+          duration_ms: durationMs,
+          source: state.source,
+        })
+      }
+    }
+
+    const startEngagement = (element: Element) => {
+      const product = readProduct(element)
+      if (!product) return
+      const state = engagement.get(product.productId) ?? {
+        targets: new Set<Element>(),
+        startedAt: null,
+        accumulatedMs: 0,
+        source: product.source,
+      }
+      const wasEmpty = state.targets.size === 0
+      state.targets.add(element)
+      if (wasEmpty && document.visibilityState === 'visible') state.startedAt = performance.now()
+      engagement.set(product.productId, state)
+    }
+
+    const stopEngagement = (element: Element) => {
+      const product = readProduct(element)
+      if (!product) return
+      const state = engagement.get(product.productId)
+      if (!state) return
+      state.targets.delete(element)
+      if (state.targets.size === 0) {
+        emitEngagement(product.productId, state)
+        engagement.delete(product.productId)
+      }
+    }
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        engagement.forEach(state => pauseEngagement(state))
+        void analyticsTracker.flush(true)
+      } else {
+        const now = performance.now()
+        engagement.forEach(state => {
+          if (state.targets.size > 0 && state.startedAt === null) state.startedAt = now
+        })
+      }
+    }
+
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const existingTimer = timers.get(entry.target)
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          startEngagement(entry.target)
+          if (existingTimer) continue
+          const timer = setTimeout(() => {
+            const product = readProduct(entry.target)
+            if (product) analyticsTracker.trackProductImpression(product.productId, product.source)
+            timers.delete(entry.target)
+          }, 1_000)
+          timers.set(entry.target, timer)
+        } else {
+          stopEngagement(entry.target)
+          if (existingTimer) {
+            clearTimeout(existingTimer)
+            timers.delete(entry.target)
+          }
+        }
+      }
+    }, { threshold: [0, 0.5] })
+
+    const elements = document.querySelectorAll('[data-analytics-product-id]')
+    elements.forEach(element => observer.observe(element))
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      observer.disconnect()
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      timers.forEach(timer => clearTimeout(timer))
+      engagement.forEach((state, productId) => emitEngagement(productId, state))
+      void analyticsTracker.flush(true)
+    }
+  }, [analyticsTracker, activeCategory, search, filtered.length, featured.length, activeMenuView])
+
+  function selectCategory(categoryId: string | null) {
+    const nextCategory = categoryId && activeCategory === categoryId ? null : categoryId
+    setActiveCategory(nextCategory)
+    if (nextCategory) {
+      analyticsTracker?.track({
+        event_name: 'category_selected',
+        category_id: nextCategory,
+      })
+    }
+  }
 
   useEffect(() => {
     const onScroll = () => {
@@ -349,9 +664,36 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     return () => window.removeEventListener('resize', measure)
   }, [hasFixedFooter, hasContact, footerBrand])
 
+  // Auto-open the side panel once on desktop when the first item is added.
+  useEffect(() => {
+    if (cart.length === 0) {
+      autoOpenedRef.current = false
+      return
+    }
+    if (!autoOpenedRef.current && typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+      setCartOpen(true)
+      autoOpenedRef.current = true
+    }
+  }, [cart.length])
+
+
+  // Match the panel's actual on-screen visibility so the page reflow never
+  // desyncs from the panel (e.g. emptying the cart while the panel is open, or
+  // opening checkout). CartPanel uses the same `cartOpen && !checkoutOpen`.
+  const panelPushing = directOrdersEnabled && cartOpen && !checkoutOpen
+  const editingItem = editingCartKey ? cart.find(i => i.cartKey === editingCartKey) ?? null : null
+
+  function closeProductModal() {
+    setSelectedProduct(null)
+    setSelectedProductSource('detail')
+    setEditingCartKey(null)
+    if (cart.length > 0 && typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+      setCartOpen(true)
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900">
+    <div className={`min-h-screen bg-zinc-50 text-zinc-900 transition-[padding] duration-300 ${panelPushing ? 'lg:pr-[380px]' : ''}`}>
       {/* Premium Header */}
       <motion.header
         initial={{ opacity: 0 }}
@@ -464,10 +806,25 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       </motion.header>
 
       {/* Modern Category Filter */}
-      {categories.length > 0 && (
+      {(categories.length > 0 || feedEnabled) && (
         <div className="sticky top-0 z-30 bg-zinc-50/80 backdrop-blur-xl border-b border-zinc-200 shadow-sm">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div ref={categoryFilterRef} className="flex gap-2 justify-center items-center overflow-x-auto py-4 scrollbar-hide no-scrollbar">
+            <div ref={categoryFilterRef} className="flex gap-2 justify-start md:justify-center items-center overflow-x-auto py-4 scrollbar-hide no-scrollbar">
+              {feedEnabled && (
+                <button
+                  type="button"
+                  onClick={() => setMenuView(activeMenuView === 'feed' ? 'list' : 'feed')}
+                  aria-pressed={activeMenuView === 'feed'}
+                  aria-label={activeMenuView === 'feed' ? ui.viewMenu : ui.viewFeed}
+                  style={activeMenuView === 'feed'
+                    ? { backgroundColor: accentColor }
+                    : { backgroundColor: primaryColor, boxShadow: `0 10px 24px ${primaryColor}35` }}
+                  className="md:hidden flex h-10 flex-shrink-0 items-center gap-2 rounded-full px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white transition-all active:scale-95"
+                >
+                  {activeMenuView === 'feed' ? <Rows3 className="size-4" /> : <LayoutGrid className="size-4" />}
+                  <span>{activeMenuView === 'feed' ? ui.viewMenu : ui.viewFeed}</span>
+                </button>
+              )}
               {hasHours && (
                 <button
                   onClick={() => setShowHoursModal(true)}
@@ -504,7 +861,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                     className="flex gap-2"
                   >
                     <button
-                      onClick={() => setActiveCategory(null)}
+                      onClick={() => selectCategory(null)}
                       style={!activeCategory && !visibleCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
                       className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
                         !activeCategory && !visibleCategory ? 'shadow-md scale-105' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:scale-105'
@@ -516,7 +873,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                       <button
                         key={cat.id}
                         ref={el => { categoryButtonRefs.current[cat.id] = el }}
-                        onClick={() => setActiveCategory(cat.id === activeCategory ? null : cat.id)}
+                        onClick={() => selectCategory(cat.id)}
                         style={activeCategory === cat.id || visibleCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
                         className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
                           activeCategory === cat.id || visibleCategory === cat.id ? 'shadow-md scale-105' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:scale-105'
@@ -531,6 +888,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
               <button
                 onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
+                aria-label={showSearch ? 'Close search' : 'Search menu'}
                 className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${
                   showSearch ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300 shadow-sm'
                 }`}
@@ -543,20 +901,25 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       )}
 
       {/* Featured Section — full viewport width, outside max-w container */}
-      {featured.length > 0 && !search && !activeCategory && (
+      {activeMenuView === 'list' && featured.length > 0 && !search && !activeCategory && (
         <section className="relative w-full pt-10 sm:pt-16 pb-0">
-          <div className="w-full overflow-hidden pb-4">
+          <div className="scrollbar-hide w-full overflow-x-auto pb-4 md:overflow-hidden">
             <div className="absolute top-3 sm:top-5 left-4 sm:left-6 lg:left-8 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-100">
               <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
               <span className="text-xs font-black text-zinc-900 uppercase tracking-widest">{ui.featured}</span>
             </div>
             <div className="flex gap-6 w-max px-4 sm:px-6 lg:px-8 animate-marquee">
               {[...featuredBase, ...featuredBase].map((p, idx) => (
-                <motion.button
+                <motion.div
                   key={`${p.id}-${idx}`}
-                  onClick={() => setSelectedProduct(p)}
+                  data-analytics-product-id={p.id}
+                  data-analytics-source="featured"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openProduct(p, 'featured')}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProduct(p, 'featured') } }}
                   whileHover={{ y: -8 }}
-                  className="flex-shrink-0 w-64 sm:w-80 bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-lg shadow-zinc-200/50 hover:shadow-xl transition-all duration-500"
+                  className="flex-shrink-0 w-64 sm:w-80 bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-lg shadow-zinc-200/50 hover:shadow-xl transition-all duration-500 cursor-pointer"
                 >
                   <div className="relative w-full aspect-[4/3] bg-zinc-50 overflow-hidden">
                     {getProductImages(p)[0]
@@ -600,7 +963,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                       })()}
                     </div>
                   </div>
-                </motion.button>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -612,7 +975,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         style={hasFixedFooter ? { paddingBottom: `${footerHeight + 40}px` } : undefined}
       >
 
-        {filtered.length === 0 && (
+        {activeMenuView === 'list' && filtered.length === 0 && (
           <div className="text-center py-24 bg-white rounded-xl border border-zinc-100 shadow-sm">
             <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-6">
               <Search className="w-10 h-10 text-zinc-300" />
@@ -622,8 +985,64 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           </div>
         )}
 
+        {activeMenuView === 'feed' && feedProducts.length > 0 ? (
+          <MenuFeed
+            products={feedProducts}
+            productMediaByProductId={productMediaByProductId}
+            currency={currency}
+            primaryColor={primaryColor}
+            accentColor={accentColor}
+            autoplayVideos={feedAutoplayVideos}
+            directOrdersEnabled={directOrdersEnabled}
+            cartCount={cartCount}
+            exitLabel={ui.viewMenu}
+            onExit={() => setMenuView('list')}
+            onOpenCart={() => setCartOpen(true)}
+            hasCustomization={productId =>
+              (optionGroupsByProductId[productId]?.length ?? 0) > 0
+              || (ingredientCustomizationEnabled && (productIngredientsByProductId[productId]?.length ?? 0) > 0)
+            }
+            quantityFor={productId => cart.find(item => item.cartKey === buildCartKey(productId, {}))?.quantity ?? 0}
+            onOpen={product => openProduct(product, 'feed')}
+            onAdd={product => addToCart(product, {}, product.price, undefined, undefined, undefined, 'feed')}
+            onIncrement={product => {
+              const key = buildCartKey(product.id, {})
+              const quantity = cart.find(item => item.cartKey === key)?.quantity ?? 0
+              updateCartQuantity(key, quantity + 1)
+            }}
+            onDecrement={product => {
+              const key = buildCartKey(product.id, {})
+              const quantity = cart.find(item => item.cartKey === key)?.quantity ?? 0
+              updateCartQuantity(key, quantity - 1)
+            }}
+            onMediaEvent={(eventName, product, mediaType, mediaIndex) => analyticsTracker?.track({
+              event_name: eventName,
+              product_id: product.id,
+              source: 'feed',
+              media_type: mediaType,
+              media_index: mediaIndex,
+            })}
+          />
+        ) : activeMenuView === 'feed' ? (
+          <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-zinc-950 px-6 text-center text-white md:hidden" role="status">
+            <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-zinc-50">
+              <Sparkles className="size-7 text-zinc-300" />
+            </div>
+            <h3 className="text-xl font-black tracking-tight">{ui.feedEmptyTitle}</h3>
+            <p className="mx-auto mt-2 max-w-sm text-sm font-medium text-white/60">{ui.feedEmptyDescription}</p>
+            <button
+              type="button"
+              onClick={() => setMenuView('list')}
+              style={{ backgroundColor: primaryColor }}
+              className="mt-6 min-h-11 rounded-full px-6 text-xs font-black uppercase tracking-[0.14em] text-white transition-transform active:scale-95"
+            >
+              {ui.viewMenu}
+            </button>
+          </div>
+        ) : activeMenuView === 'list' ? (
+          <>
         {/* Regular Sections */}
-        {groupedByCategory.map(({ category, items }, catIdx) => (
+        {groupedByCategory.map(({ category, items }) => (
           <section
             key={category.id}
             ref={el => { categoryRefs.current[category.id] = el }}
@@ -649,7 +1068,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                     primaryColor={primaryColor}
                     currency={currency}
                     lang={selectedLanguage}
-                    onClick={() => setSelectedProduct(p)}
+                    onClick={() => openProduct(p, 'grid')}
                     {...(directOrdersEnabled ? {
                       cartQuantity: qty,
                       onAdd: () => addToCart(p, {}, p.price),
@@ -681,7 +1100,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                     primaryColor={primaryColor}
                     currency={currency}
                     lang={selectedLanguage}
-                    onClick={() => setSelectedProduct(p)}
+                    onClick={() => openProduct(p, 'grid')}
                     {...(directOrdersEnabled ? {
                       cartQuantity: qty,
                       onAdd: () => addToCart(p, {}, p.price),
@@ -694,15 +1113,18 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
             </div>
           </section>
         )}
+          </>
+        ) : null}
       </main>
 
-      {/* Floating Cart Button */}
-      {directOrdersEnabled && cart.length > 0 && !showCartModal && (
+      {/* Desktop: floating button to re-open the side panel after it's collapsed */}
+      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && activeMenuView === 'list' && (
         <motion.button
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          onClick={() => setShowCartModal(true)}
-          className="fixed bottom-8 right-8 z-40 bg-zinc-900 text-white pl-6 pr-4 py-4 rounded-lg shadow-2xl shadow-zinc-950/20 flex items-center gap-4 hover:bg-zinc-800 transition-all hover:scale-105 active:scale-95"
+          onClick={() => setCartOpen(true)}
+          className="hidden lg:flex fixed bottom-8 right-8 z-40 bg-zinc-900 text-white pl-6 pr-4 py-4 rounded-lg shadow-2xl shadow-zinc-950/20 items-center gap-4 hover:bg-zinc-800 transition-all hover:scale-105 active:scale-95"
+          aria-label="Open cart"
         >
           <div className="flex flex-col items-start leading-none">
             <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">My Order</span>
@@ -710,14 +1132,33 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           </div>
           <div className="relative bg-white/10 p-3 rounded-lg">
             <ShoppingBag className="w-5 h-5" />
-            <div className="absolute -top-1.5 -right-1.5 text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-primary-foreground" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
+            <div className="absolute -top-1.5 -right-1.5 text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-white" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
           </div>
         </motion.button>
       )}
 
+      {/* Mobile: bottom order bar that opens the cart drawer */}
+      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && activeMenuView === 'list' && (
+        <motion.button
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          onClick={() => setCartOpen(true)}
+          className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-zinc-900 text-white px-5 py-4 flex items-center justify-between gap-4 shadow-2xl shadow-zinc-950/30"
+        >
+          <div className="flex items-center gap-3">
+            <div className="relative bg-white/10 p-2.5 rounded-lg">
+              <ShoppingBag className="w-5 h-5" />
+              <div className="absolute -top-1.5 -right-1.5 text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-white" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
+            </div>
+            <span className="text-xs font-black uppercase tracking-widest text-zinc-300">View order</span>
+          </div>
+          <span className="text-lg font-black">{formatPrice(cartTotal, currency)}</span>
+        </motion.button>
+      )}
+
       {/* Footer */}
-      {hasFixedFooter && (
-        <footer ref={footerRef} className={`fixed bottom-0 inset-x-0 z-40 border-t border-zinc-100 bg-white/90 backdrop-blur-2xl transition-all duration-500 ${showFooterAtEnd ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
+      {hasFixedFooter && activeMenuView === 'list' && (
+        <footer ref={footerRef} className={`fixed bottom-0 inset-x-0 z-40 border-t border-zinc-100 bg-white/90 backdrop-blur-2xl transition-all duration-500 ${panelPushing ? 'lg:right-[380px]' : ''} ${showFooterAtEnd ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
           <div className="max-w-7xl mx-auto px-4 py-6">
             <div className="flex flex-col md:flex-row items-center justify-between gap-6">
               {hasContact && (
@@ -760,30 +1201,48 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       )}
 
       {/* Modals */}
-      {selectedProduct && (
+      {selectedProduct && (() => {
+        const navIndex = orderedProducts.findIndex(p => p.id === selectedProduct.id)
+        const prevProduct = navIndex > 0 ? orderedProducts[navIndex - 1] : null
+        const nextProduct = navIndex >= 0 && navIndex < orderedProducts.length - 1 ? orderedProducts[navIndex + 1] : null
+        return (
         <ProductModal
           product={selectedProduct}
+          onPrevProduct={!editingCartKey && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
+          onNextProduct={!editingCartKey && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           accentColor={accentColor}
           currency={currency}
           whatsapp={whatsapp}
           lang={selectedLanguage}
-          onClose={() => setSelectedProduct(null)}
+          onClose={closeProductModal}
           onWhatsApp={() => openWhatsApp(selectedProduct)}
           optionGroups={optionGroupsByProductId[selectedProduct.id] ?? []}
           itemNotesEnabled={settings?.item_notes_enabled ?? false}
           ingredientCustomizationEnabled={ingredientCustomizationEnabled}
           productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
+          initialEditorState={editingItem?.editorState ?? null}
+          submitLabel={editingCartKey ? 'Update item' : 'Order'}
+          onCustomizationStarted={() => analyticsTracker?.track({
+            event_name: 'product_customization_started',
+            product_id: selectedProduct.id,
+            source: selectedProductSource === 'feed' ? 'feed' : 'detail',
+          })}
           onAddToCart={directOrdersEnabled
-            ? (selectedOptions, unitPrice, note, ingredientModifications) => {
-                addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications)
-                setSelectedProduct(null)
+            ? (selectedOptions, unitPrice, note, ingredientModifications, editorState) => {
+                if (editingCartKey) {
+                  replaceCartItem(editingCartKey, selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState)
+                } else {
+                  addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState)
+                }
+                closeProductModal()
               }
             : undefined}
         />
-      )}
+        )
+      })()}
 
-      {chatAddonEnabled && (
+      {chatAddonEnabled && activeMenuView === 'list' && (
         <AiChatWidget
           tenantSlug={tenant.slug}
           tenantName={tenant.name}
@@ -794,24 +1253,34 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         />
       )}
 
+      {analyticsDebug ? (
+        <AnalyticsDebugPanel
+          sessionId={analyticsTracker?.sessionId ?? null}
+          onClose={() => setAnalyticsDebug(false)}
+        />
+      ) : null}
+
       <AnimatePresence>
         {showHoursModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/40 backdrop-blur-sm" onClick={() => setShowHoursModal(false)}>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setShowHoursModal(false)}>
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white w-full max-w-sm rounded-lg shadow-2xl overflow-hidden" 
+              role="dialog"
+              aria-modal="true"
+              aria-label={ui.hoursTitle}
+              className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:max-w-sm sm:rounded-lg"
               onClick={e => e.stopPropagation()}
             >
-              <div className="p-8 border-b border-zinc-50 flex items-center justify-between bg-zinc-50/50">
+              <div className="sticky top-0 flex items-center justify-between border-b border-zinc-50 bg-zinc-50 px-4 py-4 sm:p-8">
                 <h3 className="text-xl font-black text-zinc-900 tracking-tight flex items-center gap-3">
                   <Clock className="w-5 h-5 text-primary" />
                   {ui.hoursTitle}
                 </h3>
-                <button onClick={() => setShowHoursModal(false)} className="p-2 hover:bg-white rounded-full transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
+                <button onClick={() => setShowHoursModal(false)} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-white transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
               </div>
-              <div className="p-8 space-y-4">
+              <div className="space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-8">
                 {Object.entries(DAYS).map(([key, label]) => {
                   const value = hours?.[key as keyof typeof hours]
                   if (!value) return null
@@ -828,8 +1297,23 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         )}
       </AnimatePresence>
 
-      {showCartModal && (
-        <CartModal
+      {directOrdersEnabled && (
+        <CartPanel
+          cart={cart}
+          currency={currency}
+          primaryColor={primaryColor}
+          accentColor={accentColor}
+          open={cartOpen && !checkoutOpen}
+          onClose={() => setCartOpen(false)}
+          onCheckout={() => setCheckoutOpen(true)}
+          onEdit={editItem}
+          onRemove={removeFromCart}
+          onUpdateQuantity={updateCartQuantity}
+        />
+      )}
+
+      {checkoutOpen && (
+        <CheckoutModal
           cart={cart}
           confirmedCart={confirmedCart}
           currency={currency}
@@ -840,16 +1324,19 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           orderError={orderError}
           orderId={orderId}
           ui={ui}
+          primaryColor={primaryColor}
           accentColor={accentColor}
           onClose={() => {
-            setShowCartModal(false)
+            setCheckoutOpen(false)
             setOrderSuccess(false)
             setOrderId(null)
           }}
+          onBack={() => {
+            setCheckoutOpen(false)
+            setCartOpen(true)
+          }}
           onCustomerNameChange={setCustomerName}
           onCustomerPhoneChange={setCustomerPhone}
-          onRemove={removeFromCart}
-          onUpdateQuantity={updateCartQuantity}
           onSubmit={submitOrder}
           orderTypeConfig={orderTypeConfig}
           orderType={orderType}
@@ -885,20 +1372,8 @@ const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
   'Chef\'s special': { en: 'Chef\'s special' },
 }
 
-const TAG_COLORS: Record<string, string> = {
-  'Vegetarian': 'bg-green-50 text-green-700 ring-1 ring-green-100',
-  'Vegan': 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100',
-  'Gluten-Free': 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
-  'Spicy': 'bg-red-50 text-red-700 ring-1 ring-red-100',
-  'Chef\'s special': 'bg-purple-50 text-purple-700 ring-1 ring-purple-100',
-}
-
 function translateTag(tag: string, lang: string): string {
   return TAG_TRANSLATIONS[tag]?.[lang] ?? tag
-}
-
-function getTagStyle(tag: string): string {
-  return TAG_COLORS[tag] ?? 'bg-zinc-50 text-zinc-600 ring-1 ring-zinc-100'
 }
 
 function ProductCard({ product, accentColor, primaryColor, currency, lang, onClick, cartQuantity, onAdd, onIncrement, onDecrement }: {
@@ -907,11 +1382,16 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
 }) {
   const images = getProductImages(product)
   return (
-    <motion.button
+    <motion.div
+      data-analytics-product-id={product.id}
+      data-analytics-source="grid"
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      className="group w-full bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-sm hover:shadow-xl hover:shadow-zinc-200/40 transition-all duration-300"
+      className="group w-full h-full flex flex-col bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-sm hover:shadow-xl hover:shadow-zinc-200/40 transition-all duration-300 cursor-pointer"
     >
       <div className="relative w-full aspect-square bg-zinc-50 overflow-hidden">
         {images[0]
@@ -923,13 +1403,9 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
             <Star className="w-3 h-3 fill-white" /> Featured
           </div>
         )}
-
-        <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-lg shadow-sm border border-white/20">
-          <span style={{ color: accentColor }} className="text-sm font-black tracking-tight">{formatPrice(product.price, currency)}</span>
-        </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-6 flex flex-col flex-grow">
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="text-base font-black text-zinc-900 leading-tight line-clamp-1">{product.name}</h3>
         </div>
@@ -938,7 +1414,18 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
           <div className="flex gap-1.5 mb-3 flex-wrap">
             {product.tags.map(tag => {
               const translated = translateTag(tag, lang)
-              return <span key={tag} className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-sm ${getTagStyle(translated)}`}>{translated}</span>
+              return (
+                <span
+                  key={tag}
+                  style={{
+                    backgroundColor: `color-mix(in srgb, ${primaryColor} 12%, white)`,
+                    color: primaryColor,
+                  }}
+                  className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
+                >
+                  {translated}
+                </span>
+              )
             })}
           </div>
         )}
@@ -949,17 +1436,21 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
           </p>
         )}
 
-        <div className="flex items-center justify-between">
+        <div className="mt-auto pt-3">
+          <div className="mb-3">
+            <span style={{ color: accentColor }} className="text-lg font-black tracking-tight">{formatPrice(product.price, currency)}</span>
+          </div>
+          <div className="flex items-center justify-between">
           <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-zinc-300 group-hover:text-zinc-900 transition-colors">
-            Order Now <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
+            Details <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
           </div>
           {onAdd && (cartQuantity ?? 0) === 0 && (
             <button
               onClick={e => { e.stopPropagation(); onAdd() }}
               style={{ backgroundColor: primaryColor }}
-              className="w-9 h-9 rounded-full text-white flex items-center justify-center hover:opacity-80 active:scale-90 transition-all flex-shrink-0 shadow-md"
+              className="px-4 py-2 rounded-full text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center hover:opacity-80 active:scale-95 transition-all flex-shrink-0 shadow-md"
             >
-              <ShoppingBag className="w-4 h-4" />
+              Order
             </button>
           )}
           {onIncrement && onDecrement && (cartQuantity ?? 0) > 0 && (
@@ -973,8 +1464,9 @@ function ProductCard({ product, accentColor, primaryColor, currency, lang, onCli
               </button>
             </div>
           )}
+          </div>
         </div>
       </div>
-    </motion.button>
+    </motion.div>
   )
 }

@@ -2,13 +2,19 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { normalizeRole } from '@/lib/auth/role-utils'
 
-export async function updateSession(request: NextRequest) {
+export async function updateSession(request: NextRequest, rewriteUrl?: URL) {
+  // When a rewriteUrl is supplied (custom-domain host → /[slug] path) the
+  // pass-through response must be a rewrite, not a plain next(), so the session
+  // refresh and the host rewrite happen in a single pass.
+  const makeResponse = () =>
+    rewriteUrl ? NextResponse.rewrite(rewriteUrl, { request }) : NextResponse.next({ request })
+
   const pathname = request.nextUrl.pathname
   const MARKETING_PATHS = ['/', '/sitemap.xml', '/robots.txt']
   const isMarketing = MARKETING_PATHS.includes(pathname) || pathname.startsWith('/opengraph-image')
-  if (isMarketing) return NextResponse.next({ request })
+  if (isMarketing) return makeResponse()
 
-  let supabaseResponse = NextResponse.next({ request })
+  let supabaseResponse = makeResponse()
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
@@ -27,7 +33,7 @@ export async function updateSession(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({ request })
+          supabaseResponse = makeResponse()
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -46,7 +52,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   const isAdminRoute = pathname.startsWith('/dashboard') ||
-    pathname.startsWith('/menu') ||
+    pathname.startsWith('/menu') || // also covers /menus
+    pathname.startsWith('/orders') ||
+    pathname.startsWith('/chat-inbox') ||
     pathname.startsWith('/settings/')
 
   const isSuperadminRoute = pathname.startsWith('/tenants') ||

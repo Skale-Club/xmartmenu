@@ -15,9 +15,10 @@ interface Props {
   tenantName: string
   tenantSlug: string
   locations: BranchLocation[]
+  initialView?: 'list' | 'feed'
 }
 
-export default function BranchPicker({ tenantName, tenantSlug, locations }: Props) {
+export default function BranchPicker({ tenantName, tenantSlug, locations, initialView = 'list' }: Props) {
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-start py-16 px-4">
       <div className="w-full max-w-2xl">
@@ -33,7 +34,7 @@ export default function BranchPicker({ tenantName, tenantSlug, locations }: Prop
           {locations.map(loc => (
             <Link
               key={loc.id}
-              href={`/${tenantSlug}/${loc.slug}`}
+              href={`/${tenantSlug}/${loc.slug}${initialView === 'feed' ? '?view=feed' : ''}`}
               className="group flex items-center gap-5 bg-white border border-zinc-100 rounded-[1.25rem] p-6 shadow-sm hover:border-primary hover:shadow-lg hover:shadow-primary/5 transition-all duration-200"
             >
               <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary transition-colors duration-200">

@@ -1,17 +1,36 @@
 /**
  * POST /api/stripe/webhooks
- * 
+ *
  * Handle Stripe webhook events with signature verification and idempotency.
- * 
+ *
  * Critical implementation details:
  * - Uses request.text() for raw body (required for signature verification)
- * - Idempotency via processed_stripe_events table
- * - Same DB transaction for idempotency + business logic
+ * - Idempotency via processed_stripe_events table, recorded ONLY after the
+ *   business logic succeeds — so a failed event is genuinely reprocessed on
+ *   Stripe's retry instead of being short-circuited (R1 fix).
+ * - Same service client (bypasses RLS) for idempotency + business logic.
+ *
+ * Routing:
+ * - Order payments: payment_intent.* (metadata.order_id)
+ * - SaaS plan subscriptions: checkout.session.completed / customer.subscription.*
+ *   / invoice.payment_failed where metadata.kind === 'plan'
+ * - AI chat addon: same events where metadata.addon === 'chat'
+ * - Connect account health: account.updated
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe } from '@/lib/stripe'
+import { stripe, toStripeAmount } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
+import { captureSecurityEvent } from '@/lib/observability'
+import { enqueueXphereSync } from '@/lib/xphere/queue'
+import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
+
+type UpdateResult = { success: boolean; error?: string }
+
+// Stripe timestamps are unix seconds; convert to ISO (or null).
+function tsToIso(unix: number | null | undefined): string | null {
+  return typeof unix === 'number' ? new Date(unix * 1000).toISOString() : null
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,6 +40,7 @@ export async function POST(request: NextRequest) {
 
     if (!signature) {
       console.error('Missing Stripe signature header')
+      captureSecurityEvent('Stripe webhook: missing signature header')
       return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
     }
 
@@ -34,16 +54,18 @@ export async function POST(request: NextRequest) {
       )
     } catch (sigError) {
       console.error('Webhook signature verification failed:', sigError)
+      captureSecurityEvent('Stripe webhook: signature verification failed', {
+        message: sigError instanceof Error ? sigError.message : String(sigError),
+      })
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
-    // P0-02 fix: webhook requests have no cookies. We need the service
-    // client to bypass RLS and write to orders, stripe_connections, and
-    // processed_stripe_events.
-    const supabase = await createServiceClient()
+    // Webhook requests have no cookies; the service client bypasses RLS to write
+    // orders, tenant_subscriptions, stripe_connections, and processed_stripe_events.
+    const supabase = createServiceClient()
     const eventId = event.id
 
-    // 3. Idempotency check - check if event already processed
+    // 3. Idempotency check - skip if already processed
     const { data: existingEvent } = await supabase
       .from('processed_stripe_events')
       .select('event_id')
@@ -51,34 +73,72 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (existingEvent) {
-      // Already processed - return 200 to avoid Stripe retries
       console.log(`Event ${eventId} already processed, skipping`)
       return NextResponse.json({ received: true, skipped: true })
     }
 
     // 4. Process event based on type
-    let updateResult: { success: boolean; error?: string } = { success: true }
+    let updateResult: UpdateResult = { success: true }
+
+    // One enqueue per request, fired AFTER the idempotency row (so a Stripe
+    // retry that short-circuits at the idempotency check never double-enqueues).
+    // Each lifecycle branch sets this; the eventId carries Stripe event.id so the
+    // CRM timeline note dedups on redelivery (LIF-07).
+    let pendingSync:
+      | { tenantId: string; reason: 'plan_activated' | 'plan_changed' | 'past_due' | 'churned' | 'connect_changed'; tags?: string[] }
+      | null = null
 
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as {
           id: string
+          amount: number
+          currency: string
           metadata: { order_id?: string; tenant_id?: string }
         }
         const orderId = paymentIntent.metadata?.order_id
 
         if (orderId) {
+          const { data: order, error: fetchErr } = await supabase
+            .from('orders')
+            .select('id, total, status')
+            .eq('id', orderId)
+            .single()
+
+          if (fetchErr || !order) {
+            console.error('payment_intent.succeeded for unknown order:', orderId, fetchErr)
+            // Nothing to update; treat as processed so Stripe stops retrying.
+            break
+          }
+
+          // Defense in depth: never mark an order paid for less than its total.
+          // We always create the PaymentIntent with the exact order amount, so a
+          // shortfall means tampering or a stale intent — block and alert.
+          // Compare in the SAME currency the intent was charged in.
+          const expectedCents = toStripeAmount(Number(order.total), paymentIntent.currency)
+          if (typeof paymentIntent.amount === 'number' && paymentIntent.amount < expectedCents) {
+            captureSecurityEvent('Stripe webhook: payment amount below order total', {
+              orderId,
+              expectedCents,
+              receivedCents: paymentIntent.amount,
+              paymentIntentId: paymentIntent.id,
+            })
+            // Do NOT mark paid. Retrying won't fix a wrong amount, so record the
+            // event (return 200 below) and leave the order for manual review.
+            break
+          }
+
           const { error: updateError } = await supabase
             .from('orders')
-            .update({
-              status: 'paid',
-              payment_intent_id: paymentIntent.id,
-            })
+            .update({ status: 'paid', payment_intent_id: paymentIntent.id })
             .eq('id', orderId)
+            .in('status', ['awaiting_payment', 'pending'])
 
           if (updateError) {
             console.error('Failed to update order to paid:', updateError)
             updateResult = { success: false, error: updateError.message }
+          } else {
+            await recordTrustedOrderAnalyticsEvent(orderId, 'order_completed')
           }
         }
         break
@@ -94,11 +154,9 @@ export async function POST(request: NextRequest) {
         if (orderId) {
           const { error: updateError } = await supabase
             .from('orders')
-            .update({
-              status: 'payment_failed',
-              payment_intent_id: paymentIntent.id,
-            })
+            .update({ status: 'payment_failed', payment_intent_id: paymentIntent.id })
             .eq('id', orderId)
+            .in('status', ['awaiting_payment', 'pending'])
 
           if (updateError) {
             console.error('Failed to update order to payment_failed:', updateError)
@@ -108,15 +166,61 @@ export async function POST(request: NextRequest) {
         break
       }
 
+      case 'payment_intent.canceled': {
+        // Abandoned/expired customer checkout — release the awaiting_payment order.
+        const paymentIntent = event.data.object as {
+          id: string
+          metadata: { order_id?: string }
+        }
+        const orderId = paymentIntent.metadata?.order_id
+        if (orderId) {
+          const { error: updateError } = await supabase
+            .from('orders')
+            .update({ status: 'cancelled' })
+            .eq('id', orderId)
+            .eq('status', 'awaiting_payment')
+          if (updateError) {
+            console.error('Failed to cancel awaiting_payment order:', updateError)
+            updateResult = { success: false, error: updateError.message }
+          } else {
+            await recordTrustedOrderAnalyticsEvent(orderId, 'order_cancelled')
+          }
+        }
+        break
+      }
+
       case 'checkout.session.completed': {
-        // SEED-024: AI Chat Addon activation
         const session = event.data.object as {
-          metadata?: { tenant_id?: string; addon?: string }
+          metadata?: { tenant_id?: string; addon?: string; kind?: string; plan_id?: string }
           customer?: string | null
           subscription?: string | null
         }
-        if (session.metadata?.addon === 'chat' && session.metadata.tenant_id) {
-          const customerId = typeof session.customer === 'string' ? session.customer : null
+        const customerId = typeof session.customer === 'string' ? session.customer : null
+        const subscriptionId = typeof session.subscription === 'string' ? session.subscription : null
+        const tenantId = session.metadata?.tenant_id
+
+        if (session.metadata?.kind === 'plan' && tenantId) {
+          // SaaS plan subscription activated. Periods are filled in by the
+          // subsequent customer.subscription.updated event.
+          const { error: subErr } = await supabase
+            .from('tenant_subscriptions')
+            .update({
+              status: 'active',
+              cancel_at_period_end: false,
+              ...(session.metadata.plan_id ? { plan_id: session.metadata.plan_id } : {}),
+              ...(customerId ? { stripe_customer_id: customerId } : {}),
+              ...(subscriptionId ? { stripe_subscription_id: subscriptionId } : {}),
+            })
+            .eq('tenant_id', tenantId)
+          if (subErr) {
+            console.error('Failed to activate plan subscription:', subErr)
+            updateResult = { success: false, error: subErr.message }
+          }
+          // #2 (LIF-02): paid plan activated → Opportunity moves to Active/Won.
+          // Guard on !subErr so a failed update (which 500s) does not enqueue.
+          if (!subErr) pendingSync = { tenantId, reason: 'plan_activated' }
+        } else if (session.metadata?.addon === 'chat' && tenantId) {
+          // SEED-024: AI Chat Addon activation
           const { error: subErr } = await supabase
             .from('tenant_subscriptions')
             .update({
@@ -124,7 +228,7 @@ export async function POST(request: NextRequest) {
               chat_addon_since: new Date().toISOString(),
               ...(customerId ? { stripe_customer_id: customerId } : {}),
             })
-            .eq('tenant_id', session.metadata.tenant_id)
+            .eq('tenant_id', tenantId)
           if (subErr) {
             console.error('Failed to activate chat addon:', subErr)
             updateResult = { success: false, error: subErr.message }
@@ -135,31 +239,175 @@ export async function POST(request: NextRequest) {
 
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted': {
-        // SEED-024: keep chat_addon_active in sync with the addon subscription.
         const sub = event.data.object as {
           id: string
           status: string
-          metadata?: { tenant_id?: string; addon?: string }
+          metadata?: { tenant_id?: string; addon?: string; kind?: string }
           cancel_at_period_end?: boolean
+          current_period_start?: number | null
+          current_period_end?: number | null
+          items?: { data?: Array<{ current_period_start?: number | null; current_period_end?: number | null }> }
         }
-        if (sub.metadata?.addon === 'chat' && sub.metadata.tenant_id) {
-          const stillActive = (event.type === 'customer.subscription.updated')
-            && (sub.status === 'active' || sub.status === 'trialing')
-            && !sub.cancel_at_period_end
-            ? true
-            : event.type === 'customer.subscription.updated' && (sub.status === 'active' || sub.status === 'trialing')
-              ? true
-              : false
-          await supabase
+        const tenantId = sub.metadata?.tenant_id
+        const deleted = event.type === 'customer.subscription.deleted'
+
+        // Recent Stripe API versions moved current_period_start/end from the
+        // Subscription to the SubscriptionItem. Read the item, falling back to
+        // the top-level field for older versions.
+        const periodItem = sub.items?.data?.[0]
+        const periodStart = sub.current_period_start ?? periodItem?.current_period_start
+        const periodEnd = sub.current_period_end ?? periodItem?.current_period_end
+
+        if (sub.metadata?.kind === 'plan' && tenantId) {
+          // SaaS plan subscription lifecycle → mirror into tenant_subscriptions.
+          // Only 'active'/'trialing' grant access. incomplete / incomplete_expired
+          // / paused / unpaid must NOT map to 'active' (a paused or never-paid
+          // subscription would otherwise keep the tenant fully enabled for free).
+          let status: 'active' | 'cancelled' | 'trial' | 'past_due'
+          if (deleted || sub.status === 'canceled' || sub.status === 'incomplete_expired') status = 'cancelled'
+          else if (sub.status === 'trialing') status = 'trial'
+          else if (sub.status === 'active') status = 'active'
+          else status = 'past_due' // past_due / unpaid / incomplete / paused → not live
+
+          // #3 (LIF-03): read the PRIOR plan_id BEFORE the update so we can detect
+          // a plan change and tag direction. (This branch's update does not change
+          // plan_id, but checkout.session.completed may have, and the
+          // subscription.updated event reflects the new plan via Stripe.)
+          // Read the prior plan by tenant (one subscription row per tenant). We
+          // deliberately match on tenant_id, NOT stripe_subscription_id: Stripe
+          // does not guarantee event order, so a subscription.updated that lands
+          // before checkout.session.completed (which writes stripe_subscription_id)
+          // must still update the tenant's row instead of matching 0 rows and
+          // silently dropping period/status for the whole cycle.
+          let priorPlanId: string | null = null
+          if (!deleted) {
+            const { data: priorSub } = await supabase
+              .from('tenant_subscriptions')
+              .select('plan_id')
+              .eq('tenant_id', tenantId)
+              .maybeSingle()
+            priorPlanId = priorSub?.plan_id ?? null
+          }
+
+          // Resolve the NEW plan_id + billing_cycle from the Stripe subscription's
+          // first item price id → plans row. Column names per src/types/database.ts
+          // Plan interface (stripe_price_monthly_id / stripe_price_annual_id).
+          const newPriceId =
+            (sub as { items?: { data?: Array<{ price?: { id?: string } }> } }).items?.data?.[0]?.price?.id ?? null
+          let newPlanId: string | null = null
+          let newBillingCycle: 'monthly' | 'annual' | null = null
+          if (!deleted && newPriceId) {
+            const { data: planRow } = await supabase
+              .from('plans')
+              .select('id, stripe_price_annual_id')
+              .or(`stripe_price_monthly_id.eq.${newPriceId},stripe_price_annual_id.eq.${newPriceId}`)
+              .maybeSingle()
+            newPlanId = planRow?.id ?? null
+            if (planRow) newBillingCycle = planRow.stripe_price_annual_id === newPriceId ? 'annual' : 'monthly'
+          }
+
+          const { error } = await supabase
             .from('tenant_subscriptions')
-            .update({ chat_addon_active: stillActive })
-            .eq('tenant_id', sub.metadata.tenant_id)
-          if (!stillActive) {
+            .update({
+              status,
+              cancel_at_period_end: sub.cancel_at_period_end ?? false,
+              current_period_start: tsToIso(periodStart),
+              current_period_end: tsToIso(periodEnd),
+              // Backfill the subscription id (in case this event arrived before
+              // checkout.session.completed) and keep plan/cycle in sync.
+              stripe_subscription_id: sub.id,
+              ...(newPlanId ? { plan_id: newPlanId } : {}),
+              ...(newBillingCycle ? { billing_cycle: newBillingCycle } : {}),
+            })
+            .eq('tenant_id', tenantId)
+          if (error) {
+            console.error('Failed to sync plan subscription:', error)
+            updateResult = { success: false, error: error.message }
+          }
+          // #5 (LIF-05) churn — deleted path only.
+          if (!error && deleted) {
+            pendingSync = { tenantId, reason: 'churned' }
+          }
+          // #3 (LIF-03) plan change — updated path only. Detect a genuine plan
+          // change (both ids resolve AND differ) and tag direction by tier
+          // (plans.sort_order). A status-only update must NOT enqueue plan_changed.
+          // deleted (churn) and !deleted (plan_changed) are mutually exclusive, so
+          // this never clobbers the churn pendingSync above.
+          if (!error && !deleted && newPlanId && priorPlanId && newPlanId !== priorPlanId) {
+            const { data: tierRows } = await supabase
+              .from('plans')
+              .select('id, sort_order')
+              .in('id', [priorPlanId, newPlanId])
+            const priorOrder = tierRows?.find((p) => p.id === priorPlanId)?.sort_order ?? 0
+            const newOrder = tierRows?.find((p) => p.id === newPlanId)?.sort_order ?? 0
+            const direction = newOrder > priorOrder ? 'upgrade' : 'downgrade'
+            pendingSync = { tenantId, reason: 'plan_changed', tags: [direction] }
+          }
+        } else if (sub.metadata?.addon === 'chat' && tenantId) {
+          // SEED-024: addon stays active while the subscription is live. A
+          // pending cancellation (cancel_at_period_end) keeps it usable until
+          // Stripe sends the deletion at period end — so we do NOT zero it early
+          // (C1 fix: the old nested ternary made cancel_at_period_end a no-op and
+          // was unreadable).
+          const active = !deleted && (sub.status === 'active' || sub.status === 'trialing')
+          const { error: subErr } = await supabase
+            .from('tenant_subscriptions')
+            .update({ chat_addon_active: active })
+            .eq('tenant_id', tenantId)
+          if (subErr) updateResult = { success: false, error: subErr.message }
+          if (!active) {
             // Also disable the widget so it disappears immediately
             await supabase
               .from('chat_addon_settings')
               .update({ enabled: false })
-              .eq('tenant_id', sub.metadata.tenant_id)
+              .eq('tenant_id', tenantId)
+          }
+        }
+        break
+      }
+
+      case 'invoice.payment_failed': {
+        // SaaS plan dunning → mark the tenant past_due. Only the plan
+        // subscription stores stripe_subscription_id, so matching on it scopes
+        // this to plans (chat addon invoices won't match).
+        // The pinned API version (2026-04-22.dahlia, post-Basil) removed the
+        // top-level invoice.subscription field; the subscription now lives under
+        // invoice.parent.subscription_details.subscription (with a line-item
+        // fallback). Read all shapes so dunning still marks tenants past_due.
+        const invoice = event.data.object as {
+          subscription?: string | null
+          parent?: { subscription_details?: { subscription?: string | null } | null } | null
+          lines?: { data?: Array<{ parent?: { subscription_item_details?: { subscription?: string | null } | null } | null }> }
+        }
+        const lineSub = invoice.lines?.data?.find(
+          (l) => typeof l.parent?.subscription_item_details?.subscription === 'string',
+        )?.parent?.subscription_item_details?.subscription
+        const subscriptionId =
+          (typeof invoice.subscription === 'string' ? invoice.subscription : null) ??
+          (typeof invoice.parent?.subscription_details?.subscription === 'string'
+            ? invoice.parent.subscription_details.subscription
+            : null) ??
+          (typeof lineSub === 'string' ? lineSub : null)
+        if (subscriptionId) {
+          const { error } = await supabase
+            .from('tenant_subscriptions')
+            .update({ status: 'past_due' })
+            .eq('stripe_subscription_id', subscriptionId)
+          if (error) {
+            console.error('Failed to mark subscription past_due:', error)
+            updateResult = { success: false, error: error.message }
+          }
+          // #4 (LIF-04): dunning → Opportunity At Risk. This branch only carries
+          // the stripe_subscription_id, so resolve the tenant_id before enqueuing.
+          if (!error) {
+            const { data: subRow } = await supabase
+              .from('tenant_subscriptions')
+              .select('tenant_id')
+              .eq('stripe_subscription_id', subscriptionId)
+              .maybeSingle()
+            if (subRow?.tenant_id) {
+              pendingSync = { tenantId: subRow.tenant_id, reason: 'past_due' }
+            }
           }
         }
         break
@@ -172,19 +420,35 @@ export async function POST(request: NextRequest) {
           payouts_enabled: boolean
         }
 
-        // Find and update the Stripe connection
         const { data: connection } = await supabase
           .from('stripe_connections')
-          .select('id')
+          .select('id, is_active, tenant_id')
           .eq('stripe_account_id', account.id)
           .single()
 
         if (connection) {
-          const isActive = account.charges_enabled && account.payouts_enabled
-          await supabase
-            .from('stripe_connections')
-            .update({ is_active: isActive })
-            .eq('id', connection.id)
+          // C2 fix: only DISABLE on a persistent signal (charges_enabled=false).
+          // payouts_enabled flaps during Stripe's periodic reviews, so we no
+          // longer tear the connection down just because payouts are briefly
+          // paused — that would silently break checkout for the tenant.
+          const shouldBeActive = account.charges_enabled
+          if (connection.is_active !== shouldBeActive) {
+            await supabase
+              .from('stripe_connections')
+              .update({ is_active: shouldBeActive })
+              .eq('id', connection.id)
+            if (!shouldBeActive) {
+              captureSecurityEvent('Stripe Connect: charges disabled on connected account', {
+                stripeAccountId: account.id,
+              })
+            }
+          }
+          // #6 (LIF-06, webhook half): connect enable/disable transition → mirror
+          // connect:active / connect:disabled into the CRM. The OAuth-callback half
+          // is wired in plan 52-02.
+          if (connection.tenant_id) {
+            pendingSync = { tenantId: connection.tenant_id, reason: 'connect_changed' }
+          }
         }
         break
       }
@@ -193,8 +457,14 @@ export async function POST(request: NextRequest) {
         console.log(`Unhandled event type: ${event.type}`)
     }
 
-    // 5. Record idempotency record (same transaction as business logic)
-    // We record regardless of business logic success to prevent retries
+    // 5. On failure, do NOT record idempotency — return 500 so Stripe retries
+    // and the event is genuinely reprocessed (all handlers above are idempotent).
+    if (!updateResult.success) {
+      console.error(`Event ${eventId} business logic failed: ${updateResult.error}`)
+      return NextResponse.json({ received: false, error: updateResult.error }, { status: 500 })
+    }
+
+    // 6. Record idempotency only after success, then 200.
     const { error: insertError } = await supabase
       .from('processed_stripe_events')
       .upsert(
@@ -208,29 +478,24 @@ export async function POST(request: NextRequest) {
 
     if (insertError) {
       console.error('Failed to record processed event:', insertError)
-      // Don't fail the webhook - the event was processed
+      // The work succeeded; a duplicate delivery would just redo idempotent work.
     }
 
-    // 6. Return 200 immediately (Stripe won't retry successful responses)
-    if (!updateResult.success) {
-      console.error(`Event ${eventId} processed but business logic failed: ${updateResult.error}`)
-    }
-
-    if (!updateResult.success) {
-      // P2-05 fix: surface business-logic failures so Stripe can retry.
-      // We've already recorded the event as processed, but on a real failure
-      // the surface area (orders not transitioning, stripe_connections not
-      // syncing) is more important than perfect idempotency. Returning 500
-      // tells Stripe to retry with backoff, which combined with the
-      // idempotency upsert is safe.
-      return NextResponse.json({ received: true, error: updateResult.error }, { status: 500 })
+    // Fire the single CRM enqueue AFTER the idempotency row is recorded and only
+    // on the success path — mirrors the Stripe idempotency-after-success rule.
+    // enqueueXphereSync is fail-open (never throws), so a QStash outage cannot
+    // flip this 200 to 500. eventId = Stripe event.id dedups the CRM note (LIF-07).
+    if (pendingSync) {
+      await enqueueXphereSync(pendingSync.tenantId, pendingSync.reason, {
+        eventId,
+        ...(pendingSync.tags ? { tags: pendingSync.tags } : {}),
+      })
     }
 
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error('Webhook processing error:', error)
-    // Unexpected error — return 500 so Stripe retries. The idempotency
-    // upsert above will short-circuit duplicate processing on success.
+    // Unexpected error — return 500 so Stripe retries.
     return NextResponse.json({ error: 'Processing error' }, { status: 500 })
   }
 }

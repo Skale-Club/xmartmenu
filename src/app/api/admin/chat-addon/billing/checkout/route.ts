@@ -27,9 +27,16 @@ async function createSession() {
   const supabase = createServiceClient()
   const { data: sub } = await supabase
     .from('tenant_subscriptions')
-    .select('stripe_customer_id')
+    .select('stripe_customer_id, chat_addon_active')
     .eq('tenant_id', effective.tenantId)
     .maybeSingle()
+
+  // Guard against double billing: if the addon is already active, do not mint a
+  // second Checkout session (a duplicate $20/mo subscription the cancel flow
+  // wouldn't fully stop). This also neutralizes link-prefetch on the GET route.
+  if (sub?.chat_addon_active) {
+    return NextResponse.json({ error: 'The AI Chat Addon is already active.' }, { status: 409 })
+  }
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const session = await stripe.checkout.sessions.create({

@@ -3,6 +3,9 @@
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Globe, QrCode, Sparkles, ShoppingCart, ChevronDown, Camera, MessageCircle, UserPlus, UtensilsCrossed, ArrowRight, Sandwich, CupSoda, Zap, Star, ChefHat, CreditCard, BookOpen, Coffee, BarChart2, Search, Palette, ClipboardList, Link2 } from 'lucide-react'
+import dynamic from 'next/dynamic'
+
+const AdminLoginModal = dynamic(() => import('@/components/auth/AdminLoginModal'), { ssr: false })
 
 // ─── Platform settings shape (hero only) ────────────────────────────────────
 interface HeroSettings {
@@ -157,7 +160,7 @@ function getIcon(name: string): React.ComponentType<{ className?: string }> {
 
 // ─── Components ──────────────────────────────────────────────────────────────
 
-function Nav({ appName, logoUrl }: { appName?: string | null; logoUrl?: string | null }) {
+function Nav({ appName, logoUrl, onLoginOpen }: { appName?: string | null; logoUrl?: string | null; onLoginOpen: () => void }) {
   return (
     <motion.nav
       initial={{ y: -100 }}
@@ -165,26 +168,26 @@ function Nav({ appName, logoUrl }: { appName?: string | null; logoUrl?: string |
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
       className="fixed top-0 inset-x-0 z-50 h-16 border-b border-white/10 bg-zinc-950/50 backdrop-blur-xl flex items-center px-4 sm:px-6"
     >
-      <div className="w-full max-w-[1320px] mx-auto px-8 flex items-center justify-between">
+      <div className="mx-auto flex w-full max-w-[1320px] items-center justify-between px-0 sm:px-8">
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
             <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-8 h-8 object-contain object-center" />
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">{appName ?? 'XmartMenu'}</span>
           </a>
         </div>
-        <a
-          href="/auth/login"
+        <button
+          onClick={onLoginOpen}
           className="relative group overflow-hidden bg-primary text-primary-foreground px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2"
         >
           <span className="relative z-10">Start</span>
           <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
-        </a>
+        </button>
       </div>
     </motion.nav>
   )
 }
 
-function Hero({ s }: { s: HeroSettings }) {
+function Hero({ s, onLoginOpen }: { s: HeroSettings; onLoginOpen: () => void }) {
   const [videoError, setVideoError] = useState(false)
   const bgType = s.bg_type ?? 'color'
   const bgColor = s.bg_color ?? '#09090b'
@@ -247,7 +250,7 @@ function Hero({ s }: { s: HeroSettings }) {
         </>
       )}
 
-      <div className="max-w-[1320px] mx-auto px-8 pt-20 pb-12 relative z-10 text-center">
+      <div className="relative z-10 mx-auto max-w-[1320px] px-4 pb-12 pt-20 text-center sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -286,12 +289,12 @@ function Hero({ s }: { s: HeroSettings }) {
           transition={{ duration: 0.8, delay: 0.5 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
-          <a
-            href="/auth/login"
-            className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all"
+          <button
+            onClick={onLoginOpen}
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all"
           >
-            {ctaPrimary}
-          </a>
+            Start <ArrowRight className="w-5 h-5" />
+          </button>
           <a
             href="#how-it-works"
             className="w-full sm:w-auto inline-flex items-center justify-center bg-white/15 border border-white/30 backdrop-blur-sm text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-primary/20 hover:border-primary/40 hover:scale-105 transition-all"
@@ -318,7 +321,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
 
   return (
     <section id="how-it-works" className="pt-[57px] md:pt-[86px] pb-[86px] px-4 relative select-none">
-      <div className="max-w-[1320px] mx-auto px-8">
+      <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -372,7 +375,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
   return (
     <section className="pt-[57px] md:pt-[86px] pb-[86px] px-4 relative select-none">
       <div className="absolute inset-0 bg-zinc-950" />
-      <div className="max-w-[1320px] mx-auto px-8 relative z-10">
+      <div className="relative z-10 mx-auto max-w-[1320px] px-4 sm:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -418,7 +421,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
 function FAQ() {
   return (
     <section className="pt-[57px] md:pt-[86px] pb-[86px] md:pb-[172px] lg:pb-[86px] px-4">
-      <div className="max-w-[1320px] mx-auto px-8">
+      <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -458,7 +461,7 @@ function FAQ() {
   )
 }
 
-function FooterCTABand({ data }: { data?: CtaData | null }) {
+function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOpen: () => void }) {
   const heading = data?.heading ?? 'Ready to get started?'
   const text = data?.text ?? 'Join the first restaurants using XmartMenu and transform your customer experience today.'
   const button = data?.button ?? 'Sign in now'
@@ -478,7 +481,7 @@ function FooterCTABand({ data }: { data?: CtaData | null }) {
           />
         )}
         <div className="absolute inset-0 bg-zinc-950/60 md:bg-zinc-950/50 lg:bg-zinc-950/40" />
-        <div className="relative z-20 max-w-[1320px] mx-auto px-8 sm:px-20 py-24 text-center">
+        <div className="relative z-20 mx-auto max-w-[1320px] px-4 py-16 text-center sm:px-20 sm:py-24">
           <motion.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -502,12 +505,12 @@ function FooterCTABand({ data }: { data?: CtaData | null }) {
             viewport={{ once: true }}
             transition={{ delay: 0.2 }}
           >
-            <a
-              href="/auth/login"
-              className="inline-flex items-center justify-center bg-primary text-primary-foreground px-10 py-5 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all active:scale-95"
+            <button
+              onClick={onLoginOpen}
+              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-10 py-5 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all active:scale-95"
             >
-              {button}
-            </a>
+              Start <ArrowRight className="w-5 h-5" />
+            </button>
           </motion.div>
         </div>
       </div>
@@ -521,7 +524,7 @@ function Footer({ data, appName, logoUrl }: { data?: FooterData | null; appName?
 
   return (
     <footer className="border-t border-white/10 bg-zinc-950 px-4 pt-16 md:pt-32 lg:pt-16 pb-8">
-      <div className="max-w-[1320px] mx-auto px-8">
+      <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Logo + tagline */}
           <div>
@@ -581,18 +584,20 @@ function Footer({ data, appName, logoUrl }: { data?: FooterData | null; appName?
 
 export default function ClientLandingPage({ platformLanding, appName, logoUrl }: { platformLanding?: any; appName?: string | null; logoUrl?: string | null }) {
   const heroSettings: HeroSettings = platformLanding?.hero ?? {}
+  const [loginOpen, setLoginOpen] = useState(false)
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30 select-none">
-      <Nav appName={appName} logoUrl={logoUrl} />
+      <Nav appName={appName} logoUrl={logoUrl} onLoginOpen={() => setLoginOpen(true)} />
       <main>
-        <Hero s={heroSettings} />
+        <Hero s={heroSettings} onLoginOpen={() => setLoginOpen(true)} />
         <HowItWorks data={platformLanding?.how_it_works} />
         <FeatureBlocks data={platformLanding?.features} />
         <FAQ />
-        <FooterCTABand data={platformLanding?.cta} />
+        <FooterCTABand data={platformLanding?.cta} onLoginOpen={() => setLoginOpen(true)} />
       </main>
       <Footer data={platformLanding?.footer} appName={appName} logoUrl={logoUrl} />
+      <AdminLoginModal open={loginOpen} onClose={() => setLoginOpen(false)} logoUrl={logoUrl} />
     </div>
   )
 }

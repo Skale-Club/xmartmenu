@@ -1,11 +1,47 @@
 import type { NextConfig } from "next";
 import withBundleAnalyzer from "@next/bundle-analyzer";
+import { withSentryConfig } from "@sentry/nextjs";
+
+// Security response headers applied to every route. (S05 — Security Headers)
+// The CSP here is intentionally conservative: it hardens clickjacking
+// (frame-ancestors), <base>-tag hijacking (base-uri) and plugin embedding
+// (object-src) WITHOUT restricting script/style/img/connect, so it cannot break
+// rendering. A full content CSP (script/style/connect allowlists via per-request
+// nonce) is a tracked follow-up that requires per-route browser testing.
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), browsing-topics=()" },
+  { key: "Strict-Transport-Security", value: "max-age=63072000" },
+  { key: "Content-Security-Policy", value: "base-uri 'self'; object-src 'none'; frame-ancestors 'self'" },
+];
 
 const nextConfig: NextConfig = {
+  // Coolify/Docker target: emit a minimal traced server (.next/standalone) with
+  // its own server.js instead of bundling the full node_modules. Required for
+  // the multi-stage Dockerfile; harmless on Vercel (ignored there).
+  output: 'standalone',
+  // sharp ships a native binary — keep it external so it isn't traced/bundled
+  // into the standalone output (next/image optimization loads it at runtime).
+  serverExternalPackages: ['sharp'],
   images: {
     formats: ['image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     remotePatterns: [
+      // Cloudflare R2 custom domains (active storage provider). Without these,
+      // next/image refuses to optimize R2-hosted images and they render broken.
+      {
+        protocol: 'https',
+        hostname: 'xmartmenu-tenant-assets.skale.club',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'xmartmenu-product-images.skale.club',
+        pathname: '/**',
+      },
+      // Kept for rollback and for any absolute Supabase URLs still in the DB.
       {
         protocol: 'https',
         hostname: '*.supabase.co',
@@ -18,9 +54,24 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
 };
 
-export default withBundleAnalyzer({
+const config = withBundleAnalyzer({
   enabled: process.env.ANALYZE === "true",
   openAnalyzer: false,
 })(nextConfig);
+
+// Sentry (S09 observability). The runtime SDK is inert until SENTRY_DSN /
+// NEXT_PUBLIC_SENTRY_DSN are set (see src/sentry.*.config.ts). Source-map upload
+// is skipped unless SENTRY_AUTH_TOKEN is present, so builds stay green without
+// Sentry credentials.
+export default withSentryConfig(config, {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  disableLogger: true,
+});

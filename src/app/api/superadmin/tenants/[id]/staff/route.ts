@@ -57,11 +57,12 @@ export async function POST(request: Request, { params }: Props) {
     if (userError.message.includes('already been registered')) {
       return NextResponse.json({ error: 'This email is already registered' }, { status: 409 })
     }
-    return NextResponse.json({ error: userError.message }, { status: 500 })
+    console.error('POST /api/superadmin/tenants/[id]/staff:', userError)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   if (userData.user) {
-    await service.from('profiles').upsert({
+    const { error: profileError } = await service.from('profiles').upsert({
       id: userData.user.id,
       tenant_id: tenantId,
       role: 'store-staff',
@@ -69,6 +70,12 @@ export async function POST(request: Request, { params }: Props) {
       must_change_password: true,
       password_changed_at: null,
     }, { onConflict: 'id' })
+
+    if (profileError) {
+      console.error('POST /api/superadmin/tenants/[id]/staff profile:', profileError)
+      await service.auth.admin.deleteUser(userData.user.id)
+      return NextResponse.json({ error: 'Failed to link this staff member to the restaurant' }, { status: 500 })
+    }
 
     await service.auth.admin.updateUserById(userData.user.id, {
       user_metadata: { full_name: name.trim() },

@@ -1,28 +1,29 @@
 /**
  * Storage abstraction | swap provider via STORAGE_PROVIDER env var.
  *
- * Current default: 'supabase' (Supabase Storage)
+ * Active provider: 's3' pointing at Cloudflare R2 (migrated 2026-08-05).
+ * Leave STORAGE_PROVIDER unset to fall back to Supabase Storage.
+ *
  * S3-compatible:   STORAGE_PROVIDER=s3
- *                  STORAGE_S3_ENDPOINT=https://nbg1.your-objectstorage.com
- *                  STORAGE_S3_REGION=eu-central  (or 'auto' for Cloudflare R2)
+ *                  STORAGE_S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com
+ *                  STORAGE_S3_REGION=auto
  *                  STORAGE_S3_ACCESS_KEY_ID=...
  *                  STORAGE_S3_SECRET_ACCESS_KEY=...
  *                  STORAGE_S3_BUCKET_TENANT_ASSETS=xmartmenu-tenant-assets
  *                  STORAGE_S3_BUCKET_PRODUCT_IMAGES=xmartmenu-product-images
- *                  STORAGE_S3_PUBLIC_URL_BASE=https://nbg1.your-objectstorage.com/{bucket}
+ *                  STORAGE_S3_PUBLIC_URL_BASE=https://{bucket}.skale.club
  *
- * Migration checklist (Supabase → Hetzner):
- * 1. Create buckets in Hetzner Console (Object Storage → Buckets)
- * 2. Generate S3 credentials (Security → S3 Credentials)
- * 3. Set env vars above in Vercel project settings
- * 4. Sync existing files: rclone sync supabase:bucket hetzner:bucket
- * 5. Set STORAGE_PROVIDER=s3 and redeploy
- * 6. Verify uploads + public URLs work on a test tenant
- * 7. Delete Supabase Storage buckets after 30-day grace period
+ * The {bucket} placeholder in STORAGE_S3_PUBLIC_URL_BASE is substituted with the
+ * resolved bucket name, so one env var covers both buckets. Each bucket is served
+ * by an R2 custom domain of the same name on the skale.club Cloudflare zone —
+ * public reads are cached at the edge and R2 egress is free.
  *
- * Note: BrandingClient.tsx uses the browser Supabase client for direct uploads.
- * When migrating to S3, add a /api/admin/branding/upload server route (same
- * pattern as /api/admin/products/upload) and update BrandingClient to POST there.
+ * Rollback: unset STORAGE_PROVIDER to write to Supabase again. Objects already
+ * written to R2 keep serving from their absolute URLs stored in the DB.
+ *
+ * Note: R2 has no per-object ACLs. It accepts and ignores an S3 ACL param, so
+ * sending one is a silent no-op that reads as if it controlled visibility.
+ * Objects are public because the bucket has a custom domain attached.
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
@@ -135,6 +136,15 @@ class S3StorageClient implements IStorageClient {
         secretAccessKey: this.secretAccessKey,
       },
       forcePathStyle: true, // required for Hetzner and most non-AWS S3 providers
+      // A stuck request must fail, never hang. The SDK ships with no request
+      // timeout and a 50-socket pool, so one socket that is never released stays
+      // checked out for the life of the process; enough of them and every later
+      // call queues behind them with nothing to break the wait.
+      requestHandler: {
+        connectionTimeout: 5_000,
+        requestTimeout: 30_000,
+        httpsAgent: { maxSockets: 200 },
+      },
     })
   }
 
@@ -147,12 +157,15 @@ class S3StorageClient implements IStorageClient {
     const { PutObjectCommand } = await import('@aws-sdk/client-s3')
     const client = await this.getS3Client()
     const bucketName = this.bucketName(bucket)
+    // No ACL param: R2 ignores it, so sending 'public-read' would falsely imply
+    // per-object ACLs govern visibility. Public access comes from the bucket's
+    // attached custom domain. (Kept S3-portable: AWS defaults to private, which
+    // is the safe failure mode if this ever points at a real S3 bucket.)
     await client.send(new PutObjectCommand({
       Bucket: bucketName,
       Key: path,
       Body: data,
       ContentType: options.contentType,
-      ACL: 'public-read',
     }))
     return this.getPublicUrl(bucket, path)
   }

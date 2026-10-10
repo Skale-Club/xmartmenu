@@ -1,21 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from './lib/supabase/middleware'
+// Zero-import module — safe for the Edge bundle. See that file for the
+// invariant (no entry may have a named route) and the regression history.
+import { BLOCKED_TENANT_SLUGS } from './lib/marketing/blocked-tenant-slugs'
+import { resolveFeedRewritePath } from './lib/feed-route'
 
-// Named App Router routes (auth/, api/, dashboard/, menu/, settings/,
-// onboarding/, overview/, tenants/, users/, admin/, superadmin/) self-resolve
-// via the file system and never reach `[slug]` — only add slugs here that
-// have NO named file. Consistency with `RESERVED_PATHS` (which prevents new
-// tenants from registering those slugs) is intentionally NOT shared as a
-// single list: the two have opposite purposes.
-// Regression: round-1 Wave 4 (commit 533cd8b) unified the lists and broke
-// every admin/api URL with 404. Reverted in this commit.
-const BLOCKED_TENANT_SLUGS = new Set([
-  'pricing', 'features', 'about', 'faq', 'blog', 'help', 'support',
-  'pt', 'en', 'legal', 'privacy', 'terms', 'contact', 'careers',
-])
-
-const customDomainCache = new Map<string, { slug: string; expires: number }>()
+// Cache BOTH hits and misses. Without caching misses, every request carrying an
+// unknown Host header (bots hitting the raw IP, preview hosts, misconfigured
+// DNS) fires a fresh `tenants` query on the request critical path.
+const customDomainCache = new Map<string, { slug: string | null; expires: number }>()
 const CACHE_TTL_MS = 60_000
+const CACHE_MISS_TTL_MS = 30_000
 
 async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
   const normalized = host.split(':')[0].toLowerCase()
@@ -40,7 +35,7 @@ async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
     .single()
 
   if (!data) {
-    customDomainCache.delete(normalized)
+    customDomainCache.set(normalized, { slug: null, expires: Date.now() + CACHE_MISS_TTL_MS })
     return null
   }
 
@@ -50,6 +45,26 @@ async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Internal QStash worker routes authenticate by signature, not session.
+  // Let /api/internal/* through untouched BEFORE any tenant-slug block,
+  // custom-domain host rewrite, or updateSession()/getUser() so an
+  // unauthenticated QStash POST always reaches the route handler (Pitfall 4f/10).
+  if (pathname.startsWith('/api/internal/')) {
+    return NextResponse.next()
+  }
+
+  // MCP server authenticates via OAuth Bearer token (not the Supabase session
+  // cookie), and its OAuth metadata is a public discovery document. Both must
+  // bypass updateSession()/getUser() AND the custom-domain host rewrite so the
+  // endpoint resolves identically on every host and is never redirected.
+  if (
+    pathname.startsWith('/api/mcp') ||
+    pathname.startsWith('/.well-known/oauth-protected-resource')
+  ) {
+    return NextResponse.next()
+  }
+
   const firstSegment = pathname.split('/')[1]
 
   if (firstSegment && BLOCKED_TENANT_SLUGS.has(firstSegment)) {
@@ -60,12 +75,23 @@ export async function middleware(request: NextRequest) {
 
   if (host) {
     const tenantSlug = await resolveTenantSlugFromHost(host)
-    if (tenantSlug) {
+
+    const feedRewritePath = resolveFeedRewritePath(pathname, tenantSlug)
+    if (feedRewritePath) {
       const url = request.nextUrl.clone()
-      if (!pathname.startsWith(`/${tenantSlug}`)) {
-        url.pathname = `/${tenantSlug}${pathname === '/' ? '' : pathname}`
-        return NextResponse.rewrite(url)
-      }
+      url.pathname = feedRewritePath
+      url.searchParams.set('view', 'feed')
+      return await updateSession(request, url)
+    }
+
+    if (tenantSlug && !pathname.startsWith(`/${tenantSlug}`)) {
+      const url = request.nextUrl.clone()
+      url.pathname = `/${tenantSlug}${pathname === '/' ? '' : pathname}`
+      // Rewrite AND refresh the session in one pass. Returning a bare
+      // NextResponse.rewrite() here (the old behavior) skipped updateSession, so
+      // Supabase auth cookies were never refreshed on custom-domain requests and
+      // customer sessions (e.g. /me) silently expired.
+      return await updateSession(request, url)
     }
   }
 

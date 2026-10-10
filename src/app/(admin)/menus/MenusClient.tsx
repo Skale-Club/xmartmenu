@@ -92,13 +92,13 @@ function Modal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 backdrop-blur-sm p-4">
-      <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto bg-white rounded-lg border border-zinc-200 shadow-2xl">
-        <div className="flex items-center justify-between px-8 py-6 border-b border-zinc-100">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4">
+      <div role="dialog" aria-modal="true" aria-label={title} className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:max-w-2xl sm:rounded-lg">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-100 bg-white px-4 py-4 sm:px-8 sm:py-6">
           <h2 className="text-xl font-black text-zinc-950 tracking-tight">{title}</h2>
-          <button type="button" onClick={onClose} className="p-2 hover:bg-zinc-100 rounded-full transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-zinc-100 transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
         </div>
-        <div className="p-8">{children}</div>
+        <div className="p-4 sm:p-8">{children}</div>
       </div>
     </div>
   )
@@ -375,11 +375,11 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
       <Modal open={createOpen} title="New Menu Instance" onClose={() => setCreateOpen(false)}>
         <form onSubmit={handleCreate} className="space-y-8">
           <MenuFormFields draft={createForm} setDraft={setCreateForm} />
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
             <button type="submit" disabled={loading} className="flex-1 bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50">
               {loading ? 'Creating...' : 'Create Instance'}
             </button>
-            <button type="button" onClick={() => setCreateOpen(false)} className="px-8 py-4 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">Cancel</button>
+            <button type="button" onClick={() => setCreateOpen(false)} className="min-h-12 px-8 py-3 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">Cancel</button>
           </div>
         </form>
       </Modal>
@@ -387,11 +387,11 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
       <Modal open={!!editingId} title="Edit Menu Settings" onClose={cancelEdit}>
         <form onSubmit={saveEdit} className="space-y-8">
           <MenuFormFields draft={editForm} setDraft={setEditForm} />
-          <div className="flex gap-4 pt-4">
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
             <button type="submit" disabled={loading} className="flex-1 bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-zinc-950 hover:text-white transition-all active:scale-95 disabled:opacity-50">
               {loading ? 'Saving...' : 'Save Configuration'}
             </button>
-            <button type="button" onClick={cancelEdit} className="px-8 py-4 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">Cancel</button>
+            <button type="button" onClick={cancelEdit} className="min-h-12 px-8 py-3 rounded-full text-base font-bold text-zinc-500 hover:bg-zinc-100 transition-colors">Cancel</button>
           </div>
         </form>
       </Modal>

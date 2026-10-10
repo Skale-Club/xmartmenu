@@ -29,7 +29,10 @@ export async function GET(
     .eq('menu_id', menuId)
     .order('position', { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('GET /api/superadmin/tenants/[id]/products-list:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 
   return NextResponse.json({ products: products ?? [] })
 }

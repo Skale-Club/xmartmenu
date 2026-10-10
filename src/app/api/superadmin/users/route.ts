@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
+import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
 import { NextResponse } from 'next/server'
 
 export async function GET() {
@@ -7,12 +8,12 @@ export async function GET() {
 
   const service = await createServiceClient()
 
-  const { data: authUsers } = await service.auth.admin.listUsers({ perPage: 1000 })
+  const authUsers = await listAllAuthUsers(service)
   const { data: profiles } = await service.from('profiles').select('id, role, tenant_id, full_name, tenants(id, name, slug)')
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p]))
 
-  const users = (authUsers?.users ?? []).map(u => {
+  const users = authUsers.map(u => {
     const profile = profileMap.get(u.id)
     return {
       id: u.id,

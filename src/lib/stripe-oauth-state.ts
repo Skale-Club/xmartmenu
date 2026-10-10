@@ -8,13 +8,15 @@ interface StatePayload {
 }
 
 function getSecret(): string {
-  // Reuse the webhook secret as the HMAC key — it's the only server-side
-  // Stripe secret guaranteed to exist when Stripe Connect is enabled. If
-  // it's missing, fall back to STRIPE_SECRET_KEY rather than failing
-  // silently with an empty key.
-  const secret = process.env.STRIPE_WEBHOOK_SECRET || process.env.STRIPE_SECRET_KEY
+  // Prefer a dedicated HMAC key so rotating the Stripe webhook secret does not
+  // silently invalidate every in-flight OAuth state. Fall back to the webhook
+  // secret / API key (both guaranteed when Stripe Connect is enabled) so this
+  // keeps working before OAUTH_STATE_SECRET is provisioned.
+  const secret = process.env.OAUTH_STATE_SECRET
+    || process.env.STRIPE_WEBHOOK_SECRET
+    || process.env.STRIPE_SECRET_KEY
   if (!secret) {
-    throw new Error('STRIPE_WEBHOOK_SECRET / STRIPE_SECRET_KEY required to sign OAuth state')
+    throw new Error('OAUTH_STATE_SECRET (or STRIPE_WEBHOOK_SECRET / STRIPE_SECRET_KEY) required to sign OAuth state')
   }
   return secret
 }

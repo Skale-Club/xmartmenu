@@ -13,7 +13,10 @@ export async function GET() {
     .eq('tenant_id', effective.tenantId)
     .order('created_at', { ascending: true })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('GET /api/admin/locations:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json(data ?? [])
 }
 
@@ -25,7 +28,8 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json()
-  const { name, slug, address, city, phone, business_hours, menu_id } = body
+  const { name, slug, address, city, phone, business_hours, menu_id,
+          region, postal_code, country, latitude, longitude } = body
 
   if (!name?.trim()) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   if (!slug?.trim()) return NextResponse.json({ error: 'Slug is required' }, { status: 400 })
@@ -33,7 +37,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Slug must be lowercase letters, numbers, and hyphens only' }, { status: 400 })
   }
 
+  const coord = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+
   const service = await createServiceClient()
+
+  // A location may only reference a menu owned by the same tenant (see the PATCH
+  // route) — otherwise the public branch page would render another tenant's menu.
+  let resolvedMenuId: string | null = null
+  if (menu_id) {
+    const { data: ownedMenu } = await service
+      .from('menus')
+      .select('id')
+      .eq('id', menu_id)
+      .eq('tenant_id', effective.tenantId)
+      .maybeSingle()
+    if (!ownedMenu) {
+      return NextResponse.json({ error: 'Menu not found for this tenant' }, { status: 400 })
+    }
+    resolvedMenuId = ownedMenu.id
+  }
+
   const { data, error } = await service
     .from('locations')
     .insert({
@@ -44,7 +67,12 @@ export async function POST(request: Request) {
       city: city?.trim() || null,
       phone: phone?.trim() || null,
       business_hours: business_hours || null,
-      menu_id: menu_id ?? null,
+      menu_id: resolvedMenuId,
+      region: region?.trim() || null,
+      postal_code: postal_code?.trim() || null,
+      country: country?.trim() || null,
+      latitude: coord(latitude),
+      longitude: coord(longitude),
     })
     .select()
     .single()
@@ -53,7 +81,8 @@ export async function POST(request: Request) {
     if (error.code === '23505') {
       return NextResponse.json({ error: 'A location with this slug already exists' }, { status: 409 })
     }
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('POST /api/admin/locations:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data, { status: 201 })
 }

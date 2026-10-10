@@ -182,7 +182,7 @@ export default function PlansClient({ plans: initialPlans }: { plans: Plan[] }) 
   }
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 w-full">
       <ConfirmDialog
         open={!!confirmDelete}
         title="Delete Subscription Plan"

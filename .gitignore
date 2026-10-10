@@ -202,3 +202,7 @@ $RECYCLE.BIN/
 *.rej
 .tmp/
 tmp/
+
+# leftover agent worktrees / scratch
+.clone/
+scratch/

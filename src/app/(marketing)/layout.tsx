@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import '../globals.css'
 import { createServiceClient } from '@/lib/supabase/server'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 
 export const revalidate = 60
 
@@ -12,7 +12,7 @@ async function getPlatformSettings() {
     const service = createServiceClient()
     const { data } = await service
       .from('platform_settings')
-      .select('app_name, seo_title, seo_description, cta_color, favicon_url')
+      .select('app_name, seo_title, seo_description, cta_color, favicon_url, twitter_handle')
       .single()
     return data
   } catch {
@@ -31,7 +31,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://xmartmenu.skale.club'
 
   return {
-    title,
+    // Absolute: this title already carries the brand, so the root layout's
+    // '%s | XmartMenu' template must not append it a second time.
+    title: { absolute: title },
     description,
     metadataBase: new URL(appUrl),
     openGraph: {
@@ -55,6 +57,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title,
       description,
       images: ['/opengraph-image'],
+      ...(ps?.twitter_handle ? { site: ps.twitter_handle, creator: ps.twitter_handle } : {}),
     },
     icons: ps?.favicon_url ? { icon: ps.favicon_url, shortcut: ps.favicon_url } : undefined,
   }
@@ -72,7 +75,7 @@ export default async function MarketingLayout({
   return (
     <html lang="en">
       <body className="min-h-full bg-white no-text-cursor">
-        <style>{`:root{--primary:${primary};--primary-foreground:${primaryFg};}`}</style>
+        <style>{`:root{--primary:${safeCssColor(primary)};--primary-foreground:${primaryFg};}`}</style>
         {children}
       </body>
     </html>

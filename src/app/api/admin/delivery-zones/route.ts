@@ -13,7 +13,10 @@ export async function GET() {
     .eq('tenant_id', effective.tenantId)
     .order('created_at')
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('GET /api/admin/delivery-zones:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json(data ?? [])
 }
 
@@ -39,6 +42,9 @@ export async function POST(request: Request) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('POST /api/admin/delivery-zones:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json(data, { status: 201 })
 }

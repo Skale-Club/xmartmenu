@@ -113,7 +113,7 @@ export async function POST(
     } catch (err) {
       console.error('[seed-image] image_cover error:', err)
       return NextResponse.json(
-        { error: err instanceof Error ? err.message : 'Cover image generation failed' },
+        { error: 'Internal server error' },
         { status: 500 }
       )
     }
@@ -152,7 +152,10 @@ export async function POST(
       .is('image_url', null)
       .order('position', { ascending: true })
 
-    if (prodFetchErr) return NextResponse.json({ error: prodFetchErr.message }, { status: 500 })
+    if (prodFetchErr) {
+      console.error('[seed-image] product fetch error:', prodFetchErr)
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
     if (!products || products.length === 0) {
       return NextResponse.json({ success: true, imagesCreated: 0, message: 'No products need images | all already have image_url set.' })
     }
@@ -215,7 +218,7 @@ export async function POST(
       // Return partial success info (D-07)
       return NextResponse.json(
         {
-          error: err instanceof Error ? err.message : 'Product image generation failed',
+          error: 'Internal server error',
           imagesCreated,
           partial: true,
         },
@@ -290,7 +293,7 @@ export async function POST(
     } catch (err) {
       console.error('[seed-image] image_single_product error:', err)
       return NextResponse.json(
-        { error: err instanceof Error ? err.message : 'Single product image generation failed' },
+        { error: 'Internal server error' },
         { status: 500 }
       )
     }

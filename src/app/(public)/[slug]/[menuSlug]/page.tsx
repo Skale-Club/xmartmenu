@@ -2,20 +2,33 @@ export const revalidate = 60
 
 import { cache } from 'react'
 import { notFound } from 'next/navigation'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { sanitizeTenantForClient } from '@/lib/tenant-public'
 import MenuPage from '@/components/menu/MenuPage'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import PrivateMenuWrapper from '@/components/menu/PrivateMenuWrapper'
 import type { Metadata } from 'next'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import JsonLdScript from '@/components/seo/JsonLdScript'
-import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd, buildBranchJsonLd } from '@/lib/seo'
+import {
+  getCanonicalUrl,
+  buildLocalBusinessJsonLd,
+  buildMenuJsonLd,
+  buildBranchJsonLd,
+  buildBreadcrumbJsonLd,
+  buildSameAs,
+  resolveSeoTitle,
+  resolveSeoDescription,
+  resolveSeoKeywords,
+  resolveOgImageOverride,
+  isTenantNoindex,
+} from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string; menuSlug: string }>
-  searchParams: Promise<{ lang?: string }>
+  searchParams: Promise<{ lang?: string; view?: string }>
 }
 
 const getTenantBySlug = cache(async (slug: string) => {
@@ -41,18 +54,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const sectionName = loc?.name ?? menu?.name ?? 'Menu'
   const settings = tenant.tenant_settings as any
-  const title = `${sectionName} | ${tenant.name}`
-  const description: string = settings?.tagline
-    || settings?.about?.slice(0, 160)
-    || `View the ${sectionName} menu of ${tenant.name}`
+  const title = resolveSeoTitle(tenant, settings, sectionName)
+  const description = resolveSeoDescription(tenant, settings, `View the ${sectionName} menu`)
+  const keywords = resolveSeoKeywords(settings)
   const canonicalPath = `/${menuSlug}`
   const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
-  const logoUrl: string | null = settings?.logo_url ?? settings?.banner_url ?? null
+  const ogOverride = resolveOgImageOverride(settings)
   const isCustomDomain = !!(tenant.custom_domain && tenant.custom_domain_verified)
+  const noindex = isCustomDomain || isTenantNoindex(settings)
 
   return {
     title,
     description,
+    metadataBase: new URL(canonicalUrl),
+    ...(keywords.length ? { keywords } : {}),
     alternates: { canonical: canonicalUrl },
     openGraph: {
       type: 'website',
@@ -60,21 +75,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonicalUrl,
       siteName: tenant.name,
-      ...(logoUrl ? { images: [{ url: logoUrl, alt: tenant.name }] } : {}),
+      ...(ogOverride ? { images: [{ url: ogOverride, alt: tenant.name }] } : {}),
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      ...(logoUrl ? { images: [logoUrl] } : {}),
+      ...(ogOverride ? { images: [ogOverride] } : {}),
     },
-    ...(isCustomDomain ? { robots: { index: false, follow: false } } : {}),
+    ...(noindex ? { robots: { index: false, follow: false } } : {}),
   }
 }
 
 export default async function PublicMenuSlugPage({ params, searchParams }: Props) {
   const { slug, menuSlug } = await params
-  const { lang } = await searchParams
+  const { lang, view } = await searchParams
   const supabase = createServiceClient()
 
   const tenant = await getTenantBySlug(slug)
@@ -98,7 +113,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
     // It's a location slug — resolve its menu (custom or shared default)
     if (location.menu_id) {
       const { data: customMenu } = await supabase
-        .from('menus').select('*').eq('id', location.menu_id).eq('is_active', true).maybeSingle()
+        .from('menus').select('*').eq('id', location.menu_id).eq('tenant_id', tenant.id).eq('is_active', true).maybeSingle()
       menu = customMenu ?? null
     }
     if (!menu) {
@@ -215,23 +230,50 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const isPrivate = (menu as any)?.is_private ?? false
 
   const parentUrl = getCanonicalUrl(tenant, '/')
-  // SEO-08: when rendering a branch, use branch-specific LocalBusiness with branchOf
+  const tenantSettings = tenant.tenant_settings as any
+  // SEO-08: when rendering a branch, use branch-specific LocalBusiness with branchOf.
+  // Branches inherit price range and social profiles from the parent tenant.
   const localBusinessLd = location
-    ? buildBranchJsonLd(location, canonicalUrl, parentUrl)
-    : buildLocalBusinessJsonLd(tenant, tenant.tenant_settings as any, parentUrl)
+    ? buildBranchJsonLd(location, canonicalUrl, parentUrl, {
+        priceRange: tenantSettings?.price_range ?? null,
+        sameAs: buildSameAs(tenantSettings),
+      })
+    : buildLocalBusinessJsonLd(tenant, tenantSettings, parentUrl)
   // Do not index private menus
   const menuLd = (menu && !isPrivate)
     ? buildMenuJsonLd(menu.name, canonicalUrl, categories ?? [], displayProducts, currency)
     : null
+  // SEED-014: breadcrumb so this section nests under the tenant home in SERPs
+  const sectionName = location?.name ?? menu?.name ?? 'Menu'
+  const breadcrumbLd = !isPrivate
+    ? buildBreadcrumbJsonLd([
+        { name: tenant.name, url: parentUrl },
+        { name: sectionName, url: canonicalUrl },
+      ])
+    : null
+
+  // Private menus gate on a phone-verified session. This MUST be enforced
+  // server-side: an ISR/RSC page serializes a client component's children into
+  // the payload regardless of any client-side lock, so rendering the menu and
+  // hiding it with a client overlay leaks the full "exclusive" menu + in-store
+  // pricing to anyone who reads the response. When the caller is not
+  // authenticated we render ONLY the lock screen and never build the menu.
+  let privateAuthed = false
+  if (isPrivate) {
+    const cookieClient = await createClient()
+    const { data: { user } } = await cookieClient.auth.getUser()
+    privateAuthed = !!user?.phone
+  }
 
   const menuPageEl = (
     <MenuPage
-      tenant={tenant}
+      tenant={sanitizeTenantForClient(tenant)}
       categories={categories ?? []}
       products={displayProducts}
       menu={menu}
       location={location ? { id: location.id, name: location.name } : null}
       initialLanguage={lang}
+      initialView={view === 'feed' ? 'feed' : undefined}
       footerBrand={footerBrand}
       optionGroupsByProductId={optionGroupsByProductId}
       ingredientCustomizationEnabled={ingredientCustomizationEnabled}
@@ -245,13 +287,14 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
 
   return (
     <>
-      <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
+      <style>{`:root{--primary:${safeCssColor(primaryColor)};--primary-foreground:${primaryForeground};--accent:${safeCssColor(accentColor)};}`}</style>
       <JsonLdScript data={localBusinessLd} />
       {menuLd && <JsonLdScript data={menuLd} />}
+      {breadcrumbLd && <JsonLdScript data={breadcrumbLd} />}
       <ScanRecorder tenantId={tenant.id} />
       {isPrivate ? (
-        <PrivateMenuWrapper slug={slug} menuSlug={menuSlug} primaryColor={primaryColor}>
-          {menuPageEl}
+        <PrivateMenuWrapper slug={slug} menuSlug={menuSlug} primaryColor={primaryColor} serverAuthed={privateAuthed}>
+          {privateAuthed ? menuPageEl : null}
         </PrivateMenuWrapper>
       ) : menuPageEl}
     </>

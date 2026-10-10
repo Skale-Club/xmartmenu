@@ -1,5 +1,6 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { normalizeRole, parseSuperadminEmails } from '@/lib/auth/role-utils'
+import { captureSecurityEvent } from '@/lib/observability'
 
 export async function isSuperadminRequest() {
   const supabase = await createClient()
@@ -19,6 +20,8 @@ export async function isSuperadminRequest() {
   if (!isConfiguredSuperadmin) return false
 
   const service = await createServiceClient()
+  console.warn(`[security] superadmin auto-promotion via SUPERADMIN_EMAILS: ${userEmail}`)
+  captureSecurityEvent('Superadmin auto-promotion via SUPERADMIN_EMAILS', { email: userEmail, userId: user.id, source: 'isSuperadminRequest' })
   await service.from('profiles').upsert({
     id: user.id,
     role: 'superadmin',

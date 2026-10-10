@@ -73,11 +73,17 @@
 ## CI/CD & Deployment
 
 **Hosting:**
-- Vercel (implied via Next.js 16.2.2 and next.config.ts)
+- Coolify on the shared Hetzner host (`coolify.skale.club`)
+- Next.js standalone Docker image: `ghcr.io/skale-club/xmartmenu`
+- Production domain: `https://xmartmenu.skale.club`
 - Supabase (database + storage + auth)
 
 **CI Pipeline:**
-- Not detected - No GitHub Actions, GitLab CI, or build config visible
+- `.github/workflows/build-deploy.yml` runs on pushes to `main`
+- GitHub Actions builds and pushes `latest` plus commit-SHA image tags to GHCR
+- The workflow triggers the Coolify deployment API after the image is published
+- `docker-compose.yaml` uses `pull_policy: always` so Coolify starts the new image
+- Container health is checked through `/api/health`
 
 ## Environment Configuration
 
@@ -99,7 +105,8 @@ NEXT_PUBLIC_APP_URL=https://yourdomain.com  (defaults to localhost:3000)
 
 **Secrets location:**
 - `.env.local` (local development) - loaded by dotenv in seed scripts
-- Vercel environment variables (production)
+- Coolify environment variables (production runtime)
+- GitHub Actions variables and secrets (Docker build and Coolify deployment trigger)
 - Supabase project dashboard (keys are also stored server-side)
 
 ## Webhooks & Callbacks

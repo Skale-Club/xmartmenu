@@ -3,18 +3,28 @@ export const revalidate = 60
 import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
+import { sanitizeTenantForClient } from '@/lib/tenant-public'
 import MenuPage from '@/components/menu/MenuPage'
 import BranchPicker from '@/components/menu/BranchPicker'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import JsonLdScript from '@/components/seo/JsonLdScript'
 import type { Metadata } from 'next'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
-import { computePrimaryForeground } from '@/lib/color-utils'
-import { getCanonicalUrl, buildLocalBusinessJsonLd, buildMenuJsonLd } from '@/lib/seo'
+import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
+import {
+  getCanonicalUrl,
+  buildLocalBusinessJsonLd,
+  buildMenuJsonLd,
+  resolveSeoTitle,
+  resolveSeoDescription,
+  resolveSeoKeywords,
+  resolveOgImageOverride,
+  isTenantNoindex,
+} from '@/lib/seo'
 
 interface Props {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ lang?: string }>
+  searchParams: Promise<{ lang?: string; view?: string }>
 }
 
 const getTenantBySlug = cache(async (slug: string) => {
@@ -35,17 +45,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tenant) return { title: 'Menu' }
 
   const settings = tenant.tenant_settings as any
-  const title = tenant.name
-  const description: string = settings?.tagline
-    || settings?.about?.slice(0, 160)
-    || `View the full menu of ${tenant.name}`
+  const title = resolveSeoTitle(tenant, settings)
+  const description = resolveSeoDescription(tenant, settings)
+  const keywords = resolveSeoKeywords(settings)
   const canonicalUrl = getCanonicalUrl(tenant, '/')
-  const logoUrl: string | null = settings?.logo_url ?? settings?.banner_url ?? null
+  const ogOverride = resolveOgImageOverride(settings)
   const isCustomDomain = !!(tenant.custom_domain && tenant.custom_domain_verified)
+  // On the platform-slug URL we suppress indexing when a custom domain is the
+  // canonical home; a tenant can also opt out of indexing entirely.
+  const noindex = isCustomDomain || isTenantNoindex(settings)
 
   return {
     title,
     description,
+    metadataBase: new URL(canonicalUrl),
+    ...(keywords.length ? { keywords } : {}),
     alternates: { canonical: canonicalUrl },
     openGraph: {
       type: 'website',
@@ -53,21 +67,22 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url: canonicalUrl,
       siteName: tenant.name,
-      ...(logoUrl ? { images: [{ url: logoUrl, alt: tenant.name }] } : {}),
+      // When no override is set, the branded opengraph-image.tsx route supplies the image.
+      ...(ogOverride ? { images: [{ url: ogOverride, alt: tenant.name }] } : {}),
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-      ...(logoUrl ? { images: [logoUrl] } : {}),
+      ...(ogOverride ? { images: [ogOverride] } : {}),
     },
-    ...(isCustomDomain ? { robots: { index: false, follow: false } } : {}),
+    ...(noindex ? { robots: { index: false, follow: false } } : {}),
   }
 }
 
 export default async function PublicMenuPage({ params, searchParams }: Props) {
   const { slug } = await params
-  const { lang } = await searchParams
+  const { lang, view } = await searchParams
 
   const tenant = await getTenantBySlug(slug)
   if (!tenant) notFound()
@@ -89,12 +104,16 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   if ((activeLocations ?? []).length >= 2) {
     const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#F52323'
     const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
-    const { computePrimaryForeground } = await import('@/lib/color-utils')
     const primaryForeground = computePrimaryForeground(primaryColor)
     return (
       <>
-        <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
-        <BranchPicker tenantName={tenant.name} tenantSlug={slug} locations={activeLocations!} />
+        <style>{`:root{--primary:${safeCssColor(primaryColor)};--primary-foreground:${primaryForeground};--accent:${safeCssColor(accentColor)};}`}</style>
+        <BranchPicker
+          tenantName={tenant.name}
+          tenantSlug={slug}
+          locations={activeLocations!}
+          initialView={view === 'feed' ? 'feed' : 'list'}
+        />
       </>
     )
   }
@@ -203,16 +222,17 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
 
   return (
     <>
-      <style>{`:root{--primary:${primaryColor};--primary-foreground:${primaryForeground};--accent:${accentColor};}`}</style>
+      <style>{`:root{--primary:${safeCssColor(primaryColor)};--primary-foreground:${primaryForeground};--accent:${safeCssColor(accentColor)};}`}</style>
       <JsonLdScript data={localBusinessLd} />
       {menuLd && <JsonLdScript data={menuLd} />}
       <ScanRecorder tenantId={tenant.id} />
       <MenuPage
-        tenant={tenant}
+        tenant={sanitizeTenantForClient(tenant)}
         categories={categories}
         products={products}
         menu={resolvedMenu ?? null}
         initialLanguage={lang}
+        initialView={view === 'feed' ? 'feed' : undefined}
         footerBrand={footerBrand}
         ingredientCustomizationEnabled={ingredientCustomizationEnabled}
         productIngredientsByProductId={productIngredientsByProductId}

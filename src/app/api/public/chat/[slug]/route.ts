@@ -18,6 +18,7 @@ import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { decryptApiKey } from '@/lib/crypto'
 import { buildMenuContext, countMessagesLast24h, getChatAddonStatus } from '@/lib/chat-addon'
+import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -29,6 +30,17 @@ interface ChatRequestBody {
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+
+  const ip = getClientIp(request)
+  const rl = await rateLimit('chat-message', ip, 20, '1 m')
+  if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
+  // The per-phone daily cap below is keyed on an UNVERIFIED, attacker-chosen
+  // phone (no OTP), so rotating fake numbers resets it and burns the tenant's
+  // paid OpenRouter credits. Bound total spend per device with an IP daily cap
+  // that phone rotation can't bypass. (Full protection needs phone verification.)
+  const rlDay = await rateLimit('chat-message-ip-day', ip, 300, '1 d')
+  if (!rlDay.ok) return NextResponse.json({ error: 'Daily limit reached for this device.' }, { status: 429 })
+
   const { conversation_id, messages } = (await request.json()) as ChatRequestBody
 
   if (!conversation_id || !Array.isArray(messages) || messages.length === 0) {

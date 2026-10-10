@@ -37,6 +37,7 @@ import {
   Bell,
   Sandwich,
   CupSoda,
+  FileText,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -315,6 +316,12 @@ export default function SettingsClient({ settings }: Props) {
   const [cta, setCta] = useState({ ...DEFAULT_LANDING.cta, ...(l.cta ?? {}) })
   const [footer, setFooter] = useState({ ...DEFAULT_LANDING.footer, ...(l.footer ?? {}) })
 
+  const lg = s.legal ?? {}
+  const [legal, setLegal] = useState({
+    terms: { title: 'Terms of Service', body: '', updated_at: '', ...(lg.terms ?? {}) },
+    privacy: { title: 'Privacy Policy', body: '', updated_at: '', ...(lg.privacy ?? {}) },
+  })
+
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -330,11 +337,12 @@ export default function SettingsClient({ settings }: Props) {
       body: JSON.stringify({
         ...platform,
         landing: { hero, how_it_works: howItWorks, features, pricing, cta, footer },
+        legal,
       }),
     })
 
     if (res.ok) { setSaved(true); setTimeout(() => setSaved(false), 2500) }
-    else { const d = await res.json(); setError(d.error ?? 'Erro ao salvar') }
+    else { const d = await res.json(); setError(d.error ?? 'Failed to save settings') }
     setLoading(false)
   }
 
@@ -363,7 +371,7 @@ export default function SettingsClient({ settings }: Props) {
   const sectionTitle = 'flex items-center gap-2 text-lg font-bold text-zinc-900'
 
   return (
-    <div className="p-8 max-w-7xl mx-auto">
+    <div className="p-8 w-full">
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -648,6 +656,90 @@ export default function SettingsClient({ settings }: Props) {
         <div className={section}>
           <h2 className={sectionTitle}><ExternalLink className="w-5 h-5 text-zinc-500" /> Platform Footer</h2>
           <div><label className={label}>Copyright Text (Use {'{year}'} for dynamic year)</label><input className={input} value={footer.copyright} onChange={e => setFooter({ ...footer, copyright: e.target.value })} /></div>
+        </div>
+
+        {/* Legal documents */}
+        <div className={section}>
+          <h2 className={sectionTitle}><FileText className="w-5 h-5 text-zinc-500" /> Legal Documents</h2>
+          <p className="text-xs text-zinc-400 -mt-3">
+            Published to <span className="font-mono text-zinc-500">/terms</span> and{' '}
+            <span className="font-mono text-zinc-500">/privacy</span>. Leave the body empty to keep a
+            page showing the &ldquo;being prepared&rdquo; placeholder.
+          </p>
+
+          <div className="rounded-2xl bg-zinc-50 border border-zinc-200 px-4 py-3">
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">Formatting</p>
+            <p className="text-xs text-zinc-500 leading-relaxed">
+              <span className="font-mono text-zinc-700">## Heading</span> ·{' '}
+              <span className="font-mono text-zinc-700">### Subheading</span> ·{' '}
+              <span className="font-mono text-zinc-700">- bullet</span> ·{' '}
+              <span className="font-mono text-zinc-700">1. numbered</span> ·{' '}
+              <span className="font-mono text-zinc-700">**bold**</span> ·{' '}
+              <span className="font-mono text-zinc-700">[label](https://…)</span>
+              <br />
+              Separate paragraphs with a blank line. Raw HTML is not rendered — it appears as plain text.
+            </p>
+          </div>
+
+          {(['terms', 'privacy'] as const).map(key => {
+            const doc = legal[key]
+            const set = (patch: Partial<typeof doc>) =>
+              setLegal({ ...legal, [key]: { ...doc, ...patch } })
+            return (
+              <div key={key} className="border-t border-zinc-100 pt-6 space-y-4 first:border-t-0 first:pt-0">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-zinc-700">
+                    {key === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+                  </h3>
+                  <a
+                    href={`/${key}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-zinc-400 hover:text-zinc-900 transition-colors flex items-center gap-1"
+                  >
+                    View live <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={label}>Page Title</label>
+                    <input
+                      className={input}
+                      value={doc.title ?? ''}
+                      onChange={e => set({ title: e.target.value })}
+                      placeholder={key === 'terms' ? 'Terms of Service' : 'Privacy Policy'}
+                    />
+                  </div>
+                  <div>
+                    <label className={label}>Last Updated (shown under the title)</label>
+                    <input
+                      className={input}
+                      value={doc.updated_at ?? ''}
+                      onChange={e => set({ updated_at: e.target.value })}
+                      placeholder="2026-08-06"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="flex items-baseline justify-between mb-1.5 ml-1">
+                    <label className={label + ' mb-0 ml-0'}>Document Body</label>
+                    <span className="text-[10px] text-zinc-400">
+                      {(doc.body ?? '').length.toLocaleString()} characters
+                      {!(doc.body ?? '').trim() && ' · not published'}
+                    </span>
+                  </div>
+                  <textarea
+                    className={input + ' resize-y min-h-[220px] font-mono text-xs leading-relaxed'}
+                    value={doc.body ?? ''}
+                    onChange={e => set({ body: e.target.value })}
+                    placeholder={'## 1. Introduction\n\nThis is the agreement between…\n\n- First point\n- Second point'}
+                  />
+                </div>
+              </div>
+            )
+          })}
         </div>
 
         <div className="sticky bottom-0 flex justify-end px-6 py-4 pointer-events-none">

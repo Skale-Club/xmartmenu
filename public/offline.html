@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Offline | XmartMenu</title>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: #ffffff;
+      color: #171717;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+    }
+    .wrap { max-width: 360px; }
+    .icon {
+      width: 72px; height: 72px; margin: 0 auto 20px;
+      border-radius: 18px; background: #F52323;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .icon svg { width: 38px; height: 38px; stroke: #fff; }
+    h1 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; margin-bottom: 8px; }
+    p { font-size: 14px; color: #71717a; line-height: 1.5; margin-bottom: 24px; }
+    button {
+      font: inherit; font-weight: 700; font-size: 13px;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: #fff; background: #F52323; border: 0;
+      padding: 12px 24px; border-radius: 10px; cursor: pointer;
+    }
+    button:active { transform: scale(0.97); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M1 1l22 22" />
+        <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55" />
+        <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39" />
+        <path d="M10.71 5.05A16 16 0 0 1 22.58 9" />
+        <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88" />
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+        <line x1="12" y1="20" x2="12.01" y2="20" />
+      </svg>
+    </div>
+    <h1>You're offline</h1>
+    <p>We couldn't reach the network. Check your connection and try again.</p>
+    <button onclick="location.reload()">Retry</button>
+  </div>
+</body>
+</html>

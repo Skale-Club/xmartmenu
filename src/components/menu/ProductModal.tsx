@@ -5,7 +5,7 @@ import Image from 'next/image'
 import { formatPrice } from '@/lib/utils'
 import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import { UI_COPY, getProductImages } from './menu-utils'
+import { UI_COPY, getProductImages, type CartEditorState } from './menu-utils'
 
 const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
   'Vegetarian': { en: 'Vegetarian' },
@@ -84,15 +84,20 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [] }: {
+export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, submitLabel = 'Order', onPrevProduct, onNextProduct }: {
   product: Product; accentColor: string; currency: string; whatsapp?: string | null;
   lang: string; onClose: () => void; onWhatsApp: () => void;
-  onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null) => void;
+  onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void;
+  onCustomizationStarted?: () => void
   optionGroups?: GroupWithOptions[]
   itemNotesEnabled?: boolean
   ingredientCustomizationEnabled?: boolean
   productIngredients?: ProductIngredientWithIngredient[]
   productMedia?: ProductMedia[]
+  initialEditorState?: CartEditorState | null  // when set, the modal opens in Edit mode pre-filled with these selections
+  submitLabel?: string
+  onPrevProduct?: () => void  // navigate to the previous dish (undefined = no previous / disabled)
+  onNextProduct?: () => void  // navigate to the next dish
 }) {
   // Build ordered media slides: video first (if any), then images from product_media,
   // falling back to products.image_urls for backward compat
@@ -127,23 +132,33 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
     setSlideIndex(0)
   }, [product.id])
 
-  const [singleSelections, setSingleSelections] = useState<Record<string, string>>({})
-  const [halfSelections, setHalfSelections] = useState<Record<string, { half1: string | null; half2: string | null }>>({})
-  const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>({})
-  const [itemNote, setItemNote] = useState('')
-  const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>({})
-  const [addedIngredients, setAddedIngredients] = useState<string[]>([])
+  const [singleSelections, setSingleSelections] = useState<Record<string, string>>(initialEditorState?.singleSelections ?? {})
+  const [halfSelections, setHalfSelections] = useState<Record<string, { half1: string | null; half2: string | null }>>(initialEditorState?.halfSelections ?? {})
+  const [multiSelections, setMultiSelections] = useState<Record<string, string[]>>(initialEditorState?.multiSelections ?? {})
+  const [itemNote, setItemNote] = useState(initialEditorState?.note ?? '')
+  const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>(initialEditorState?.ingredientSteppers ?? {})
+  const [addedIngredients, setAddedIngredients] = useState<string[]>(initialEditorState?.addedIngredients ?? [])
   const [showAddIngredient, setShowAddIngredient] = useState(false)
+  const customizationTrackedRef = useRef(false)
 
   useEffect(() => {
-    setSingleSelections({})
-    setHalfSelections({})
-    setMultiSelections({})
-    setItemNote('')  // Pitfall 6: reset note when new product opens
-    setIngredientSteppers({})
-    setAddedIngredients([])
+    // Re-open in Edit mode pre-fills from initialEditorState; otherwise resets for a fresh product.
+    setSingleSelections(initialEditorState?.singleSelections ?? {})
+    setHalfSelections(initialEditorState?.halfSelections ?? {})
+    setMultiSelections(initialEditorState?.multiSelections ?? {})
+    setItemNote(initialEditorState?.note ?? '')  // Pitfall 6: reset note when new product opens
+    setIngredientSteppers(initialEditorState?.ingredientSteppers ?? {})
+    setAddedIngredients(initialEditorState?.addedIngredients ?? [])
     setShowAddIngredient(false)
+    customizationTrackedRef.current = false
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id])
+
+  function notifyCustomizationStarted() {
+    if (customizationTrackedRef.current) return
+    customizationTrackedRef.current = true
+    onCustomizationStarted?.()
+  }
 
   const canAddToCart = optionGroups.every(group => {
     if (!group.required) return true
@@ -244,6 +259,26 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   const nextImage = () => setSlideIndex(i => (i + 1) % mediaSlides.length)
   const SWIPE_THRESHOLD = 40
 
+  // Swipe to change dish — bound to the modal body (below the media area, so it
+  // never conflicts with the image carousel's own swipe).
+  const bodyTouchStartXRef = useRef<number | null>(null)
+  const PRODUCT_SWIPE_THRESHOLD = 50
+
+  function handleBodyTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    bodyTouchStartXRef.current = e.touches[0]?.clientX ?? null
+  }
+
+  function handleBodyTouchEnd(e: React.TouchEvent<HTMLDivElement>) {
+    const start = bodyTouchStartXRef.current
+    bodyTouchStartXRef.current = null
+    if (start === null) return
+    const endX = e.changedTouches[0]?.clientX ?? start
+    const delta = endX - start
+    if (Math.abs(delta) < PRODUCT_SWIPE_THRESHOLD) return
+    if (delta < 0) onNextProduct?.()
+    else onPrevProduct?.()
+  }
+
   function handleTouchStart(e: React.TouchEvent<HTMLDivElement>) {
     if (!hasManySlides) return
     touchStartXRef.current = e.touches[0]?.clientX ?? null
@@ -275,7 +310,26 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={onClose}>
-      <div className="bg-white w-full sm:max-w-md lg:max-w-lg rounded-t-2xl sm:rounded-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div className="relative max-h-dvh w-full sm:max-h-[calc(100dvh-2rem)] sm:max-w-md lg:max-w-lg" onClick={e => e.stopPropagation()}>
+      {onPrevProduct && (
+        <button
+          onClick={onPrevProduct}
+          aria-label="Previous dish"
+          className="hidden sm:flex absolute top-1/2 -translate-y-1/2 -left-14 z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-zinc-900 shadow-lg items-center justify-center text-2xl leading-none transition-all active:scale-90"
+        >
+          ‹
+        </button>
+      )}
+      {onNextProduct && (
+        <button
+          onClick={onNextProduct}
+          aria-label="Next dish"
+          className="hidden sm:flex absolute top-1/2 -translate-y-1/2 -right-14 z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-zinc-900 shadow-lg items-center justify-center text-2xl leading-none transition-all active:scale-90"
+        >
+          ›
+        </button>
+      )}
+      <div role="dialog" aria-modal="true" aria-label={product.name} className="max-h-dvh w-full overflow-y-auto rounded-t-2xl bg-white overscroll-contain sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
         {mediaSlides.length > 0 && (
           <div
             className="relative w-full aspect-video bg-zinc-100 overflow-hidden"
@@ -328,10 +382,10 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
             )}
           </div>
         )}
-        <div className="p-5 sm:p-6">
+        <div className="p-5 sm:p-6" onTouchStart={handleBodyTouchStart} onTouchEnd={handleBodyTouchEnd}>
           <div className="flex items-start justify-between gap-2 mb-2">
             <h3 className="text-lg font-bold text-zinc-900">{product.name}</h3>
-            <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 text-xl leading-none flex-shrink-0">✕</button>
+            <button onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full text-xl leading-none text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600">✕</button>
           </div>
           {product.tags?.length > 0 && (
             <div className="flex gap-1.5 mb-3 flex-wrap">
@@ -387,7 +441,10 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                                   name={group.id}
                                   value={opt.id}
                                   checked={isSelected}
-                                  onChange={() => setSingleSelections(prev => ({ ...prev, [group.id]: opt.id }))}
+                                  onChange={() => {
+                                    notifyCustomizationStarted()
+                                    setSingleSelections(prev => ({ ...prev, [group.id]: opt.id }))
+                                  }}
                                   className="sr-only"
                                 />
                                 <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`} />
@@ -428,6 +485,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                                     value={opt.id}
                                     checked={isChecked}
                                     onChange={() => {
+                                      notifyCustomizationStarted()
                                       setMultiSelections(prev => {
                                         const cur = prev[group.id] ?? []
                                         return {
@@ -492,10 +550,13 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                                           name={`${group.id}-${halfKey}`}
                                           value={opt.id}
                                           checked={isSelected}
-                                          onChange={() => setHalfSelections(prev => ({
-                                            ...prev,
-                                            [group.id]: { ...(prev[group.id] ?? { half1: null, half2: null }), [halfKey]: opt.id },
-                                          }))}
+                                          onChange={() => {
+                                            notifyCustomizationStarted()
+                                            setHalfSelections(prev => ({
+                                              ...prev,
+                                              [group.id]: { ...(prev[group.id] ?? { half1: null, half2: null }), [halfKey]: opt.id },
+                                            }))
+                                          }}
                                           className="sr-only"
                                         />
                                         <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`} />
@@ -544,7 +605,10 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                         {([-1, 0, 1] as const).map(val => (
                           <button
                             key={val}
-                            onClick={() => setIngredientSteppers(prev => ({ ...prev, [pi.ingredient_id]: val }))}
+                            onClick={() => {
+                              notifyCustomizationStarted()
+                              setIngredientSteppers(prev => ({ ...prev, [pi.ingredient_id]: val }))
+                            }}
                             className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors
                               ${stepperVal === val
                                 ? 'bg-zinc-900 text-white'
@@ -563,7 +627,10 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
               {productIngredients.filter(pi => !pi.is_default && !addedIngredients.includes(pi.ingredient_id)).length > 0 && (
                 <div className="mt-3">
                   <button
-                    onClick={() => setShowAddIngredient(v => !v)}
+                    onClick={() => {
+                      notifyCustomizationStarted()
+                      setShowAddIngredient(v => !v)
+                    }}
                     className="text-sm text-zinc-600 underline underline-offset-2 hover:text-zinc-900"
                   >
                     + Add ingredient
@@ -583,6 +650,7 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                                 )}
                                 <button
                                   onClick={() => {
+                                    notifyCustomizationStarted()
                                     setAddedIngredients(prev => [...prev, pi.ingredient_id])
                                     setShowAddIngredient(false)
                                   }}
@@ -612,7 +680,10 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                           {pi.ingredient.name}{addPrice > 0 ? ` +${formatPrice(addPrice, currency)}` : ''}
                         </span>
                         <button
-                          onClick={() => setAddedIngredients(prev => prev.filter(id => id !== ingId))}
+                          onClick={() => {
+                            notifyCustomizationStarted()
+                            setAddedIngredients(prev => prev.filter(id => id !== ingId))
+                          }}
                           className="text-green-500 hover:text-green-700 text-xs leading-none ml-0.5"
                           aria-label={`Remove ${pi.ingredient.name}`}
                         >
@@ -689,18 +760,27 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
                       }
                     }
                     const mods = buildIngredientModifications()
-                    onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods)
+                    const editorState: CartEditorState = {
+                      singleSelections,
+                      halfSelections,
+                      multiSelections,
+                      ingredientSteppers,
+                      addedIngredients,
+                      note: itemNote,
+                    }
+                    onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods, editorState)
                   }}
                   disabled={!canAddToCart}
                   aria-disabled={!canAddToCart}
                   className={`w-full sm:w-auto bg-zinc-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${canAddToCart ? 'hover:bg-zinc-800' : 'opacity-50 cursor-not-allowed'}`}
                 >
-                  Add to cart
+                  {submitLabel}
                 </button>
               )}
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   )

@@ -1,380 +1,341 @@
-# Feature Landscape: v1.3 Marketing Landing Page
+# Feature Research
 
-**Domain:** SaaS marketing landing page — restaurant/food-service digital menu platform
-**Researched:** 2026-05-07
-**Downstream consumer:** Roadmapper — section prioritization, copy complexity, anti-features
-**Confidence:** HIGH on structure/patterns; MEDIUM on specific conversion numbers (vary by vertical)
+**Domain:** Outbound product→CRM lifecycle sync (XmartMenu tenants mirrored into Xphere CRM)
+**Researched:** 2026-06-20 · **Re-verified against codebase:** 2026-06-21
+**Milestone:** v2.4 CRM & Integrations — Xphere CRM Sync
+**Downstream consumer:** Requirements definition — feature list grouped by category, each marked table-stakes/differentiator/anti-feature, with complexity + XmartMenu code dependencies
+**Confidence:** HIGH (lifecycle event → webhook mapping verified line-by-line in `src/app/api/stripe/webhooks/route.ts`, `onboarding/route.ts`, `connect/callback/route.ts`, `tenant-plan.ts`)
 
----
-
-## Context: What This Page Must Communicate
-
-xmartmenu's core promise: a restaurant owner goes from zero to a live, shareable digital menu in under 10 minutes — no design skills, no developer needed. The landing page is the first place a prospective Brazilian restaurant owner encounters this claim. Every section either supports or undermines that promise.
-
-**Target visitor profile:**
-- Brazilian restaurant owner (dono de restaurante, dono de bar, dono de café)
-- Browsing on a phone, probably during or after service hours
-- Zero technical skills; will leave if confused within 5 seconds
-- Primary fear: "another complicated software that takes days to set up"
-- Primary motivation: "I want a menu my customers can see on their phone"
-
-**Page language:** English only (product is English-first). PT/EN i18n is a Phase 13 concern.
-
----
-
-## Section Priority Map
-
-| Priority | Section | Category | Copy Complexity |
-|----------|---------|----------|-----------------|
-| 1 | Hero | Table stakes | HIGH — headline + subhead + CTA must nail the promise |
-| 2 | How It Works | Table stakes | MEDIUM — 3-step flow, outcome-first |
-| 3 | Live Demo link | Table stakes | LOW — link + framing copy only |
-| 4 | Feature blocks | Table stakes | MEDIUM — 4 blocks, each needs benefit headline + 2 sentences |
-| 5 | Pricing | Table stakes | LOW — "Free during beta" card + honest future intent |
-| 6 | FAQ | Table stakes | MEDIUM — 6-8 questions, answer concisely |
-| 7 | Footer | Table stakes | LOW — links only, legal placeholders |
-| 8 | Social proof | Differentiator (when populated) | LOW build now, LOW ongoing — placeholder state is correct for v1 |
-| 9 | Trust bar / logo strip | Differentiator | LOW — defer until real logos exist |
+> Scope note: This milestone adds **outbound, one-way** sync that mirrors every XmartMenu tenant
+> into the dedicated Xphere CRM org. The object mapping, transport, and idempotency key are already
+> **DECIDED** and are NOT re-evaluated here:
+>
+> | XmartMenu entity | Xphere CRM object | Idempotency key |
+> |---|---|---|
+> | `tenants` row (the business) | **Account** | `external_id = tenants.id` |
+> | store-admin profile (the owner) | **Contact** | `external_id = tenants.id` (+ contact email) |
+> | `tenant_subscriptions` (lifecycle) | **Opportunity** | `external_id = tenants.id` |
+>
+> Transport: producer enqueues to **QStash** → worker route `/api/internal/xphere-sync` → calls the
+> **shared** `POST /api/v1/sync` Xphere endpoint with `source='xmartmenu'`. Every event carries
+> `external_id = tenants.id` so the Xphere side upserts deterministically.
+>
+> This research defines **behavior**: which lifecycle events fire, what each does to the Opportunity
+> (stage + tags + custom_fields snapshot + timeline note), how the one-time backfill behaves, and
+> what observability is table-stakes — grouped table-stakes / differentiator / anti-feature with
+> complexity and dependencies on existing XmartMenu code.
 
 ---
 
-## Table Stakes Sections
+## Entity Mapping (already decided — restated for the requirements doc)
 
-These sections appear on every credible SaaS landing page. Omitting any of them signals an unfinished product. [Source: unbounce.com analysis of SaaS pages; choiceqr.com; menutiger.com reference implementations]
-
-### 1. Hero Section (Priority 1)
-
-**What it must do:** Communicate the value prop within 3 seconds. The visitor should immediately know: what the product is, who it is for, and what happens when they click.
-
-**Proven headline formula (HIGH confidence):**
-Under 8 words. Problem-outcome or outcome-for-who framing. Never start with the product name.
-
-- Pattern A (outcome): "Your restaurant menu, live in 10 minutes"
-- Pattern B (problem + outcome): "Stop printing menus. Go digital today."
-- Pattern C (who + outcome): "Restaurant owners: your digital menu in minutes, not days"
-
-**Subheadline role:** One sentence that names the mechanism and removes the biggest objection ("no tech skills needed").
-
-Example structure: "[Outcome]. [How it works in plain language]. [Objection removed]."
-Draft: "Create a QR-code menu your customers can open on any phone. Add your categories, upload photos, share the link — no coding, no designer."
-
-**CTA primary:** "Get started free" or "Create your menu — it's free"
-- Avoid: "Sign up", "Get started", "Learn more" — too generic
-- Add microcopy below button: "No credit card required. Ready in minutes."
-- The "free" signal must be in the button label OR immediately adjacent, not buried in pricing
-
-**CTA secondary (optional):** "See a live demo" — links to `/demo` tenant
-- This is the second-highest converting element for visitors who are not yet ready to commit
-
-**Hero visual:** Either a device mockup showing a real menu (the demo tenant), or a short looping video/gif of the QR code scan → menu display flow. Device mockup is lower complexity and sufficient for v1.
-
-**Placement rule:** Primary CTA must be above the fold on mobile (375px viewport). 60%+ of visitor attention is above the fold; this is where conversion decisions are made.
-
-**Copy complexity:** HIGH. The headline, subhead, and button copy deserve the most editorial iteration of any section on the page.
-
----
-
-### 2. How It Works Section (Priority 2)
-
-**What it must do:** Show that the time-to-value is genuinely short. Restaurant owners are skeptical of "easy" claims. A concrete 3-step flow makes the promise credible.
-
-**Pattern (HIGH confidence):** Three numbered steps, each with an icon and 1 headline + 1 sentence of explanation. Total reading time under 20 seconds.
-
-**Recommended flow for xmartmenu:**
-1. **Sign up** — "Create your free account in 30 seconds. No credit card needed."
-2. **Build your menu** — "Add categories and dishes. Upload photos. Set prices. Takes about 10 minutes."
-3. **Share your QR code** — "Download your QR code and put it on every table. Customers scan and order."
-
-**Variants to avoid:** "How it works" sections that list 6-8 steps signal complexity. Cut to 3. If there is a 4th natural step (e.g., "Receive orders"), add it only if it meaningfully advances the story.
-
-**Copy complexity:** MEDIUM. Steps are short but each word carries weight. "About 10 minutes" is more credible than "in minutes."
-
----
-
-### 3. Live Demo Section (Priority 3)
-
-**What it must do:** Let the visitor experience the product without signing up. This is the highest-trust action on the page — seeing the real UI removes all "what does it actually look like" objections.
-
-**Implementation for xmartmenu (already in SEED-005):** Provision a `demo` tenant. Link to `/demo` (which resolves as a real public menu page). The section needs only: a device mockup image or embedded iframe, a headline, and a CTA button.
-
-**Copy pattern:**
-- Section headline: "See xmartmenu in action" or "This is what your customers see"
-- Body: "Scan the QR code below or click to open the live demo menu."
-- CTA: "Open live demo" → `/{demo-slug}/{menu-slug}`
-
-**Demo tenant requirements (dependency):** The demo tenant must have realistic content — categories, products with photos, prices in a real currency. The AI text and image seeding tools (v1.2) are the fastest way to populate this. This is a hard dependency for the landing page to look credible.
-
-**Interactive vs. static:** A real link to the live menu (not a screenshot) is strongly preferred. Only 4% of SaaS companies use interactive demos despite data showing they are the highest-trust element. Xmartmenu already has this capability via the `/demo` tenant — zero extra engineering.
-
-**Copy complexity:** LOW — framing copy only. The product itself does the work.
-
----
-
-### 4. Feature Blocks (Priority 4)
-
-**What it must do:** Map each shipped feature to a customer benefit, not a technical description. Four features are available and all are real differentiators from competitors.
-
-**Pattern (HIGH confidence from unbounce/klientboost research):** Alternating left/right image + text blocks (on desktop) OR stacked cards (on mobile). Each block: benefit headline + 2-sentence explanation + optional screenshot/icon.
-
-**The four blocks (in recommended order):**
-
-| Block | Feature | Benefit Headline | Copy Angle | Complexity |
-|-------|---------|-----------------|------------|------------|
-| 1 | QR code generation | "One QR code. Every table." | Customers scan, menu opens instantly on their phone. No app download. No paper. | LOW |
-| 2 | Customer ordering | "Customers order from the menu. You receive it instantly." | Direct ordering from the digital menu. No missed orders from shouting across the room. | MEDIUM — ordering must not be oversold (it is feature-flagged per tenant) |
-| 3 | Multi-language menu | "Your menu, in any language." | English, Portuguese, Spanish — set it once, your customers see the right language automatically. | LOW |
-| 4 | AI-powered setup | "Your menu, ready in minutes — not hours." | Upload a photo of your existing paper menu. Our AI reads it and builds your digital menu automatically. | MEDIUM — OCR is the headline story; text seeding is the mechanism |
-
-**Notes on copy honesty:**
-- Block 2 (ordering): The ordering feature is controlled by a feature flag (`orders_enabled`). Copy should be accurate: "Customers can order directly from the menu" — no claim that it's enabled by default for all accounts.
-- Block 4 (AI): The OCR tool is superadmin-only in v1.2. The landing page can describe the outcome ("upload a photo of your menu") as a service experience (the superadmin does it for the tenant during onboarding), not a self-serve action. This is honest and differentiating.
-
-**Copy complexity:** MEDIUM per block. Four blocks total. Benefit headlines need the most care — avoid feature-first wording.
-
----
-
-### 5. Pricing Section (Priority 5)
-
-**What it must do:** Remove the "how much will this cost me?" objection immediately. For a beta product with no Stripe integration yet, the honest answer is "free" — and that is strong copy.
-
-**Pattern for "free during beta" (HIGH confidence):**
-
-Single card layout (not a comparison table, since there is only one tier):
-
-```
-[Badge: Beta]
-Free
-$0 / month
-
-What's included:
-- Digital QR code menu
-- Unlimited products and categories
-- Customer ordering
-- Multi-language support
-- AI-assisted setup
-
-[Get started free]
-
-Pricing will be introduced after beta. Early users lock in a founding member rate.
-```
-
-**Key principles:**
-- "Founding member rate" framing: honest (no rate is promised), creates mild urgency, rewards early adoption
-- Do NOT promise a specific future price. That becomes a contractual obligation.
-- Do NOT show a crossed-out "normally $X/month" unless that price is real and published. Fake anchor pricing is an anti-pattern and in some jurisdictions illegal.
-- The Stripe integration is deferred (SEED-003). Pricing section must not reference payment flows that don't exist.
-
-**Copy complexity:** LOW — single tier, short list, two sentences of future intent.
-
----
-
-### 6. FAQ Section (Priority 6)
-
-**What it must do:** Answer the 6-8 questions a restaurant owner asks before signing up. These are objection-handling questions, not documentation.
-
-**Recommended questions for xmartmenu:**
-
-| # | Question | Answer angle | Copy complexity |
-|---|---------|--------------|-----------------|
-| 1 | "Do my customers need to download an app?" | No app needed. They scan the QR code and the menu opens in their browser. | LOW |
-| 2 | "How long does it take to set up?" | Most restaurants are ready in under 10 minutes. | LOW |
-| 3 | "Is it really free?" | Yes, during our beta. No credit card required. | LOW |
-| 4 | "What languages does the menu support?" | English, Portuguese, Spanish, and more. You control which languages appear. | LOW |
-| 5 | "Can my customers order directly from the menu?" | Yes. With ordering enabled, customers add items to their cart and submit directly. | MEDIUM — feature-flag caveat |
-| 6 | "What happens to my data if I stop using xmartmenu?" | Your data belongs to you. You can export your menu at any time. | MEDIUM — must be accurate, check export capability |
-| 7 | "Do I need a developer or designer?" | No technical skills required. The setup is guided and takes minutes. | LOW |
-| 8 | "Is this secure?" | Your menu is hosted securely. Customer data is protected with industry-standard encryption (Supabase/PostgreSQL). | LOW |
-
-**Format:** Accordion (collapsed by default) is the standard pattern — keeps the section scannable without overwhelming vertical space.
-
-**Copy complexity:** MEDIUM total. Individual answers are short, but questions 5 and 6 need factual verification against the product.
-
-**FAQ dependency note:** Question 6 ("export my data") requires that a data export mechanism exists or that copy is written accurately around what the tenant actually controls. If no export exists, answer honestly: "Your data is stored securely in your account and is never deleted while your account is active." Avoid implying export capability that doesn't exist.
-
----
-
-### 7. Footer (Priority 7)
-
-**What it must do:** Provide legal links and basic navigation. Must exist before public launch — legal docs are a hard prerequisite.
-
-**Standard footer content:**
-
-```
-[Logo]  [Tagline — optional]
-
-Product          Company           Legal
-Get started      About             Privacy Policy
-Demo             Contact           Terms of Service
-Pricing          Blog (future)
-
-© 2026 xmartmenu. All rights reserved.
-```
-
-**Legal prerequisites (hard blockers for launch, NOT implemented in this milestone):**
-- Privacy Policy — required by LGPD (Brazil), GDPR (EU-adjacent), and Google/Meta ad policies
-- Terms of Service — required before any account can be created
-- Recommended approach per SEED-005: generate via Termly or iubenda template, customize, publish as static pages
-
-**Copy complexity:** LOW for footer links. HIGH DEPENDENCY on legal docs which are out of scope but blocking.
-
----
-
-## Differentiator Sections
-
-These sections are not required for a credible v1 launch but meaningfully increase conversion when populated with real content. Building the structural shell now, with honest placeholder states, is the right approach.
-
-### 8. Social Proof / Testimonials (Priority 8)
-
-**Current state:** Zero customers. Zero testimonials. This is expected for a pre-launch product.
-
-**What to build now:** The section shell with an honest placeholder state.
-
-**Placeholder pattern options:**
-
-Option A — Transparent "early access" framing:
-```
-[Section headline: "What restaurant owners are saying"]
-[Placeholder: "We're gathering our first success stories. Be among the first."]
-[CTA: "Join the beta" → /auth/register]
-```
-
-Option B — Skip the section entirely in v1 and add it in a future deploy when real quotes exist.
-
-**ANTI-PATTERN (do not do):**
-- Do NOT fabricate testimonials. FTC enforcement in 2025 explicitly targets fake reviews. Discovery destroys brand trust permanently.
-- Do NOT use stock photo faces next to invented quotes. Visitors recognize this pattern as fake.
-- Do NOT display metrics like "10,000 restaurants trust us" if the real number is 0 or 3.
-- Do NOT pull from AI-generated "realistic" testimonials. Even if technically disclosed, the trust damage is asymmetric.
-
-**When testimonials become available:** They need: full name, restaurant name, specific outcome ("reduced our printing costs", "our customers love scanning at the table"), and optionally a photo. "Great product!" generic quotes do not convert.
-
-**Copy complexity:** LOW to build shell. LOW ongoing fill (just add real quotes). HIGH risk if faked.
-
----
-
-### 9. Trust Bar / Logo Strip (Priority 9)
-
-A row of customer or partner logos just below the hero. Extremely high trust signal when populated. Useless or damaging when faked.
-
-**Current state:** No customer logos available. Skip in v1.
-
-**When to add:** After first 5-10 real restaurant customers consent to being named publicly.
-
-**Copy complexity:** None — logos only.
-
----
-
-## Anti-Patterns — Explicit Do-Not-Build List
-
-These are patterns that appear commonly but actively damage conversion or trust. The roadmapper must treat these as hard constraints.
-
-| Anti-Pattern | Why It Fails | What to Do Instead |
-|---|---|---|
-| Fake testimonials or stock-photo personas | FTC enforcement target in 2025; "too perfect" quotes are now immediately recognized as fake by visitors | Build placeholder section shell; add real quotes as they arrive |
-| Fake metrics ("trusted by 10,000 restaurants") | If the real number is <10, discovery creates catastrophic trust damage | Either show zero metrics or frame as "early access — join the first restaurants" |
-| Crossed-out fake anchor pricing ("~~$49/month~~ Free today") | Deceptive pricing is illegal in Brazil (PROCON) and EU; also signals desperation | "Free during beta" with no fabricated comparison price |
-| 10+ fields on the signup form | Every extra field cuts conversion. Research shows 3-5 fields max for SMB | Name + email + password or email + password only. Collect restaurant details in onboarding |
-| Multiple competing CTAs in the hero | Paralyzes the visitor. "Get started free", "Watch demo", "Learn more", "See pricing" in the same above-the-fold block | One primary CTA in hero. Secondary CTA ("See demo") is acceptable only if visually subordinate |
-| Feature-first headline ("The all-in-one QR menu platform") | Says nothing about what the visitor gets | Outcome-first: "Your restaurant menu, live in 10 minutes" |
-| Generic copy ("easy", "powerful", "seamless") | Every competitor says the same; no differentiation | Specific claims: "10 minutes", "no app download", "any phone", "your existing menu" |
-| Overselling ordering as default-on | Ordering is feature-flagged; false expectation = churn | "With ordering enabled" or "activate ordering for your menu" framing |
-| Claiming AI is self-serve for tenants | OCR and seeding are superadmin-only in v1.2 | Frame as "we set it up for you" onboarding service, not a self-serve tool |
-| Desktop-only design | Target audience is on phones in a kitchen | Mobile-first layout; test on 375px viewport |
-| Auto-playing video with sound | Kills mobile UX; restaurants are noisy environments | Silent autoplay only, or play-on-click |
-
----
-
-## Dependencies on Existing Features
-
-Every section that references a product capability depends on that capability being real, working, and accessible to new signups.
-
-| Landing Page Claim | Feature Required | v1.2 Status | Gate |
+| XmartMenu source of truth | Xphere object | Key fields written each sync | Notes |
 |---|---|---|---|
-| "QR code per menu" | QR code generation in settings | Shipped | None — works |
-| "Customers order from the menu" | Orders feature, `orders_enabled` flag | Shipped | Must be enabled per tenant; copy must be accurate |
-| "Multi-language menu" | i18n per tenant in DB | Shipped | None — works |
-| "Upload your paper menu, AI reads it" | OCR (superadmin-only) | Shipped | Framed as onboarding service, not self-serve |
-| "Ready in 10 minutes" | Onboarding wizard | Shipped | End-to-end flow must be tested before launch |
-| "See a live demo" | Demo tenant with real content | NOT YET | Must provision `/demo` tenant before Phase 12 ships |
-| "No credit card required" | Auth with no billing step | Shipped | True — Stripe is deferred |
-| "Privacy Policy / Terms of Service" | Legal doc pages | NOT YET | Hard blocker for public launch |
-| "Export your data" | Data export mechanism | NOT VERIFIED | FAQ answer must reflect actual capability |
+| `tenants` row | **Account** | name (`tenants.name`), slug, `external_id = tenants.id` | Re-asserted on every sync (cheap, self-healing). |
+| store-admin `profiles` row | **Contact** | full_name, email, phone, linked to Account by `external_id` | **Owner only** — never store-staff (read-only operational users → noise). |
+| `tenant_subscriptions` row | **Opportunity** | stage, amount (=MRR), tags, custom_fields snapshot, timeline note | One Opportunity per tenant (the subscription **is** the deal); not one-per-invoice. |
 
-**Critical launch blockers:**
-1. Demo tenant (`/demo`) must exist with realistic content before the page ships
-2. Privacy Policy and Terms of Service pages must exist (static pages, not this milestone)
-3. End-to-end signup → onboarding → live menu flow must complete without errors
+**Why Account+Contact upsert runs first on every event:** each sync re-asserts identity from current
+DB state *before* moving the Opportunity, so a missed earlier event never leaves the three objects
+incoherent. A dropped event is repaired by the next one (self-healing replay) — this is the standard
+Salesforce upsert-by-ExternalId pattern.
 
 ---
 
-## Copy Complexity Summary (for roadmap sizing)
+## Opportunity Stage Model (concrete)
 
-| Section | Lines of Final Copy | Editorial Rounds | Notes |
-|---------|--------------------|--------------------|-------|
-| Hero headline + subhead | 3-5 lines | 3+ rounds | Highest impact, most iteration |
-| Hero CTA + microcopy | 2 lines | 2 rounds | |
-| How It Works (3 steps) | 9 lines | 2 rounds | |
-| Demo section framing | 3 lines | 1 round | |
-| Feature blocks (4 × 3 lines) | 12 lines | 2 rounds per block | |
-| Pricing card | 8-10 lines | 1 round | |
-| FAQ (8 Q+A) | 24-32 lines | 1-2 rounds | Some answers need product verification |
-| Footer | 12-15 links | 1 round | Depends on legal docs existing |
-| Social proof placeholder | 3 lines | 1 round | |
-| **Total** | ~75-85 lines | — | English first; PT/EN in Phase 13 |
+Stages are configured **data-only in the Xphere org UI/MCP** (org `e375f031-…`), NOT in repo code
+(milestone constraint). The XmartMenu worker only *names* the target stage per event.
+
+```
+Onboarding ──plan activated──> Active ──past_due──> At Risk ──cancel──> Churned (Lost)
+    │                            │  ▲                    │
+    │                            │  └──payment recovers──┘
+    └──(rarely) abandons─────────┴──────────────────────────────> Churned (Lost)
+```
+
+| Stage | Won/Lost semantics | Entered by event | Opportunity amount (MRR) |
+|---|---|---|---|
+| **Onboarding** | Open | #1 signup (entry `menu` plan, `status='active'` but not yet paid via Stripe) | entry-plan MRR (often the floor) |
+| **Active** | **Won** (closed-won the moment a paid Stripe checkout completes) | #2 plan activated | resolved MRR via `getTenantPlan` |
+| **At Risk** | Open / re-opened (dunning) | #4 past_due | last known MRR (unchanged) |
+| **Churned** | **Lost** | #5 cancel/delete | set to 0 (or keep last MRR with `status:churned` — pick one and be consistent) |
+
+**Won/Lost decision (recommended):** treat **Active = Won** and **Churned = Lost**; At Risk is an
+*open, re-openable* state, not Lost — past_due frequently recovers, and flipping Lost↔Won on every
+dunning cycle pollutes win-rate reporting. A tenant that recovers from At Risk moves back to Active
+(Won) on the next successful `customer.subscription.updated status='active'`.
+
+**MRR as opportunity value — must be normalized:** resolve via `getTenantPlan(tenantId)` (applies
+`override_*` grandfathering), then **normalize annual to monthly**:
+`MRR = billing_cycle === 'annual' ? effective.annual_price / 12 : effective.monthly_price`.
+Never read raw `plans.monthly_price` — grandfathered/custom-priced tenants carry overrides.
+(`getTenantPlan` returns both `monthly_price` and `annual_price` already override-resolved.)
 
 ---
 
-## Section Order Recommendation
+## Lifecycle Event → CRM Effect Mapping (verified against code)
 
-Standard high-converting SaaS page sequence, adapted for this product and audience:
+Each event is emitted from an existing XmartMenu choke point, enqueued to QStash with
+`external_id = tenants.id`, and produces a deterministic Opportunity move.
+
+| # | Lifecycle event | Verified source choke point | Stage → | Tags | custom_fields snapshot | Timeline note | Dedup key |
+|---|---|---|---|---|---|---|---|
+| 1 | **Signup / onboarding** | `onboarding/route.ts` **after step 3b** (line 187 `tenant_subscriptions` insert) | `Onboarding` | `source:xmartmenu`, `plan:menu` | slug, business_type, plan slug, billing_cycle, created_at | "Tenant onboarded (plan: menu)" | `onboarding:<tenant_id>` |
+| 2 | **Plan activated** (paid checkout) | `webhooks` → `checkout.session.completed`, `metadata.kind==='plan'` (line 186) | `Active` / **Won** | `plan:<slug>`, `status:active` | plan slug, **MRR (normalized)**, billing_cycle, stripe_customer_id, period_end | "Plan activated: <plan> (<cycle>)" | Stripe `event.id` |
+| 3 | **Plan upgrade / downgrade** | `webhooks` → `checkout.session.completed` plan_id differs (**not** detectable in `subscription.updated` today) | stays `Active`; **amount/MRR updated** | swap `plan:*`; add `upgrade`/`downgrade` | new plan, new MRR, prev plan, direction | "Plan upgraded menu→orders" / "downgraded" | Stripe `event.id` |
+| 4 | **Payment past_due** (dunning) | `webhooks` → `invoice.payment_failed` (line 288) **and** `subscription.updated` status `past_due`/`unpaid` (line 247) | `At Risk` | add `status:past_due`; drop `status:active` | status, current_period_end, dunning_since | "Payment failed — past_due" | Stripe `event.id` |
+| 5 | **Churn / cancellation** | `webhooks` → `customer.subscription.deleted` (line 222) or `.updated` status `canceled` (line 248) | `Churned` / **Lost** | add `status:churned`; drop active/past_due | churned_at, last plan, cancel_at_period_end | "Subscription cancelled / churned" | Stripe `event.id` |
+| 6 | **Stripe Connect connected** | `connect/callback/route.ts` (line 69 upsert) **+** `webhooks` → `account.updated` `charges_enabled` (line 307) | stays current; **flag set** | `connect:active` / `connect:disabled` | stripe_account_id, charges_enabled, payouts_enabled | "Stripe Connect connected (charges enabled)" | callback: `connect:<tenant_id>` · webhook: `event.id` |
+| 7 | **First paid order** (OPTIONAL — differentiator) | `webhooks` → `payment_intent.succeeded` (line 82, has `metadata.tenant_id`) | stays current; activation signal | add `activated` (one-time) | first_order_at, first_order_total | "First paid order — tenant is live" | first-order guard |
+
+### Code-verified nuances (sharpen the requirements)
+
+- **Event #1 fires only on first-time onboarding.** `onboarding/route.ts` has two early paths that do
+  NOT re-create the subscription: `already_configured` (line 100, menu exists) and the resume path
+  (line 108, tenant exists/menu missing). Enqueue the onboarding sync **only inside the `else` branch
+  that creates the tenant + subscription** (line 113+). The resume/`already_configured` paths are
+  still safe to re-sync because of `external_id`, but they should fire a **`full-sync`**, not a fresh
+  "onboarded" note (avoids a duplicate timeline note).
+- **Onboarding tenants land on the `menu` entry plan with `status='active'` immediately** (line 193),
+  *before any Stripe payment*. So "Onboarding" stage ≠ "trialing" — the tenant is on a paid-tier entry
+  plan that simply hasn't been charged yet. Event #2 (Stripe checkout) is what marks them **Won**.
+- **Event #3 (upgrade/downgrade) is MEDIUM, not LOW.** The existing `customer.subscription.updated`
+  branch (line 221) does **not** compare old vs new `plan_id`; `plan_id` is only rewritten in
+  `checkout.session.completed` (line 194). Detecting direction requires reading the *current*
+  `tenant_subscriptions.plan_id` **before** the update overwrites it, then comparing plan rank. New
+  logic — budget for it accordingly.
+- **The webhook returns HTTP 500 on any business-logic failure to force a Stripe retry** (lines
+  345–350, idempotency recorded *only after* success). This is exactly why the CRM call must be
+  **enqueued, never awaited inline**: a CRM 500 thrown inside the webhook would fail the whole event
+  and make Stripe retry the *Stripe* work forever. Enqueue must be fire-and-forget *after* the DB
+  update succeeds and must never throw into the handler.
+- **Event #6 has two producers with different knowledge.** The OAuth callback (line 69) knows the
+  account is linked but only sets `is_active:true` optimistically — it does NOT know `charges_enabled`
+  yet. `account.updated` (line 307) is the authoritative `charges_enabled`/`payouts_enabled` source.
+  Both enqueue the same connect-flag event; the worker writes whatever the latest event carries.
+- **Event #7 first-order detection is not free.** `payment_intent.succeeded` carries
+  `metadata.tenant_id` + `order_id` but there's no "is this the first?" signal — needs a
+  `tenants.first_paid_order_at` (or a count) to fire exactly once. Hence P3.
+
+### Mapping principles (apply to every event)
+
+- **Account + Contact upsert runs first and is idempotent.** Each sync re-asserts Account name/slug +
+  contact email from current DB. A missed event is repaired by the next one.
+- **Stage moves are explicit, never inferred.** Each event maps to exactly one target stage.
+- **custom_fields = a snapshot of current truth, not an event log** (see next section).
+- **Tags are additive + idempotent**; status tags are mutually exclusive (set new, drop stale).
+- **Timeline notes are append-only, deduplicated by the dedup key** (Stripe `event.id` or
+  `onboarding:<tenant_id>` / `connect:<tenant_id>`) so QStash redelivery + Stripe retries never
+  double-post.
+
+---
+
+## custom_fields vs timeline notes (explicit distinction)
+
+This is a frequent point of confusion — the requirements doc must state it plainly.
+
+| | **custom_fields** (snapshot) | **timeline notes** (event log) |
+|---|---|---|
+| Semantics | "What is true **right now**" | "What **happened**, in order" |
+| Write behavior | **Overwrite** each sync with current resolved values | **Append-only**, deduped by event id |
+| Cardinality | One value per field (latest wins) | Many entries, chronological |
+| Examples | `current_plan`, `mrr`, `billing_cycle`, `subscription_status`, `stripe_customer_id`, `stripe_account_id`, `charges_enabled`, `current_period_end`, `churned_at`, `first_paid_order_at` | "Plan activated: orders (annual)", "Payment failed — past_due", "Upgraded menu→orders", "Stripe Connect connected" |
+| Why split | A snapshot field stays correct under out-of-order delivery (last write wins on a stable field). An event log preserves history a snapshot would erase. | A note answers "when/why did this change" that a snapshot can't. |
+
+**Rule of thumb:** if RevOps would *filter or sort the pipeline by it* → custom_field. If it's
+*narrative history a human reads* → timeline note. MRR, plan, status, period dates, Connect flags =
+custom_fields. Every transition also drops one human-readable note.
+
+---
+
+## Feature Landscape
+
+For an internal CRM-mirror integration, "users" = the **superadmin / RevOps operator** who lives in
+Xphere and the **engineer** who owns reliability.
+
+### Table Stakes (Users Expect These)
+
+| Feature | Why Expected | Complexity | Dependencies / Notes |
+|---------|--------------|------------|----------------------|
+| **Transport spine** — `src/lib/xphere/` (client+mapping+types) + QStash producer + `/api/internal/xphere-sync` worker | Nothing syncs without it; everything depends on it | MEDIUM | New code. Worker verifies QStash signing keys, idempotent, writes `xphere_*` columns. |
+| **`tenants` migration** — `xphere_account_id`, `xphere_contact_id`, `xphere_opportunity_id`, `xphere_synced_at`, `xphere_sync_error` | Per-tenant sync state must be queryable | LOW | New columns; `external_id = tenants.id` already exists as PK. |
+| **Onboarding sync (event #1)** → Account+Contact+Opportunity (Onboarding) | Every tenant must exist in CRM from day 1 | MEDIUM | Hook **inside the tenant-creating `else` branch**, after step 3b (line 187). Enqueue, do NOT block the 201/200. |
+| **Plan activated (event #2)** → Active/Won + normalized MRR | Revenue is the whole point of mirroring subscriptions | MEDIUM | `checkout.session.completed` branch (line 186); MRR via `getTenantPlan` + annual/12 normalization. |
+| **Past_due (event #4)** → At Risk + tag | Dunning visibility is core lifecycle | LOW | Reuse `invoice.payment_failed` (288) + `past_due` mapping (247). |
+| **Churn (event #5)** → Churned/Lost + tag | Closing the cancellation loop is expected | LOW | `customer.subscription.deleted` (222) / status `canceled` (248). |
+| **Idempotent upsert by `external_id`** | Replays/retries must never duplicate objects | LOW (contract handles it) | Producer's only job: always send `external_id`. |
+| **One-time backfill** of existing tenants (superadmin route) | Existing tenants must populate the pipeline | MEDIUM | Iterate `tenants`, enqueue a `full-sync` per tenant. Idempotent → safe to re-run. |
+| **Error surfacing (`xphere_sync_error`)** | A silent failed sync is worse than none | LOW–MEDIUM | Worker writes last error on failure, clears on success. Surface in superadmin tenant detail. |
+| **Manual re-sync (single tenant)** | Operator needs one-click retry after an error | LOW | Superadmin button → enqueue `full-sync` for that tenant. |
+| **Async / non-blocking delivery** | A CRM outage must never break onboarding or webhook 200s | MEDIUM | QStash decouples; producers only enqueue. **Critical** given the webhook's 500-retry contract. |
+| **Retry with backoff** | Transient CRM/network failures must self-recover | LOW (QStash handles it) | QStash retries on non-2xx from the worker; keep worker idempotent. |
+
+### Differentiators (Competitive Advantage)
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Plan upgrade/downgrade direction tag (event #3) | Spot expansion vs contraction | **MEDIUM** | Must compare current `tenant_subscriptions.plan_id` *before* the webhook overwrites it; emit `upgrade`/`downgrade`. Not free. |
+| Stripe Connect connected flag (event #6) | Marks payments-tier activation — strong PQL signal | MEDIUM | Connect callback (69) + `account.updated` (307); `connect:active`/`connect:disabled`. |
+| Normalized MRR snapshot in custom_fields | Opportunity amount reflects real revenue incl. overrides + annual→monthly | LOW | `getTenantPlan` + annual/12. |
+| Timeline notes per transition | Human-readable CRM history | LOW | Append-only, deduped by dedup key. |
+| Backfill dry-run / report mode | Preview what backfill changes before firing for all tenants | MEDIUM | Count + per-tenant intended action, no enqueue. |
+| Superadmin sync dashboard (synced / errored / never-synced) | At-a-glance mirror health | MEDIUM | Aggregate `xphere_synced_at` / `xphere_sync_error` across `tenants`. |
+| First paid order activation signal (event #7) | "Tenant is truly live" CSM trigger | MEDIUM | `payment_intent.succeeded` + first-order detection (`tenants.first_paid_order_at`). |
+
+### Anti-Features (Commonly Requested, Often Problematic)
+
+| Anti-Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| **Two-way / bidirectional sync** | "Keep both systems in sync" | Conflict resolution, loop prevention, a write path INTO the app DB from outside, RLS/security surface | **One-way outbound only.** XmartMenu DB is source of truth; CRM is a downstream mirror. |
+| **Per-tenant CRM orgs** | Feels "isolated" per customer | Org/provisioning explosion, API-key sprawl, defeats book-of-business RevOps view | **Single shared XmartMenu Xphere org**; tenants are Accounts within it. |
+| **Synchronous/inline sync in the webhook** | "Instant" CRM updates | The webhook returns **500 to force Stripe retry** — an inline CRM 500 would make Stripe retry forever / break onboarding | **Enqueue to QStash after the DB write**, return 200. Eventual consistency is fine for a CRM. |
+| **Syncing every order / per-order revenue line** | "Full revenue picture in CRM" | High volume, noisy timeline, turns CRM into an order log | **First paid order only** (optional). Aggregate revenue stays in Stripe/analytics. |
+| **Modifying the Xphere repo** | Convenient to "just add a field" | Out of scope — `/api/v1/sync`, `external_id`, `sync:write` owned by the separate Xtimator effort | **Build against the documented contract.** Stages configured data-only in Xphere UI/MCP. |
+| **Caching CRM data back in XmartMenu** | "Show CRM status in admin" | Duplicates source of truth, goes stale, invites two-way temptation | Store only **CRM ids + sync metadata** (`xphere_*_id`, `synced_at`, `sync_error`). |
+| **Custom retry/queue implementation** | "We control retries" | Reinvents QStash; adds cron, DLQ, backoff to maintain | **Use QStash** retries + signing-key verification on the worker. |
+| **Per-staff-member Contacts** | "Sync everyone" | store-staff are read-only operational users, not buying contacts; CRM noise | **Contact = store-admin (owner) only.** |
+| **A separate Opportunity per invoice / per upgrade** | "Track each deal" | The subscription is one continuous relationship; multiple Opportunities fragment MRR + win-rate | **One Opportunity per tenant**; upgrades update amount + drop a note. |
+| **Re-posting an "onboarded" note on resume/re-sync** | "Always log onboarding" | Resume path + backfill would spam duplicate notes | Onboarding note fires **once** (creation branch); resume/backfill use `full-sync` (snapshot, no fresh note). |
+
+---
+
+## Feature Dependencies
 
 ```
-1. Nav bar          — Logo + "Log in" + "Get started free" (sticky)
-2. Hero             — Headline + subhead + primary CTA + demo secondary CTA + device mockup
-3. How It Works     — 3-step numbered flow
-4. Live Demo        — Device frame + link to /demo tenant
-5. Feature blocks   — 4 alternating blocks (QR, Ordering, Multi-language, AI)
-6. Social proof     — Placeholder shell (real quotes added as they arrive)
-7. Pricing          — Single "Free during beta" card
-8. FAQ              — 8 questions, accordion
-9. Footer CTA       — Final "Get started free" above footer
-10. Footer          — Links + legal
+Transport spine (src/lib/xphere/ + QStash producer + /api/internal/xphere-sync worker)
+    └──requires──> tenants migration (xphere_* columns)
+    └──requires──> Xphere /api/v1/sync contract + XPHERE_API_KEY + XPHERE_ORG_ID
+    └──requires──> QSTASH_TOKEN + signing keys
+
+Onboarding hook (event #1) ──requires──> transport spine
+    └──requires──> onboarding/route.ts tenant-creation branch (enqueue after step 3b)
+
+Stripe lifecycle hooks (#2–#6) ──requires──> transport spine
+    └──requires──> stripe/webhooks/route.ts (existing choke point; enqueue per branch AFTER DB update)
+    └──requires──> getTenantPlan() for override-resolved MRR (src/lib/tenant-plan.ts)
+
+Connect hook (event #6) ──requires──> transport spine
+    └──requires──> connect/callback/route.ts (second producer) + account.updated webhook branch
+
+Event #3 (upgrade/downgrade) ──requires──> reading prior plan_id before checkout overwrites it
+
+Backfill route (superadmin) ──requires──> transport spine (reuses full-sync event shape)
+    └──enhances──> observability (populates xphere_synced_at across all tenants)
+
+Observability (sync status / error / re-sync) ──requires──> xphere_* columns
+    └──enhances──> Manual re-sync (re-enqueues full-sync for one tenant)
+
+Two-way sync ──conflicts──> one-way source-of-truth model (DO NOT BUILD)
+Per-tenant CRM orgs ──conflicts──> single shared Xphere org (DO NOT BUILD)
 ```
 
-**Rationale for this order:** Visitors need to understand what the product is (Hero) before they can evaluate how it works (How It Works). Showing the real product (Demo) before listing features (Feature Blocks) is more credible than features first. Pricing and FAQ handle late-stage objections. Footer CTA captures visitors who scrolled all the way down — these are the highest-intent visitors.
+### Dependency Notes
+
+- **Build the transport spine first.** All hooks are thin: resolve `tenant_id` → enqueue.
+- **Stripe hooks slot into the existing `switch`** in `stripe/webhooks/route.ts`. Add the enqueue
+  call **after the DB update succeeds within each branch** and **before** the 500-on-failure return —
+  never enqueue in a path that will 500, and never `await` the CRM round-trip in the handler.
+- **MRR must be resolved AND normalized** — `getTenantPlan()` for overrides, then annual/12.
+- **Event #1 fires only in the tenant-creation branch** of onboarding; resume + backfill use
+  `full-sync` (snapshot only, no duplicate onboarded note).
+- **Connect is a second producer** alongside `account.updated`.
+
+---
+
+## MVP Definition
+
+### Launch With (v1) — P1
+
+- [ ] Transport spine — `src/lib/xphere/` + QStash producer + signature-verified, idempotent worker
+- [ ] `tenants` migration — `xphere_account_id/contact_id/opportunity_id/synced_at/sync_error`
+- [ ] Event #1 Onboarding → Account+Contact+Opportunity (Onboarding stage)
+- [ ] Event #2 Plan activated → Active/Won + normalized MRR snapshot
+- [ ] Event #4 Past_due → At Risk
+- [ ] Event #5 Churn → Churned/Lost
+- [ ] One-time backfill route (superadmin), idempotent re-runnable, no duplicate onboarded note
+- [ ] Observability v1 — `xphere_sync_error` surfaced in superadmin tenant detail + manual re-sync button
+
+### Add After Validation (v1.x) — P2
+
+- [ ] Event #3 Plan upgrade/downgrade direction tags (needs prior-plan diff)
+- [ ] Event #6 Stripe Connect connected flag (callback + account.updated)
+- [ ] Backfill dry-run / report mode
+- [ ] Superadmin sync health dashboard (synced/errored/never-synced counts)
+
+### Future Consideration (v2+) — P3
+
+- [ ] Event #7 First paid order activation signal (needs `first_paid_order_at` detection)
+- [ ] Templated / richer timeline notes
+
+---
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Transport spine (xphere lib + QStash worker) | HIGH | MEDIUM | P1 |
+| `tenants` xphere_* migration | HIGH | LOW | P1 |
+| Event #1 Onboarding sync | HIGH | MEDIUM | P1 |
+| Event #2 Plan activated + normalized MRR | HIGH | MEDIUM | P1 |
+| Event #4 Past_due → At Risk | HIGH | LOW | P1 |
+| Event #5 Churn → Churned | HIGH | LOW | P1 |
+| One-time backfill route | HIGH | MEDIUM | P1 |
+| Error surfacing + manual re-sync | HIGH | LOW | P1 |
+| Event #3 upgrade/downgrade tags | MEDIUM | MEDIUM | P2 |
+| Event #6 Stripe Connect flag | MEDIUM | MEDIUM | P2 |
+| Backfill dry-run mode | MEDIUM | MEDIUM | P2 |
+| Sync health dashboard | MEDIUM | MEDIUM | P2 |
+| Event #7 First paid order | MEDIUM | MEDIUM | P3 |
+| Two-way sync | (negative) | HIGH | DO NOT BUILD |
+| Per-tenant CRM orgs | (negative) | HIGH | DO NOT BUILD |
+
+**Priority key:** P1 = launch · P2 = add after validation · P3 = future.
+
+---
+
+## Pattern Analysis (how established tools do product→CRM lifecycle sync)
+
+| Concern | HubSpot lifecycle-stage sync | Salesforce upsert-by-ExternalId | XmartMenu→Xphere approach |
+|---------|------------------------------|----------------------------------|---------------------------|
+| Direction | Often bidirectional | Either; ExternalId enables one-way feeds | **One-way outbound only** |
+| Idempotency | Record dedup by property | Upsert on `ExternalId` | Upsert on `external_id = tenants.id` |
+| Trigger model | Event-driven (product event → property change) | Webhook live + scheduled backfill | Stripe/onboarding events via QStash + superadmin backfill |
+| Lifecycle stages | Trial/Onboarding/Active/At-Risk/Churned | Pipeline stages on Opportunity | Onboarding/Active/At Risk/Churned (+Won/Lost), data-only in Xphere |
+| Backfill | Bulk import + scheduled sync | MERGE/UPSERT by business key, re-runnable | Superadmin route, idempotent re-runnable full-sync per tenant |
+| Reliability | Retries + replay | Idempotent replays / self-healing | QStash retries + idempotent worker |
+
+The 2026 consensus: **event-driven, not calendar-driven**; **CRM as a downstream mirror** of the
+product lifecycle; **idempotent upserts on a stable external id**; **webhooks for live events + a
+triggered/scheduled backfill to hydrate history** — exactly the shape decided for this milestone.
 
 ---
 
 ## Confidence Assessment
 
-| Area | Confidence | Source |
-|------|-----------|--------|
-| Section order (table stakes) | HIGH | unbounce.com SaaS page analysis; choiceqr.com; menutiger.com reference implementations |
-| Hero copy formula (<8 words, outcome-first) | HIGH | unbounce.com average character count study |
-| CTA label patterns ("Get started free") | HIGH | Multiple SaaS conversion studies, 9/12 top pages in klientboost analysis |
-| 3-step "How it works" as conversion pattern | HIGH | Standard across restaurant SaaS (menutiger, choiceqr, yumzi) |
-| Anti-fake-testimonials guidance | HIGH | FTC enforcement 2025, trust research from unbounce/klientboost |
-| "Free during beta" pricing framing | MEDIUM | Directionally confirmed by multiple SaaS examples; specific conversion delta not available |
-| Social proof conversion lift (37%) | MEDIUM | Cited in multiple sources but methodology not independently verified |
-| Demo tenant as highest-trust element | MEDIUM | "Only 4% use interactive demos" stat from one source; directionally supported by broader research |
+| Area | Confidence | Basis |
+|------|-----------|-------|
+| Lifecycle event set + stage mapping | HIGH | Standard SaaS lifecycle + every choke point + event branch verified in `stripe/webhooks/route.ts`, `onboarding/route.ts`, `connect/callback/route.ts` |
+| MRR resolution + annual normalization | HIGH | Read `tenant-plan.ts` — returns override-resolved monthly+annual; billing_cycle on subscription |
+| Event #3 raised to MEDIUM | HIGH | Confirmed `subscription.updated` does NOT diff plan_id; plan_id only set in `checkout.session.completed` |
+| Non-blocking as critical (not just nice) | HIGH | Webhook returns 500-on-failure to force Stripe retry (verified lines 345–350) |
+| One-way + idempotent-upsert + backfill pattern | HIGH | Salesforce integration patterns + decided mapping |
+| Anti-features (two-way, per-tenant orgs) | HIGH | Explicit milestone constraints in PROJECT.md + best practice |
+| Observability scope (status/error/re-sync) | MEDIUM–HIGH | Standard for internal integrations; exact superadmin UI surface depends on existing admin patterns |
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence)
-- [unbounce.com — State of SaaS Landing Pages](https://unbounce.com/conversion-rate-optimization/the-state-of-saas-landing-pages/) — section order, hero copy formula, CTA patterns, social proof presence rate
-- [SaaS Hero — B2B SaaS CTA Best Practices](https://www.saashero.net/design/b2b-saas-landing-cta-practices/) — CTA strategy, SMB vs enterprise patterns
-- [Choice QR landing page](https://choiceqr.com/) — reference implementation: restaurant QR SaaS with real section structure
-- [Menu Tiger landing page](https://www.menutiger.com/) — reference implementation: restaurant QR SaaS competitor
+- [HubSpot — Use lifecycle stages](https://knowledge.hubspot.com/records/use-lifecycle-stages) — Onboarding/Active/At-Risk/Churned model
+- [HubSpot — Sync record lifecycle stages](https://knowledge.hubspot.com/object-settings/manage-how-lifecycle-stages-sync-between-objects) — event-driven stage propagation
+- [Salesforce — Data 360 integration patterns](https://architect.salesforce.com/docs/architect/fundamentals/guide/data360_integration_patterns_and_practices) — upsert by ExternalId, self-healing replays, webhook-live + scheduled-backfill
+- [Salesforce — Idempotent record writes](https://help.salesforce.com/s/articleView?id=release-notes.rn_api_idempotent_records.htm&language=en_US&release=240&type=5) — prevent duplication on replay
+- [Backfilling historical data with idempotent pipelines (ml4devs)](https://www.ml4devs.com/what-is/backfilling-data/) — re-runnable MERGE/UPSERT by business key
+- [Data pipeline design patterns: idempotency, DLQ, CDC (dataskew.io, 2026)](https://dataskew.io/blog/data-pipeline-design-patterns/)
+- XmartMenu code (choke points verified 2026-06-21): `src/app/api/stripe/webhooks/route.ts`, `src/app/api/onboarding/route.ts`, `src/app/api/stripe/connect/callback/route.ts`, `src/lib/tenant-plan.ts`
+- `.planning/PROJECT.md` + auto-memory `xphere-crm-integration.md` — milestone constraints (single shared Xphere org, no Xphere repo edits, QStash transport, owner-only Contact)
 
-### Secondary (MEDIUM confidence)
-- [klientboost — 51 SaaS Landing Pages](https://www.klientboost.com/landing-pages/saas-landing-page/) — social proof lift stats, CTA label frequency analysis
-- [SaaS Hero — Trust Signals](https://www.saashero.net/design/landing-page-design-trust-signals/) — trust signal patterns
-- [mouseflow — CTA for SaaS](https://mouseflow.com/blog/ctas-for-saas/) — CTA strategy patterns
-- [howdygo — SaaS Product Demo 2026](https://www.howdygo.com/blog/saas-product-demo) — interactive demo trust signal data
-- [menucardstudio — QR menu "10 minutes" copy](https://blog.menucardstudio.com/digital-qr-menu/qr-code-menu-for-restaurants-usa/) — "create digital menu in 10 minutes" as established copy pattern in this category
-
-### Tertiary (LOW confidence — directional only)
-- WebSearch aggregated findings on fake testimonials FTC enforcement
-- WebSearch aggregated findings on "free during beta" pricing conversion
+---
+*Feature research for: outbound product→CRM lifecycle sync (XmartMenu → Xphere), milestone v2.4*
+*Researched: 2026-06-20 · code-re-verified: 2026-06-21*

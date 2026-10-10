@@ -110,7 +110,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
   if (error) {
     console.error('Failed to update plan:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json(data)
@@ -144,7 +144,7 @@ export async function DELETE(request: Request, { params }: RouteParams) {
 
   if (error) {
     console.error('Failed to delete plan:', error)
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return new NextResponse(null, { status: 204 })

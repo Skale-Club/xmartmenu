@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
-import { createServiceClient } from '@/lib/supabase/server'
+import { getStorageClient } from '@/lib/storage'
 import { validateAndConvertToWebP } from '@/lib/upload'
 
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'file and type required' }, { status: 400 })
   }
 
-  const service = await createServiceClient()
+  const storage = getStorageClient()
   const bucket = 'tenant-assets'
 
   if (type === 'image') {
@@ -35,16 +35,12 @@ export async function POST(request: Request) {
       : dest === 'favicon'
         ? '_platform/favicon.webp'
         : '_platform/hero-bg-image.webp'
-    const { error } = await service.storage
-      .from(bucket)
-      .upload(path, result.buffer!, {
-        contentType: 'image/webp',
-        upsert: true,
-      })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-    const { data: { publicUrl } } = service.storage.from(bucket).getPublicUrl(path)
+    const publicUrl = await storage.upload(bucket, path, result.buffer!, {
+      contentType: 'image/webp',
+      upsert: true,
+    })
     // Bust cache by appending timestamp so browser re-fetches after replace.
+    // The key is stable, so without this the CDN/browser would keep the old bytes.
     return NextResponse.json({ url: `${publicUrl}?v=${Date.now()}` })
   }
 
@@ -61,21 +57,16 @@ export async function POST(request: Request) {
     const path = `_platform/hero-bg-video.${ext}`
     const bytes = await file.arrayBuffer()
 
-    const { error } = await service.storage
-      .from(bucket)
-      .upload(path, Buffer.from(bytes), {
-        contentType: file.type,
-        upsert: true,
-      })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-    const { data: { publicUrl } } = service.storage.from(bucket).getPublicUrl(path)
+    const publicUrl = await storage.upload(bucket, path, Buffer.from(bytes), {
+      contentType: file.type,
+      upsert: true,
+    })
     return NextResponse.json({ url: `${publicUrl}?v=${Date.now()}` })
   }
 
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   } catch (err) {
     console.error('[upload] unhandled error:', err)
-    return NextResponse.json({ error: err instanceof Error ? err.message : 'Upload failed' }, { status: 500 })
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

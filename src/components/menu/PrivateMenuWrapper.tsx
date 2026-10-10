@@ -1,36 +1,33 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Lock } from 'lucide-react'
+import dynamic from 'next/dynamic'
+
+const LoginModal = dynamic(() => import('./LoginModal'), { ssr: false })
 
 interface Props {
   slug: string
   menuSlug: string
   primaryColor: string
+  // Authorization is decided server-side (the server only serializes `children`
+  // when the caller holds a phone-verified session). This flag just tells the
+  // wrapper which UI to show; the menu content is simply absent when false.
+  serverAuthed: boolean
   children: React.ReactNode
 }
 
-export default function PrivateMenuWrapper({ slug, menuSlug, primaryColor, children }: Props) {
-  const [status, setStatus] = useState<'loading' | 'ok' | 'locked'>('loading')
+export default function PrivateMenuWrapper({ slug, menuSlug, primaryColor, serverAuthed, children }: Props) {
+  const [showLogin, setShowLogin] = useState(false)
+  const router = useRouter()
 
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setStatus(user?.phone ? 'ok' : 'locked')
-    })
-  }, [])
-
-  if (status === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-zinc-200 rounded-full animate-spin" style={{ borderTopColor: primaryColor }} />
-      </div>
-    )
+  if (serverAuthed) {
+    return <>{children}</>
   }
 
-  if (status === 'locked') {
-    return (
+  return (
+    <>
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
         <div className="text-center max-w-sm">
           <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg" style={{ backgroundColor: primaryColor }}>
@@ -40,17 +37,24 @@ export default function PrivateMenuWrapper({ slug, menuSlug, primaryColor, child
           <p className="text-sm font-medium text-zinc-500 mb-8">
             This menu is exclusive. Sign in with your phone to access in-store pricing.
           </p>
-          <a
-            href={`/${slug}/me/login`}
+          <button
+            onClick={() => setShowLogin(true)}
             className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full text-sm font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg"
             style={{ backgroundColor: primaryColor, color: '#09090b' }}
           >
             Sign In with Phone
-          </a>
+          </button>
         </div>
       </div>
-    )
-  }
-
-  return <>{children}</>
+      <LoginModal
+        open={showLogin}
+        onClose={() => setShowLogin(false)}
+        slug={slug}
+        primaryColor={primaryColor}
+        // On success the session cookie is set; re-run the server component so it
+        // re-evaluates the gate and serializes the menu content this time.
+        onSuccess={() => { setShowLogin(false); router.refresh() }}
+      />
+    </>
+  )
 }

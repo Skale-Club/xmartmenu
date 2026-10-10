@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { phoneMatchKey } from '@/lib/phone'
 import PanelClient from './PanelClient'
 import type { Order, OrderItem } from '@/types/database'
 
@@ -35,11 +36,14 @@ export default async function CustomerPanelPage({ params }: Props) {
 
   const settings = (tenant.tenant_settings as any) ?? {}
 
+  // Match on the last-8-digit key, not the raw string: customer_phone is the
+  // free-text value typed at checkout while user.phone is E.164, so an exact
+  // match found nothing. See src/lib/phone.ts.
   const { data: orders } = await service
     .from('orders')
     .select('*, order_items(*)')
     .eq('tenant_id', tenant.id)
-    .eq('customer_phone', user.phone)
+    .eq('customer_phone_key', phoneMatchKey(user.phone))
     .order('created_at', { ascending: false })
     .limit(25)
 

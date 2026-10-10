@@ -4,7 +4,7 @@
  */
 
 import React from 'react'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/server'
 import { isStripeEnabled, getOrCreatePaymentIntent } from '@/lib/stripe'
 import { StripeProvider } from '@/components/StripeProvider'
 import { CheckoutForm } from './CheckoutForm'
@@ -17,7 +17,11 @@ interface CheckoutPageProps {
 
 export default async function CheckoutPage({ params }: CheckoutPageProps) {
   const { orderId } = await params
-  const supabase = await createClient()
+  // Public checkout: the customer is anonymous, so RLS on `orders` (admin/staff
+  // only) would hide the order. The orderId is an unguessable UUID that acts as
+  // a capability token (standard payment-link pattern), so we read via the
+  // service client scoped to that single id.
+  const supabase = createServiceClient()
 
   // Fetch order with items and tenant info
   const { data: order, error } = await supabase
@@ -45,8 +49,9 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
     )
   }
 
-  // Check order status - only pending orders can be paid
-  if (order.status !== 'pending') {
+  // Check order status - only unpaid orders can be paid. Customer orders are
+  // created as 'awaiting_payment'; 'pending' is kept for backward compatibility.
+  if (order.status !== 'pending' && order.status !== 'awaiting_payment') {
     const statusMessages: Record<string, string> = {
       paid: 'This order has already been paid.',
       payment_failed: 'Payment for this order failed. Please try again.',
@@ -100,16 +105,16 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
     )
   }
 
-  // Create or get PaymentIntent
-  // P0-03: orders.total is dollars; convert to cents for Stripe.
-  const amountCents = Math.round(Number(order.total) * 100)
+  // Create or get PaymentIntent. Amount is passed in major units and converted
+  // inside using the tenant's currency; tip_cents is forwarded so the platform
+  // fee is not charged on the customer's tip.
   let clientSecret: string
   try {
     const result = await getOrCreatePaymentIntent({
       tenantId: order.tenant_id,
       orderId: order.id,
-      amount: amountCents,
-      currency: 'brl',
+      amountDollars: Number(order.total),
+      tipCents: Number(order.tip_cents ?? 0),
     })
     clientSecret = result.clientSecret
   } catch (err) {

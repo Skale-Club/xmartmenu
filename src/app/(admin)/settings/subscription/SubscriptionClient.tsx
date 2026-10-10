@@ -66,6 +66,42 @@ export default function SubscriptionClient({
     }
   }
 
+  // Real billing actions. Checkout starts a Stripe Subscription for the plan;
+  // the portal lets an already-subscribed tenant change plan / card / cancel.
+  async function startCheckout() {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/tenant/subscription/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ billing_cycle: billingCycle }),
+      })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error ?? 'Failed to start checkout')
+      window.location.href = data.url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setLoading(false)
+    }
+  }
+
+  async function openPortal() {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/tenant/subscription/portal', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok || !data.url) throw new Error(data.error ?? 'Failed to open billing portal')
+      window.location.href = data.url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+      setLoading(false)
+    }
+  }
+
+  const hasActiveBilling = !!subscription?.stripe_subscription_id
+
   function hasFeature(featureKey: string): boolean {
     return plan?.features.includes(featureKey) ?? false
   }
@@ -137,7 +173,7 @@ export default function SubscriptionClient({
               </div>
               <div className="flex items-center gap-4 bg-zinc-50 p-6 rounded-[1rem] border border-zinc-100">
                 <div className="text-right">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Next Payout</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Plan Price</p>
                   <p className="text-2xl font-black text-zinc-950 tracking-tighter">R$ {billingCycle === 'monthly' ? plan.monthly_price : plan.annual_price}</p>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
@@ -190,6 +226,27 @@ export default function SubscriptionClient({
                   {billingCycle === 'annual' && <CheckCircle2 className="absolute top-4 right-4 w-5 h-5 text-primary" />}
                 </button>
               </div>
+            </div>
+
+            {/* Real billing action: subscribe (Stripe Checkout) or manage (Stripe Portal). */}
+            <div className="relative z-10 mt-8">
+              {hasActiveBilling ? (
+                <button
+                  onClick={openPortal}
+                  disabled={loading}
+                  className="w-full py-4 bg-zinc-950 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all shadow-xl shadow-zinc-950/10 disabled:opacity-50"
+                >
+                  {loading ? 'Loading…' : 'Manage Subscription'}
+                </button>
+              ) : (
+                <button
+                  onClick={startCheckout}
+                  disabled={loading}
+                  className="w-full py-4 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-zinc-950 hover:text-white transition-all shadow-xl shadow-primary/20 disabled:opacity-50"
+                >
+                  {loading ? 'Redirecting…' : `Subscribe — ${billingCycle === 'monthly' ? 'Monthly' : 'Annual'}`}
+                </button>
+              )}
             </div>
 
             {isPaymentsPlan && (
@@ -316,8 +373,12 @@ export default function SubscriptionClient({
                 <p className="text-xs text-zinc-400 font-medium leading-relaxed mb-8">
                   Unlock Stripe payments, AI menu seeding, and advanced order analytics.
                 </p>
-                <button className="w-full py-4 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all active:scale-95 shadow-xl shadow-primary/20">
-                  Contact Sales Agent
+                <button
+                  onClick={hasActiveBilling ? openPortal : startCheckout}
+                  disabled={loading}
+                  className="w-full py-4 bg-primary text-primary-foreground rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all active:scale-95 shadow-xl shadow-primary/20 disabled:opacity-50"
+                >
+                  {loading ? 'Loading…' : hasActiveBilling ? 'Manage Plan' : 'Subscribe Now'}
                 </button>
               </div>
             </section>

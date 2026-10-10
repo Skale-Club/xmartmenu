@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { sanitizeTenantForClient } from '@/lib/tenant-public'
 import { NextResponse } from 'next/server'
 
 export async function GET(
@@ -48,5 +49,5 @@ export async function GET(
     products = response[1].data ?? []
   }
 
-  return NextResponse.json({ tenant, menu: resolvedMenu, categories, products })
+  return NextResponse.json({ tenant: sanitizeTenantForClient(tenant), menu: resolvedMenu, categories, products })
 }

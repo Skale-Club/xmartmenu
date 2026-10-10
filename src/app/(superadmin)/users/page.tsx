@@ -1,20 +1,23 @@
 export const dynamic = 'force-dynamic'
 
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
 import UsersClient from './UsersClient'
 
 export default async function UsersPage() {
   const service = await createServiceClient()
+  const supabase = await createClient()
 
-  const [{ data: authData }, { data: profiles }, { data: tenants }] = await Promise.all([
-    service.auth.admin.listUsers({ perPage: 1000 }),
+  const [{ data: { user: currentUser } }, authUsers, { data: profiles }, { data: tenants }] = await Promise.all([
+    supabase.auth.getUser(),
+    listAllAuthUsers(service),
     service.from('profiles').select('id, role, tenant_id, full_name, tenants(id, name, slug)'),
     service.from('tenants').select('id, name, slug').order('name'),
   ])
 
   const profileMap = new Map((profiles ?? []).map(p => [p.id, p]))
 
-  const users = (authData?.users ?? []).map(u => {
+  const users = authUsers.map(u => {
     const profile = profileMap.get(u.id)
     return {
       id: u.id,
@@ -33,6 +36,7 @@ export default async function UsersPage() {
     <UsersClient
       users={users}
       tenants={tenants ?? []}
+      currentUserId={currentUser?.id ?? null}
     />
   )
 }

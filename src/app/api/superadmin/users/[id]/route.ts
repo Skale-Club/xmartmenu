@@ -7,7 +7,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = await assertSuperadmin()
+  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  if (currentUser?.id === id) {
+    return NextResponse.json({ error: 'You cannot change your own access.' }, { status: 400 })
+  }
 
   const body = await request.json()
   const service = await createServiceClient()
@@ -53,7 +58,10 @@ export async function PATCH(
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('PATCH /api/superadmin/users/[id]:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json(data)
 }
 
@@ -62,10 +70,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = await assertSuperadmin()
+  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const { data: { user: currentUser } } = await supabase.auth.getUser()
+  if (currentUser?.id === id) {
+    return NextResponse.json({ error: 'You cannot delete your own account.' }, { status: 400 })
+  }
 
   const service = await createServiceClient()
   const { error } = await service.auth.admin.deleteUser(id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('DELETE /api/superadmin/users/[id]:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json({ success: true })
 }

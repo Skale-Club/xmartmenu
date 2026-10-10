@@ -22,6 +22,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ redirectTo: '/auth/login' }, { status: 401 })
     }
 
+    // OAuth consent flow: after login, return to the pending consent screen
+    // regardless of role (superadmin would otherwise be forced to /overview,
+    // dropping the authorization_id). `next` is already validated as a safe
+    // local path by getSafeNext().
+    if (next.startsWith('/oauth/consent')) {
+      return NextResponse.json({ redirectTo: next })
+    }
+
     const service = createServiceClient()
     const { data: profile } = await service
       .from('profiles')

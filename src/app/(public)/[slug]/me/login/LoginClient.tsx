@@ -7,9 +7,10 @@ import { Phone, ArrowRight, KeyRound, ChevronLeft } from 'lucide-react'
 interface Props {
   slug: string
   primaryColor: string
+  onSuccess?: () => void
 }
 
-export default function LoginClient({ slug, primaryColor }: Props) {
+export default function LoginClient({ slug, primaryColor, onSuccess }: Props) {
   const [step, setStep] = useState<'phone' | 'otp'>('phone')
   const [phone, setPhone] = useState('')
   const [token, setToken] = useState('')
@@ -64,7 +65,11 @@ export default function LoginClient({ slug, primaryColor }: Props) {
       }, { onConflict: 'id' })
     }
 
-    window.location.href = `/${slug}/me`
+    if (onSuccess) {
+      onSuccess()
+    } else {
+      window.location.href = `/${slug}/me`
+    }
   }
 
   const btnStyle = { backgroundColor: primaryColor, color: '#09090b' }

@@ -23,6 +23,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Check blocked tenant slugs don't shadow real routes
+        run: npm run check:routes
+
       - name: Build (includes TypeScript check)
         run: npm run build
         env:

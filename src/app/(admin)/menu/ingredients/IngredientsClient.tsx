@@ -31,13 +31,13 @@ function Modal({
 }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-white rounded-xl border border-zinc-200 shadow-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200">
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
+      <div role="dialog" aria-modal="true" aria-label={title} className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-zinc-200 bg-white shadow-xl sm:max-w-4xl sm:rounded-xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-4 sm:px-5">
           <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
-          <button type="button" onClick={onClose} className="text-zinc-500 hover:text-zinc-800">✕</button>
+          <button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800">✕</button>
         </div>
-        <div className="p-5">{children}</div>
+        <div className="p-4 sm:p-5">{children}</div>
       </div>
     </div>
   )
@@ -167,7 +167,7 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
               className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">Extra price (default)</label>
               <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">

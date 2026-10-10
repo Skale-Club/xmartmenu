@@ -26,6 +26,9 @@ export async function GET(req: Request, { params }: Props) {
 
   const { data, error } = await query
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('GET /api/superadmin/tenants/[id]/menus/[menuId]/products-list:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
   return NextResponse.json({ products: data ?? [] })
 }

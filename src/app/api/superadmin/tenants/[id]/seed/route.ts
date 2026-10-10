@@ -408,7 +408,7 @@ export async function POST(
   } catch (err) {
     console.error('[seed] generation or insert error:', err)
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : 'Seeding failed | check server logs' },
+      { error: 'Internal server error' },
       { status: 500 }
     )
   }

@@ -97,13 +97,13 @@ export default function ChatInboxClient() {
 
   return (
     <div className="p-8 w-full">
-      <div className="flex items-end justify-between pb-6 border-b border-zinc-100 mb-8">
+      <div className="mb-8 flex items-end justify-between gap-4 border-b border-zinc-100 pb-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Inbox className="w-5 h-5 text-primary" />
             <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400">Administration</span>
           </div>
-          <h1 className="text-4xl font-black text-zinc-950 tracking-tight">Chat Inbox</h1>
+          <h1 className="text-3xl font-black text-zinc-950 tracking-tight sm:text-4xl">Chat Inbox</h1>
           <p className="text-sm font-bold text-zinc-500 mt-1">All conversations from your AI assistant</p>
         </div>
         <button onClick={() => tab === 'conversations' ? loadConversations() : loadBlocked()} className="p-2 text-zinc-500 hover:text-zinc-900">
@@ -157,8 +157,8 @@ export default function ChatInboxClient() {
               <p className="text-sm">Conversations appear here as customers chat with the assistant.</p>
             </div>
           ) : (
-            <div className="bg-white border border-zinc-100 rounded-2xl overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-2xl border border-zinc-100 bg-white">
+              <table className="min-w-[640px] w-full text-sm">
                 <thead className="bg-zinc-50 text-zinc-500">
                   <tr>
                     <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Phone</th>
@@ -198,8 +198,8 @@ export default function ChatInboxClient() {
               <p className="font-semibold">No phones blocked</p>
             </div>
           ) : (
-            <div className="bg-white border border-zinc-100 rounded-2xl overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-2xl border border-zinc-100 bg-white">
+              <table className="min-w-[640px] w-full text-sm">
                 <thead className="bg-zinc-50 text-zinc-500">
                   <tr>
                     <th className="px-4 py-3 text-left text-[10px] font-black uppercase tracking-widest">Phone</th>
@@ -233,9 +233,9 @@ export default function ChatInboxClient() {
 
       {/* Thread modal */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/60" onClick={() => setSelected(null)}>
-          <div className="bg-white w-full max-w-2xl max-h-[80vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-4 border-b border-zinc-100 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/60 sm:items-center sm:p-4" onClick={() => setSelected(null)}>
+          <div className="flex max-h-[calc(100dvh-0.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[80vh] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-4 sm:px-6">
               <div>
                 <p className="text-xs text-zinc-400 font-bold uppercase">Conversation</p>
                 <p className="text-sm font-mono text-zinc-700">{shortHash(selected.phone_hash)} · {selected.message_count} messages</p>
@@ -262,7 +262,7 @@ export default function ChatInboxClient() {
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-4 bg-zinc-50 space-y-3">
+            <div className="flex-1 space-y-3 overflow-y-auto bg-zinc-50 px-4 py-4 sm:px-6">
               {threadLoading ? (
                 <p className="text-sm text-zinc-400">Loading…</p>
               ) : thread.length === 0 ? (

@@ -1,4 +1,5 @@
 import { assertSuperadmin } from '@/lib/superadmin-auth'
+import { getSafePreviewDestination } from '@/lib/admin/tenant-management'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -9,7 +10,8 @@ export async function GET(request: Request) {
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.redirect(`${origin}/auth/login`)
 
-  const response = NextResponse.redirect(`${origin}/dashboard`)
+  const destination = getSafePreviewDestination(searchParams.get('next'))
+  const response = NextResponse.redirect(`${origin}${destination}`)
   response.cookies.set('preview_tenant_id', tenantId, {
     path: '/',
     httpOnly: true,
