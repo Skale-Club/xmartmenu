@@ -159,7 +159,7 @@ Key changes in v1.5:
 - ✓ Static marketing landing page (7 sections, `force-static`, Server Components only) — Phase 12
 - ✓ Middleware bypass: no `getUser()` on `/` — Phase 12
 - ✓ Reserved paths guard shared by middleware + onboarding API — Phase 12
-- ✓ Vercel Analytics + Speed Insights — Phase 12
+- ~~Vercel Analytics + Speed Insights~~ — Phase 12; removed after production moved to the Coolify container (Vercel is not a deployment target)
 - ✓ OG image (ImageResponse, 32.6 KB PNG, WhatsApp-safe) — Phase 12/13
 - ✓ sitemap.xml listing only `/` — Phase 13
 - ✓ robots.txt with correct Disallow rules — Phase 13
@@ -251,7 +251,7 @@ Key changes in v1.5:
 | AI seeding is superadmin-only | Managed onboarding service model; tenants edit via regular admin UI | ✓ Shipped v1.2 |
 | No review screen for AI output | Direct DB writes; correction happens in admin UI after seeding | ✓ Shipped v1.2 |
 | Nano Banana 2 for image generation | Single Google vendor for text + image; no Pexels/Unsplash attribution overhead | ✓ Shipped v1.2 |
-| Supabase signed URL for OCR upload | Bypasses Vercel 4.5 MB body limit; no intermediate proxy needed | ✓ Shipped v1.2 |
+| Supabase signed URL for OCR upload | Bypasses the app server's request body limit; no intermediate proxy needed | ✓ Shipped v1.2 |
 | price=0 as parse-failure signal | No extra DB column; superadmin sees $0 and corrects in admin UI | ✓ Shipped v1.2 |
 | Additive-only AI writes | Safe to re-run seeding without data loss; corrections via regular edit | ✓ Shipped v1.2 |
 | `force-static` for marketing page | Eliminates Supabase `getUser()` latency on `/`; Lighthouse-safe | ✓ Shipped v1.3 |

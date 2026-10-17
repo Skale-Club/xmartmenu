@@ -63,7 +63,7 @@
 ## Dependencies / Open Items (confirm before/at integration test)
 
 - Exact `/api/v1/sync` request/response shape + idempotency-key header convention (owned by Xtimator) — isolate in `types.ts`/`client.ts`; confirm before finalizing `mapping.ts` tests.
-- Live deployment target for the public QStash callback URL (Vercel vs the Coolify standalone container at `xmartmenu.skale.club`).
+- Live deployment target for the public QStash callback URL: resolved, the Coolify standalone container at `xmartmenu.skale.club` (Vercel is not a deployment target).
 - Pipeline stages (`Onboarding → Active → At Risk → Churned`, plus `Won`/`Lost`) configured data-only in the Xphere org before live sync; worker errors clearly if a stage name is missing.
 - Marketing-consent/opt-out and internal/test-tenant filtering before PII flows to the CRM.
 - No test runner currently in `package.json` — a phase may introduce `vitest` for `mapping.ts` pure-function tests, or use `tsx` scripts per existing `scripts/` convention.
