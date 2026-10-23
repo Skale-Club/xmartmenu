@@ -737,13 +737,13 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
                 transition={{ type: "spring", damping: 15 }}
               >
                 {settings?.logo_url ? (
-                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 p-1 bg-white/10 backdrop-blur-xl rounded-lg ring-1 ring-white/30 shadow-2xl overflow-hidden">
+                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-lg ring-1 ring-white/30 shadow-2xl overflow-hidden">
                     <Image
                       src={settings.logo_url}
                       alt={tenant.name}
                       fill
                       priority
-                      className="rounded-lg object-cover"
+                      className="object-contain p-2.5 sm:p-3"
                     />
                   </div>
                 ) : (
