@@ -19,6 +19,6 @@
  * Edge middleware bundle (Phase 12-01 D-26, minimal-imports).
  */
 export const BLOCKED_TENANT_SLUGS = new Set([
-  'pricing', 'features', 'about', 'faq', 'blog', 'help', 'support',
+  'pricing', 'features', 'about', 'faq', 'help', 'support',
   'pt', 'en', 'legal', 'contact', 'careers',
 ])

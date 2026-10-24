@@ -24,6 +24,7 @@ import {
   ExternalLink,
   LogOut,
   Salad,
+  Newspaper,
   Building2,
   Bot,
   Inbox,
@@ -64,6 +65,7 @@ export default function AdminSidebar({
   menus = [],
   activeMenuId = null,
   ingredientCustomizationEnabled = false,
+  blogEnabled = false,
 }: {
   tenantName: string
   tenantSlug?: string
@@ -73,6 +75,9 @@ export default function AdminSidebar({
   menus?: SidebarMenu[]
   activeMenuId?: string | null
   ingredientCustomizationEnabled?: boolean
+  /** Plan capability `blog` (autoblog-parity XM-14). Off for every plan that
+   *  does not sell it, which today is all of them until someone adds the key. */
+  blogEnabled?: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -84,9 +89,11 @@ export default function AdminSidebar({
   const isStaff = role === 'store-staff'
 
   const ingredientItem = { href: '/menu/ingredients', label: 'Ingredients', icon: Salad }
+  const blogItem = { href: '/posts', label: 'Blog', icon: Newspaper }
   const visibleMainItems = [
     ...mainItems,
     ...(ingredientCustomizationEnabled ? [ingredientItem] : []),
+    ...(blogEnabled ? [blogItem] : []),
   ].filter(item => isStaff ? item.href !== '/menus' : true)
   const visibleAdminPanelItems = isStaff
     ? adminPanelItems.filter((item) => item.href === '/settings/qrcode' || item.href === '/settings/password')
