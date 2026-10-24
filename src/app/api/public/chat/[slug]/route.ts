@@ -1,23 +1,33 @@
 /**
- * Public AI chat streaming endpoint.
+ * Public AI chat endpoint.
  *
  * - Validates conversation_id belongs to the tenant
  * - Enforces rate limit (rate_limit_per_phone_per_day) and blocklist
  * - Decrypts the tenant's OpenRouter API key
- * - Builds the system prompt with full menu context + guardrails
- * - Streams the response via Vercel AI SDK; persists user + assistant messages on finish
+ * - Rebuilds the conversation from chat_messages (the client sends only the new
+ *   message; its copy of the history is never trusted)
+ * - Runs the assistant (chat-agent.ts) and persists user + assistant turns
  *
- * The addToCart tool emits structured tool calls that the client widget
- * intercepts and applies to the existing in-memory cart context — there is no
- * server-side cart state to mutate here.
+ * addToCart is validated and priced on the server against the same catalog the
+ * prompt describes; the response carries ready-to-add cart items (options,
+ * editor state, trusted unit price) that the widget applies to the in-memory
+ * cart. Checkout re-prices them from the editor state anyway.
  */
 import { NextResponse } from 'next/server'
 import { createOpenAI } from '@ai-sdk/openai'
-import { generateText, tool } from 'ai'
-import { z } from 'zod'
 import { createServiceClient } from '@/lib/supabase/server'
 import { decryptApiKey } from '@/lib/crypto'
-import { buildMenuContext, countMessagesLast24h, getChatAddonStatus } from '@/lib/chat-addon'
+import { countMessagesLast24h, getChatAddonStatus } from '@/lib/chat-addon'
+import {
+  HISTORY_LIMIT,
+  MAX_USER_MESSAGE_CHARS,
+  assistantTurnForHistory,
+  buildModelMessages,
+  buildSystemPrompt,
+  formatMenuContext,
+  loadMenuCatalog,
+  runChatAgent,
+} from '@/lib/chat-agent'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -25,7 +35,10 @@ export const maxDuration = 60
 
 interface ChatRequestBody {
   conversation_id: string
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>
+  message?: string
+  // Older widget builds still post the whole transcript; only its last user
+  // turn is read.
+  messages?: Array<{ role: string; content: string }>
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -41,14 +54,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   const rlDay = await rateLimit('chat-message-ip-day', ip, 300, '1 d')
   if (!rlDay.ok) return NextResponse.json({ error: 'Daily limit reached for this device.' }, { status: 429 })
 
-  const { conversation_id, messages } = (await request.json()) as ChatRequestBody
+  const body = (await request.json().catch(() => null)) as ChatRequestBody | null
+  const conversation_id = body?.conversation_id
+  const rawMessage = typeof body?.message === 'string'
+    ? body.message
+    : [...(Array.isArray(body?.messages) ? body.messages : [])].reverse().find((m) => m?.role === 'user')?.content
+  const userMessage = typeof rawMessage === 'string' ? rawMessage.trim() : ''
 
-  if (!conversation_id || !Array.isArray(messages) || messages.length === 0) {
-    return NextResponse.json({ error: 'conversation_id and messages are required' }, { status: 400 })
+  if (!conversation_id || !userMessage) {
+    return NextResponse.json({ error: 'conversation_id and message are required' }, { status: 400 })
   }
-  const lastUser = [...messages].reverse().find((m) => m.role === 'user')
-  if (!lastUser || !lastUser.content?.trim()) {
-    return NextResponse.json({ error: 'No user message' }, { status: 400 })
+  if (userMessage.length > MAX_USER_MESSAGE_CHARS) {
+    return NextResponse.json({ error: `Message too long (max ${MAX_USER_MESSAGE_CHARS} characters)` }, { status: 413 })
   }
 
   const supabase = createServiceClient()
@@ -56,7 +73,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // Resolve tenant
   const { data: tenant } = await supabase
     .from('tenants')
-    .select('id, name, tenant_settings(orders_enabled, address, phone, business_hours, business_type)')
+    .select('id, name, tenant_settings(orders_enabled, address, phone, business_hours, business_type, currency)')
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle()
@@ -113,39 +130,30 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: 'Server config error' }, { status: 500 })
   }
 
-  // Build system prompt
   const settingsRow = (tenant.tenant_settings as any) ?? {}
   const ordersEnabled: boolean = !!settingsRow.orders_enabled
-  const menuContext = await buildMenuContext(supabase, tenant.id)
-  const hoursStr = settingsRow.business_hours
-    ? Object.entries(settingsRow.business_hours).map(([d, h]) => `${d}: ${h}`).join(' | ')
-    : 'not provided'
 
-  const systemPrompt = `You are a friendly restaurant assistant for ${tenant.name}.
-You help customers explore the menu, understand dishes, discover great combinations,
-and place orders when available.
+  const [catalog, { data: history }] = await Promise.all([
+    loadMenuCatalog(supabase, tenant.id, settingsRow.currency ?? null),
+    supabase
+      .from('chat_messages')
+      .select('role, content')
+      .eq('conversation_id', convo.id)
+      .order('created_at', { ascending: false })
+      .limit(HISTORY_LIMIT),
+  ])
 
-MENU CONTEXT:
-${menuContext}
-
-RESTAURANT INFO:
-- Address: ${settingsRow.address ?? 'not provided'}
-- Phone: ${settingsRow.phone ?? 'not provided'}
-- Hours: ${hoursStr}
-- Cuisine: ${settingsRow.business_type ?? 'not provided'}
-
-ORDERING:
-${ordersEnabled
-  ? 'You CAN help the customer add items to their cart using the addToCart tool. Call it whenever the customer explicitly asks to add, order, or include items.'
-  : 'You CANNOT place orders or add items to a cart. This restaurant uses digital menus for browsing only. Politely inform the customer if they ask to order.'}
-
-GUARDRAILS — STRICT:
-- Only discuss: menu items, ingredients, prices, promotions, dish combinations, food/drink harmonization, and allergen questions.
-- For any other topic (politics, weather, jokes, general knowledge, competitors, personal advice), respond: "I'm only able to help with our menu and dishes. Is there something you'd like to know about our food?"
-- Never invent menu items, prices, or ingredients not listed above.
-- Never discuss competitor restaurants.
-- Be warm, concise, and helpful. Maximum 3 sentences per response unless listing items.
-- Respond in the language the customer uses.`
+  const systemPrompt = buildSystemPrompt(
+    {
+      name: tenant.name,
+      address: settingsRow.address,
+      phone: settingsRow.phone,
+      hours: settingsRow.business_hours,
+      cuisine: settingsRow.business_type,
+    },
+    formatMenuContext(catalog),
+    ordersEnabled,
+  )
 
   // OpenRouter is OpenAI-compatible — point @ai-sdk/openai at it
   const openrouter = createOpenAI({
@@ -153,79 +161,49 @@ GUARDRAILS — STRICT:
     baseURL: 'https://openrouter.ai/api/v1',
   })
 
-  const tools = ordersEnabled
-    ? {
-        addToCart: tool({
-          description: 'Add one or more menu items to the customer cart. Use the exact product_id values from MENU CONTEXT.',
-          inputSchema: z.object({
-            items: z.array(z.object({
-              product_id: z.string().describe('UUID of the product from MENU CONTEXT'),
-              name: z.string().describe('Product name (for confirmation/display)'),
-              quantity: z.number().int().positive().default(1),
-              unit_price: z.number().describe('Base price in the menu currency'),
-              note: z.string().optional(),
-            })).min(1).max(20),
-          }),
-          execute: async ({ items }) => ({
-            ok: true,
-            added: items.map((i) => ({ name: i.name, quantity: i.quantity })),
-          }),
-        }),
-      }
-    : undefined
-
-  const userMessage = lastUser.content.trim()
-
   let result
   try {
-    result = await generateText({
-      model: openrouter(settings.openrouter_model || 'openai/gpt-4o-mini') as any,
+    result = await runChatAgent({
+      model: openrouter(settings.openrouter_model || 'openai/gpt-4o-mini'),
       system: systemPrompt,
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
-      tools: tools as any,
-      maxRetries: 1,
+      messages: buildModelMessages([...(history ?? [])].reverse(), userMessage),
+      catalog,
+      ordersEnabled,
     })
   } catch (e) {
     console.error('chat.generate_error', e)
     return NextResponse.json({ error: 'Assistant temporarily unavailable' }, { status: 502 })
   }
 
-  // Persist user + assistant turns; bump conversation aggregates.
-  const nowIso = new Date().toISOString()
+  // Persist user + assistant turns; bump conversation aggregates. Distinct
+  // timestamps keep the pair in order when the history is read back.
+  const now = Date.now()
   await supabase.from('chat_messages').insert([
     {
       conversation_id: convo.id,
       role: 'user',
       content: userMessage,
-      created_at: nowIso,
+      created_at: new Date(now).toISOString(),
     },
     {
       conversation_id: convo.id,
       role: 'assistant',
-      content: result.text || '',
-      created_at: nowIso,
-      tokens_used: (result.usage as any)?.totalTokens ?? null,
+      content: assistantTurnForHistory(result.text, result.cartItems),
+      created_at: new Date(now + 1).toISOString(),
+      tokens_used: result.totalTokens,
     },
   ])
   await supabase
     .from('chat_conversations')
     .update({
-      last_message_at: nowIso,
+      last_message_at: new Date(now + 1).toISOString(),
       message_count: (convo.message_count ?? 0) + 2,
     })
     .eq('id', convo.id)
 
-  // Extract addToCart tool calls (if any)
-  const cartItems: Array<{ product_id: string; name: string; quantity: number; unit_price: number; note?: string }> = []
-  for (const tc of (result as any).toolCalls ?? []) {
-    if (tc.toolName === 'addToCart' && tc.input?.items) {
-      for (const i of tc.input.items) cartItems.push(i)
-    }
-  }
-
   return NextResponse.json({
-    text: result.text || '',
-    cart_items: cartItems,
+    text: result.text,
+    cart_items: result.cartItems,
     remaining_today: Math.max(0, limit - used - 1),
   })
 }

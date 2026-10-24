@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { MessageCircle, X, Send, Mic, MicOff, ShoppingBag, Bot } from 'lucide-react'
 import type { Product, IngredientModifications } from '@/types/database'
+import type { CartEditorState } from './menu-utils'
+import type { ResolvedCartItem } from '@/lib/chat-agent'
 
 interface Props {
   tenantSlug: string
@@ -10,8 +12,11 @@ interface Props {
   primaryColor?: string
   audioEnabled?: boolean
   products: Product[]
-  onAddToCart: (product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null) => void
+  onAddToCart: (product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void
 }
+
+// Server-side cap (MAX_USER_MESSAGE_CHARS in chat-agent.ts).
+const MAX_MESSAGE_CHARS = 1000
 
 interface Message {
   id: string
@@ -93,7 +98,6 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
     if (!text.trim() || !conversationId || sending) return
     setError(null)
     const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: text }
-    const next: Message[] = [...messages.filter((m) => m.id !== 'welcome'), userMsg]
     setMessages([...messages, userMsg])
     setInput('')
     setSending(true)
@@ -101,10 +105,8 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
     const res = await fetch(`/api/public/chat/${tenantSlug}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        conversation_id: conversationId,
-        messages: next.map((m) => ({ role: m.role, content: m.content })),
-      }),
+      // Only the new message: the server rebuilds the history from what it stored.
+      body: JSON.stringify({ conversation_id: conversationId, message: text.trim() }),
     })
 
     if (!res.ok) {
@@ -113,15 +115,17 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
       setSending(false)
       return
     }
-    const data = await res.json() as { text: string; cart_items?: Array<{ product_id: string; name: string; quantity: number; unit_price: number; note?: string }>; remaining_today: number }
+    const data = await res.json() as { text: string; cart_items?: ResolvedCartItem[]; remaining_today: number }
 
-    // Apply cart items via parent callback
+    // Apply cart items via parent callback. Options, editor state and unit
+    // price were resolved by the server from the menu, exactly as the product
+    // modal would build them.
     const addedItems: Array<{ name: string; quantity: number }> = []
     for (const item of data.cart_items ?? []) {
       const product = products.find((p) => p.id === item.product_id)
       if (product) {
         for (let i = 0; i < item.quantity; i++) {
-          onAddToCart(product, {}, item.unit_price ?? product.price, item.note, null)
+          onAddToCart(product, item.selected_options, item.unit_price, item.note, null, item.editor_state)
         }
         addedItems.push({ name: item.name, quantity: item.quantity })
       }
@@ -248,9 +252,9 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                           : 'bg-white border border-zinc-200 text-zinc-800 rounded-bl-md'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{m.content}</p>
+                      {m.content && <p className="whitespace-pre-wrap">{m.content}</p>}
                       {m.cartItems && m.cartItems.length > 0 && (
-                        <div className="mt-2 pt-2 border-t border-zinc-100 flex flex-wrap gap-1.5">
+                        <div className={`flex flex-wrap gap-1.5 ${m.content ? 'mt-2 pt-2 border-t border-zinc-100' : ''}`}>
                           {m.cartItems.map((ci, i) => (
                             <span key={i} className="inline-flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
                               <ShoppingBag className="w-3 h-3" />
@@ -296,6 +300,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                       }
                     }}
                     rows={1}
+                    maxLength={MAX_MESSAGE_CHARS}
                     placeholder={recording ? 'Recording…' : 'Ask about our menu…'}
                     disabled={sending || recording}
                     className="flex-1 px-3 py-2 border border-zinc-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:bg-zinc-50 max-h-24"

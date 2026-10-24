@@ -1,5 +1,6 @@
 /**
- * SEED-024 helpers: addon status check, menu context serialization, rate limiter.
+ * SEED-024 helpers: addon status check and rate limiter. The assistant itself
+ * (menu context, history, addToCart) lives in chat-agent.ts.
  *
  * The chat addon is "available" when the tenant's plan has chat_addon_available=true
  * AND the tenant has chat_addon_active=true on their subscription. A superadmin can
@@ -46,81 +47,6 @@ export async function getChatAddonStatus(tenantId: string): Promise<ChatAddonSta
     enabled: active && enabled,
     overrideApplied,
   }
-}
-
-/**
- * Build the menu context block injected into the AI system prompt.
- * Includes categories, products, prices, descriptions, options and a few key flags.
- * Kept compact-ish so it doesn't blow the context window even on big menus.
- */
-export async function buildMenuContext(
-  supabase: SupabaseClient,
-  tenantId: string,
-): Promise<string> {
-  // Default menu first; if no default, the most-recent active menu
-  const { data: menus } = await supabase
-    .from('menus')
-    .select('id, name, is_default')
-    .eq('tenant_id', tenantId)
-    .eq('is_active', true)
-    .order('is_default', { ascending: false })
-    .order('position')
-
-  const menu = menus?.[0]
-  if (!menu) return 'No menu available.'
-
-  const [{ data: categories }, { data: products }] = await Promise.all([
-    supabase.from('categories').select('id, name, description').eq('menu_id', menu.id).eq('is_active', true).order('position'),
-    supabase.from('products').select('id, category_id, name, description, price, original_price, tags').eq('menu_id', menu.id).eq('is_available', true).order('position'),
-  ])
-
-  const productIds = (products ?? []).map((p) => p.id)
-  const { data: optionGroups } = productIds.length
-    ? await supabase
-        .from('product_option_groups')
-        .select('id, product_id, name, type, required, options:product_options(id, name, price_modifier, base_price)')
-        .in('product_id', productIds)
-    : { data: [] as any[] }
-
-  const groupsByProduct = new Map<string, any[]>()
-  for (const g of optionGroups ?? []) {
-    const arr = groupsByProduct.get(g.product_id) ?? []
-    arr.push(g)
-    groupsByProduct.set(g.product_id, arr)
-  }
-
-  const lines: string[] = [`MENU: ${menu.name}`]
-  for (const cat of categories ?? []) {
-    lines.push(`\n## ${cat.name}`)
-    if (cat.description) lines.push(`(${cat.description})`)
-    const prods = (products ?? []).filter((p) => p.category_id === cat.id)
-    for (const p of prods) {
-      const price = p.original_price && p.original_price > p.price
-        ? `${p.price} (promo, was ${p.original_price})`
-        : `${p.price}`
-      const tags = (p.tags as string[] | null)?.length ? ` [${(p.tags as string[]).join(', ')}]` : ''
-      lines.push(`- ${p.name} — ${price}${tags} (product_id: ${p.id})`)
-      if (p.description) lines.push(`    ${p.description}`)
-      const groups = groupsByProduct.get(p.id) ?? []
-      for (const g of groups) {
-        const opts = (g.options ?? []).map((o: any) => {
-          const mod = o.base_price !== null
-            ? ` @${o.base_price}`
-            : o.price_modifier ? ` ${o.price_modifier > 0 ? '+' : ''}${o.price_modifier}` : ''
-          return `${o.name}${mod}`
-        }).join(', ')
-        lines.push(`    • ${g.name}${g.required ? ' (required)' : ''}: ${opts}`)
-      }
-    }
-  }
-  // Products with no category fall under "Other"
-  const orphans = (products ?? []).filter((p) => !p.category_id)
-  if (orphans.length) {
-    lines.push('\n## Other')
-    for (const p of orphans) lines.push(`- ${p.name} — ${p.price} (product_id: ${p.id})`)
-  }
-
-  return lines.join('\n')
 }
 
 /**
