@@ -17,7 +17,12 @@ export interface RequestContext {
   role?: string
 }
 
-const storage = new AsyncLocalStorage<RequestContext>()
+// One store per process: Next.js may bundle this module more than once (route
+// handlers, server components, instrumentation), and every copy must read and
+// write the same context — otherwise withApi() opens one store while the
+// Supabase client reads another.
+const globalStore = globalThis as { __xmartmenuRequestStorage?: AsyncLocalStorage<RequestContext> }
+const storage = (globalStore.__xmartmenuRequestStorage ??= new AsyncLocalStorage<RequestContext>())
 
 export function runWithRequestContext<T>(context: RequestContext, fn: () => T): T {
   return storage.run(context, fn)

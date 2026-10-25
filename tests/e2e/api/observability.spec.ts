@@ -65,7 +65,8 @@ test.describe('audit trail', () => {
       expect(response.headers()['x-request-id']).toBe(requestId)
 
       const [event] = await auditFor({ table: 'categories', record: DESSERTS_SELF, requestId })
-      expect(event).toMatchObject({ actor_id: USER_IDS.selfOwner, via: 'server', action: 'update', tenant_id: TENANTS.self.id, request_id: requestId })
+      // On failure, show what the trigger did record for this category.
+      expect(event, JSON.stringify(await auditFor({ table: 'categories', record: DESSERTS_SELF }))).toMatchObject({ actor_id: USER_IDS.selfOwner, via: 'server', action: 'update', tenant_id: TENANTS.self.id, request_id: requestId })
       expect(event.changes).toEqual({ name: ['Desserts', newName] })
 
       await request.patch(`/api/admin/categories/${DESSERTS_SELF}`, { data: { name: 'Desserts' } })
