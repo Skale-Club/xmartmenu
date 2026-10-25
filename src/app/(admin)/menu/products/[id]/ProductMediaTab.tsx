@@ -69,6 +69,8 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
     const MAX = 8
     const remaining = MAX - media.filter(m => m.type === 'image').length
     const toUpload = Array.from(files).slice(0, remaining)
+    // `media` is this render's snapshot; count on from it for every file.
+    let nextOrder = media.length > 0 ? Math.max(...media.map(m => m.display_order)) + 1 : 0
 
     for (const file of toUpload) {
       const fd = new FormData()
@@ -79,10 +81,9 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
         continue
       }
       const { url } = await res.json()
-      const nextOrder = media.length > 0 ? Math.max(...media.map(m => m.display_order)) + 1 : 0
       const { data: inserted } = await supabase
         .from('product_media')
-        .insert({ product_id: productId, tenant_id: tenantId, type: 'image', url, display_order: nextOrder })
+        .insert({ product_id: productId, tenant_id: tenantId, type: 'image', url, display_order: nextOrder++ })
         .select()
         .single()
       if (inserted) setMedia(prev => [...prev, inserted as ProductMedia])
@@ -116,7 +117,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
     const { error: delError } = await supabase.from('product_media').delete().eq('id', item.id)
     if (delError) { setError(delError.message); return }
     setMedia(prev => prev.filter(m => m.id !== item.id))
-    await syncPrimaryImage()
+    await syncPrimaryImage({ clearWhenNone: item.type === 'image' })
   }
 
   async function handleMove(item: ProductMedia, direction: 'up' | 'down') {
@@ -144,11 +145,20 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
     await syncPrimaryImage()
   }
 
-  async function syncPrimaryImage() {
-    const images = media
-      .filter(m => m.type === 'image')
-      .sort((a, b) => a.display_order - b.display_order)
-    const primary = images[0]?.url ?? null
+  // Points products.image_url at the first gallery image. Reads the gallery
+  // from the database: the `media` state is stale right after a change.
+  // Without gallery images the existing image_url is kept, unless the last
+  // image was just deleted.
+  async function syncPrimaryImage({ clearWhenNone = false } = {}) {
+    const { data } = await supabase
+      .from('product_media')
+      .select('url')
+      .eq('product_id', productId)
+      .eq('type', 'image')
+      .order('display_order')
+      .limit(1)
+    const primary = data?.[0]?.url ?? null
+    if (!primary && !clearWhenNone) return
     await supabase.from('products').update({ image_url: primary }).eq('id', productId)
   }
 

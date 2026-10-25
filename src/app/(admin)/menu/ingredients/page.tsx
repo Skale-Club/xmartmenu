@@ -19,7 +19,7 @@ export default async function IngredientsPage() {
     .eq('tenant_id', tenantId)
     .single()
 
-  if (!settings?.ingredient_customization_enabled) redirect('/admin/dashboard')
+  if (!settings?.ingredient_customization_enabled) redirect('/dashboard')
 
   const { data: ingredients } = await supabase
     .from('ingredients')

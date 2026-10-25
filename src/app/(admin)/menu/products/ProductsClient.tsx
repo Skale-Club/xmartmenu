@@ -658,7 +658,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                     <CheckCircle2 className="w-5 h-5" />
                   </button>
                   <button
-                    onClick={() => router.push(`/admin/menu/products/${product.id}`)}
+                    onClick={() => router.push(`/menu/products/${product.id}`)}
                     className="p-3 rounded-lg border border-zinc-100 text-zinc-400 hover:text-zinc-950 hover:bg-zinc-50 transition-all"
                     title="Edit Product"
                   >
@@ -673,7 +673,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                   </button>
                 </div>
                 <button 
-                  onClick={() => router.push(`/admin/menu/products/${product.id}`)}
+                  onClick={() => router.push(`/menu/products/${product.id}`)}
                   className="w-12 h-12 rounded-full bg-zinc-950 flex items-center justify-center text-primary hover:scale-110 transition-transform shadow-xl shadow-zinc-950/20"
                 >
                   <ChevronRight className="w-6 h-6" />

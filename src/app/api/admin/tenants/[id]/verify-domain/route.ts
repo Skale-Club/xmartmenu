@@ -30,7 +30,7 @@ export async function POST(
   if (!effective) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
-  if (effective.tenantId !== id) {
+  if (effective.tenantId !== id || effective.role === 'store-staff') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 

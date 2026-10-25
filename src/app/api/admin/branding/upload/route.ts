@@ -6,6 +6,8 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Uploads overwrite the live logo/banner file, so they are owner-only like the branding PATCH.
+  if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const formData = await request.formData()
   const file = formData.get('file') as File | null

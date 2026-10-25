@@ -591,7 +591,7 @@ export default function ProductDetailClient({
       {/* Page header */}
       <div className="flex items-center gap-3 mb-6">
         <button
-          onClick={() => router.push('/admin/menu/products')}
+          onClick={() => router.push('/menu/products')}
           className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors"
         >
           ← Products
