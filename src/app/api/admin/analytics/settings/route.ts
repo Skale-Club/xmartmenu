@@ -8,6 +8,7 @@ const settingsSchema = z.strictObject({
   visual_feed_enabled: z.boolean(),
   menu_default_view: z.enum(['list', 'feed']),
   feed_autoplay_videos: z.boolean(),
+  upsell_enabled: z.boolean().optional(),
 }).superRefine((value, ctx) => {
   if (!value.visual_feed_enabled && value.menu_default_view === 'feed') {
     ctx.addIssue({
@@ -41,7 +42,7 @@ export async function PATCH(request: Request) {
       ...parsed.data,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'tenant_id' })
-    .select('analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos')
+    .select('analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos, upsell_enabled')
     .single()
 
   if (error) {

@@ -160,6 +160,22 @@ export default function MenuDisplayClient({
         />
       </section>
 
+      {/* Complete your order */}
+      <section className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-black text-zinc-950">“Complete your order” suggestions</p>
+          <p className="mt-1 text-xs font-medium leading-relaxed text-zinc-500">
+            After a guest adds a dish, suggest what usually comes next — a side, a drink, a dessert — one step at a time.
+            Set each category’s role in Categories and hand-pick pairings on each dish. Needs online ordering.
+          </p>
+        </div>
+        <Switch
+          checked={settings.upsell_enabled ?? true}
+          onChange={checked => update({ upsell_enabled: checked })}
+          label="Complete your order suggestions"
+        />
+      </section>
+
       {/* Links */}
       <section className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-5">
         <div className="flex items-center gap-2">

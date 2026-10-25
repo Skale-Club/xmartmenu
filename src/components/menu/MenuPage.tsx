@@ -32,6 +32,8 @@ import {
   type StoredCartItem,
 } from './menu-session'
 import ModalPortal from '@/components/ui/ModalPortal'
+import UpsellSheet from './UpsellSheet'
+import { buildUpsellSteps, canQuickAdd, type UpsellStep } from './upsell'
 import {
   MapPin,
   Phone,
@@ -142,7 +144,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   // Tabs scroll to a section instead of filtering; the list is never narrowed to one category.
   const activeCategory: string | null = null
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
-  const [selectedProductSource, setSelectedProductSource] = useState<'grid' | 'featured' | 'detail' | 'cart' | 'feed'>('detail')
+  const [selectedProductSource, setSelectedProductSource] = useState<'grid' | 'featured' | 'detail' | 'cart' | 'feed' | 'upsell'>('detail')
   const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage ?? menu?.language ?? 'en')
   // Dish content in the guest's language (falls back to the base text). Each
   // localized item keeps `base_name`, which is what orders send the kitchen.
@@ -288,7 +290,63 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
 
   const directOrdersEnabled = settings?.direct_orders_enabled ?? false
 
-  function openProduct(product: Product, source: 'grid' | 'featured' | 'detail' | 'cart' | 'feed') {
+  // ── "Complete your order" (see upsell.ts) ─────────────────────────────────
+  // After a dish goes into the cart, offer what usually comes next. `choosing`
+  // = a suggestion with required choices is open in the product modal; adding
+  // it (or closing it) brings the guest back to the same step.
+  const upsellEnabled = directOrdersEnabled && (settings?.upsell_enabled ?? true)
+  const [upsell, setUpsell] = useState<{
+    triggerId: string
+    steps: UpsellStep[]
+    index: number
+    added: string[]
+    choosing: boolean
+  } | null>(null)
+
+  function startUpsell(product: Product) {
+    if (!upsellEnabled) return
+    const added = products.find(p => p.id === product.id) ?? product
+    const steps = buildUpsellSteps({
+      added,
+      cartProductIds: [...cart.map(item => item.product.id), product.id],
+      products,
+      categories,
+    })
+    if (!steps.length) return
+    setUpsell({ triggerId: product.id, steps, index: 0, added: [], choosing: false })
+    analyticsTracker?.track({ event_name: 'upsell_shown', product_id: product.id, source: 'upsell' })
+  }
+
+  function acceptUpsell(product: Product, quantity: number) {
+    analyticsTracker?.track({ event_name: 'upsell_accepted', product_id: product.id, quantity, source: 'upsell' })
+    setUpsell(prev => prev && { ...prev, choosing: false, added: prev.added.includes(product.id) ? prev.added : [...prev.added, product.id] })
+  }
+
+  function quickAddUpsell(product: Product) {
+    addToCart(product, {}, product.price, undefined, null, null, 'upsell', 1)
+    acceptUpsell(product, 1)
+  }
+
+  function chooseUpsell(product: Product) {
+    setUpsell(prev => prev && { ...prev, choosing: true })
+    openProduct(product, 'upsell')
+  }
+
+  function finishUpsell() {
+    // Tracked outside the state updater: React may run updaters twice.
+    if (upsell && upsell.added.length === 0) {
+      analyticsTracker?.track({ event_name: 'upsell_skipped', product_id: upsell.triggerId, source: 'upsell' })
+    }
+    setUpsell(null)
+  }
+
+  function nextUpsellStep() {
+    if (!upsell) return
+    if (upsell.index < upsell.steps.length - 1) setUpsell({ ...upsell, index: upsell.index + 1 })
+    else finishUpsell()
+  }
+
+  function openProduct(product: Product, source: 'grid' | 'featured' | 'detail' | 'cart' | 'feed' | 'upsell') {
     setSelectedProductSource(source)
     setSelectedProduct(product)
   }
@@ -296,7 +354,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed', quantity = 1) {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed' | 'upsell', quantity = 1) {
     const key = buildCartKey(product.id, selectedOptions)
     const amount = Math.max(1, Math.floor(quantity))
     setCart(prev => {
@@ -1039,7 +1097,10 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             hasCustomization={hasCustomization}
             quantityFor={productId => cart.find(item => item.cartKey === buildCartKey(productId, {}))?.quantity ?? 0}
             onOpen={product => openProduct(product, 'feed')}
-            onAdd={product => addToCart(product, {}, product.price, undefined, undefined, undefined, 'feed')}
+            onAdd={product => {
+              addToCart(product, {}, product.price, undefined, undefined, undefined, 'feed')
+              startUpsell(product)
+            }}
             onIncrement={product => {
               const key = buildCartKey(product.id, {})
               const quantity = cart.find(item => item.cartKey === key)?.quantity ?? 0
@@ -1104,7 +1165,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                           cartQuantity: customizable ? 0 : qty,
                           // A dish with choices to make opens its sheet instead of
                           // going into the order without them.
-                          onAdd: customizable ? () => openProduct(p, 'grid') : () => addToCart(p, {}, p.price),
+                          onAdd: customizable ? () => openProduct(p, 'grid') : () => { addToCart(p, {}, p.price); startUpsell(p) },
                           onIncrement: () => updateCartQuantity(key, qty + 1),
                           onDecrement: () => updateCartQuantity(key, qty - 1),
                         } : {})}
@@ -1187,13 +1248,17 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
         return (
         <ProductModal
           product={shownProduct}
-          onPrevProduct={!editingCartKey && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
-          onNextProduct={!editingCartKey && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
+          onPrevProduct={!editingCartKey && !upsell?.choosing && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
+          onNextProduct={!editingCartKey && !upsell?.choosing && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           primaryColor={primaryColor}
           currency={currency}
           whatsapp={whatsapp}
           lang={selectedLanguage}
-          onClose={closeProductModal}
+          onClose={() => {
+            closeProductModal()
+            // Back to the "Complete your order" step it was opened from.
+            if (upsell?.choosing) setUpsell({ ...upsell, choosing: false })
+          }}
           onWhatsApp={() => openWhatsApp(selectedProduct)}
           optionGroups={optionGroupsByProductId[selectedProduct.id] ?? []}
           itemNotesEnabled={settings?.item_notes_enabled ?? false}
@@ -1210,15 +1275,38 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             ? (selectedOptions, unitPrice, note, ingredientModifications, editorState, quantity) => {
                 if (editingCartKey) {
                   replaceCartItem(editingCartKey, selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState)
+                  closeProductModal()
+                } else if (upsell?.choosing) {
+                  addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState, 'upsell', quantity ?? 1)
+                  acceptUpsell(selectedProduct, quantity ?? 1)
+                  closeProductModal()
                 } else {
                   addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState, undefined, quantity ?? 1)
+                  closeProductModal()
+                  startUpsell(selectedProduct)
                 }
-                closeProductModal()
               }
             : undefined}
         />
         )
       })()}
+
+      {upsell && !upsell.choosing && !selectedProduct && (
+        <UpsellSheet
+          steps={upsell.steps}
+          stepIndex={upsell.index}
+          triggerName={(products.find(p => p.id === upsell.triggerId) ?? baseProducts.find(p => p.id === upsell.triggerId))?.name ?? ''}
+          addedIds={new Set(upsell.added)}
+          lang={selectedLanguage}
+          currency={currency}
+          primaryColor={primaryColor}
+          canQuickAdd={product => canQuickAdd(optionGroupsByProductId[product.id])}
+          onAdd={quickAddUpsell}
+          onChoose={chooseUpsell}
+          onNext={nextUpsellStep}
+          onClose={finishUpsell}
+        />
+      )}
 
       {chatAddonEnabled && activeMenuView === 'list' && (
         <AiChatWidget

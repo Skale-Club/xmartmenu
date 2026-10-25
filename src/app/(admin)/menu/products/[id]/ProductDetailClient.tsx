@@ -10,6 +10,7 @@ import type { Product, ProductOption, OptionGroupType, Ingredient, ProductIngred
 import { type GroupWithOptions } from './page'
 import ProductMediaTab from './ProductMediaTab'
 import ProductTranslationsTab from './ProductTranslationsTab'
+import ProductUpsellCard, { type UpsellCandidate } from './ProductUpsellCard'
 
 const TYPE_BADGE: Record<OptionGroupType, string> = {
   single:        'bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full',
@@ -34,6 +35,7 @@ interface Props {
   initialProductIngredients?: ProductIngredient[]
   baseLanguage?: string
   supportedLanguages?: string[]
+  upsellCandidates?: UpsellCandidate[]
 }
 
 function OptionGroupForm({
@@ -277,6 +279,7 @@ export default function ProductDetailClient({
   initialProductIngredients = [],
   baseLanguage = 'en',
   supportedLanguages = [],
+  upsellCandidates = [],
 }: Props) {
   // Product fields form state
   const [productForm, setProductForm] = useState({
@@ -753,6 +756,15 @@ export default function ProductDetailClient({
           )}
         </form>
       </div>
+      )}
+
+      {activeTab === 'details' && (
+        <ProductUpsellCard
+          productId={product.id}
+          initialIds={product.upsell_product_ids ?? []}
+          candidates={upsellCandidates}
+          canManage={canManage}
+        />
       )}
 
       {/* Option Groups card shown only on Options tab */}

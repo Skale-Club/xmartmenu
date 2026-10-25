@@ -137,6 +137,7 @@ export interface TenantSettings {
   visual_feed_enabled: boolean      // Tenant rollout flag for the visual feed
   menu_default_view: 'list' | 'feed' // Initial public-menu presentation
   feed_autoplay_videos: boolean     // Muted viewport-aware direct video autoplay
+  upsell_enabled?: boolean          // "Complete your order" after adding a dish (Settings › Menu display)
   updated_at: string
   // AI-04: New fields added in migration 022
   business_type: string | null
@@ -187,6 +188,8 @@ export interface Category {
   translations?: Record<string, { name?: string; description?: string }>
   /** Client-only: the base-language name when `name` shows a translation. */
   base_name?: string
+  /** Its place in a meal, for "Complete your order" (null = not part of it). */
+  course?: 'main' | 'side' | 'drink' | 'dessert' | null
   description: string | null
   position: number
   is_active: boolean
@@ -209,6 +212,8 @@ export interface Product {
   image_urls: string[]
   is_available: boolean
   is_featured: boolean
+  /** Dishes suggested with this one in "Complete your order", in order. */
+  upsell_product_ids?: string[]
   show_in_feed: boolean
   tags: string[]
   position: number
@@ -283,7 +288,7 @@ export interface MenuEvent {
   occurred_at: string
   duration_ms: number | null
   quantity: number | null
-  source: 'grid' | 'featured' | 'detail' | 'cart' | 'checkout' | 'feed' | 'search' | 'unknown' | null
+  source: 'grid' | 'featured' | 'detail' | 'cart' | 'checkout' | 'feed' | 'search' | 'upsell' | 'unknown' | null
   media_type: 'image' | 'video' | null
   media_index: number | null
   query_length: number | null

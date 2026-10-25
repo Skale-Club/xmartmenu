@@ -6,6 +6,9 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { Plus, LayoutGrid, Trash2, Edit3, X, ChevronRight, AlertCircle, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Modal from '@/components/ui/Modal'
+import { COURSES, parseCourse, type Course } from '@/components/menu/upsell'
+
+const COURSE_LABELS: Record<Course, string> = { main: 'Main course', side: 'Side', drink: 'Drink', dessert: 'Dessert' }
 import TranslationEditor, { type TranslationValues } from '@/components/admin/TranslationEditor'
 import { addEditorValues } from '@/lib/menu-translations'
 
@@ -26,6 +29,8 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  // Its place in a meal, for "Complete your order" ('' = not part of it).
+  const [course, setCourse] = useState<'' | Course>('')
   const [translations, setTranslations] = useState<TranslationValues>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -37,6 +42,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
     setEditingId(null)
     setName('')
     setDescription('')
+    setCourse('')
     setTranslations({})
     setError(null)
     setConfirmId(null)
@@ -51,7 +57,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
       const res = await fetch(`/api/admin/categories/${editingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, translations }),
+        body: JSON.stringify({ name, description, translations, course: course || null }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); setLoading(false); return }
@@ -61,7 +67,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
       const res = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, translations, position: categories.length, menu_id: menuId }),
+        body: JSON.stringify({ name, description, translations, course: course || null, position: categories.length, menu_id: menuId }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); setLoading(false); return }
@@ -70,6 +76,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
 
     setName('')
     setDescription('')
+    setCourse('')
     setTranslations({})
     setShowForm(false)
     setLoading(false)
@@ -100,6 +107,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
     setEditingId(cat.id)
     setName(cat.name)
     setDescription(cat.description ?? '')
+    setCourse(parseCourse(cat.course) ?? '')
     setTranslations(addEditorValues({}, cat.translations, { name: 'name', description: 'description' }))
     setShowForm(true)
   }
@@ -109,6 +117,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
     setEditingId(null)
     setName('')
     setDescription('')
+    setCourse('')
     setTranslations({})
     setError(null)
   }
@@ -143,6 +152,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
               setEditingId(null)
               setName('')
               setDescription('')
+              setCourse('')
               setTranslations({})
               setShowForm(true)
             }}
@@ -197,6 +207,19 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
               placeholder="Display text for customers (optional)"
               className={inputClassName}
             />
+          </div>
+          <div>
+            <label htmlFor="category-course" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Role in the meal</label>
+            <select
+              id="category-course"
+              value={course}
+              onChange={e => setCourse(parseCourse(e.target.value) ?? '')}
+              className={inputClassName}
+            >
+              <option value="">Not part of “Complete your order”</option>
+              {COURSES.map(c => <option key={c} value={c}>{COURSE_LABELS[c]}</option>)}
+            </select>
+            <p className="text-[11px] text-zinc-400 mt-2 ml-1">After a guest adds a main course, the menu offers sides, drinks and desserts they don’t have yet.</p>
           </div>
           {otherLanguages.length > 0 && (
             <details className="group rounded-xl border border-zinc-200 p-4 open:pb-5">
@@ -260,6 +283,11 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
                     {cat.is_active ? 'Active' : 'Hidden'}
                   </button>
                 </div>
+                {parseCourse(cat.course) && (
+                  <span className="mb-2 inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-zinc-600">
+                    {COURSE_LABELS[parseCourse(cat.course)!]}
+                  </span>
+                )}
                 {cat.description && <p className="text-sm font-medium text-zinc-500 line-clamp-2">{cat.description}</p>}
               </div>
 

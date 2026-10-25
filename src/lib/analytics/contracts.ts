@@ -19,6 +19,11 @@ export const clientAnalyticsEventNames = [
   'add_to_cart',
   'remove_from_cart',
   'checkout_started',
+  // "Complete your order": shown/skipped carry the dish that started it,
+  // accepted carries the suggestion taken.
+  'upsell_shown',
+  'upsell_accepted',
+  'upsell_skipped',
 ] as const
 
 export const serverAnalyticsEventNames = [
@@ -37,6 +42,9 @@ const productEventNames = new Set<string>([
   'product_customization_started',
   'add_to_cart',
   'remove_from_cart',
+  'upsell_shown',
+  'upsell_accepted',
+  'upsell_skipped',
 ])
 
 const uuidSchema = z.string().uuid()
@@ -61,7 +69,7 @@ export const clientAnalyticsEventSchema = z.strictObject({
   category_id: uuidSchema.nullish(),
   duration_ms: z.number().int().min(0).max(3_600_000).nullish(),
   quantity: z.number().int().min(1).max(99).nullish(),
-  source: z.enum(['grid', 'featured', 'detail', 'cart', 'checkout', 'feed', 'search', 'unknown']).nullish(),
+  source: z.enum(['grid', 'featured', 'detail', 'cart', 'checkout', 'feed', 'search', 'upsell', 'unknown']).nullish(),
   media_type: z.enum(['image', 'video']).nullish(),
   media_index: z.number().int().min(0).max(20).nullish(),
   query_length: z.number().int().min(0).max(200).nullish(),
@@ -94,7 +102,7 @@ export const clientAnalyticsEventSchema = z.strictObject({
       message: 'search_performed requires query_length',
     })
   }
-  if ((event.event_name === 'add_to_cart' || event.event_name === 'remove_from_cart') && !event.quantity) {
+  if ((event.event_name === 'add_to_cart' || event.event_name === 'remove_from_cart' || event.event_name === 'upsell_accepted') && !event.quantity) {
     ctx.addIssue({
       code: 'custom',
       path: ['quantity'],

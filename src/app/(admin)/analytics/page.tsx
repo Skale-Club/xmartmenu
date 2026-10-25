@@ -27,6 +27,7 @@ import {
   type ProductAnalyticsRow,
 } from '@/lib/analytics/dashboard'
 import AnalyticsSettingsPanel, { type AnalyticsExperienceSettings } from './AnalyticsSettingsPanel'
+import { normalizeUpsellAnalytics, upsellTakeRate } from '@/lib/analytics/upsell'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,6 +67,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
     menusResult,
     locationsResult,
     settingsResult,
+    upsellResult,
   ] = await Promise.all([
     service.rpc('get_menu_analytics_overview', rpcParams),
     service.rpc('get_menu_analytics_overview', previousRpcParams),
@@ -73,6 +75,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
     service.from('menus').select('id, name').eq('tenant_id', effective.tenantId).order('position'),
     service.from('locations').select('id, name').eq('tenant_id', effective.tenantId).eq('is_active', true).order('name'),
     service.from('tenant_settings').select('currency, analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos').eq('tenant_id', effective.tenantId).maybeSingle(),
+    service.rpc('get_menu_upsell_analytics', rpcParams),
   ])
 
   const overview = normalizeOverview(overviewResult.data?.[0] ?? EMPTY_ANALYTICS_OVERVIEW)
@@ -91,6 +94,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
     feed_autoplay_videos: settingsResult.data?.feed_autoplay_videos ?? true,
   }
   const unavailable = Boolean(overviewResult.error || productsResult.error)
+  const upsell = normalizeUpsellAnalytics(upsellResult.data)
 
   const kpis = [
     { label: 'Menu sessions', value: compact(overview.sessions), previous: previous.sessions, current: overview.sessions, icon: Users, help: 'Anonymous menu visits started in this period.' },
@@ -202,6 +206,52 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           )}
         </section>
       </div>
+
+      <section className="rounded-2xl border border-zinc-100 bg-white p-5 sm:p-7">
+        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div><p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Complete your order</p><h2 className="mt-1 text-xl font-black text-zinc-950">Sides, drinks and desserts after a dish</h2></div>
+          <Link href="/settings/menu-display" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">Set up suggestions</Link>
+        </div>
+        {upsell.shown > 0 ? (
+          <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { label: 'Suggestions shown', value: compact(upsell.shown), help: 'Times the sequence opened after a dish was added.' },
+                { label: 'Take rate', value: formatPercent(upsellTakeRate(upsell)), help: 'Sequences where the guest added at least one suggestion.' },
+                { label: 'Items added', value: compact(upsell.accepted_items), help: 'Suggestions that went into a cart.' },
+                { label: 'Estimated value', value: formatPrice(upsell.accepted_value, currency), help: 'Items added × current dish price. Not all carts become orders.' },
+              ].map(card => (
+                <div key={card.label} className="rounded-xl border border-zinc-100 bg-zinc-50 p-4" title={card.help}>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400">{card.label}</p>
+                  <p className="mt-1 text-2xl font-black tabular-nums text-zinc-950">{card.value}</p>
+                </div>
+              ))}
+            </div>
+            <div>
+              <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-zinc-400">Most added suggestions</p>
+              {upsell.top.length > 0 ? (
+                <ol className="space-y-2">
+                  {upsell.top.map((item, index) => (
+                    <li key={item.product_id ?? index} className="flex items-center gap-3 rounded-xl border border-zinc-100 px-4 py-2.5">
+                      <span className="w-4 text-xs font-black tabular-nums text-zinc-400">{index + 1}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-bold text-zinc-900">{item.name}</span>
+                      <span className="text-xs font-bold tabular-nums text-zinc-500">{compact(item.items)}×</span>
+                      <span className="w-20 text-right text-xs font-black tabular-nums text-zinc-900">{formatPrice(item.value, currency)}</span>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="rounded-xl border border-dashed border-zinc-200 p-4 text-xs text-zinc-500">Guests saw suggestions but have not added any yet.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-zinc-200 p-6 text-center">
+            <p className="text-sm font-black text-zinc-900">No suggestions shown in this period</p>
+            <p className="mt-1 text-xs leading-relaxed text-zinc-500">Give categories a role in the meal (main course, side, drink, dessert) and hand-pick pairings on dishes. Guests see them after adding a dish.</p>
+          </div>
+        )}
+      </section>
 
       <section className="overflow-hidden rounded-2xl border border-zinc-100 bg-white">
         <div className="flex flex-col gap-2 border-b border-zinc-100 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-7">

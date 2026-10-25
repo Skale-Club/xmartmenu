@@ -9,6 +9,8 @@ export interface AnalyticsExperienceSettings {
   visual_feed_enabled: boolean
   menu_default_view: 'list' | 'feed'
   feed_autoplay_videos: boolean
+  /** "Complete your order" suggestions after adding a dish (Menu display). */
+  upsell_enabled?: boolean
 }
 
 export default function AnalyticsSettingsPanel({

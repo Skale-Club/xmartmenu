@@ -3,6 +3,7 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import { NextResponse } from 'next/server'
 import { sanitizeTranslations } from '@/lib/menu-translations'
+import { parseCourse } from '@/components/menu/upsell'
 
 export async function POST(request: Request) {
   const effective = await getEffectiveTenant()
@@ -14,6 +15,7 @@ export async function POST(request: Request) {
   const body = await request.json()
   const { name, description, position, menu_id } = body
   const translations = sanitizeTranslations(body.translations)
+  const course = parseCourse(body.course)
 
   const service = await createServiceClient()
 
@@ -43,7 +45,7 @@ export async function POST(request: Request) {
 
   const { data, error } = await service
     .from('categories')
-    .insert({ tenant_id: effective.tenantId, menu_id: resolvedMenuId, name, description, position, translations })
+    .insert({ tenant_id: effective.tenantId, menu_id: resolvedMenuId, name, description, position, translations, course })
     .select()
     .single()
 

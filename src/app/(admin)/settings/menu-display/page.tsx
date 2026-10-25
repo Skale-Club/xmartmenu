@@ -13,7 +13,7 @@ export default async function MenuDisplayPage() {
   const service = createServiceClient()
   const { data } = await service
     .from('tenant_settings')
-    .select('analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos')
+    .select('analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos, upsell_enabled')
     .eq('tenant_id', effective.tenantId)
     .maybeSingle()
 
@@ -26,6 +26,7 @@ export default async function MenuDisplayPage() {
         visual_feed_enabled: data?.visual_feed_enabled ?? true,
         menu_default_view: data?.menu_default_view === 'feed' ? 'feed' : 'list',
         feed_autoplay_videos: data?.feed_autoplay_videos ?? true,
+        upsell_enabled: data?.upsell_enabled ?? true,
       }}
       menuUrl={`${baseUrl}/${effective.slug}`}
       feedUrl={`${baseUrl}/feed/${effective.slug}`}

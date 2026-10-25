@@ -6,6 +6,7 @@ import { notFound } from 'next/navigation'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import type { ProductOptionGroup, ProductOption, Ingredient, ProductIngredient } from '@/types/database'
 import ProductDetailClient from './ProductDetailClient'
+import type { UpsellCandidate } from './ProductUpsellCard'
 
 export interface GroupWithOptions extends ProductOptionGroup {
   options: ProductOption[]
@@ -64,6 +65,21 @@ export default async function ProductDetailPage({
   const baseLanguage = menu?.language ?? 'en'
   const supportedLanguages = menu?.supported_languages?.length ? menu.supported_languages : [baseLanguage]
 
+  // Other dishes on the same menu, to hand-pick for "Complete your order".
+  let candidatesQuery = supabase
+    .from('products')
+    .select('id, name, category:categories(name)')
+    .eq('tenant_id', tenantId)
+    .neq('id', product.id)
+    .order('position')
+  if (product.menu_id) candidatesQuery = candidatesQuery.eq('menu_id', product.menu_id)
+  const { data: candidateRows } = await candidatesQuery
+  const upsellCandidates: UpsellCandidate[] = (candidateRows ?? []).map(row => {
+    const category = row.category as { name?: string } | { name?: string }[] | null
+    const categoryName = Array.isArray(category) ? category[0]?.name : category?.name
+    return { id: row.id, name: row.name, category_name: categoryName ?? null }
+  })
+
   return (
     <ProductDetailClient
       product={product}
@@ -76,6 +92,7 @@ export default async function ProductDetailPage({
       initialProductIngredients={(productIngredients ?? []) as ProductIngredient[]}
       baseLanguage={baseLanguage}
       supportedLanguages={supportedLanguages}
+      upsellCandidates={upsellCandidates}
     />
   )
 }

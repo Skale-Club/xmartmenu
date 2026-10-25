@@ -2,6 +2,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 import { sanitizeTranslations } from '@/lib/menu-translations'
+import { parseCourse } from '@/components/menu/upsell'
 
 export async function PATCH(
   request: Request,
@@ -20,6 +21,7 @@ export async function PATCH(
   const update: Record<string, unknown> = {}
   for (const key of allowed) if (key in body) update[key] = body[key]
   if ('translations' in body) update.translations = sanitizeTranslations(body.translations)
+  if ('course' in body) update.course = parseCourse(body.course)
 
   const { data, error } = await service
     .from('categories')

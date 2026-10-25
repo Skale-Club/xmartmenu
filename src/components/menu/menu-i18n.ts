@@ -130,6 +130,8 @@ export interface MenuCopy {
   // Feed
   dishesCount: string; swipeNext: string; chefPick: string; customize: string; orderNow: string
   viewDish: string; openOrderCount: string
+  // Complete your order
+  upsellTitle: string; upsellAdded: string; upsellPairs: string; upsellSide: string; upsellDrink: string; upsellDessert: string; upsellSkip: string; upsellContinue: string; upsellDone: string; upsellChoose: string; upsellInOrder: string; upsellStep: string
   // Footer
   poweredBy: string
 }
@@ -163,6 +165,7 @@ const en: MenuCopy = {
   errStreet: 'Please enter the delivery address', errSubmit: 'We could not place your order. Please try again.',
   dishesCount: '{count} dishes', swipeNext: 'Swipe for the next dish', chefPick: "Chef's pick", customize: 'Customize', orderNow: 'Add to order',
   viewDish: 'View dish', openOrderCount: 'Open order with {count} items',
+  upsellTitle: 'Complete your order', upsellAdded: '{name} added', upsellPairs: 'Goes well with {name}', upsellSide: 'Add a side?', upsellDrink: 'Something to drink?', upsellDessert: 'Room for dessert?', upsellSkip: 'No, thanks', upsellContinue: 'Continue', upsellDone: 'Done', upsellChoose: 'Choose', upsellInOrder: 'In your order', upsellStep: 'Step {current} of {total}',
   poweredBy: 'Powered by',
 }
 
@@ -195,6 +198,7 @@ const pt: MenuCopy = {
   errStreet: 'Informe o endereço de entrega', errSubmit: 'Não conseguimos enviar seu pedido. Tente de novo.',
   dishesCount: '{count} pratos', swipeNext: 'Deslize para o próximo prato', chefPick: 'Escolha do chef', customize: 'Personalizar', orderNow: 'Adicionar ao pedido',
   viewDish: 'Ver prato', openOrderCount: 'Abrir pedido com {count} itens',
+  upsellTitle: 'Complete seu pedido', upsellAdded: '{name} adicionado', upsellPairs: 'Combina com {name}', upsellSide: 'Que tal um acompanhamento?', upsellDrink: 'Algo para beber?', upsellDessert: 'Uma sobremesa?', upsellSkip: 'Não, obrigado', upsellContinue: 'Continuar', upsellDone: 'Pronto', upsellChoose: 'Escolher', upsellInOrder: 'No pedido', upsellStep: 'Etapa {current} de {total}',
   poweredBy: 'Feito com',
 }
 
@@ -227,6 +231,7 @@ const es: MenuCopy = {
   errStreet: 'Indica la dirección de entrega', errSubmit: 'No pudimos enviar tu pedido. Inténtalo de nuevo.',
   dishesCount: '{count} platos', swipeNext: 'Desliza para ver el siguiente plato', chefPick: 'Recomendación del chef', customize: 'Personalizar', orderNow: 'Añadir al pedido',
   viewDish: 'Ver plato', openOrderCount: 'Abrir pedido con {count} artículos',
+  upsellTitle: 'Completa tu pedido', upsellAdded: '{name} añadido', upsellPairs: 'Combina con {name}', upsellSide: '¿Un acompañamiento?', upsellDrink: '¿Algo de beber?', upsellDessert: '¿Un postre?', upsellSkip: 'No, gracias', upsellContinue: 'Continuar', upsellDone: 'Listo', upsellChoose: 'Elegir', upsellInOrder: 'En tu pedido', upsellStep: 'Paso {current} de {total}',
   poweredBy: 'Hecho con',
 }
 
@@ -259,6 +264,7 @@ const fr: MenuCopy = {
   errStreet: "Indiquez l'adresse de livraison", errSubmit: "Nous n'avons pas pu envoyer votre commande. Réessayez.",
   dishesCount: '{count} plats', swipeNext: 'Faites glisser pour le plat suivant', chefPick: 'Choix du chef', customize: 'Personnaliser', orderNow: 'Ajouter à la commande',
   viewDish: 'Voir le plat', openOrderCount: 'Ouvrir la commande ({count} articles)',
+  upsellTitle: 'Complétez votre commande', upsellAdded: '{name} ajouté', upsellPairs: 'Se marie bien avec {name}', upsellSide: 'Un accompagnement ?', upsellDrink: 'Quelque chose à boire ?', upsellDessert: 'Une petite douceur ?', upsellSkip: 'Non, merci', upsellContinue: 'Continuer', upsellDone: 'Terminé', upsellChoose: 'Choisir', upsellInOrder: 'Dans la commande', upsellStep: 'Étape {current} sur {total}',
   poweredBy: 'Propulsé par',
 }
 
@@ -291,6 +297,7 @@ const de: MenuCopy = {
   errStreet: 'Bitte die Lieferadresse angeben', errSubmit: 'Die Bestellung konnte nicht gesendet werden. Bitte erneut versuchen.',
   dishesCount: '{count} Gerichte', swipeNext: 'Wischen für das nächste Gericht', chefPick: 'Empfehlung des Küchenchefs', customize: 'Anpassen', orderNow: 'Zur Bestellung',
   viewDish: 'Gericht ansehen', openOrderCount: 'Bestellung mit {count} Artikeln öffnen',
+  upsellTitle: 'Bestellung vervollständigen', upsellAdded: '{name} hinzugefügt', upsellPairs: 'Passt gut zu {name}', upsellSide: 'Eine Beilage dazu?', upsellDrink: 'Etwas zu trinken?', upsellDessert: 'Noch ein Dessert?', upsellSkip: 'Nein, danke', upsellContinue: 'Weiter', upsellDone: 'Fertig', upsellChoose: 'Auswählen', upsellInOrder: 'In der Bestellung', upsellStep: 'Schritt {current} von {total}',
   poweredBy: 'Bereitgestellt von',
 }
 
@@ -323,6 +330,7 @@ const it: MenuCopy = {
   errStreet: "Inserisci l'indirizzo di consegna", errSubmit: "Non siamo riusciti a inviare l'ordine. Riprova.",
   dishesCount: '{count} piatti', swipeNext: 'Scorri per il piatto successivo', chefPick: 'Scelta dello chef', customize: 'Personalizza', orderNow: "Aggiungi all'ordine",
   viewDish: 'Vedi il piatto', openOrderCount: "Apri l'ordine con {count} articoli",
+  upsellTitle: "Completa l'ordine", upsellAdded: '{name} aggiunto', upsellPairs: 'Si abbina a {name}', upsellSide: 'Un contorno?', upsellDrink: 'Qualcosa da bere?', upsellDessert: 'Un dolce?', upsellSkip: 'No, grazie', upsellContinue: 'Continua', upsellDone: 'Fatto', upsellChoose: 'Scegli', upsellInOrder: "Nell'ordine", upsellStep: 'Passo {current} di {total}',
   poweredBy: 'Realizzato con',
 }
 
@@ -355,6 +363,7 @@ const nl: MenuCopy = {
   errStreet: 'Vul het bezorgadres in', errSubmit: 'Je bestelling kon niet worden verstuurd. Probeer het opnieuw.',
   dishesCount: '{count} gerechten', swipeNext: 'Veeg voor het volgende gerecht', chefPick: 'Keuze van de chef', customize: 'Aanpassen', orderNow: 'Aan bestelling toevoegen',
   viewDish: 'Gerecht bekijken', openOrderCount: 'Bestelling met {count} artikelen openen',
+  upsellTitle: 'Maak je bestelling compleet', upsellAdded: '{name} toegevoegd', upsellPairs: 'Past goed bij {name}', upsellSide: 'Een bijgerecht erbij?', upsellDrink: 'Iets te drinken?', upsellDessert: 'Nog een dessert?', upsellSkip: 'Nee, bedankt', upsellContinue: 'Doorgaan', upsellDone: 'Klaar', upsellChoose: 'Kiezen', upsellInOrder: 'In je bestelling', upsellStep: 'Stap {current} van {total}',
   poweredBy: 'Mogelijk gemaakt door',
 }
 
@@ -387,6 +396,7 @@ const pl: MenuCopy = {
   errStreet: 'Podaj adres dostawy', errSubmit: 'Nie udało się wysłać zamówienia. Spróbuj ponownie.',
   dishesCount: 'Dania: {count}', swipeNext: 'Przesuń, aby zobaczyć kolejne danie', chefPick: 'Wybór szefa kuchni', customize: 'Dostosuj', orderNow: 'Dodaj do zamówienia',
   viewDish: 'Zobacz danie', openOrderCount: 'Otwórz zamówienie (pozycje: {count})',
+  upsellTitle: 'Uzupełnij zamówienie', upsellAdded: 'Dodano {name}', upsellPairs: 'Pasuje do {name}', upsellSide: 'Dodatek do dania?', upsellDrink: 'Coś do picia?', upsellDessert: 'Może deser?', upsellSkip: 'Nie, dziękuję', upsellContinue: 'Dalej', upsellDone: 'Gotowe', upsellChoose: 'Wybierz', upsellInOrder: 'W zamówieniu', upsellStep: 'Krok {current} z {total}',
   poweredBy: 'Obsługiwane przez',
 }
 
@@ -419,6 +429,7 @@ const tr: MenuCopy = {
   errStreet: 'Lütfen teslimat adresini girin', errSubmit: 'Siparişiniz gönderilemedi. Lütfen tekrar deneyin.',
   dishesCount: '{count} yemek', swipeNext: 'Sonraki yemek için kaydırın', chefPick: 'Şefin seçimi', customize: 'Özelleştir', orderNow: 'Siparişe ekle',
   viewDish: 'Yemeği gör', openOrderCount: 'Siparişi aç ({count} ürün)',
+  upsellTitle: 'Siparişini tamamla', upsellAdded: '{name} eklendi', upsellPairs: '{name} ile çok iyi gider', upsellSide: 'Yanına bir garnitür?', upsellDrink: 'İçecek bir şey?', upsellDessert: 'Tatlıya yer var mı?', upsellSkip: 'Hayır, teşekkürler', upsellContinue: 'Devam', upsellDone: 'Tamam', upsellChoose: 'Seç', upsellInOrder: 'Siparişte', upsellStep: 'Adım {current}/{total}',
   poweredBy: 'Altyapı:',
 }
 
@@ -451,6 +462,7 @@ const ru: MenuCopy = {
   errStreet: 'Укажите адрес доставки', errSubmit: 'Не удалось отправить заказ. Попробуйте ещё раз.',
   dishesCount: 'Блюд: {count}', swipeNext: 'Листайте к следующему блюду', chefPick: 'Выбор шефа', customize: 'Настроить', orderNow: 'В заказ',
   viewDish: 'Открыть блюдо', openOrderCount: 'Открыть заказ (позиций: {count})',
+  upsellTitle: 'Дополните заказ', upsellAdded: '{name} добавлено', upsellPairs: 'Хорошо сочетается с {name}', upsellSide: 'Добавить гарнир?', upsellDrink: 'Что-нибудь выпить?', upsellDessert: 'Может, десерт?', upsellSkip: 'Нет, спасибо', upsellContinue: 'Дальше', upsellDone: 'Готово', upsellChoose: 'Выбрать', upsellInOrder: 'В заказе', upsellStep: 'Шаг {current} из {total}',
   poweredBy: 'Работает на',
 }
 
@@ -483,6 +495,7 @@ const hi: MenuCopy = {
   errStreet: 'कृपया डिलीवरी का पता दें', errSubmit: 'आपका ऑर्डर नहीं भेजा जा सका। कृपया फिर से कोशिश करें।',
   dishesCount: '{count} व्यंजन', swipeNext: 'अगले व्यंजन के लिए स्वाइप करें', chefPick: 'शेफ़ की पसंद', customize: 'अपनी पसंद से बनाएँ', orderNow: 'ऑर्डर में जोड़ें',
   viewDish: 'व्यंजन देखें', openOrderCount: 'ऑर्डर खोलें ({count} आइटम)',
+  upsellTitle: 'अपना ऑर्डर पूरा करें', upsellAdded: '{name} जोड़ा गया', upsellPairs: '{name} के साथ खूब जमता है', upsellSide: 'साथ में कुछ साइड?', upsellDrink: 'कुछ पीने को?', upsellDessert: 'मीठे में कुछ?', upsellSkip: 'नहीं, धन्यवाद', upsellContinue: 'आगे बढ़ें', upsellDone: 'हो गया', upsellChoose: 'चुनें', upsellInOrder: 'ऑर्डर में', upsellStep: 'चरण {current} / {total}',
   poweredBy: 'संचालित:',
 }
 
@@ -515,6 +528,7 @@ const ja: MenuCopy = {
   errStreet: 'お届け先を入力してください', errSubmit: '注文を送信できませんでした。もう一度お試しください。',
   dishesCount: '{count}品', swipeNext: 'スワイプで次の料理へ', chefPick: 'シェフのおすすめ', customize: 'カスタマイズ', orderNow: '注文に追加',
   viewDish: '料理を見る', openOrderCount: '注文を開く（{count}点）',
+  upsellTitle: 'ご注文を仕上げましょう', upsellAdded: '{name}を追加しました', upsellPairs: '{name}によく合います', upsellSide: 'サイドメニューはいかがですか？', upsellDrink: 'お飲み物はいかがですか？', upsellDessert: 'デザートはいかがですか？', upsellSkip: 'いいえ、結構です', upsellContinue: '次へ', upsellDone: '完了', upsellChoose: '選ぶ', upsellInOrder: '注文に追加済み', upsellStep: 'ステップ {current}/{total}',
   poweredBy: 'Powered by',
 }
 
@@ -547,6 +561,7 @@ const ko: MenuCopy = {
   errStreet: '배달 주소를 입력하세요', errSubmit: '주문을 보내지 못했습니다. 다시 시도해 주세요.',
   dishesCount: '{count}가지 요리', swipeNext: '밀어서 다음 요리 보기', chefPick: '셰프 추천', customize: '옵션 선택', orderNow: '주문에 담기',
   viewDish: '요리 보기', openOrderCount: '주문 열기 ({count}개)',
+  upsellTitle: '주문을 완성해 보세요', upsellAdded: '{name} 추가됨', upsellPairs: '{name}와(과) 잘 어울려요', upsellSide: '사이드 메뉴도 추가할까요?', upsellDrink: '음료도 하시겠어요?', upsellDessert: '디저트도 드실래요?', upsellSkip: '괜찮아요', upsellContinue: '계속', upsellDone: '완료', upsellChoose: '선택', upsellInOrder: '주문에 담김', upsellStep: '{current}/{total}단계',
   poweredBy: 'Powered by',
 }
 
@@ -579,6 +594,7 @@ const zh: MenuCopy = {
   errStreet: '请填写送餐地址', errSubmit: '订单提交失败，请重试。',
   dishesCount: '{count} 道菜', swipeNext: '滑动查看下一道菜', chefPick: '主厨推荐', customize: '选规格', orderNow: '加入订单',
   viewDish: '查看菜品', openOrderCount: '打开订单（{count} 件）',
+  upsellTitle: '完善您的订单', upsellAdded: '已添加{name}', upsellPairs: '与{name}很搭', upsellSide: '来份配菜吗？', upsellDrink: '来点喝的吗？', upsellDessert: '来份甜点吗？', upsellSkip: '不用了，谢谢', upsellContinue: '继续', upsellDone: '完成', upsellChoose: '选择', upsellInOrder: '已在订单中', upsellStep: '第 {current}/{total} 步',
   poweredBy: '技术支持',
 }
 
@@ -611,6 +627,7 @@ const zhTW: MenuCopy = {
   errStreet: '請填寫外送地址', errSubmit: '訂單送出失敗，請再試一次。',
   dishesCount: '{count} 道菜', swipeNext: '滑動查看下一道菜', chefPick: '主廚推薦', customize: '選規格', orderNow: '加入訂單',
   viewDish: '查看餐點', openOrderCount: '開啟訂單（{count} 件）',
+  upsellTitle: '完成您的訂單', upsellAdded: '已加入{name}', upsellPairs: '和{name}很搭', upsellSide: '來份配菜嗎？', upsellDrink: '來點喝的嗎？', upsellDessert: '來份甜點嗎？', upsellSkip: '不用了，謝謝', upsellContinue: '繼續', upsellDone: '完成', upsellChoose: '選擇', upsellInOrder: '已在訂單中', upsellStep: '第 {current}/{total} 步',
   poweredBy: '技術支援',
 }
 
