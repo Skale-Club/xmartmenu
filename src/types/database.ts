@@ -185,6 +185,8 @@ export interface Category {
   menu_id: string | null
   name: string
   translations?: Record<string, { name?: string; description?: string }>
+  /** Client-only: the base-language name when `name` shows a translation. */
+  base_name?: string
   description: string | null
   position: number
   is_active: boolean
@@ -198,6 +200,8 @@ export interface Product {
   category_id: string | null
   name: string
   translations?: Record<string, { name?: string; description?: string }>
+  /** Client-only: the base-language name when `name` shows a translation. */
+  base_name?: string
   description: string | null
   price: number
   original_price: number | null

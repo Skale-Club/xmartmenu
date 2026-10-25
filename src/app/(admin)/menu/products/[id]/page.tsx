@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { notFound } from 'next/navigation'
+import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import type { ProductOptionGroup, ProductOption, Ingredient, ProductIngredient } from '@/types/database'
 import ProductDetailClient from './ProductDetailClient'
 
@@ -55,6 +56,14 @@ export default async function ProductDetailPage({
 
   if (!product) notFound()
 
+  // Languages to translate into: the dish's own menu, else the menu being edited.
+  const { data: ownMenu } = product.menu_id
+    ? await supabase.from('menus').select('language, supported_languages').eq('id', product.menu_id).eq('tenant_id', tenantId).maybeSingle()
+    : { data: null }
+  const menu = ownMenu ?? await getActiveMenuForTenant(tenantId)
+  const baseLanguage = menu?.language ?? 'en'
+  const supportedLanguages = menu?.supported_languages?.length ? menu.supported_languages : [baseLanguage]
+
   return (
     <ProductDetailClient
       product={product}
@@ -65,6 +74,8 @@ export default async function ProductDetailPage({
       ingredientCustomizationEnabled={settings?.ingredient_customization_enabled ?? false}
       allIngredients={(ingredients ?? []) as Ingredient[]}
       initialProductIngredients={(productIngredients ?? []) as ProductIngredient[]}
+      baseLanguage={baseLanguage}
+      supportedLanguages={supportedLanguages}
     />
   )
 }

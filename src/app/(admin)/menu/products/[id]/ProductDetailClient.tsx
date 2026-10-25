@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { Product, ProductOption, OptionGroupType, Ingredient, ProductIngredient } from '@/types/database'
 import { type GroupWithOptions } from './page'
 import ProductMediaTab from './ProductMediaTab'
+import ProductTranslationsTab from './ProductTranslationsTab'
 
 const TYPE_BADGE: Record<OptionGroupType, string> = {
   single:        'bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full',
@@ -31,6 +32,8 @@ interface Props {
   ingredientCustomizationEnabled?: boolean
   allIngredients?: Ingredient[]
   initialProductIngredients?: ProductIngredient[]
+  baseLanguage?: string
+  supportedLanguages?: string[]
 }
 
 function OptionGroupForm({
@@ -272,6 +275,8 @@ export default function ProductDetailClient({
   ingredientCustomizationEnabled = false,
   allIngredients = [],
   initialProductIngredients = [],
+  baseLanguage = 'en',
+  supportedLanguages = [],
 }: Props) {
   // Product fields form state
   const [productForm, setProductForm] = useState({
@@ -289,6 +294,7 @@ export default function ProductDetailClient({
 
   // Groups + options state (two-level nested)
   const [groups, setGroups] = useState<GroupWithOptions[]>(initialGroups)
+  const [productTranslations, setProductTranslations] = useState(product.translations ?? {})
 
   // Expand state for inline forms
   const [expandedGroup, setExpandedGroup] = useState<'new' | string | null>(null)
@@ -305,7 +311,7 @@ export default function ProductDetailClient({
   const router = useRouter()
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<'details' | 'options' | 'ingredients' | 'media'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'options' | 'ingredients' | 'media' | 'translations'>('details')
 
   // Ingredient tab state
   const [productIngredients, setProductIngredients] = useState<ProductIngredient[]>(initialProductIngredients)
@@ -637,6 +643,16 @@ export default function ProductDetailClient({
           }`}
         >
           Media
+        </button>
+        <button
+          onClick={() => setActiveTab('translations')}
+          className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
+            activeTab === 'translations'
+              ? 'bg-white border border-b-white border-zinc-200 -mb-px text-zinc-900'
+              : 'text-zinc-500 hover:text-zinc-900'
+          }`}
+        >
+          Translations
         </button>
       </div>
 
@@ -1132,6 +1148,25 @@ export default function ProductDetailClient({
       {/* Media tab */}
       {activeTab === 'media' && (
         <ProductMediaTab productId={product.id} tenantId={_tenantId} />
+      )}
+
+      {/* Translations tab */}
+      {activeTab === 'translations' && (
+        <ProductTranslationsTab
+          product={{ ...product, name: productForm.name, description: productForm.description, translations: productTranslations }}
+          groups={groups}
+          baseLanguage={baseLanguage}
+          supportedLanguages={supportedLanguages}
+          canManage={canManage}
+          onSaved={update => {
+            setProductTranslations(update.product)
+            setGroups(prev => prev.map(g => ({
+              ...g,
+              translations: update.groups[g.id] ?? g.translations,
+              options: g.options.map(o => ({ ...o, translations: update.options[o.id] ?? o.translations })),
+            })))
+          }}
+        />
       )}
     </div>
   )

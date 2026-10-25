@@ -8,6 +8,7 @@ import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { getProductImages, type CartEditorState } from './menu-utils'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
 import { computePrimaryForeground } from '@/lib/color-utils'
+import { baseName } from '@/lib/menu-translations'
 import ModalPortal from '@/components/ui/ModalPortal'
 
 type MediaSlide = { type: 'image'; url: string } | { type: 'video'; url: string }
@@ -336,20 +337,20 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
         const optId = singleSelections[group.id]
         if (optId) {
           const opt = group.options.find(o => o.id === optId)
-          if (opt) opts[group.name] = opt.name
+          if (opt) opts[baseName(group)] = baseName(opt)
         }
       } else if (group.type === 'half_and_half') {
         const half = halfSelections[group.id]
         if (half?.half1 && half?.half2) {
           const opt1 = group.options.find(o => o.id === half.half1)
           const opt2 = group.options.find(o => o.id === half.half2)
-          if (opt1 && opt2) opts[group.name] = `${opt1.name} / ${opt2.name}`
+          if (opt1 && opt2) opts[baseName(group)] = `${baseName(opt1)} / ${baseName(opt2)}`
         }
       } else if (group.type === 'multiple') {
         const sel = multiSelections[group.id] ?? []
         if (sel.length > 0) {
-          opts[group.name] = sel
-            .map(id => group.options.find(o => o.id === id)?.name)
+          opts[baseName(group)] = sel
+            .map(id => { const opt = group.options.find(o => o.id === id); return opt ? baseName(opt) : undefined })
             .filter(Boolean)
             .join(', ')
         }

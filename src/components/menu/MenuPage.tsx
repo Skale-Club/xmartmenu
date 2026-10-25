@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { motion } from 'framer-motion'
@@ -13,6 +13,7 @@ import { type CartItem, type CartEditorState, buildCartKey, getProductImages, is
 import { fill, formatClock, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, menuLanguage, translateTag, type MenuCopy } from './menu-i18n'
 import { computeOpenState, resolveTimeZone, type OpenState } from '@/lib/chat-context'
 import { computePrimaryForeground } from '@/lib/color-utils'
+import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
   CART_TTL_MS,
   browserStorage,
@@ -107,7 +108,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories, products, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
+export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
   const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
@@ -141,6 +142,21 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [selectedProductSource, setSelectedProductSource] = useState<'grid' | 'featured' | 'detail' | 'cart' | 'feed'>('detail')
   const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage ?? menu?.language ?? 'en')
+  // Dish content in the guest's language (falls back to the base text). Each
+  // localized item keeps `base_name`, which is what orders send the kitchen.
+  const baseLanguage = menu?.language ?? null
+  const products = useMemo(
+    () => baseProducts.map(p => localizeItem(p, selectedLanguage, baseLanguage)),
+    [baseProducts, selectedLanguage, baseLanguage],
+  )
+  const categories = useMemo(
+    () => baseCategories.map(c => localizeItem(c, selectedLanguage, baseLanguage)),
+    [baseCategories, selectedLanguage, baseLanguage],
+  )
+  const optionGroupsByProductId = useMemo(
+    () => Object.fromEntries(Object.entries(baseOptionGroups).map(([id, groups]) => [id, localizeGroups(groups, selectedLanguage, baseLanguage)])),
+    [baseOptionGroups, selectedLanguage, baseLanguage],
+  )
   const [visibleCategory, setVisibleCategory] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
   const [showSearch, setShowSearch] = useState(false)
@@ -264,7 +280,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
   function openWhatsApp(product: Product) {
     if (!whatsapp) return
-    const msg = encodeURIComponent(fill(copy.whatsappMessage, { item: `${product.name} · ${formatMoney(product.price, currency, selectedLanguage)}` }))
+    const msg = encodeURIComponent(fill(copy.whatsappMessage, { item: `${baseName(product)} · ${formatMoney(product.price, currency, selectedLanguage)}` }))
     window.open(`https://wa.me/${whatsapp}?text=${msg}`, '_blank')
   }
 
@@ -399,7 +415,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           analytics_session_id: analyticsTracker?.sessionId ?? null,
           items: cart.map(item => ({
             product_id: item.product.id,
-            product_name: item.product.name,
+            product_name: baseName(item.product),
             quantity: item.quantity,
             unit_price: item.unitPrice,
             selected_options: item.selectedOptions,
@@ -683,6 +699,13 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       button.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
     }
   }, [visibleCategory])
+
+  useEffect(() => {
+    const byId = new Map(products.map(p => [p.id, p]))
+    setCart(prev => prev.some(item => byId.has(item.product.id) && byId.get(item.product.id) !== item.product)
+      ? prev.map(item => ({ ...item, product: byId.get(item.product.id) ?? item.product }))
+      : prev)
+  }, [products])
 
   // ── Persistence across reloads (see menu-session.ts) ──────────────────────
   const cartKey = cartStorageKey(tenant.id, menu?.id)
@@ -1155,12 +1178,13 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
       {/* Modals */}
       {selectedProduct && (() => {
+        const shownProduct = products.find(p => p.id === selectedProduct.id) ?? selectedProduct
         const navIndex = orderedProducts.findIndex(p => p.id === selectedProduct.id)
         const prevProduct = navIndex > 0 ? orderedProducts[navIndex - 1] : null
         const nextProduct = navIndex >= 0 && navIndex < orderedProducts.length - 1 ? orderedProducts[navIndex + 1] : null
         return (
         <ProductModal
-          product={selectedProduct}
+          product={shownProduct}
           onPrevProduct={!editingCartKey && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
           onNextProduct={!editingCartKey && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           primaryColor={primaryColor}
@@ -1200,7 +1224,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           tenantName={tenant.name}
           primaryColor={primaryColor}
           audioEnabled={chatAddonAudioEnabled}
-          products={products}
+          products={baseProducts}
           onAddToCart={addToCart}
           menuId={menu?.id ?? null}
           locationId={location?.id ?? null}

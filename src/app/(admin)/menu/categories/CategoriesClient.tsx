@@ -6,6 +6,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { Plus, LayoutGrid, Trash2, Edit3, X, ChevronRight, AlertCircle, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Modal from '@/components/ui/Modal'
+import TranslationEditor, { type TranslationValues } from '@/components/admin/TranslationEditor'
+import { addEditorValues } from '@/lib/menu-translations'
 
 interface Props {
   categories: Category[]
@@ -13,14 +15,18 @@ interface Props {
   menuId: string | null
   activeMenuName: string | null
   canManage: boolean
+  baseLanguage: string
+  supportedLanguages: string[]
 }
 
-export default function CategoriesClient({ categories: initial, tenantId, menuId, activeMenuName, canManage }: Props) {
+export default function CategoriesClient({ categories: initial, tenantId, menuId, activeMenuName, canManage, baseLanguage, supportedLanguages }: Props) {
+  const otherLanguages = supportedLanguages.filter(lang => lang !== baseLanguage)
   const [categories, setCategories] = useState(initial)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [translations, setTranslations] = useState<TranslationValues>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
@@ -31,6 +37,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
     setEditingId(null)
     setName('')
     setDescription('')
+    setTranslations({})
     setError(null)
     setConfirmId(null)
   }, [initial, menuId])
@@ -44,7 +51,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
       const res = await fetch(`/api/admin/categories/${editingId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description }),
+        body: JSON.stringify({ name, description, translations }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); setLoading(false); return }
@@ -54,7 +61,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
       const res = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, position: categories.length, menu_id: menuId }),
+        body: JSON.stringify({ name, description, translations, position: categories.length, menu_id: menuId }),
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error); setLoading(false); return }
@@ -63,6 +70,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
 
     setName('')
     setDescription('')
+    setTranslations({})
     setShowForm(false)
     setLoading(false)
   }
@@ -92,6 +100,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
     setEditingId(cat.id)
     setName(cat.name)
     setDescription(cat.description ?? '')
+    setTranslations(addEditorValues({}, cat.translations, { name: 'name', description: 'description' }))
     setShowForm(true)
   }
 
@@ -100,6 +109,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
     setEditingId(null)
     setName('')
     setDescription('')
+    setTranslations({})
     setError(null)
   }
 
@@ -133,6 +143,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
               setEditingId(null)
               setName('')
               setDescription('')
+              setTranslations({})
               setShowForm(true)
             }}
             disabled={!menuId}
@@ -166,7 +177,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
         )}
       </div>
 
-      <Modal size="md" open={canManage && showForm && !!menuId} title={editingId ? 'Refine Category' : 'Create Category'} onClose={cancelForm}>
+      <Modal size={otherLanguages.length ? 'lg' : 'md'} open={canManage && showForm && !!menuId} title={editingId ? 'Refine Category' : 'Create Category'} onClose={cancelForm}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Category Name *</label>
@@ -187,6 +198,26 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
               className={inputClassName}
             />
           </div>
+          {otherLanguages.length > 0 && (
+            <details className="group rounded-xl border border-zinc-200 p-4 open:pb-5">
+              <summary className="cursor-pointer select-none text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                Translations
+              </summary>
+              <div className="mt-4">
+                <TranslationEditor
+                  baseLanguage={baseLanguage}
+                  languages={otherLanguages}
+                  fields={[
+                    { key: 'name', label: 'Category name', base: name },
+                    { key: 'description', label: 'Short description', base: description },
+                  ]}
+                  values={translations}
+                  onChange={setTranslations}
+                  disabled={loading}
+                />
+              </div>
+            </details>
+          )}
           <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
             <button
               type="submit"
