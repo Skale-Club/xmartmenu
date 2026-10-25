@@ -55,7 +55,8 @@ test.describe('self-service plan', () => {
     const dish = page.getByRole('dialog', { name: 'Ribeye Steak' })
     await expect(dish).toBeVisible()
     await dish.getByText('Large', { exact: true }).click()
-    await dish.getByRole('button', { name: /^Add\s*·/ }).click()
+    // Accessible name is "Add R$55.00" (the "·" is decorative): Large adds 10.00.
+    await dish.getByRole('button', { name: /^Add R\$\s?55[.,]00/ }).click()
 
     await expect(upsell(page)).toContainText('Ribeye Steak added')
   })
@@ -66,8 +67,10 @@ test.describe('self-service plan', () => {
     await expect(page.getByText('Sua mesa')).toBeVisible()
 
     await page.getByRole('button', { name: 'Adicionar Cola' }).click()
+    // On a phone the cart is a drawer below the screen until the order bar opens it.
+    await page.getByRole('button', { name: /Ver pedido/ }).click()
     const checkout = page.getByRole('button', { name: 'Finalizar pedido' })
-    if (!(await checkout.isVisible())) await page.getByRole('button', { name: /Ver pedido/ }).click()
+    await expect(checkout).toBeInViewport()
     await checkout.click()
 
     const dialog = page.getByRole('dialog').last()

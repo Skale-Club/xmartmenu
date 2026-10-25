@@ -15,8 +15,7 @@ test.describe('waiter app (Menu + Orders plan)', () => {
     await page.getByRole('button', { name: 'Mesa 1' }).click()
     await expect(page.getByRole('heading', { name: 'Mesa 1' })).toBeVisible()
 
-    const burgerRow = page.locator('div').filter({ hasText: /^Classic Burger/ }).last()
-    await burgerRow.getByRole('button').last().click()
+    await page.getByRole('button', { name: 'Add Classic Burger' }).click()
     await page.getByRole('button', { name: /Send order — Mesa 1/ }).click()
 
     await expect.poll(async () => {

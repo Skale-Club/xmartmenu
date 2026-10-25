@@ -252,6 +252,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
                   <>
                     <button
                       onClick={() => removeFromCart(product.id)}
+                      aria-label={`Remove ${product.name}`}
                       className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center hover:bg-zinc-200 transition-colors"
                     >
                       <Minus className="w-4 h-4 text-zinc-700" />
@@ -259,6 +260,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
                     <span className="w-6 text-center text-sm font-bold text-zinc-900">{inCart.quantity}</span>
                     <button
                       onClick={() => addToCart(product)}
+                      aria-label={`Add ${product.name}`}
                       className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors"
                     >
                       <Plus className="w-4 h-4 text-white" />
@@ -267,6 +269,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
                 ) : (
                   <button
                     onClick={() => addToCart(product)}
+                    aria-label={`Add ${product.name}`}
                     className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center hover:bg-zinc-800 transition-colors"
                   >
                     <Plus className="w-4 h-4 text-white" />
