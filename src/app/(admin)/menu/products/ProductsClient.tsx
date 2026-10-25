@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useState } from 'react'
+import { compressImageForUpload } from '@/lib/media/client-compress'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
@@ -149,7 +150,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
 
     for (const file of files) {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await compressImageForUpload(file))
 
       const res = await fetch('/api/admin/products/upload', { method: 'POST', body: fd })
       const json = await res.json() as { url?: string; error?: string }

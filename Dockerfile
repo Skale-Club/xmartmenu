@@ -59,6 +59,8 @@ FROM base AS runner
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+# ffmpeg re-encodes uploaded dish videos to light MP4s (src/lib/media/video.ts).
+RUN apk add --no-cache ffmpeg
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=node:node /app/.next/standalone ./
 COPY --from=builder --chown=node:node /app/.next/static ./.next/static

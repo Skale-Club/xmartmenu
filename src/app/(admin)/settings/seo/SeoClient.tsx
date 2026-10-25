@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { compressImageForUpload } from '@/lib/media/client-compress'
 import Image from 'next/image'
 import type { TenantSettings } from '@/types/database'
 import { Search, Save, Globe, Image as ImageIcon, EyeOff, CheckCircle2, AlertCircle, Tag } from 'lucide-react'
@@ -44,7 +45,7 @@ export default function SeoClient({ settings, tenantName, canonicalUrl, isCustom
     setUploading(true)
     setUploadError(null)
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', await compressImageForUpload(file))
     formData.append('type', 'seo')
     const res = await fetch('/api/admin/branding/upload', { method: 'POST', body: formData })
     const json = await res.json().catch(() => ({}))

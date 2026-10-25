@@ -1,12 +1,14 @@
 import sharp from 'sharp'
 
-export const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
+// The browser shrinks photos before sending (src/lib/media/client-compress.ts);
+// this is the ceiling for whatever still arrives large.
+export const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
 export const WEBP_QUALITY = 80
 export const MAX_IMAGE_DIMENSION = 1600
 
 export async function validateAndConvertToWebP(file: File): Promise<{ buffer: Buffer; error?: never } | { buffer?: never; error: string }> {
   if (file.size > MAX_FILE_SIZE) {
-    return { error: `File is too large. Maximum allowed size is 5MB (received: ${(file.size / 1024 / 1024).toFixed(1)}MB)` }
+    return { error: `File is too large. Maximum allowed size is 15MB (received: ${(file.size / 1024 / 1024).toFixed(1)}MB)` }
   }
 
   const allowed = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/avif', 'image/svg+xml']
@@ -22,9 +24,12 @@ export async function validateAndConvertToWebP(file: File): Promise<{ buffer: Bu
     return { buffer: input }
   }
 
-  const buffer = await sharp(input)
+  // GIFs keep their animation; everything is turned upright from its EXIF
+  // orientation (phone photos otherwise land sideways) and stripped of metadata.
+  const buffer = await sharp(input, { animated: file.type === 'image/gif' })
+    .rotate()
     .resize(MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, { fit: 'inside', withoutEnlargement: true })
-    .webp({ quality: WEBP_QUALITY })
+    .webp({ quality: WEBP_QUALITY, effort: 5, smartSubsample: true })
     .toBuffer()
 
   return { buffer }
@@ -37,7 +42,8 @@ export async function validateAndConvertToWebP(file: File): Promise<{ buffer: Bu
  */
 export async function convertBufferToWebP(input: Buffer): Promise<Buffer> {
   return sharp(input)
+    .rotate()
     .resize(MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION, { fit: 'inside', withoutEnlargement: true })
-    .webp({ quality: WEBP_QUALITY })
+    .webp({ quality: WEBP_QUALITY, effort: 5, smartSubsample: true })
     .toBuffer()
 }

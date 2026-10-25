@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useState } from 'react'
+import { compressImageForUpload } from '@/lib/media/client-compress'
 import Image from 'next/image'
 import { getInitials } from '@/lib/utils'
 import type { TenantSettings } from '@/types/database'
@@ -52,7 +53,7 @@ export default function BrandingClient({ settings, tenantSlug, tenantName, planN
     setUploading(type)
     setUploadError(null)
     const formData = new FormData()
-    formData.append('file', file)
+    formData.append('file', await compressImageForUpload(file))
     formData.append('type', type)
 
     const res = await fetch('/api/admin/branding/upload', { method: 'POST', body: formData })
@@ -165,7 +166,7 @@ export default function BrandingClient({ settings, tenantSlug, tenantName, planN
                   {logoUrl && (
                     <button type="button" onClick={() => setLogoUrl('')} className="block text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition-colors ml-1">Remove Asset</button>
                   )}
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2 leading-relaxed">PNG, JPG or SVG · 1:1 Aspect · Max 5MB · Converted to WebP</p>
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2 leading-relaxed">PNG, JPG or SVG · 1:1 Aspect · Max 15MB · Converted to WebP</p>
                   {uploadError && uploading === null && <p className="text-[10px] font-bold text-red-500 mt-1">{uploadError}</p>}
                 </div>
               </div>

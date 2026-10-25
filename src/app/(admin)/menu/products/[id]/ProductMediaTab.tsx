@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { compressImageForUpload } from '@/lib/media/client-compress'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
-import { ChevronUp, ChevronDown, Trash2, Upload, Plus } from 'lucide-react'
+import { ChevronUp, ChevronDown, Trash2, Upload, Plus, Film } from 'lucide-react'
 import type { ProductMedia } from '@/types/database'
 
 interface Props {
@@ -44,6 +45,8 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
   const [savingVideo, setSavingVideo] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const videoInputRef = useRef<HTMLInputElement>(null)
+  const [videoNote, setVideoNote] = useState<string | null>(null)
 
   useEffect(() => {
     load()
@@ -74,7 +77,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
 
     for (const file of toUpload) {
       const fd = new FormData()
-      fd.append('file', file)
+      fd.append('file', await compressImageForUpload(file))
       const res = await fetch('/api/admin/products/upload', { method: 'POST', body: fd })
       if (!res.ok) {
         setError('Upload failed for one or more images')
@@ -109,6 +112,38 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
       setAddingVideo(false)
     } else {
       setError('Failed to save video')
+    }
+    setSavingVideo(false)
+  }
+
+  // A video file is re-encoded on the server (720p MP4, no audio) and gets a
+  // poster frame, which also becomes the dish photo when it has none.
+  async function handleVideoFile(file: File | undefined) {
+    if (!file) return
+    setSavingVideo(true)
+    setError(null)
+    setVideoNote(null)
+    const fd = new FormData()
+    fd.append('file', file)
+    const res = await fetch('/api/admin/products/upload-video', { method: 'POST', body: fd })
+    const json = await res.json().catch(() => ({})) as { url?: string; poster_url?: string | null; bytes?: number; original_bytes?: number; error?: string }
+    if (!res.ok || !json.url) {
+      setError(json.error ?? 'Video upload failed')
+      setSavingVideo(false)
+      return
+    }
+    let nextOrder = media.length > 0 ? Math.max(...media.map(m => m.display_order)) + 1 : 0
+    const rows: Array<Record<string, unknown>> = []
+    if (json.poster_url && imageCount === 0) rows.push({ product_id: productId, tenant_id: tenantId, type: 'image', url: json.poster_url, display_order: nextOrder++ })
+    rows.push({ product_id: productId, tenant_id: tenantId, type: 'video', url: json.url, display_order: nextOrder })
+    const { data: inserted, error: insertError } = await supabase.from('product_media').insert(rows).select()
+    if (insertError) setError('Failed to save video')
+    else {
+      setMedia(prev => [...prev, ...((inserted ?? []) as ProductMedia[])])
+      if (json.bytes && json.original_bytes && json.bytes < json.original_bytes) {
+        setVideoNote(`Video compressed from ${(json.original_bytes / 1024 / 1024).toFixed(1)} MB to ${(json.bytes / 1024 / 1024).toFixed(1)} MB.`)
+      }
+      if (json.poster_url && imageCount === 0) await syncPrimaryImage()
     }
     setSavingVideo(false)
   }
@@ -170,7 +205,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-sm font-semibold text-zinc-900">Media</h3>
-          <p className="text-xs text-zinc-500 mt-0.5">Up to 8 images. One video (YouTube, Vimeo, or .mp4).</p>
+          <p className="text-xs text-zinc-500 mt-0.5">Up to 8 images. Videos: upload a file (compressed automatically) or paste a YouTube/Vimeo link.</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -179,8 +214,24 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Video
+            Video link
           </button>
+          <button
+            type="button"
+            disabled={savingVideo}
+            onClick={() => videoInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 rounded-lg hover:bg-zinc-50 disabled:opacity-50 transition-colors"
+          >
+            <Film className="w-4 h-4" />
+            {savingVideo ? 'Processing video…' : 'Upload video'}
+          </button>
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/mp4,video/quicktime,video/webm,video/x-m4v,video/3gpp"
+            className="hidden"
+            onChange={e => { void handleVideoFile(e.target.files?.[0]); e.target.value = '' }}
+          />
           <button
             type="button"
             disabled={uploading || imageCount >= 8}
@@ -229,6 +280,10 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
             Cancel
           </button>
         </div>
+      )}
+
+      {videoNote && (
+        <p className="mb-3 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">{videoNote}</p>
       )}
 
       {error && (
