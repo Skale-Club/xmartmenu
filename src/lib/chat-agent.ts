@@ -51,31 +51,55 @@ export interface CatalogProduct {
 export interface MenuCatalog {
   menuName: string
   currency: string | null
+  /**
+   * Applied on top of every catalog price, exactly as checkout applies it
+   * (catalog prices stay as stored; see applyMultiplier).
+   */
+  priceMultiplier: number
   categories: Array<{ id: string; name: string; description: string | null }>
   products: CatalogProduct[]
 }
 
 /**
- * Loads the tenant's default (or first active) menu with everything the
- * assistant needs: available products, their option groups (available options
- * only) and their ingredients. The same catalog backs the prompt context and
- * the addToCart validation, so the model can't be told about an option the
- * server would then refuse.
+ * The multiplier checkout honours for an anonymous customer: an active,
+ * non-private menu's price_multiplier. A private (in-store/staff) menu's
+ * multiplier never applies to a public order — /api/orders enforces the same.
+ */
+export function effectiveMultiplier(menu: { is_active?: boolean | null; is_private?: boolean | null; price_multiplier?: number | null }): number {
+  const usable = menu.is_active !== false && menu.is_private !== true
+  const m = Number(menu.price_multiplier ?? 1)
+  return usable && m > 0 ? m : 1
+}
+
+/** Same rounding as checkout: the unit is rounded to cents, then multiplied and rounded again. */
+export function applyMultiplier(amount: number, multiplier: number): number {
+  const base = Math.max(0, Number(amount.toFixed(2)))
+  return multiplier !== 1 ? Math.round(base * multiplier * 100) / 100 : base
+}
+
+/**
+ * Loads the menu the customer is looking at (menuId, when it is one of the
+ * tenant's active menus) or else the default/first active one, with everything
+ * the assistant needs: available products, their option groups (available
+ * options only) and their ingredients. The same catalog backs the prompt
+ * context and the addToCart validation, so the model can't be told about an
+ * option the server would then refuse.
  */
 export async function loadMenuCatalog(
   supabase: SupabaseClient,
   tenantId: string,
   currency: string | null,
+  menuId?: string | null,
 ): Promise<MenuCatalog | null> {
   const { data: menus } = await supabase
     .from('menus')
-    .select('id, name, is_default')
+    .select('id, name, is_default, is_active, is_private, price_multiplier')
     .eq('tenant_id', tenantId)
     .eq('is_active', true)
     .order('is_default', { ascending: false })
     .order('position')
 
-  const menu = menus?.[0]
+  const menu = (menuId && menus?.find((m) => m.id === menuId)) || menus?.[0]
   if (!menu) return null
 
   const [{ data: categories }, { data: products }] = await Promise.all([
@@ -130,6 +154,7 @@ export async function loadMenuCatalog(
   return {
     menuName: menu.name,
     currency,
+    priceMultiplier: effectiveMultiplier(menu),
     categories: (categories ?? []).map((c) => ({ id: c.id, name: c.name, description: c.description ?? null })),
     products: (products ?? []).map((p) => ({
       id: p.id,
@@ -166,16 +191,18 @@ export function describeGroupRule(g: CatalogGroup): string {
   return `${req}, choose any`
 }
 
-function formatOption(o: CatalogOption): string {
-  if (o.base_price !== null) return `${o.name} @${o.base_price}`
-  if (o.price_modifier) return `${o.name} ${o.price_modifier > 0 ? '+' : ''}${o.price_modifier}`
+// Prices shown to the model already carry the menu multiplier, so what it
+// quotes is what the page shows and checkout charges.
+function formatOption(o: CatalogOption, m: number): string {
+  if (o.base_price !== null) return `${o.name} @${applyMultiplier(o.base_price, m)}`
+  if (o.price_modifier) return `${o.name} ${o.price_modifier > 0 ? '+' : '-'}${applyMultiplier(Math.abs(o.price_modifier), m)}`
   return o.name
 }
 
-function formatProduct(p: CatalogProduct): string[] {
+function formatProduct(p: CatalogProduct, m: number): string[] {
   const price = p.original_price && p.original_price > p.price
-    ? `${p.price} (promo, was ${p.original_price})`
-    : `${p.price}`
+    ? `${applyMultiplier(p.price, m)} (promo, was ${applyMultiplier(p.original_price, m)})`
+    : `${applyMultiplier(p.price, m)}`
   const tags = p.tags?.length ? ` [${p.tags.join(', ')}]` : ''
   const lines = [`- ${p.name} — ${price}${tags} (product_id: ${p.id})`]
   if (p.description) lines.push(`    ${p.description}`)
@@ -184,7 +211,7 @@ function formatProduct(p: CatalogProduct): string[] {
   if (base.length) lines.push(`    Ingredients: ${base.join(', ')}`)
   if (extra.length) lines.push(`    Can be added on the menu: ${extra.join(', ')}`)
   for (const g of p.groups) {
-    lines.push(`    • ${g.name} (${describeGroupRule(g)}): ${g.options.map(formatOption).join(', ')}`)
+    lines.push(`    • ${g.name} (${describeGroupRule(g)}): ${g.options.map((o) => formatOption(o, m)).join(', ')}`)
   }
   return lines
 }
@@ -196,7 +223,7 @@ export function formatMenuContext(catalog: MenuCatalog | null): string {
   for (const cat of catalog.categories) {
     lines.push(`\n## ${cat.name}`)
     if (cat.description) lines.push(`(${cat.description})`)
-    for (const p of catalog.products.filter((x) => x.category_id === cat.id)) lines.push(...formatProduct(p))
+    for (const p of catalog.products.filter((x) => x.category_id === cat.id)) lines.push(...formatProduct(p, catalog.priceMultiplier))
   }
   // Products whose category is missing or inactive still sell — list them so
   // the model never claims an orderable item doesn't exist.
@@ -204,47 +231,44 @@ export function formatMenuContext(catalog: MenuCatalog | null): string {
   const orphans = catalog.products.filter((p) => !p.category_id || !known.has(p.category_id))
   if (orphans.length) {
     lines.push('\n## Other')
-    for (const p of orphans) lines.push(...formatProduct(p))
+    for (const p of orphans) lines.push(...formatProduct(p, catalog.priceMultiplier))
   }
   return lines.join('\n')
 }
 
-export interface RestaurantInfo {
+/**
+ * profile and ordering are the blocks from chat-context.ts (describeProfile /
+ * describeOrdering); canAddToCart says whether the addToCart tool is offered.
+ */
+export function buildSystemPrompt(params: {
   name: string
-  address?: string | null
-  phone?: string | null
-  hours?: Record<string, unknown> | null
-  cuisine?: string | null
-}
-
-export function buildSystemPrompt(info: RestaurantInfo, menuContext: string, ordersEnabled: boolean): string {
-  const hours = info.hours && Object.keys(info.hours).length
-    ? Object.entries(info.hours).map(([d, h]) => `${d}: ${typeof h === 'string' ? h : JSON.stringify(h)}`).join(' | ')
-    : 'not provided'
-
-  const ordering = ordersEnabled
-    ? `You CAN add items to the customer's cart with the addToCart tool. Call it when the customer explicitly asks to add or order items.
+  profile: string
+  menuContext: string
+  ordering: string
+  canAddToCart: boolean
+}): string {
+  const { name, profile, menuContext, ordering, canAddToCart } = params
+  const cartRules = canAddToCart
+    ? `
+- Call addToCart when the customer explicitly asks to add or order items.
 - Pass every choice the customer made in "options", using the group and option names exactly as listed in MENU CONTEXT.
 - Before calling it, make sure every REQUIRED group of that item has a choice. If one is missing, ask the customer first (list the available options).
 - The tool returns "added" and "rejected". Only tell the customer an item was added if it appears in "added", with the price the tool returned. For each rejected item, explain what is missing and ask for it.
 - The cart cannot add or remove ingredients. If the customer wants that, tell them to customize the item from the menu screen.`
-    : 'You CANNOT place orders or add items to a cart. This restaurant uses digital menus for browsing only. Politely inform the customer if they ask to order.'
+    : ''
 
-  return `You are a friendly restaurant assistant for ${info.name}.
+  return `You are a friendly restaurant assistant for ${name}.
 You help customers explore the menu, understand dishes, discover great combinations,
-and place orders when available.
+and order when the restaurant allows it.
 
-MENU CONTEXT:
+RESTAURANT PROFILE:
+${profile}
+
+MENU CONTEXT (the menu the customer is looking at):
 ${menuContext}
 
-RESTAURANT INFO:
-- Address: ${info.address ?? 'not provided'}
-- Phone: ${info.phone ?? 'not provided'}
-- Hours: ${hours}
-- Cuisine: ${info.cuisine ?? 'not provided'}
-
 ORDERING:
-${ordering}
+${ordering}${cartRules}
 
 ALLERGIES AND DIETARY NEEDS:
 - Answer only from the ingredients and descriptions listed above. The restaurant's lists may be incomplete and cross-contamination is possible.
@@ -252,9 +276,9 @@ ALLERGIES AND DIETARY NEEDS:
 - Whenever a customer mentions an allergy or intolerance, tell them to confirm with the restaurant staff before ordering.
 
 GUARDRAILS — STRICT:
-- Only discuss: menu items, ingredients, prices, promotions, dish combinations, food/drink harmonization, and allergen questions.
-- For any other topic (politics, weather, jokes, general knowledge, competitors, personal advice), politely say you can only help with the menu and dishes, and offer to help with the food.
-- Never invent menu items, prices, options or ingredients not listed above.
+- Only discuss: the menu, ingredients, prices, promotions, dish combinations, food/drink harmonization, allergen questions, and this restaurant's own information above (hours, location, contact, ordering, delivery, payment).
+- For any other topic (politics, weather, jokes, general knowledge, competitors, personal advice), politely say you can only help with the menu and the restaurant, and offer to help with the food.
+- Never invent menu items, prices, options, ingredients, hours, fees or payment methods not listed above.
 - Never discuss competitor restaurants.
 - Be warm, concise, and helpful. Maximum 3 sentences per response unless listing items.
 - Always respond in the language the customer uses.`
@@ -401,7 +425,7 @@ function resolveOne(catalog: MenuCatalog, req: CartRequest): ResolvedCartItem | 
     product_id: product.id,
     name: product.name,
     quantity: req.quantity,
-    unit_price: Math.max(0, Number(unit.toFixed(2))),
+    unit_price: applyMultiplier(unit, catalog.priceMultiplier),
     selected_options: labels,
     editor_state: editorState,
     note,

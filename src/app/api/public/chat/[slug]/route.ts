@@ -6,7 +6,10 @@
  * - Decrypts the tenant's OpenRouter API key
  * - Rebuilds the conversation from chat_messages (the client sends only the new
  *   message; its copy of the history is never trusted)
- * - Runs the assistant (chat-agent.ts) and persists user + assistant turns
+ * - Describes the restaurant (or the location being viewed), its hours and
+ *   open/closed status, and how ordering works there (chat-context.ts)
+ * - Runs the assistant (chat-agent.ts) on the menu the customer is viewing,
+ *   and persists user + assistant turns
  *
  * addToCart is validated and priced on the server against the same catalog the
  * prompt describes; the response carries ready-to-add cart items (options,
@@ -28,6 +31,8 @@ import {
   loadMenuCatalog,
   runChatAgent,
 } from '@/lib/chat-agent'
+import { computeOpenStatus, describeOrdering, describeProfile, resolveOrderingMode, resolveTimeZone } from '@/lib/chat-context'
+import { isStripeEnabled } from '@/lib/stripe'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
@@ -36,6 +41,9 @@ export const maxDuration = 60
 interface ChatRequestBody {
   conversation_id: string
   message?: string
+  // What the customer is looking at; both are re-checked against the tenant.
+  menu_id?: string | null
+  location_id?: string | null
   // Older widget builds still post the whole transcript; only its last user
   // turn is read.
   messages?: Array<{ role: string; content: string }>
@@ -73,7 +81,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // Resolve tenant
   const { data: tenant } = await supabase
     .from('tenants')
-    .select('id, name, tenant_settings(orders_enabled, address, phone, business_hours, business_type, currency)')
+    .select('id, name, tenant_settings(orders_enabled, direct_orders_enabled, whatsapp_orders_enabled, dine_in_enabled, pickup_enabled, pickup_eta_minutes, delivery_enabled, delivery_fee_cents, tips_enabled, currency, address, city, region, postal_code, country, phone, whatsapp, instagram, business_hours, business_type, tagline, about, price_range)')
     .eq('slug', slug)
     .eq('is_active', true)
     .maybeSingle()
@@ -131,29 +139,70 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   }
 
   const settingsRow = (tenant.tenant_settings as any) ?? {}
-  const ordersEnabled: boolean = !!settingsRow.orders_enabled
+  // Same gate as the menu page (cart visible) and checkout (orders accepted).
+  const canAddToCart = resolveOrderingMode(settingsRow) === 'cart'
+  const menuId = typeof body?.menu_id === 'string' ? body.menu_id : null
+  const locationId = typeof body?.location_id === 'string' ? body.location_id : null
 
-  const [catalog, { data: history }] = await Promise.all([
-    loadMenuCatalog(supabase, tenant.id, settingsRow.currency ?? null),
+  const [catalog, { data: history }, { data: locations }, { data: zones }, onlinePayment] = await Promise.all([
+    loadMenuCatalog(supabase, tenant.id, settingsRow.currency ?? null, menuId),
     supabase
       .from('chat_messages')
       .select('role, content')
       .eq('conversation_id', convo.id)
       .order('created_at', { ascending: false })
       .limit(HISTORY_LIMIT),
+    supabase
+      .from('locations')
+      .select('id, name, address, city, region, postal_code, country, phone, business_hours')
+      .eq('tenant_id', tenant.id)
+      .eq('is_active', true)
+      .order('name'),
+    settingsRow.delivery_enabled
+      ? supabase.from('delivery_zones').select('name, fee_cents').eq('tenant_id', tenant.id).eq('is_active', true).order('name')
+      : Promise.resolve({ data: [] as Array<{ name: string; fee_cents: number }> }),
+    canAddToCart ? isStripeEnabled(tenant.id, supabase).catch(() => false) : Promise.resolve(false),
   ])
 
-  const systemPrompt = buildSystemPrompt(
+  // A location page describes that location: its address, phone and hours
+  // win over the restaurant's, falling back field by field.
+  const location = locationId ? (locations ?? []).find((l) => l.id === locationId) ?? null : null
+  const hours = location?.business_hours && Object.values(location.business_hours).some(Boolean)
+    ? location.business_hours
+    : settingsRow.business_hours
+  const country = location?.country ?? settingsRow.country
+  const region = location?.region ?? settingsRow.region
+  const timeZone = resolveTimeZone({ country, region, currency: settingsRow.currency })
+
+  const profile = describeProfile(
     {
       name: tenant.name,
-      address: settingsRow.address,
-      phone: settingsRow.phone,
-      hours: settingsRow.business_hours,
+      locationName: location?.name ?? null,
+      tagline: settingsRow.tagline,
+      about: settingsRow.about,
       cuisine: settingsRow.business_type,
+      priceRange: settingsRow.price_range,
+      address: location?.address ?? settingsRow.address,
+      city: location?.city ?? settingsRow.city,
+      region,
+      postalCode: location?.postal_code ?? settingsRow.postal_code,
+      country,
+      phone: location?.phone ?? settingsRow.phone,
+      whatsapp: settingsRow.whatsapp,
+      instagram: settingsRow.instagram,
+      hours,
+      otherLocations: (locations ?? []).filter((l) => l.id !== location?.id),
     },
-    formatMenuContext(catalog),
-    ordersEnabled,
+    computeOpenStatus(hours, new Date(), timeZone),
   )
+
+  const systemPrompt = buildSystemPrompt({
+    name: tenant.name,
+    profile,
+    menuContext: formatMenuContext(catalog),
+    ordering: describeOrdering(settingsRow, { onlinePayment, deliveryZones: zones ?? [] }),
+    canAddToCart,
+  })
 
   // OpenRouter is OpenAI-compatible — point @ai-sdk/openai at it
   const openrouter = createOpenAI({
@@ -168,7 +217,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       system: systemPrompt,
       messages: buildModelMessages([...(history ?? [])].reverse(), userMessage),
       catalog,
-      ordersEnabled,
+      ordersEnabled: canAddToCart,
     })
   } catch (e) {
     console.error('chat.generate_error', e)

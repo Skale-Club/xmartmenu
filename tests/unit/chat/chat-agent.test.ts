@@ -5,7 +5,9 @@ import {
   MAX_USER_MESSAGE_CHARS,
   assistantTurnForHistory,
   buildModelMessages,
+  applyMultiplier,
   buildSystemPrompt,
+  effectiveMultiplier,
   formatMenuContext,
   resolveCartRequest,
   runChatAgent,
@@ -22,6 +24,7 @@ function catalog(): MenuCatalog {
   return {
     menuName: 'Principal',
     currency: 'BRL',
+    priceMultiplier: 1,
     categories: [{ id: 'cat-1', name: 'Pizzas', description: null }],
     products: [
       {
@@ -199,15 +202,50 @@ describe('formatMenuContext', () => {
 })
 
 describe('buildSystemPrompt', () => {
+  const base = { name: 'Cantina', profile: 'PROFILE BLOCK', menuContext: 'MENU', ordering: 'ORDERING BLOCK' }
+
   it('forbids allergen-free claims and sends allergy questions to staff', () => {
-    const prompt = buildSystemPrompt({ name: 'Cantina' }, 'MENU', true)
+    const prompt = buildSystemPrompt({ ...base, canAddToCart: true })
     expect(prompt).toContain('Never state or imply that a dish is free of an allergen')
     expect(prompt).toContain('confirm with the restaurant staff')
   })
 
-  it('only describes addToCart when ordering is enabled', () => {
-    expect(buildSystemPrompt({ name: 'Cantina' }, 'MENU', true)).toContain('addToCart')
-    expect(buildSystemPrompt({ name: 'Cantina' }, 'MENU', false)).not.toContain('addToCart')
+  it('embeds the profile and ordering blocks', () => {
+    const prompt = buildSystemPrompt({ ...base, canAddToCart: false })
+    expect(prompt).toContain('RESTAURANT PROFILE:\nPROFILE BLOCK')
+    expect(prompt).toContain('ORDERING:\nORDERING BLOCK')
+  })
+
+  it('only describes addToCart when the cart is available', () => {
+    expect(buildSystemPrompt({ ...base, canAddToCart: true })).toContain('Call addToCart')
+    expect(buildSystemPrompt({ ...base, canAddToCart: false })).not.toContain('addToCart')
+  })
+})
+
+describe('menu price multiplier', () => {
+  it('is honoured only for an active, non-private menu, like checkout', () => {
+    expect(effectiveMultiplier({ is_active: true, is_private: false, price_multiplier: 1.1 })).toBe(1.1)
+    expect(effectiveMultiplier({ is_active: true, is_private: true, price_multiplier: 0.8 })).toBe(1)
+    expect(effectiveMultiplier({ is_active: false, is_private: false, price_multiplier: 1.1 })).toBe(1)
+    expect(effectiveMultiplier({ is_active: true, is_private: false, price_multiplier: 0 })).toBe(1)
+    expect(effectiveMultiplier({ is_active: true, is_private: false, price_multiplier: null })).toBe(1)
+  })
+
+  it('applies to the resolved cart price with checkout rounding', () => {
+    const c = { ...catalog(), priceMultiplier: 1.15 }
+    const { added } = resolveCartRequest(c, [{
+      product_id: PIZZA, quantity: 1, options: [{ group: 'Tamanho', choices: ['Grande'] }, { group: 'Bordas', choices: ['Catupiry'] }],
+    }])
+    // checkout: Math.round((55 + 8) * 1.15 * 100) / 100
+    expect(added[0].unit_price).toBe(Math.round(63 * 1.15 * 100) / 100)
+    expect(applyMultiplier(63, 1.15)).toBe(72.45)
+  })
+
+  it('shows multiplied prices in the menu context', () => {
+    const ctx = formatMenuContext({ ...catalog(), priceMultiplier: 1.1 })
+    expect(ctx).toContain('Refrigerante — 6.6 (promo, was 8.8)')
+    expect(ctx).toContain('Pequena @38.5, Grande @60.5')
+    expect(ctx).toContain('Catupiry +8.8')
   })
 })
 

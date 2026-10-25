@@ -13,6 +13,14 @@ interface Props {
   audioEnabled?: boolean
   products: Product[]
   onAddToCart: (product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void
+  /** The menu and location on screen, so the assistant answers about what the customer sees. */
+  menuId?: string | null
+  locationId?: string | null
+  /** Whether the cart side panel is open (desktop: the chat moves left of it). */
+  cartOpen?: boolean
+  onOpenCart?: () => void
+  /** Mobile: the page's bottom "View order" bar is showing; the launcher sits above it. */
+  orderBarVisible?: boolean
 }
 
 // Server-side cap (MAX_USER_MESSAGE_CHARS in chat-agent.ts).
@@ -27,7 +35,7 @@ interface Message {
 
 const SESSION_KEY_PREFIX = 'aiChat:'
 
-export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, products, onAddToCart }: Props) {
+export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false }: Props) {
   const [open, setOpen] = useState(false)
   const [phone, setPhone] = useState('')
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -106,7 +114,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Only the new message: the server rebuilds the history from what it stored.
-      body: JSON.stringify({ conversation_id: conversationId, message: text.trim() }),
+      body: JSON.stringify({ conversation_id: conversationId, message: text.trim(), menu_id: menuId, location_id: locationId }),
     })
 
     if (!res.ok) {
@@ -130,6 +138,8 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
         addedItems.push({ name: item.name, quantity: item.quantity })
       }
     }
+
+    if (addedItems.length) onOpenCart?.()
 
     const assistantMsg: Message = {
       id: crypto.randomUUID(),
@@ -191,7 +201,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-105"
+          className={`fixed ${orderBarVisible ? 'bottom-24 lg:bottom-6' : 'bottom-6'} right-6 ${cartOpen ? 'lg:right-[404px]' : ''} z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-105`}
           style={{ backgroundColor: primaryColor }}
           aria-label="Open AI chat"
         >
@@ -201,7 +211,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
 
       {/* Panel */}
       {open && (
-        <div className="fixed inset-0 z-50 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[400px] sm:h-[640px] sm:max-h-[80vh] flex flex-col bg-white sm:rounded-2xl shadow-2xl overflow-hidden">
+        <div className={`fixed inset-0 z-50 sm:inset-auto sm:bottom-6 sm:right-6 ${cartOpen ? 'lg:right-[404px]' : ''} sm:w-[400px] sm:h-[640px] sm:max-h-[80vh] flex flex-col bg-white sm:rounded-2xl shadow-2xl overflow-hidden`}>
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-100" style={{ backgroundColor: primaryColor }}>
             <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
@@ -261,6 +271,15 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                               {ci.quantity}× {ci.name}
                             </span>
                           ))}
+                          {onOpenCart && (
+                            <button
+                              type="button"
+                              onClick={onOpenCart}
+                              className="inline-flex items-center text-[10px] font-bold text-zinc-700 underline underline-offset-2 hover:text-zinc-900 px-1"
+                            >
+                              View cart
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
