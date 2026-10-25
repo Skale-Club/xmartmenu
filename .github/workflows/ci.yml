@@ -1,13 +1,27 @@
 name: CI
 
+# Two jobs in parallel:
+#   checks  lint, route guard, unit tests (+ coverage), production build
+#   e2e     local Supabase (all migrations + supabase/seed.sql) → production
+#           build of the app → Playwright: API integration + guest + staff flows
+# Reports are attached to every run (Actions → run → Artifacts) and summarised
+# on the run page. A failing Playwright test keeps its trace, video and
+# screenshot: download "playwright-report" and open index.html, or run
+# `npx playwright show-trace <trace.zip>`.
+
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +40,23 @@ jobs:
       - name: Check blocked tenant slugs don't shadow real routes
         run: npm run check:routes
 
+      - name: Unit tests with coverage
+        run: npm run test:coverage
+
+      - name: Unit test summary
+        if: always()
+        run: node scripts/ci-summary.mjs unit test-results/unit-junit.xml coverage/coverage-summary.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload unit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-reports
+          path: |
+            coverage/
+            test-results/unit-junit.xml
+          retention-days: 14
+
       - name: Build (includes TypeScript check)
         run: npm run build
         env:
@@ -33,3 +64,73 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      E2E_PORT: '3100'
+      PORT: '3100'
+      HOSTNAME: '0.0.0.0'
+      NEXT_PUBLIC_APP_URL: http://localhost:3100
+      # Test-only: never real keys in this job.
+      CHAT_ADDON_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      E2E_SERVER_COMMAND: node .next/standalone/server.js
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Start local Supabase (migrations + seed)
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+
+      - name: Point the app and tests at the local database
+        run: |
+          supabase status -o env | sed -E 's/^([A-Z_]+)="?([^"]*)"?$/\1=\2/' > /tmp/sb.env
+          . /tmp/sb.env
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+          } >> "$GITHUB_ENV"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build the app against the local database
+        run: |
+          npm run build
+          cp -r .next/static .next/standalone/.next/static
+          cp -r public .next/standalone/public
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Playwright (API + flows)
+        run: npx playwright test
+
+      - name: E2E summary
+        if: always()
+        run: node scripts/ci-summary.mjs e2e test-results/e2e-junit.xml >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload Playwright report (traces, videos, screenshots)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+      - name: Database logs on failure
+        if: failure()
+        run: docker logs $(docker ps -qf "name=supabase_db") 2>&1 | tail -200 || true

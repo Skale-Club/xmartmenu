@@ -206,3 +206,7 @@ tmp/
 # leftover agent worktrees / scratch
 .clone/
 scratch/
+
+# Playwright sessions and sharded reports
+/tests/e2e/.auth/
+/blob-report/

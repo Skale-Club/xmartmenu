@@ -1,14 +1,11 @@
 /**
- * Unit-test runner (autoblog-parity XM-10).
+ * Unit tests (tests/unit): pure logic, node environment, no DOM, no database.
+ * The app and database layers are covered by Playwright (tests/e2e).
  *
- * This repo had no test runner at all. It gains one here rather than shipping
- * the blog's pure modules — the editorial rotation, the HTML allowlist, the
- * retry classifier, the RSS ranker — with nothing guarding them, because those
- * are exactly the pieces where a silent regression is expensive and invisible.
+ *   npm test               run once
+ *   npm run test:coverage  + coverage report in coverage/ (HTML + summary)
  *
- * Deliberately narrow: `tests/unit` only, node environment, no DOM, no setup
- * file. It does not pretend to cover the app, and it is not wired into CI by
- * this change — run it with `npm test`.
+ * CI runs both and publishes the reports (.github/workflows/ci.yml).
  */
 import { defineConfig } from 'vitest/config'
 import tsconfigPaths from 'vite-tsconfig-paths'
@@ -18,5 +15,14 @@ export default defineConfig({
   test: {
     include: ['tests/unit/**/*.test.ts'],
     environment: 'node',
+    reporters: process.env.CI ? ['default', 'junit'] : ['default'],
+    outputFile: { junit: 'test-results/unit-junit.xml' },
+    coverage: {
+      provider: 'v8',
+      include: ['src/lib/**/*.ts', 'src/components/menu/*.ts'],
+      exclude: ['**/*.test.ts', 'src/lib/supabase/**'],
+      reporter: ['text-summary', 'html', 'json-summary'],
+      reportsDirectory: 'coverage',
+    },
   },
 })
