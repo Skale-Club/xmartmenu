@@ -28,6 +28,7 @@ import {
   Building2,
   Bot,
   Sparkles,
+  History,
   Inbox,
   Search,
   BarChart3,
@@ -57,6 +58,7 @@ const adminPanelItems = [
   { href: '/settings/qrcode', label: 'QR Code', icon: QrCode },
   { href: '/settings/password', label: 'Change Password', icon: Key },
   { href: '/settings/staff', label: 'Staff', icon: Users },
+  { href: '/settings/activity', label: 'Activity', icon: History },
 ]
 
 type SidebarMenu = Pick<Menu, 'id' | 'name' | 'slug' | 'is_active' | 'is_default'>
