@@ -1,6 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import WaiterCallsPanel from '@/components/admin/WaiterCallsPanel'
 import { createClient } from '@/lib/supabase/client'
 import type { Order, OrderItem } from '@/types/database'
 import { useElapsedTime } from './useElapsedTime'
@@ -444,6 +445,8 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
 
   return (
     <div className="p-8 w-full space-y-8">
+      <WaiterCallsPanel tenantId={tenantId} />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b border-zinc-100">
         <div>

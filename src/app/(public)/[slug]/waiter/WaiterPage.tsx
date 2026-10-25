@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import Image from 'next/image'
 import { formatPrice } from '@/lib/utils'
-import { ShoppingBag, X, ChevronLeft, Plus, Minus, CheckCircle } from 'lucide-react'
+import { ShoppingBag, ChevronLeft, Plus, Minus, CheckCircle } from 'lucide-react'
+import WaiterCallsPanel from '@/components/admin/WaiterCallsPanel'
 
 interface Table {
   id: string
@@ -155,6 +156,10 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
             </div>
           </div>
 
+          <div className="mb-6">
+            <WaiterCallsPanel tenantId={tenantId} />
+          </div>
+
           {tables.length === 0 ? (
             <div className="text-center py-20 text-zinc-400">
               <p className="font-semibold">No tables configured</p>
@@ -208,6 +213,10 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
             )}
           </button>
         )}
+      </div>
+
+      <div className="px-4 pt-3">
+        <WaiterCallsPanel tenantId={tenantId} compact />
       </div>
 
       {/* Category pills */}
