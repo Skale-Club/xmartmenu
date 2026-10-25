@@ -20,6 +20,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { EffectivePlan, Plan } from '@/types/database'
+import { resolveServiceCapabilities, type ServiceCapabilities, type ServiceSettings } from '@/lib/service-modes'
 
 interface SubscriptionWithPlan {
   tenant_id: string
@@ -151,4 +152,18 @@ export async function tenantHasPaidPlan(
   if (!plan) return false
   // All seeded plans are paid (menu, orders, payments)
   return plan.monthly_price > 0 || plan.annual_price > 0
+}
+
+/**
+ * What a restaurant can do with orders right now — its plan's ceiling combined
+ * with its own switches (see service-modes.ts). A missing or revoked plan
+ * counts as menu only.
+ */
+export async function getTenantServiceCapabilities(
+  tenantId: string,
+  settings: ServiceSettings | null | undefined,
+  client?: SupabaseClient,
+): Promise<ServiceCapabilities> {
+  const plan = await getTenantPlan(tenantId, client).catch(() => null)
+  return resolveServiceCapabilities(plan?.features ?? null, settings)
 }

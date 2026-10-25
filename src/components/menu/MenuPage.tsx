@@ -99,6 +99,10 @@ interface Props {
   chatAddonAudioEnabled?: boolean
   /** Typed messages in the AI chat (the restaurant can allow voice notes only). */
   chatAddonTextEnabled?: boolean
+  /** Guests may order from this menu: the plan allows it and the restaurant turned it on (service-modes.ts). */
+  guestOrderingEnabled?: boolean
+  /** The table this link belongs to (QR code / NFC tag ?table=), when guests can order. */
+  table?: { id: string; name: string } | null
 }
 
 function getTranslatedMenuField(
@@ -112,7 +116,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true }: Props) {
+export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true, guestOrderingEnabled = false, table = null }: Props) {
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
   const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
@@ -137,7 +141,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
     getServerMobileViewportSnapshot,
   )
   const activeMenuView = isMobileViewport ? menuView : 'list'
-  const defaultOrderType = (tenant.tenant_settings?.dine_in_enabled ?? true) ? 'dine_in'
+  // A table link means the guest is eating here: the order goes to that table.
+  const defaultOrderType = table || (tenant.tenant_settings?.dine_in_enabled ?? true) ? 'dine_in'
     : (tenant.tenant_settings?.pickup_enabled ?? false) ? 'pickup'
     : 'delivery'
   const [search, setSearch] = useState('')
@@ -199,7 +204,9 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const pickupEnabled = settings?.pickup_enabled ?? false
   const deliveryEnabled = settings?.delivery_enabled ?? false
   const deliveryFeeCents = settings?.delivery_fee_cents ?? 0
-  const orderTypeConfig = { dineIn: dineInEnabled, pickup: pickupEnabled, delivery: deliveryEnabled, deliveryFeeCents }
+  const orderTypeConfig = table
+    ? { dineIn: true, pickup: false, delivery: false, deliveryFeeCents }
+    : { dineIn: dineInEnabled, pickup: pickupEnabled, delivery: deliveryEnabled, deliveryFeeCents }
   const tipsEnabled = settings?.tips_enabled ?? false
   const analyticsEnabled = settings?.analytics_enabled ?? true
   const feedAutoplayVideos = settings?.feed_autoplay_videos ?? true
@@ -288,7 +295,11 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
     window.open(`https://wa.me/${whatsapp}?text=${msg}`, '_blank')
   }
 
-  const directOrdersEnabled = settings?.direct_orders_enabled ?? false
+  // Decided on the server from the plan and the restaurant's switches.
+  const directOrdersEnabled = guestOrderingEnabled
+  const orderingTable = directOrdersEnabled ? table : null
+  // At a table the order is always eaten there, whatever an older draft said.
+  const checkoutOrderType = orderingTable ? 'dine_in' : orderType
 
   // ── "Complete your order" (see upsell.ts) ─────────────────────────────────
   // After a dish goes into the cart, offer what usually comes next. `choosing`
@@ -444,7 +455,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
       setOrderError(copy.errCartEmpty)
       return
     }
-    if (orderType === 'delivery' && !deliveryStreet.trim()) {
+    if (checkoutOrderType === 'delivery' && !deliveryStreet.trim()) {
       setOrderError(copy.errStreet)
       return
     }
@@ -460,7 +471,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           tenant_id: tenant.id,
           customer_name: customerName.trim(),
           customer_phone: customerPhone.trim(),
-          order_type: orderType,
+          order_type: checkoutOrderType,
           delivery_street: orderType === 'delivery' ? deliveryStreet.trim() || undefined : undefined,
           delivery_complement: orderType === 'delivery' && deliveryComplement.trim() ? deliveryComplement.trim() : undefined,
           delivery_zipcode: orderType === 'delivery' && deliveryZipcode.trim() ? deliveryZipcode.trim() : undefined,
@@ -470,6 +481,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             ? [deliveryStreet, deliveryZipcode, deliveryCity].filter(Boolean).join(', ')
             : undefined,
           location_id: location?.id ?? null,
+          table_id: orderingTable ? orderingTable.id : undefined,
           tip_cents: tipCents,
           menu_id: menu?.id ?? null,
           analytics_session_id: analyticsTracker?.sessionId ?? null,
@@ -975,6 +987,13 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
               )}
             </div>
           )}
+          {orderingTable && (
+            <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[14px] font-semibold text-zinc-900 shadow-card">
+              <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: primaryColor }} />
+              <span className="font-medium text-zinc-500">{copy.yourTable}</span>
+              {orderingTable.name}
+            </p>
+          )}
           {settings?.tagline && (
             <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-zinc-600">{settings.tagline}</p>
           )}
@@ -1412,7 +1431,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           onCustomerPhoneChange={setCustomerPhone}
           onSubmit={submitOrder}
           orderTypeConfig={orderTypeConfig}
-          orderType={orderType}
+          tableName={orderingTable?.name ?? null}
+          orderType={checkoutOrderType}
           deliveryStreet={deliveryStreet}
           deliveryComplement={deliveryComplement}
           deliveryZipcode={deliveryZipcode}

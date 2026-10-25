@@ -363,6 +363,7 @@ export interface Order {
   delivery_notes: string | null                      // SEED-020 (migration 041)
   delivery_zone_id: string | null                    // SEED-020 (migration 041)
   table_name: string | null                           // SEED-023 (migration 043)
+  table_id?: string | null                            // the restaurant_tables row it came from (table link or waiter)
   analytics_session_id: string | null                 // anonymous menu attribution
   notes: string | null
   created_at: string

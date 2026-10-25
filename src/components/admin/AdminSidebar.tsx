@@ -31,6 +31,7 @@ import {
   Search,
   BarChart3,
   LayoutTemplate,
+  ConciergeBell,
 } from 'lucide-react'
 
 const mainItems = [
@@ -68,6 +69,7 @@ export default function AdminSidebar({
   activeMenuId = null,
   ingredientCustomizationEnabled = false,
   blogEnabled = false,
+  waiterAppEnabled = false,
 }: {
   tenantName: string
   tenantSlug?: string
@@ -80,6 +82,8 @@ export default function AdminSidebar({
   /** Plan capability `blog` (autoblog-parity XM-14). Off for every plan that
    *  does not sell it, which today is all of them until someone adds the key. */
   blogEnabled?: boolean
+  /** Waiter ordering: in the plan and switched on (service-modes.ts). */
+  waiterAppEnabled?: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -92,8 +96,10 @@ export default function AdminSidebar({
 
   const ingredientItem = { href: '/menu/ingredients', label: 'Ingredients', icon: Salad }
   const blogItem = { href: '/posts', label: 'Blog', icon: Newspaper }
+  const waiterItem = tenantSlug ? { href: `/${tenantSlug}/waiter`, label: 'Waiter app', icon: ConciergeBell } : null
   const visibleMainItems = [
     ...mainItems,
+    ...(waiterAppEnabled && waiterItem ? [waiterItem] : []),
     ...(ingredientCustomizationEnabled ? [ingredientItem] : []),
     ...(blogEnabled ? [blogItem] : []),
   ].filter(item => isStaff ? item.href !== '/menus' : true)

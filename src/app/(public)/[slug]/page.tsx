@@ -10,6 +10,8 @@ import ScanRecorder from '@/components/menu/ScanRecorder'
 import JsonLdScript from '@/components/seo/JsonLdScript'
 import type { Metadata } from 'next'
 import { hasAnyChannel, resolveChatChannels } from '@/lib/chat-channels'
+import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
+import { parseTableParam } from '@/lib/service-modes'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
@@ -26,7 +28,7 @@ import {
 
 interface Props {
   params: Promise<{ slug: string }>
-  searchParams: Promise<{ lang?: string; view?: string }>
+  searchParams: Promise<{ lang?: string; view?: string; table?: string }>
 }
 
 const getTenantBySlug = cache(async (slug: string) => {
@@ -84,7 +86,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PublicMenuPage({ params, searchParams }: Props) {
   const { slug } = await params
-  const { lang, view } = await searchParams
+  const { lang, view, table: tableParam } = await searchParams
 
   const tenant = await getTenantBySlug(slug)
   if (!tenant) notFound()
@@ -212,6 +214,14 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   // Typed messages and voice notes are switched per restaurant; none = no chat box.
   const chatChannels = resolveChatChannels(chatSettings)
 
+  // What the plan and the restaurant allow (service-modes.ts), and the table
+  // this link belongs to (QR code / NFC tag: ?table=<id>) when guests can order.
+  const serviceCapabilities = await getTenantServiceCapabilities(tenant.id, tenant.tenant_settings as any, supabase)
+  const tableId = parseTableParam(tableParam)
+  const { data: table } = tableId && serviceCapabilities.guestOrdering
+    ? await supabase.from('restaurant_tables').select('id, name').eq('id', tableId).eq('tenant_id', tenant.id).eq('is_active', true).maybeSingle()
+    : { data: null }
+
   // SEED-021: fetch product media for all products on this menu
   const productMediaByProductId: Record<string, ProductMedia[]> = {}
   if (productIds.length > 0) {
@@ -269,6 +279,8 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
         chatAddonEnabled={chatStatus.enabled && hasAnyChannel(chatChannels)}
         chatAddonAudioEnabled={chatChannels.voice}
         chatAddonTextEnabled={chatChannels.text}
+        guestOrderingEnabled={serviceCapabilities.guestOrdering}
+        table={table ?? null}
       />
     </>
   )

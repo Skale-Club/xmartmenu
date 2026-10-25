@@ -18,6 +18,7 @@
  */
 import { NextResponse } from 'next/server'
 import { openRouterModel } from '@/lib/ai/openrouter'
+import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
 import { hasAnyChannel, resolveChatChannels, verifyVoiceTranscript } from '@/lib/chat-channels'
 import { createServiceClient } from '@/lib/supabase/server'
 import { decryptApiKey, voiceTokenSecret } from '@/lib/crypto'
@@ -154,7 +155,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     return NextResponse.json({ error: 'Server config error' }, { status: 500 })
   }
 
-  const settingsRow = (tenant.tenant_settings as any) ?? {}
+  const rawSettings = (tenant.tenant_settings as any) ?? {}
+  // Same rule as the menu page and checkout: the cart only exists when the plan
+  // allows guest orders and the restaurant switched them on (service-modes.ts).
+  const serviceCapabilities = await getTenantServiceCapabilities(tenant.id, rawSettings, supabase)
+  const settingsRow = { ...rawSettings, direct_orders_enabled: serviceCapabilities.guestOrdering }
   // Same gate as the menu page (cart visible) and checkout (orders accepted).
   const canAddToCart = resolveOrderingMode(settingsRow) === 'cart'
   const menuId = typeof body?.menu_id === 'string' ? body.menu_id : null

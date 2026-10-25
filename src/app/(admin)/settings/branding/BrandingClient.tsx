@@ -6,12 +6,16 @@ import { getInitials } from '@/lib/utils'
 import type { TenantSettings } from '@/types/database'
 import { Palette, ExternalLink, Camera, Image as ImageIcon, Share2, MessageCircle, ShoppingBag, CheckCircle2, AlertCircle, Save, Info, Type } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { PLAN_FOR_MODE, SERVICE_MODE_LABELS, type ServiceMode } from '@/lib/service-modes'
 
 interface Props {
   settings: TenantSettings | null
   tenantId: string
   tenantSlug: string
   tenantName: string
+  /** The restaurant's plan and the richest ordering mode it allows (service-modes.ts). */
+  planName?: string | null
+  planMode?: ServiceMode
 }
 
 const CUISINE_PRESETS = [
@@ -23,7 +27,8 @@ const CUISINE_PRESETS = [
   { name: 'Default',   primary: '#F52323', accent: '#09090b' },
 ]
 
-export default function BrandingClient({ settings, tenantSlug, tenantName }: Props) {
+export default function BrandingClient({ settings, tenantSlug, tenantName, planName = null, planMode = 'menu' }: Props) {
+  const selfOrderAllowed = planMode === 'self_service'
   const [form, setForm] = useState({
     primary_color: settings?.primary_color ?? '#000000',
     accent_color: settings?.accent_color ?? '#FF5722',
@@ -350,30 +355,46 @@ export default function BrandingClient({ settings, tenantSlug, tenantName }: Pro
                   <h2 className="text-xl font-black text-zinc-950 tracking-tight">Ordering System</h2>
                 </div>
 
+                <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
+                  <span className="font-bold text-zinc-900">{planName ?? 'No plan'}</span> · {SERVICE_MODE_LABELS[planMode]}.
+                  {planMode !== 'self_service' && (
+                    <> Guest ordering from the menu needs the <span className="font-bold">{PLAN_FOR_MODE.self_service}</span> plan.</>
+                  )}
+                </div>
+
                 {[
                   { key: 'orders_enabled', label: 'Master Order Control', desc: 'Global switch to enable/disable all order features' },
                   { key: 'whatsapp_orders_enabled', label: 'Direct WhatsApp Checkout', desc: 'Let customers send their cart details via WhatsApp message' },
-                  { key: 'direct_orders_enabled', label: 'Native Ordering System', desc: 'Enable full checkout and payment processing (Add-on)' },
-                ].map(field => (
-                  <div key={field.key} className="flex items-center justify-between group p-4 rounded-lg hover:bg-zinc-50 transition-all cursor-pointer" onClick={() => setForm(f => ({ ...f, [field.key]: !(f as any)[field.key] }))}>
+                  { key: 'direct_orders_enabled', label: 'Guest ordering & payment', desc: 'Guests order from the menu and pay online when Stripe is connected' },
+                ].map(field => {
+                  // The plan is the ceiling: locked switches show off and can't be turned on.
+                  const locked = field.key === 'direct_orders_enabled' && !selfOrderAllowed
+                  const on = !locked && (form as any)[field.key]
+                  return (
+                  <div key={field.key} className={cn("flex items-center justify-between group p-4 rounded-lg transition-all", locked ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50 cursor-pointer")} onClick={() => { if (!locked) setForm(f => ({ ...f, [field.key]: !(f as any)[field.key] })) }}>
                     <div className="max-w-[70%]">
                       <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">{(field as any).label}</p>
-                      <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">{(field as any).desc}</p>
+                      <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">
+                        {locked ? `Available on the ${PLAN_FOR_MODE.self_service} plan` : (field as any).desc}
+                      </p>
                     </div>
                     <button 
                       type="button" 
+                      disabled={locked}
+                      aria-pressed={on}
                       className={cn(
                         "relative inline-flex h-7 w-12 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-300 focus:outline-none",
-                        (form as any)[field.key] ? "bg-primary" : "bg-zinc-200"
+                        on ? "bg-primary" : "bg-zinc-200"
                       )}
                     >
                       <span className={cn(
                         "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
-                        (form as any)[field.key] ? "translate-x-5" : "translate-x-0"
+                        on ? "translate-x-5" : "translate-x-0"
                       )} />
                     </button>
                   </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           </div>

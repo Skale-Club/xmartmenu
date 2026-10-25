@@ -104,6 +104,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
       customer_phone: customerPhone,
       order_type: 'dine_in',
       table_name: selectedTable.name,
+      table_id: selectedTable.id,
       items: cart.map(i => ({
         product_id: i.product.id,
         product_name: i.product.name,

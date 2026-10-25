@@ -158,9 +158,10 @@ function OrderCard({
               const display = [street, zip, city].filter(Boolean).join(', ') || (order as any).delivery_address
               return display ? <span className="text-[10px] text-zinc-400 font-medium truncate max-w-[150px]">{display}</span> : null
             })()}
-            {(order as any).table_name && (
-              <span className="text-[10px] font-black text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                {(order as any).table_name}
+            {order.table_name && (
+              // The table is where the food goes: make it the loudest thing on the ticket.
+              <span className="text-xs font-black text-white bg-zinc-900 px-2.5 py-0.5 rounded-full tracking-wide">
+                {order.table_name}
               </span>
             )}
           </div>

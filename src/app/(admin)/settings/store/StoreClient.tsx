@@ -9,6 +9,7 @@ import { Store, Globe, Phone, Clock, ShoppingCart, Activity, CreditCard, CheckCi
 import { cn } from '@/lib/utils'
 import DeliveryZonesSection from './DeliveryZonesSection'
 import TablesSection from './TablesSection'
+import { PLAN_FOR_MODE, type ServiceMode } from '@/lib/service-modes'
 
 interface Props {
   settings: TenantSettings | null
@@ -16,6 +17,9 @@ interface Props {
   stripeConnection: StripeConnection | null
   tenant: Pick<Tenant, 'custom_domain' | 'custom_domain_verified'> | null
   isPaymentsPlan?: boolean
+  tenantSlug?: string
+  /** Richest ordering mode the plan allows (service-modes.ts). */
+  planMode?: ServiceMode
 }
 
 const CURRENCIES = [
@@ -50,7 +54,8 @@ const DAYS = [
   { key: 'sun', label: 'Sunday' },
 ]
 
-export default function StoreClient({ settings, tenantId, stripeConnection, tenant, isPaymentsPlan = false }: Props) {
+export default function StoreClient({ settings, tenantId, tenantSlug, stripeConnection, tenant, isPaymentsPlan = false, planMode = 'menu' }: Props) {
+  const waiterAllowed = planMode !== 'menu'
   const hours = (settings?.business_hours ?? {}) as Record<string, string>
 
   const [form, setForm] = useState({
@@ -607,33 +612,46 @@ export default function StoreClient({ settings, tenantId, stripeConnection, tena
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                 <LayoutGrid className="w-4 h-4 text-primary" />
               </div>
-              <h2 className="text-xl font-black text-zinc-950 tracking-tight">Table Management</h2>
+              <h2 className="text-xl font-black text-zinc-950 tracking-tight">Tables & Waiter</h2>
             </div>
-            <div
-              className="flex items-center justify-between group p-5 rounded-[1rem] bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
-              onClick={() => setForm(f => ({ ...f, table_management_enabled: !f.table_management_enabled }))}
-            >
-              <div className="max-w-[70%]">
-                <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">Table Management</p>
-                <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Enable table catalog and waiter order entry interface.</p>
-              </div>
-              <button
-                type="button"
-                className={cn(
-                  "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
-                  form.table_management_enabled ? "bg-primary" : "bg-zinc-200"
+            {!waiterAllowed ? (
+              <p className="rounded-[1rem] bg-zinc-50 p-5 text-sm text-zinc-600">
+                Tables, the waiter app and table links (QR / NFC) are available on the <span className="font-bold">{PLAN_FOR_MODE.waiter}</span> and <span className="font-bold">{PLAN_FOR_MODE.self_service}</span> plans.
+              </p>
+            ) : (
+              <>
+                <div
+                  className="flex items-center justify-between group p-5 rounded-[1rem] bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
+                  onClick={() => setForm(f => ({ ...f, table_management_enabled: !f.table_management_enabled }))}
+                >
+                  <div className="max-w-[70%]">
+                    <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">Waiter app</p>
+                    <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Staff take orders at the table on a phone or tablet. Orders reach the Orders screen with the table name.</p>
+                  </div>
+                  <button
+                    type="button"
+                    aria-pressed={form.table_management_enabled}
+                    aria-label="Waiter app"
+                    className={cn(
+                      "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
+                      form.table_management_enabled ? "bg-primary" : "bg-zinc-200"
+                    )}
+                  >
+                    <span className={cn(
+                      "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
+                      form.table_management_enabled ? "translate-x-5" : "translate-x-1"
+                    )} />
+                  </button>
+                </div>
+                {settings?.table_management_enabled && tenantSlug && (
+                  <a href={`/${tenantSlug}/waiter`} target="_blank" rel="noreferrer" className="inline-flex text-xs font-black uppercase tracking-widest text-primary hover:underline">
+                    Open the waiter app
+                  </a>
                 )}
-              >
-                <span className={cn(
-                  "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
-                  form.table_management_enabled ? "translate-x-5" : "translate-x-1"
-                )} />
-              </button>
-            </div>
-            {form.table_management_enabled && (
-              <div className="mt-4">
-                <TablesSection tenantId={tenantId} />
-              </div>
+                <div className="mt-4">
+                  <TablesSection tenantId={tenantId} tenantSlug={tenantSlug} tableLinksEnabled={planMode === 'self_service'} />
+                </div>
+              </>
             )}
           </div>
 

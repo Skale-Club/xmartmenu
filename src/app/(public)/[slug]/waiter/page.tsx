@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import WaiterPage from './WaiterPage'
+import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -43,7 +44,10 @@ export default async function WaiterServerPage({ params }: Props) {
   }
 
   const settings = tenant.tenant_settings as any
-  if (!settings?.table_management_enabled) {
+  // The plan must include waiter ordering and the restaurant must have it on
+  // (service-modes.ts) — the same rule the orders API applies.
+  const capabilities = await getTenantServiceCapabilities(tenant.id, settings, service)
+  if (!capabilities.waiterOrdering) {
     redirect(`/${slug}`)
   }
 

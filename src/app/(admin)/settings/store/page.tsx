@@ -4,11 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getTenantPlan } from '@/lib/tenant-plan'
 import StoreClient from './StoreClient'
+import { planServiceMode } from '@/lib/service-modes'
 
 export default async function StorePage() {
   const supabase = await createClient()
   const effective = await getEffectiveTenant()
-  const { tenantId } = effective!
+  const { tenantId, slug } = effective!
 
   const [
     { data: settings },
@@ -24,5 +25,15 @@ export default async function StorePage() {
 
   const isPaymentsPlan = plan?.features.includes('payments') ?? false
 
-  return <StoreClient settings={settings} tenantId={tenantId} stripeConnection={stripeConnection} tenant={tenant} isPaymentsPlan={isPaymentsPlan} />
+  return (
+    <StoreClient
+      settings={settings}
+      tenantId={tenantId}
+      tenantSlug={slug}
+      stripeConnection={stripeConnection}
+      tenant={tenant}
+      isPaymentsPlan={isPaymentsPlan}
+      planMode={planServiceMode(plan?.features)}
+    />
+  )
 }

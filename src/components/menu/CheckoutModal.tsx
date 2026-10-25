@@ -23,7 +23,7 @@ function findMatchingZone(zipcode: string | undefined, zones: DeliveryZone[] | u
  * Phones: a sheet from the bottom. Larger screens: centred. Item editing
  * happens in CartPanel.
  */
-export default function CheckoutModal({ cart, confirmedCart, currency, lang, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, primaryColor, orderTypeConfig, orderType, deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, deliveryZones, tipsEnabled, tipPercentages, tipCents, onTipChange, onOrderTypeChange, onDeliveryFieldChange, onClose, onBack, onCustomerNameChange, onCustomerPhoneChange, onSubmit }: {
+export default function CheckoutModal({ cart, confirmedCart, currency, lang, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, primaryColor, orderTypeConfig, tableName = null, orderType, deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, deliveryZones, tipsEnabled, tipPercentages, tipCents, onTipChange, onOrderTypeChange, onDeliveryFieldChange, onClose, onBack, onCustomerNameChange, onCustomerPhoneChange, onSubmit }: {
   cart: CartItem[]
   confirmedCart: CartItem[]
   currency: string
@@ -36,6 +36,8 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
   orderId: string | null
   primaryColor?: string
   orderTypeConfig?: { dineIn: boolean; pickup: boolean; delivery: boolean; deliveryFeeCents: number }
+  /** Ordering from a table link: the order goes to this table. */
+  tableName?: string | null
   orderType?: string
   deliveryStreet?: string
   deliveryComplement?: string
@@ -194,7 +196,19 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                   </div>
                 </Card>
 
-                {showForm && activeTypes.length >= 2 && (
+                {showForm && tableName && (
+                  <Card title={copy.yourTable}>
+                    <div className="flex items-center gap-3 px-4 pb-4">
+                      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700"><UtensilsCrossed className="size-5" /></span>
+                      <span className="min-w-0">
+                        <span className="block text-[17px] font-semibold text-zinc-900">{tableName}</span>
+                        <span className="block text-[13px] text-zinc-500">{copy.tableServed}</span>
+                      </span>
+                    </div>
+                  </Card>
+                )}
+
+                {showForm && !tableName && activeTypes.length >= 2 && (
                   <Card title={copy.orderType}>
                     <div className="px-4 pb-4">
                       <div className="grid gap-1 rounded-xl bg-zinc-100 p-1" style={{ gridTemplateColumns: `repeat(${activeTypes.length}, minmax(0, 1fr))` }}>

@@ -6,6 +6,7 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import DashboardShell from '@/components/admin/DashboardShell'
 import { getTenantPlan } from '@/lib/tenant-plan'
+import { resolveServiceCapabilities } from '@/lib/service-modes'
 import DemoBanner from '@/components/demo/DemoBanner'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
@@ -62,7 +63,7 @@ export default async function AdminLayout({
       getActiveMenuForTenant(tenant.id),
       supabase
         .from('tenant_settings')
-        .select('ingredient_customization_enabled, primary_color, accent_color')
+        .select('ingredient_customization_enabled, primary_color, accent_color, orders_enabled, table_management_enabled')
         .eq('tenant_id', tenant.id)
         .single(),
     ])
@@ -70,8 +71,9 @@ export default async function AdminLayout({
     // autoblog-parity XM-14: the blog is a paid capability, gated the same way
     // payments and stripe-connect already are. A plan lookup that fails hides
     // the item rather than showing a link to a page that will 403.
-    const blogEnabled =
-      (await getTenantPlan(tenant.id).catch(() => null))?.features.includes('blog') ?? false
+    const previewPlan = await getTenantPlan(tenant.id).catch(() => null)
+    const blogEnabled = previewPlan?.features.includes('blog') ?? false
+    const waiterAppEnabled = resolveServiceCapabilities(previewPlan?.features, tenantSettings as any).waiterOrdering
 
     const previewPrimary = (tenantSettings as any)?.primary_color ?? '#F52323'
     const previewAccent = (tenantSettings as any)?.accent_color ?? '#09090b'
@@ -113,6 +115,7 @@ export default async function AdminLayout({
               activeMenuId={activeMenu?.id ?? null}
               ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
               blogEnabled={blogEnabled}
+              waiterAppEnabled={waiterAppEnabled}
             />
           </div>
          </div>
@@ -134,13 +137,15 @@ export default async function AdminLayout({
     getActiveMenuForTenant(tenantId),
     supabase
       .from('tenant_settings')
-      .select('ingredient_customization_enabled, primary_color, accent_color')
+      .select('ingredient_customization_enabled, primary_color, accent_color, orders_enabled, table_management_enabled')
       .eq('tenant_id', tenantId)
       .single(),
   ])
 
-  const blogEnabled =
-    (await getTenantPlan(tenantId).catch(() => null))?.features.includes('blog') ?? false
+  const plan = await getTenantPlan(tenantId).catch(() => null)
+  const blogEnabled = plan?.features.includes('blog') ?? false
+  // Waiter app link: the plan includes it and the restaurant turned it on.
+  const waiterAppEnabled = resolveServiceCapabilities(plan?.features, tenantSettings as any).waiterOrdering
 
   const adminPrimary = (tenantSettings as any)?.primary_color ?? '#F52323'
   const adminAccent = (tenantSettings as any)?.accent_color ?? '#09090b'
@@ -162,6 +167,7 @@ export default async function AdminLayout({
         activeMenuId={activeMenu?.id ?? null}
         ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
         blogEnabled={blogEnabled}
+        waiterAppEnabled={waiterAppEnabled}
       />}
     >
       {children}

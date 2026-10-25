@@ -14,13 +14,16 @@ interface SubscriptionClientProps {
   stripeAccountId: string | null
 }
 
+// Keys as they are in plans.features (the seeded Digital Menu / Menu + Orders /
+// Menu + Payments plans); orders and payments are the ones that unlock the
+// waiter and self-service modes (src/lib/service-modes.ts).
 const ALL_FEATURES = [
-  { key: 'menu', label: 'Digital Menu', description: 'Create and manage digital menus', icon: Zap },
-  { key: 'orders', label: 'Order Management', description: 'Receive and manage orders', icon: Zap },
-  { key: 'kds', label: 'Kitchen Display', description: 'Kitchen display system for orders', icon: Zap },
-  { key: 'ingredients', label: 'Ingredient Customization', description: 'Allow customers to customize orders', icon: Zap },
-  { key: 'stripe-connect', label: 'Stripe Payments', description: 'Accept payments via Stripe', icon: Sparkles },
-  { key: 'ai-seeding', label: 'AI Menu Seeding', description: 'AI-powered menu creation', icon: Sparkles },
+  { key: 'digital-menu', label: 'Digital Menu', description: 'Create and manage digital menus', icon: Zap },
+  { key: 'qr-code', label: 'QR Codes', description: 'QR codes and links for tables, NFC tags and social media', icon: Zap },
+  { key: 'analytics', label: 'Menu Analytics', description: 'Most viewed dishes, funnel and conversion', icon: Zap },
+  { key: 'orders', label: 'Waiter Ordering', description: 'Staff take orders at the table in the waiter app', icon: Zap },
+  { key: 'payments', label: 'Guest Ordering & Payment', description: 'Guests order and pay from the menu, served at their table', icon: Sparkles },
+  { key: 'stripe-connect', label: 'Stripe Payments', description: 'Accept card, Apple Pay and Google Pay via Stripe', icon: Sparkles },
 ]
 
 export default function SubscriptionClient({

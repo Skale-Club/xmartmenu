@@ -1,6 +1,8 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { isStripeEnabled } from '@/lib/stripe'
+import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
+import { parseTableParam } from '@/lib/service-modes'
 import { NextResponse } from 'next/server'
 import type { IngredientModifications } from '@/types/database'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
@@ -41,6 +43,8 @@ interface CreateOrderRequest {
   tip_cents?: number
   menu_id?: string | null
   table_name?: string | null
+  /** restaurant_tables.id from a table link (?table=) or the waiter app. */
+  table_id?: string | null
   analytics_session_id?: string | null
 }
 
@@ -92,7 +96,7 @@ export async function POST(request: Request) {
     if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
 
     const body: CreateOrderRequest = await request.json()
-    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId, table_name: rawTableName, analytics_session_id: rawAnalyticsSessionId } = body
+    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId, table_name: rawTableName, table_id: rawTableId, analytics_session_id: rawAnalyticsSessionId } = body
 
     if (!tenant_id?.trim()) {
       return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 })
@@ -137,7 +141,7 @@ export async function POST(request: Request) {
 
     const { data: tenantSettings, error: tenantError } = await service
       .from('tenants')
-      .select('id, is_active, tenant_settings(orders_enabled, delivery_fee_cents)')
+      .select('id, is_active, tenant_settings(orders_enabled, direct_orders_enabled, table_management_enabled, delivery_fee_cents)')
       .eq('id', tenant_id)
       .eq('is_active', true)
       .single()
@@ -181,6 +185,40 @@ export async function POST(request: Request) {
     const isStaffOrder = !!effective
       && effective.tenantId === tenant_id
       && (effective.role === 'store-admin' || effective.role === 'store-staff' || effective.role === 'superadmin')
+
+    // The plan sets which modes exist (service-modes.ts): staff orders need the
+    // waiter mode, guest orders the self-service mode — each also switched on
+    // by the restaurant. Checked here so a stale page or a script can't order
+    // around a menu-only plan.
+    const capabilities = await getTenantServiceCapabilities(tenant_id, settings, service)
+    if (isStaffOrder && !capabilities.waiterOrdering) {
+      return NextResponse.json({ error: 'Waiter ordering is not enabled for this restaurant' }, { status: 403 })
+    }
+    if (!isStaffOrder && !capabilities.guestOrdering) {
+      return NextResponse.json({ error: 'This restaurant does not take orders from the menu' }, { status: 403 })
+    }
+
+    // Table: only a real, active table of this restaurant, and only for orders
+    // eaten there. Its name comes from the database, never from the client;
+    // staff may still type a free-text table when no id is sent.
+    let tableId: string | null = null
+    let tableName: string | null = isStaffOrder ? (rawTableName?.trim().slice(0, 80) || null) : null
+    const requestedTableId = parseTableParam(rawTableId)
+    if (requestedTableId && orderType === 'dine_in') {
+      const { data: table } = await service
+        .from('restaurant_tables')
+        .select('id, name')
+        .eq('id', requestedTableId)
+        .eq('tenant_id', tenant_id)
+        .eq('is_active', true)
+        .maybeSingle()
+      if (table) {
+        tableId = table.id
+        tableName = table.name
+      }
+    }
+    if (orderType !== 'dine_in') tableName = null
+
     const requiresPayment = !isStaffOrder && await isStripeEnabled(tenant_id, service)
     const initialStatus = requiresPayment ? 'awaiting_payment' : 'pending'
 
@@ -323,7 +361,8 @@ export async function POST(request: Request) {
         delivery_zone_id: resolvedZoneId,
         location_id: locationId,
         tip_cents: tipCents,
-        table_name: rawTableName?.trim() || null,
+        table_name: tableName,
+        table_id: tableId,
         analytics_session_id: analyticsSessionId,
       })
       .select()

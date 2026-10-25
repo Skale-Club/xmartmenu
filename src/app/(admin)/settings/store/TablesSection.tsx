@@ -2,15 +2,46 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { Plus, Trash2, ChevronUp, ChevronDown, Link2, QrCode, Check } from 'lucide-react'
+import { tableMenuUrl } from '@/lib/service-modes'
 import type { RestaurantTable } from '@/types/database'
 
 interface Props {
   tenantId: string
+  tenantSlug?: string
+  /** Guests can order from table links (self-service plan). */
+  tableLinksEnabled?: boolean
 }
 
-export default function TablesSection({ tenantId }: Props) {
-  const supabase = createClient()
+export default function TablesSection({ tenantId, tenantSlug, tableLinksEnabled = false }: Props) {
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  // The table's own menu link: printed as a QR code or written to an NFC tag.
+  // Orders placed from it arrive marked with this table.
+  function linkFor(table: RestaurantTable): string | null {
+    if (!tenantSlug || typeof window === 'undefined') return null
+    return tableMenuUrl(`${window.location.origin}/${tenantSlug}`, table.id)
+  }
+
+  async function copyLink(table: RestaurantTable) {
+    const url = linkFor(table)
+    if (!url) return
+    await navigator.clipboard.writeText(url).catch(() => {})
+    setCopiedId(table.id)
+    setTimeout(() => setCopiedId(current => (current === table.id ? null : current)), 2000)
+  }
+
+  async function downloadQr(table: RestaurantTable) {
+    const url = linkFor(table)
+    if (!url) return
+    const QRCode = (await import('qrcode')).default
+    const dataUrl = await QRCode.toDataURL(url, { width: 800, margin: 2, errorCorrectionLevel: 'M' })
+    const a = document.createElement('a')
+    a.href = dataUrl
+    a.download = `${table.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'table'}-qr.png`
+    a.click()
+  }
+const supabase = createClient()
   const [tables, setTables] = useState<RestaurantTable[]>([])
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState('')
@@ -78,7 +109,12 @@ export default function TablesSection({ tenantId }: Props) {
 
   return (
     <div className="space-y-3">
-      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Table Catalog</p>
+      <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Tables</p>
+      <p className="text-xs text-zinc-500">
+        {tableLinksEnabled
+          ? 'Each table has its own menu link. Print its QR code or write the link to an NFC tag on the table: guests ordering from it are served at that table, and the order shows the table name.'
+          : 'Tables used by the waiter app. Table links for guests to order (QR / NFC) come with the Menu + Payments plan.'}
+      </p>
 
       {loading ? (
         <p className="text-sm text-zinc-400">Loading…</p>
@@ -87,6 +123,27 @@ export default function TablesSection({ tenantId }: Props) {
           {sorted.map((table, idx) => (
             <div key={table.id} className="flex items-center gap-2 bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3">
               <span className="flex-1 text-sm font-semibold text-zinc-900">{table.name}</span>
+              {tableLinksEnabled && tenantSlug && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => copyLink(table)}
+                    className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-200"
+                    aria-label={`Copy the menu link for ${table.name}`}
+                  >
+                    {copiedId === table.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Link2 className="w-3.5 h-3.5" />}
+                    {copiedId === table.id ? 'Copied' : 'Link'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadQr(table)}
+                    className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-600 hover:bg-zinc-200"
+                    aria-label={`Download the QR code for ${table.name}`}
+                  >
+                    <QrCode className="w-3.5 h-3.5" /> QR
+                  </button>
+                </div>
+              )}
               <div className="flex items-center gap-1">
                 <button
                   type="button"
