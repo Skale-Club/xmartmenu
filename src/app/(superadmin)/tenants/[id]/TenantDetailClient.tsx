@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
+import TenantAiCard from './TenantAiCard'
 import {
   ArrowLeft,
   Rocket,
@@ -1168,6 +1169,8 @@ export default function TenantDetailClient({
         </div>
       </details>
       )}
+
+      {canUseAiTools && <TenantAiCard tenantId={tenant.id} />}
 
       {/* CRM Sync section | OBS-01: surface Xphere sync state + manual re-sync */}
       {canUseAiTools && hasXphereConnection && (

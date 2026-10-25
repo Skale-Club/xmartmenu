@@ -55,6 +55,8 @@ export const TABLE_LABELS: Record<string, string> = {
   locations: 'Location',
   delivery_zones: 'Delivery zone',
   chat_addon_settings: 'AI chat settings',
+  platform_ai_settings: 'AI global settings',
+  tenant_ai_settings: 'AI billing settings',
   stripe_connections: 'Stripe connection',
   qr_codes: 'QR code',
   orders: 'Order',

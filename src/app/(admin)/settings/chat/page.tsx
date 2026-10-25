@@ -4,7 +4,6 @@ import { redirect } from 'next/navigation'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { createServiceClient } from '@/lib/supabase/server'
-import { maskApiKey, decryptApiKey } from '@/lib/crypto'
 import ChatAddonClient from './ChatAddonClient'
 
 export default async function ChatAddonSettingsPage() {
@@ -21,14 +20,8 @@ export default async function ChatAddonSettingsPage() {
 
   const status = await getChatAddonStatus(effective.tenantId)
 
-  const masked = settings ? {
-    ...settings,
-    openrouter_api_key: settings.openrouter_api_key
-      ? (() => { try { return maskApiKey(decryptApiKey(settings.openrouter_api_key)) } catch { return '••••' } })()
-      : '',
-    // Legacy: voice notes now run on the OpenRouter key; never send this one out.
-    audio_api_key: undefined,
-  } : null
+  // Keys live in Settings › AI & billing now; never send the legacy columns out.
+  const masked = settings ? { ...settings, openrouter_api_key: undefined, audio_api_key: undefined } : null
 
   return <ChatAddonClient initialSettings={masked} status={status} />
 }

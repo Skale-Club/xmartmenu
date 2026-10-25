@@ -1,7 +1,8 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
-import { Bot, Eye, EyeOff, Sparkles, Mic, MessageSquare, AlertCircle, CheckCircle2, Save, Zap } from 'lucide-react'
+import Link from 'next/link'
+import { Bot, Sparkles, Mic, MessageSquare, AlertCircle, CheckCircle2, Save, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const MODELS = [
@@ -23,7 +24,6 @@ interface Status {
 
 interface Settings {
   enabled: boolean
-  openrouter_api_key: string
   openrouter_model: string
   audio_enabled: boolean
   text_enabled: boolean
@@ -34,7 +34,6 @@ interface Settings {
 export default function ChatAddonClient({ initialSettings, status }: { initialSettings: any; status: Status }) {
   const [form, setForm] = useState<Settings>({
     enabled: initialSettings?.enabled ?? false,
-    openrouter_api_key: initialSettings?.openrouter_api_key ?? '',
     openrouter_model: initialSettings?.openrouter_model ?? 'openai/gpt-4o-mini',
     audio_enabled: initialSettings?.audio_enabled ?? false,
     text_enabled: initialSettings?.text_enabled ?? true,
@@ -42,11 +41,8 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
     rate_limit_per_phone_per_day: initialSettings?.rate_limit_per_phone_per_day ?? 30,
   })
 
-  const [revealKey, setRevealKey] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [testResult, setTestResult] = useState<{ ok: boolean; msg?: string } | null>(null)
-  const [testing, setTesting] = useState(false)
 
   async function handleSave() {
     setSaving(true)
@@ -61,26 +57,6 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
       setSaved(true)
       setTimeout(() => setSaved(false), 2500)
     }
-  }
-
-  async function handleTestConnection() {
-    setTesting(true)
-    setTestResult(null)
-    // If the user hasn't entered a fresh key (still masked), prompt them
-    const apiKey = form.openrouter_api_key
-    if (!apiKey || apiKey.includes('••')) {
-      setTesting(false)
-      setTestResult({ ok: false, msg: 'Enter your OpenRouter API key first (paste a fresh value).' })
-      return
-    }
-    const res = await fetch('/api/admin/chat-addon/test-connection', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ api_key: apiKey, model: form.openrouter_model }),
-    })
-    const data = await res.json()
-    setTesting(false)
-    setTestResult({ ok: !!data.ok, msg: data.ok ? 'Connection OK' : data.error || `HTTP ${data.status}` })
   }
 
   const canPurchase = !status.available
@@ -167,46 +143,16 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
         <div className="space-y-4">
           <h3 className="text-sm font-black text-zinc-950 uppercase tracking-wide">OpenRouter</h3>
 
-          <div>
-            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">API Key</label>
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <input
-                  type={revealKey ? 'text' : 'password'}
-                  value={form.openrouter_api_key}
-                  onChange={e => setForm(f => ({ ...f, openrouter_api_key: e.target.value }))}
-                  placeholder="sk-or-v1-..."
-                  className="w-full px-5 py-3.5 pr-12 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-mono text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary"
-                />
-                <button
-                  type="button"
-                  onClick={() => setRevealKey(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-zinc-700"
-                  aria-label="Toggle reveal"
-                >
-                  {revealKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={handleTestConnection}
-                disabled={testing}
-                className="px-5 py-3 bg-zinc-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-zinc-800 disabled:opacity-50 whitespace-nowrap"
-              >
-                {testing ? 'Testing…' : 'Test'}
-              </button>
-            </div>
-            <p className="text-[10px] text-zinc-400 mt-2 ml-1">Get a key at openrouter.ai/keys — you only pay for what your customers' conversations consume.</p>
-            {testResult && (
-              <div className={cn(
-                'mt-3 px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2',
-                testResult.ok ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'
-              )}>
-                {testResult.ok ? <CheckCircle2 className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-                {testResult.msg}
-              </div>
-            )}
-          </div>
+          <Link
+            href="/settings/ai"
+            className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-zinc-50 px-5 py-4 transition-colors hover:bg-zinc-100"
+          >
+            <span>
+              <span className="block text-sm font-black text-zinc-950">AI key & billing</span>
+              <span className="block text-[11px] text-zinc-500 mt-0.5">Use your own OpenRouter key, or let usage go on your plan invoice.</span>
+            </span>
+            <ChevronRight className="w-4 h-4 text-zinc-400" />
+          </Link>
 
           <div>
             <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Model</label>
@@ -285,7 +231,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
                   <option value="whisper">OpenAI Whisper</option>
                   <option value="deepgram">Deepgram Nova</option>
                 </select>
-                <p className="text-[10px] text-zinc-400 mt-2 ml-1">Runs on your OpenRouter key above, billed with the chat. No separate audio key.</p>
+                <p className="text-[10px] text-zinc-400 mt-2 ml-1">Runs on the same AI setup as the chat (AI key & billing). No separate audio key.</p>
               </div>
             </div>
           )}

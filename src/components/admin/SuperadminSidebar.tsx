@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, ClipboardList, History, LayoutDashboard, LogOut, Newspaper, Rocket, Settings, Users } from 'lucide-react'
+import { Building2, ClipboardList, History, LayoutDashboard, LogOut, Newspaper, Rocket, Settings, Sparkles, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const items = [
@@ -12,6 +12,7 @@ const items = [
   { href: '/users', label: 'Users', icon: Users },
   { href: '/audit', label: 'Audit trail', icon: History },
   { href: '/plans', label: 'Plans', icon: ClipboardList, separated: true },
+  { href: '/admin/ai', label: 'AI & billing', icon: Sparkles },
   { href: '/admin/blog', label: 'Blog', icon: Newspaper },
   { href: '/admin', label: 'Settings', icon: Settings },
 ]
