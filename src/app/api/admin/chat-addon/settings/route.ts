@@ -57,6 +57,7 @@ export async function PUT(request: Request) {
     openrouter_api_key,
     openrouter_model,
     audio_enabled,
+    text_enabled,
     audio_provider,
     rate_limit_per_phone_per_day,
   } = body as Record<string, any>
@@ -81,6 +82,7 @@ export async function PUT(request: Request) {
   if (typeof enabled === 'boolean') payload.enabled = enabled
   if (typeof openrouter_model === 'string') payload.openrouter_model = openrouter_model
   if (typeof audio_enabled === 'boolean') payload.audio_enabled = audio_enabled
+  if (typeof text_enabled === 'boolean') payload.text_enabled = text_enabled
   if (audio_provider === null || audio_provider === 'whisper' || audio_provider === 'deepgram') {
     payload.audio_provider = audio_provider
   }

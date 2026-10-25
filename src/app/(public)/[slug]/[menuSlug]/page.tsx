@@ -8,6 +8,7 @@ import MenuPage from '@/components/menu/MenuPage'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import PrivateMenuWrapper from '@/components/menu/PrivateMenuWrapper'
 import type { Metadata } from 'next'
+import { hasAnyChannel, resolveChatChannels } from '@/lib/chat-channels'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
@@ -189,8 +190,10 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const { getChatAddonStatus } = await import('@/lib/chat-addon')
   const chatStatus = await getChatAddonStatus(tenant.id)
   const { data: chatSettings } = chatStatus.enabled
-    ? await supabase.from('chat_addon_settings').select('audio_enabled').eq('tenant_id', tenant.id).maybeSingle()
+    ? await supabase.from('chat_addon_settings').select('audio_enabled, text_enabled').eq('tenant_id', tenant.id).maybeSingle()
     : { data: null }
+  // Typed messages and voice notes are switched per restaurant; none = no chat box.
+  const chatChannels = resolveChatChannels(chatSettings)
 
   // SEED-021: fetch product media for all products on this menu
   const productMediaByProductId: Record<string, ProductMedia[]> = {}
@@ -281,8 +284,9 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       productIngredientsByProductId={productIngredientsByProductId}
       deliveryZones={(deliveryZones ?? []) as any}
       productMediaByProductId={productMediaByProductId}
-      chatAddonEnabled={chatStatus.enabled}
-      chatAddonAudioEnabled={!!chatSettings?.audio_enabled}
+      chatAddonEnabled={chatStatus.enabled && hasAnyChannel(chatChannels)}
+      chatAddonAudioEnabled={chatChannels.voice}
+      chatAddonTextEnabled={chatChannels.text}
     />
   )
 

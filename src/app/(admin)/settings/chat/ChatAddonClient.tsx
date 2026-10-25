@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState } from 'react'
-import { Bot, Eye, EyeOff, Sparkles, Mic, AlertCircle, CheckCircle2, Save, Zap } from 'lucide-react'
+import { Bot, Eye, EyeOff, Sparkles, Mic, MessageSquare, AlertCircle, CheckCircle2, Save, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const MODELS = [
@@ -26,6 +26,7 @@ interface Settings {
   openrouter_api_key: string
   openrouter_model: string
   audio_enabled: boolean
+  text_enabled: boolean
   audio_provider: 'whisper' | 'deepgram' | null
   rate_limit_per_phone_per_day: number
 }
@@ -36,6 +37,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
     openrouter_api_key: initialSettings?.openrouter_api_key ?? '',
     openrouter_model: initialSettings?.openrouter_model ?? 'openai/gpt-4o-mini',
     audio_enabled: initialSettings?.audio_enabled ?? false,
+    text_enabled: initialSettings?.text_enabled ?? true,
     audio_provider: initialSettings?.audio_provider ?? 'whisper',
     rate_limit_per_phone_per_day: initialSettings?.rate_limit_per_phone_per_day ?? 30,
   })
@@ -231,8 +233,27 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
           </div>
         </div>
 
-        {/* Audio */}
+        {/* Channels: how guests may talk to the assistant */}
         <div className="space-y-4 pt-4 border-t border-zinc-100">
+          <div
+            className="flex items-center justify-between p-5 rounded-[1rem] bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
+            onClick={() => setForm(f => ({ ...f, text_enabled: !f.text_enabled }))}
+          >
+            <div className="max-w-[70%]">
+              <p className="text-sm font-black text-zinc-950 uppercase tracking-tight flex items-center gap-2"><MessageSquare className="w-4 h-4" />Text messages</p>
+              <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Customers can type to the assistant. Turn off to take voice messages only.</p>
+            </div>
+            <button type="button" aria-pressed={form.text_enabled} aria-label="Text messages" className={cn(
+              "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
+              form.text_enabled ? "bg-primary" : "bg-zinc-200"
+            )}>
+              <span className={cn(
+                "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
+                form.text_enabled ? "translate-x-5" : "translate-x-1"
+              )} />
+            </button>
+          </div>
+
           <div
             className="flex items-center justify-between p-5 rounded-[1rem] bg-zinc-50 hover:bg-zinc-100 transition-all cursor-pointer"
             onClick={() => setForm(f => ({ ...f, audio_enabled: !f.audio_enabled }))}
@@ -241,7 +262,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
               <p className="text-sm font-black text-zinc-950 uppercase tracking-tight flex items-center gap-2"><Mic className="w-4 h-4" />Voice messages (STT)</p>
               <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Customers can speak their order instead of typing: voice notes up to 60 seconds, transcribed and answered in text.</p>
             </div>
-            <button type="button" className={cn(
+            <button type="button" aria-pressed={form.audio_enabled} aria-label="Voice messages" className={cn(
               "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
               form.audio_enabled ? "bg-primary" : "bg-zinc-200"
             )}>
@@ -269,6 +290,13 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
             </div>
           )}
         </div>
+
+        {!form.text_enabled && !form.audio_enabled && (
+          <p role="alert" className="flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-3 text-xs font-medium text-amber-800">
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
+            Text and voice messages are both off, so the chat box will not show on your menu.
+          </p>
+        )}
 
         {/* Save */}
         <div className="flex justify-end pt-2">

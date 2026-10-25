@@ -18,8 +18,9 @@
  */
 import { NextResponse } from 'next/server'
 import { openRouterModel } from '@/lib/ai/openrouter'
+import { hasAnyChannel, resolveChatChannels, verifyVoiceTranscript } from '@/lib/chat-channels'
 import { createServiceClient } from '@/lib/supabase/server'
-import { decryptApiKey } from '@/lib/crypto'
+import { decryptApiKey, voiceTokenSecret } from '@/lib/crypto'
 import { countMessagesLast24h, getChatAddonStatus } from '@/lib/chat-addon'
 import {
   HISTORY_LIMIT,
@@ -47,6 +48,8 @@ interface ChatRequestBody {
   // Older widget builds still post the whole transcript; only its last user
   // turn is read.
   messages?: Array<{ role: string; content: string }>
+  // Set when `message` is a voice-note transcript (signed by the audio route).
+  voice_token?: string
 }
 
 export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -116,11 +119,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // Addon settings (model + decrypted key)
   const { data: settings } = await supabase
     .from('chat_addon_settings')
-    .select('openrouter_api_key, openrouter_model, rate_limit_per_phone_per_day')
+    .select('openrouter_api_key, openrouter_model, rate_limit_per_phone_per_day, text_enabled, audio_enabled')
     .eq('tenant_id', tenant.id)
     .maybeSingle()
   if (!settings?.openrouter_api_key) {
     return NextResponse.json({ error: 'OpenRouter API key not configured' }, { status: 503 })
+  }
+
+  // The restaurant decides how guests may write: typed text, voice notes or both.
+  const channels = resolveChatChannels(settings)
+  if (!hasAnyChannel(channels)) return NextResponse.json({ error: 'Chat is turned off' }, { status: 403 })
+  if (!channels.text) {
+    let fromVoice = false
+    try {
+      fromVoice = channels.voice && verifyVoiceTranscript(voiceTokenSecret(), conversation_id, userMessage, body?.voice_token)
+    } catch (e) {
+      console.error('chat.voice_token_error', e)
+    }
+    if (!fromVoice) return NextResponse.json({ error: 'This restaurant takes voice messages only' }, { status: 403 })
   }
 
   // Rate limit

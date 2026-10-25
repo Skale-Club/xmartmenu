@@ -10,7 +10,9 @@
  */
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { decryptApiKey } from '@/lib/crypto'
+import { decryptApiKey, voiceTokenSecret } from '@/lib/crypto'
+import { signVoiceTranscript } from '@/lib/chat-channels'
+import { MAX_USER_MESSAGE_CHARS } from '@/lib/chat-agent'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { transcribeWithOpenRouter, transcriptionModelId, OpenRouterError } from '@/lib/ai/openrouter'
@@ -80,7 +82,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       model: transcriptionModelId(settings.audio_provider),
       audio,
     })
-    return NextResponse.json({ transcript: transcript.trim() })
+    // Capped like a typed message, then signed so the chat route accepts it
+    // even when the restaurant switched typed messages off.
+    const text = transcript.trim().slice(0, MAX_USER_MESSAGE_CHARS)
+    return NextResponse.json({ transcript: text, voice_token: text ? signVoiceTranscript(voiceTokenSecret(), conversationId, text) : null })
   } catch (e) {
     console.error('audio.transcribe_error', e)
     if (e instanceof OpenRouterError) return NextResponse.json({ error: 'Transcription service unavailable' }, { status: 502 })

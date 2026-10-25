@@ -11,6 +11,8 @@ interface Props {
   tenantName: string
   primaryColor?: string
   audioEnabled?: boolean
+  /** Typed messages; the restaurant may allow voice notes only. */
+  textEnabled?: boolean
   products: Product[]
   onAddToCart: (product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void
   /** The menu and location on screen, so the assistant answers about what the customer sees. */
@@ -45,7 +47,7 @@ interface Message {
 
 const SESSION_KEY_PREFIX = 'aiChat:'
 
-export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false }: Props) {
+export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false }: Props) {
   const [open, setOpen] = useState(false)
   const [phone, setPhone] = useState('')
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -120,11 +122,14 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
     setMessages([{
       id: 'welcome',
       role: 'assistant',
-      content: `Hi! I'm the ${tenantName} menu assistant. Ask me anything about our dishes — pairings, ingredients, recommendations — or tell me what you're in the mood for and I'll suggest something.`,
+      content: textEnabled
+        ? `Hi! I'm the ${tenantName} menu assistant. Ask me anything about our dishes — pairings, ingredients, recommendations — or tell me what you're in the mood for and I'll suggest something.`
+        : `Hi! I'm the ${tenantName} menu assistant. Tap the microphone and tell me what you'd like — ask about our dishes or just say your order.`,
     }])
   }
 
-  async function sendMessage(text: string) {
+  /** `voiceToken` marks a transcript signed by the audio route (needed when typing is off). */
+  async function sendMessage(text: string, voiceToken?: string) {
     if (!text.trim() || !conversationId || sending) return
     setError(null)
     const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: text }
@@ -137,7 +142,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Only the new message: the server rebuilds the history from what it stored.
-      body: JSON.stringify({ conversation_id: conversationId, message: text.trim(), menu_id: menuId, location_id: locationId }),
+      body: JSON.stringify({ conversation_id: conversationId, message: text.trim(), menu_id: menuId, location_id: locationId, voice_token: voiceToken }),
     })
 
     if (!res.ok) {
@@ -237,13 +242,14 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
         setError(data.error || 'Transcription failed')
         return
       }
-      const data = await res.json() as { transcript: string }
-      const transcript = data.transcript?.trim().slice(0, MAX_MESSAGE_CHARS)
+      const data = await res.json() as { transcript: string; voice_token?: string | null }
+      // Sent exactly as transcribed: the signature covers this text.
+      const transcript = data.transcript ?? ''
       if (!transcript) {
         setError("Couldn't hear anything in that recording. Try again a little closer to the microphone.")
         return
       }
-      await sendMessage(transcript)
+      await sendMessage(transcript, data.voice_token ?? undefined)
     } catch {
       setError('Transcription failed')
     } finally {
@@ -393,6 +399,17 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                       <Send className="w-4 h-4" />
                     </button>
                   </div>
+                ) : !textEnabled ? (
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    disabled={sending || transcribing || !audioEnabled}
+                    className="w-full min-h-12 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold text-white disabled:opacity-60"
+                    style={{ backgroundColor: primaryColor }}
+                  >
+                    {transcribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
+                    {transcribing ? 'Transcribing your voice note…' : sending ? 'Sending…' : `Tap to record · up to ${MAX_VOICE_SECONDS} s`}
+                  </button>
                 ) : (
                 <div className="flex items-end gap-2">
                   <textarea

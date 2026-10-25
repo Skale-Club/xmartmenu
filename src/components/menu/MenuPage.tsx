@@ -95,6 +95,8 @@ interface Props {
   productMediaByProductId?: Record<string, ProductMedia[]>
   chatAddonEnabled?: boolean
   chatAddonAudioEnabled?: boolean
+  /** Typed messages in the AI chat (the restaurant can allow voice notes only). */
+  chatAddonTextEnabled?: boolean
 }
 
 function getTranslatedMenuField(
@@ -108,7 +110,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false }: Props) {
+export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true }: Props) {
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
   const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
@@ -1224,6 +1226,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           tenantName={tenant.name}
           primaryColor={primaryColor}
           audioEnabled={chatAddonAudioEnabled}
+          textEnabled={chatAddonTextEnabled}
           products={baseProducts}
           onAddToCart={addToCart}
           menuId={menu?.id ?? null}

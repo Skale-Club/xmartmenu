@@ -54,6 +54,15 @@ export function decryptApiKey(ciphertext: string): string {
   return pt.toString('utf8')
 }
 
+/**
+ * Secret for signing voice-note transcripts (see chat-channels.ts), derived
+ * from the master key so no extra env var is needed and it never equals the
+ * encryption key itself.
+ */
+export function voiceTokenSecret(): Buffer {
+  return createHash('sha256').update('xmartmenu:voice-transcript:').update(getMasterKey()).digest()
+}
+
 /** Masks an API key for display: shows first 4 + last 4 chars, dots in middle. */
 export function maskApiKey(key: string): string {
   if (!key) return ''
