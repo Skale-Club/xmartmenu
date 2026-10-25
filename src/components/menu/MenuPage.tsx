@@ -9,7 +9,9 @@ import { getInitials } from '@/lib/utils'
 import { MenuAnalyticsTracker } from '@/lib/analytics/client'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import { type CartItem, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed } from './menu-utils'
+import { type CartItem, type CartAddedVia, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed, summarizeOptions } from './menu-utils'
+import { getGuestCopy } from './guest-copy'
+import WaiterCallButtons from './WaiterCallButtons'
 import { fill, formatClock, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, menuLanguage, translateTag, type MenuCopy } from './menu-i18n'
 import { computeOpenState, resolveTimeZone, type OpenState } from '@/lib/chat-context'
 import { computePrimaryForeground } from '@/lib/color-utils'
@@ -103,6 +105,8 @@ interface Props {
   guestOrderingEnabled?: boolean
   /** The table this link belongs to (QR code / NFC tag ?table=), when guests can order. */
   table?: { id: string; name: string } | null
+  /** The table this link belongs to, when the restaurant serves at the table: guests can call a waiter or ask for the bill. */
+  waiterCallTable?: { id: string; name: string } | null
 }
 
 function getTranslatedMenuField(
@@ -116,7 +120,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true, guestOrderingEnabled = false, table = null }: Props) {
+export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true, guestOrderingEnabled = false, table = null, waiterCallTable = null }: Props) {
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
   const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
@@ -365,17 +369,18 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed' | 'upsell', quantity = 1) {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed' | 'upsell', quantity = 1, addedVia?: CartAddedVia) {
     const key = buildCartKey(product.id, selectedOptions)
     const amount = Math.max(1, Math.floor(quantity))
+    const via = addedVia ?? (source === 'upsell' ? 'upsell' : undefined)
     setCart(prev => {
       const existing = prev.find(item => item.cartKey === key)
       if (existing) {
         return prev.map(item =>
-          item.cartKey === key ? { ...item, quantity: item.quantity + amount, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications, editorState: editorState ?? item.editorState } : item
+          item.cartKey === key ? { ...item, quantity: item.quantity + amount, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications, editorState: editorState ?? item.editorState, addedVia: item.addedVia ?? via } : item
         )
       }
-      return [...prev, { product, quantity: amount, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications, editorState }]
+      return [...prev, { product, quantity: amount, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications, editorState, ...(via ? { addedVia: via } : {}) }]
     })
     analyticsTracker?.track({
       event_name: 'add_to_cart',
@@ -494,6 +499,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             notes: item.note || undefined,
             ingredient_modifications: item.ingredientModifications || null,
             editor_state: item.editorState || null,
+            added_via: item.addedVia,
           })),
         }),
       })
@@ -987,12 +993,17 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
               )}
             </div>
           )}
-          {orderingTable && (
-            <p className="mt-3 inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[14px] font-semibold text-zinc-900 shadow-card">
-              <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: primaryColor }} />
-              <span className="font-medium text-zinc-500">{copy.yourTable}</span>
-              {orderingTable.name}
-            </p>
+          {(orderingTable ?? waiterCallTable) && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <p className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-[14px] font-semibold text-zinc-900 shadow-card">
+                <span aria-hidden="true" className="size-2 rounded-full" style={{ backgroundColor: primaryColor }} />
+                <span className="font-medium text-zinc-500">{copy.yourTable}</span>
+                {(orderingTable ?? waiterCallTable)!.name}
+              </p>
+              {waiterCallTable && (
+                <WaiterCallButtons slug={tenant.slug} tableId={waiterCallTable.id} copy={getGuestCopy(selectedLanguage)} primaryColor={primaryColor} />
+              )}
+            </div>
           )}
           {settings?.tagline && (
             <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-zinc-600">{settings.tagline}</p>
@@ -1335,12 +1346,14 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           audioEnabled={chatAddonAudioEnabled}
           textEnabled={chatAddonTextEnabled}
           products={baseProducts}
-          onAddToCart={addToCart}
+          onAddToCart={(product, options, unitPrice, note, mods, editorState) => addToCart(product, options, unitPrice, note, mods, editorState, undefined, 1, 'chat')}
           menuId={menu?.id ?? null}
           locationId={location?.id ?? null}
           cartOpen={cartPanelVisible}
           orderBarVisible={showOrderBar}
           onOpenCart={directOrdersEnabled ? () => setCartOpen(true) : undefined}
+          language={selectedLanguage}
+          cart={directOrdersEnabled ? cart.map(i => ({ name: i.product.name, quantity: i.quantity, options: summarizeOptions(i.selectedOptions) || undefined })) : null}
         />
       )}
 

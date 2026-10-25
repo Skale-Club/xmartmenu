@@ -32,8 +32,10 @@ import {
   buildSystemPrompt,
   formatMenuContext,
   loadMenuCatalog,
+  parseCartSnapshot,
   runChatAgent,
 } from '@/lib/chat-agent'
+import { MENU_LANGUAGE_CODES, menuLanguage } from '@/components/menu/menu-i18n'
 import { computeOpenStatus, describeOrdering, describeProfile, resolveOrderingMode, resolveTimeZone } from '@/lib/chat-context'
 import { isStripeEnabled } from '@/lib/stripe'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
@@ -54,6 +56,10 @@ interface ChatRequestBody {
   messages?: Array<{ role: string; content: string }>
   // Set when `message` is a voice-note transcript (signed by the audio route).
   voice_token?: string
+  /** What the guest has in the cart now (context only, never priced from). */
+  cart?: unknown
+  /** The menu language on screen (code, e.g. pt). */
+  language?: string
 }
 
 async function handlePOST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
@@ -220,6 +226,10 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
     menuContext: formatMenuContext(catalog),
     ordering: describeOrdering(settingsRow, { onlinePayment, deliveryZones: zones ?? [] }),
     canAddToCart,
+    cart: body?.cart === undefined ? null : parseCartSnapshot(body.cart),
+    guestLanguage: typeof body?.language === 'string' && (MENU_LANGUAGE_CODES as readonly string[]).includes(body.language)
+      ? menuLanguage(body.language).englishName
+      : null,
   })
 
   let result

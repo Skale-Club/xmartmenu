@@ -240,14 +240,57 @@ export function formatMenuContext(catalog: MenuCatalog | null): string {
  * profile and ordering are the blocks from chat-context.ts (describeProfile /
  * describeOrdering); canAddToCart says whether the addToCart tool is offered.
  */
+// ── What the customer has in the cart / which language they read ─────────
+
+export interface CartSnapshotItem {
+  name: string
+  quantity: number
+  options?: string
+}
+
+const MAX_CART_ITEMS = 30
+
+/**
+ * The cart as the widget reports it. Untrusted and only used as context (the
+ * assistant never prices from it), so it is bounded and stripped to text.
+ */
+export function parseCartSnapshot(raw: unknown): CartSnapshotItem[] {
+  if (!Array.isArray(raw)) return []
+  const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/[\r\n\t]+/g, ' ').trim().slice(0, max) : '')
+  return raw.slice(0, MAX_CART_ITEMS).flatMap((item) => {
+    const i = item as { name?: unknown; quantity?: unknown; options?: unknown }
+    const name = clean(i?.name, 120)
+    const quantity = Math.floor(Number(i?.quantity))
+    if (!name || !(quantity >= 1 && quantity <= 99)) return []
+    const options = clean(i?.options, 200)
+    return [{ name, quantity, ...(options ? { options } : {}) }]
+  })
+}
+
+export function describeCart(items: CartSnapshotItem[]): string {
+  if (!items.length) return 'The cart is empty.'
+  return items.map((i) => `- ${i.quantity}× ${i.name}${i.options ? ` (${i.options})` : ''}`).join('\n')
+}
+
 export function buildSystemPrompt(params: {
   name: string
   profile: string
   menuContext: string
   ordering: string
   canAddToCart: boolean
+  /** What is already in the customer's cart (only when the cart exists). */
+  cart?: CartSnapshotItem[] | null
+  /** The language the customer reads the menu in (English name). */
+  guestLanguage?: string | null
 }): string {
-  const { name, profile, menuContext, ordering, canAddToCart } = params
+  const { name, profile, menuContext, ordering, canAddToCart, cart, guestLanguage } = params
+  const cartSection = canAddToCart && cart
+    ? `
+
+CUSTOMER'S CART RIGHT NOW (reported by their screen):
+${describeCart(cart)}
+- Use it: do not add again what is already there unless the customer asks for more, and when it fits suggest what is missing (a drink, a side, a dessert) from MENU CONTEXT.`
+    : ''
   const cartRules = canAddToCart
     ? `
 - Call addToCart when the customer explicitly asks to add or order items.
@@ -268,7 +311,7 @@ MENU CONTEXT (the menu the customer is looking at):
 ${menuContext}
 
 ORDERING:
-${ordering}${cartRules}
+${ordering}${cartRules}${cartSection}
 
 ALLERGIES AND DIETARY NEEDS:
 - Answer only from the ingredients and descriptions listed above. The restaurant's lists may be incomplete and cross-contamination is possible.
@@ -281,7 +324,7 @@ GUARDRAILS — STRICT:
 - Never invent menu items, prices, options, ingredients, hours, fees or payment methods not listed above.
 - Never discuss competitor restaurants.
 - Be warm, concise, and helpful. Maximum 3 sentences per response unless listing items.
-- Always respond in the language the customer uses.`
+- Always respond in the language the customer uses.${guestLanguage ? ` Until they write, use ${guestLanguage} (the language their menu is shown in).` : ''}`
 }
 
 // ── Conversation history ───────────────────────────────────────────────────

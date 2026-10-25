@@ -52,3 +52,44 @@ export function normalizeUpsellAnalytics(raw: unknown): UpsellAnalytics {
 export function upsellTakeRate(data: UpsellAnalytics): number {
   return data.shown > 0 ? (data.shown - data.skipped) / data.shown : 0
 }
+
+/** Real sales from lines added via "Complete your order" or the AI chat (get_order_attribution). */
+export interface AttributedSales {
+  orders: number
+  items: number
+  revenue: number
+}
+
+export interface OrderAttribution {
+  /** Orders that went through in the period. */
+  orders: number
+  /** Their item revenue (no delivery fee or tip). */
+  items_revenue: number
+  upsell: AttributedSales
+  chat: AttributedSales
+}
+
+const EMPTY_SALES: AttributedSales = { orders: 0, items: 0, revenue: 0 }
+export const EMPTY_ORDER_ATTRIBUTION: OrderAttribution = { orders: 0, items_revenue: 0, upsell: EMPTY_SALES, chat: EMPTY_SALES }
+
+function normalizeSales(raw: unknown): AttributedSales {
+  if (!raw || typeof raw !== 'object') return EMPTY_SALES
+  const row = raw as Record<string, unknown>
+  return { orders: num(row.orders), items: num(row.items), revenue: num(row.revenue) }
+}
+
+export function normalizeOrderAttribution(raw: unknown): OrderAttribution {
+  if (!raw || typeof raw !== 'object') return EMPTY_ORDER_ATTRIBUTION
+  const row = raw as Record<string, unknown>
+  return {
+    orders: num(row.orders),
+    items_revenue: num(row.items_revenue),
+    upsell: normalizeSales(row.upsell),
+    chat: normalizeSales(row.chat),
+  }
+}
+
+/** Share of item revenue that came from a source (0–1). */
+export function revenueShare(sales: AttributedSales, attribution: OrderAttribution): number {
+  return attribution.items_revenue > 0 ? Math.min(1, sales.revenue / attribution.items_revenue) : 0
+}

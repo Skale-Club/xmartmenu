@@ -46,7 +46,11 @@ export interface CartItem {
   note?: string  // per-item customer note | does NOT affect buildCartKey
   ingredientModifications?: IngredientModifications | null  // INGR-09: per D-07 slot metadata
   editorState?: CartEditorState | null  // raw selections for the Edit flow | does NOT affect buildCartKey
+  /** Added from "Complete your order" or by the AI chat (revenue attribution). */
+  addedVia?: CartAddedVia
 }
+
+export type CartAddedVia = 'upsell' | 'chat'
 
 export function buildCartKey(productId: string, selectedOptions: Record<string, unknown>): string {
   return `${productId}::${JSON.stringify(

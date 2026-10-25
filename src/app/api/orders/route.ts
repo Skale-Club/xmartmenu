@@ -27,6 +27,8 @@ interface OrderItem {
   selected_options?: Record<string, unknown>
   ingredient_modifications?: IngredientModifications | null
   editor_state?: CartEditorState | null
+  /** Where the guest got the line: "Complete your order" or the AI chat (analytics only). */
+  added_via?: unknown
 }
 
 interface CreateOrderRequest {
@@ -384,6 +386,7 @@ async function handlePOST(request: Request) {
       notes: sanitizeNote(item.notes),
       selected_options: item.selected_options || null,
       ingredient_modifications: item.ingredient_modifications || null,
+      added_via: item.added_via === 'upsell' || item.added_via === 'chat' ? item.added_via : null,
     }))
 
     const { error: itemsError } = await service

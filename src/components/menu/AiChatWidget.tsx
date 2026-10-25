@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { MessageCircle, X, Send, Mic, ShoppingBag, Bot, Trash2, Loader2 } from 'lucide-react'
 import type { Product, IngredientModifications } from '@/types/database'
 import type { CartEditorState } from './menu-utils'
-import type { ResolvedCartItem } from '@/lib/chat-agent'
+import type { CartSnapshotItem, ResolvedCartItem } from '@/lib/chat-agent'
+import { getGuestCopy } from './guest-copy'
+import { fill } from './menu-i18n'
 
 interface Props {
   tenantSlug: string
@@ -23,6 +25,10 @@ interface Props {
   onOpenCart?: () => void
   /** Mobile: the page's bottom "View order" bar is showing; the launcher sits above it. */
   orderBarVisible?: boolean
+  /** The menu language on screen: the box's texts and the assistant's first language. */
+  language?: string
+  /** What is in the cart now, so the assistant does not re-add it and can suggest the rest. */
+  cart?: CartSnapshotItem[] | null
 }
 
 // Server-side cap (MAX_USER_MESSAGE_CHARS in chat-agent.ts).
@@ -47,7 +53,8 @@ interface Message {
 
 const SESSION_KEY_PREFIX = 'aiChat:'
 
-export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false }: Props) {
+export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false, language = 'en', cart = null }: Props) {
+  const copy = getGuestCopy(language)
   const [open, setOpen] = useState(false)
   const [phone, setPhone] = useState('')
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -108,7 +115,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
     setPhoneSubmitting(false)
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setPhoneError(data.error || 'Could not start chat')
+      setPhoneError(data.error || copy.couldNotStart)
       return
     }
     const data = await res.json()
@@ -122,9 +129,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
     setMessages([{
       id: 'welcome',
       role: 'assistant',
-      content: textEnabled
-        ? `Hi! I'm the ${tenantName} menu assistant. Ask me anything about our dishes — pairings, ingredients, recommendations — or tell me what you're in the mood for and I'll suggest something.`
-        : `Hi! I'm the ${tenantName} menu assistant. Tap the microphone and tell me what you'd like — ask about our dishes or just say your order.`,
+      content: fill(textEnabled ? copy.welcomeText : copy.welcomeVoice, { name: tenantName }),
     }])
   }
 
@@ -142,12 +147,12 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Only the new message: the server rebuilds the history from what it stored.
-      body: JSON.stringify({ conversation_id: conversationId, message: text.trim(), menu_id: menuId, location_id: locationId, voice_token: voiceToken }),
+      body: JSON.stringify({ conversation_id: conversationId, message: text.trim(), menu_id: menuId, location_id: locationId, voice_token: voiceToken, language, ...(cart ? { cart } : {}) }),
     })
 
     if (!res.ok) {
       const data = await res.json().catch(() => ({}))
-      setError(data.error || 'Something went wrong')
+      setError(data.error || copy.somethingWrong)
       setSending(false)
       return
     }
@@ -182,7 +187,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
 
   async function startRecording() {
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-      setError('Microphone not supported on this browser')
+      setError(copy.micUnsupported)
       return
     }
     setError(null)
@@ -212,7 +217,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
         if (elapsed >= MAX_VOICE_SECONDS) stopRecording()
       }, 250)
     } catch {
-      setError('Microphone permission denied')
+      setError(copy.micDenied)
     }
   }
 
@@ -239,19 +244,19 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
       const res = await fetch(`/api/public/chat/${tenantSlug}/audio`, { method: 'POST', body: fd })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
-        setError(data.error || 'Transcription failed')
+        setError(data.error || copy.transcriptionFailed)
         return
       }
       const data = await res.json() as { transcript: string; voice_token?: string | null }
       // Sent exactly as transcribed: the signature covers this text.
       const transcript = data.transcript ?? ''
       if (!transcript) {
-        setError("Couldn't hear anything in that recording. Try again a little closer to the microphone.")
+        setError(copy.heardNothing)
         return
       }
       await sendMessage(transcript, data.voice_token ?? undefined)
     } catch {
-      setError('Transcription failed')
+      setError(copy.transcriptionFailed)
     } finally {
       setTranscribing(false)
     }
@@ -265,7 +270,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
           onClick={() => setOpen(true)}
           className={`fixed ${orderBarVisible ? 'bottom-24 lg:bottom-6' : 'bottom-6'} right-6 ${cartOpen ? 'lg:right-[404px]' : ''} z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-105`}
           style={{ backgroundColor: primaryColor }}
-          aria-label="Open AI chat"
+          aria-label={copy.openChat}
         >
           <MessageCircle className="w-6 h-6 text-zinc-900" />
         </button>
@@ -280,10 +285,10 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
               <Bot className="w-4 h-4 text-zinc-900" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-zinc-900 truncate">Ask {tenantName}</p>
-              <p className="text-[10px] text-zinc-700 font-medium">AI menu assistant</p>
+              <p className="text-sm font-bold text-zinc-900 truncate">{fill(copy.askName, { name: tenantName })}</p>
+              <p className="text-[10px] text-zinc-700 font-medium">{copy.aiAssistant}</p>
             </div>
-            <button onClick={() => setOpen(false)} className="p-1.5 text-zinc-700 hover:text-zinc-900">
+            <button onClick={() => setOpen(false)} aria-label={copy.close} className="p-1.5 text-zinc-700 hover:text-zinc-900">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -291,8 +296,8 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
           {/* Phone gate */}
           {!conversationId && (
             <div className="flex-1 flex flex-col justify-center px-6 space-y-4">
-              <h3 className="text-lg font-bold text-zinc-900">Chat with our AI assistant</h3>
-              <p className="text-sm text-zinc-600">Share your phone number to start. We use it only to keep your conversation tied to you.</p>
+              <h3 className="text-lg font-bold text-zinc-900">{copy.gateTitle}</h3>
+              <p className="text-sm text-zinc-600">{copy.gateBody}</p>
               <input
                 type="tel"
                 value={phone}
@@ -306,7 +311,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                 disabled={phoneSubmitting || !phone.trim()}
                 className="w-full py-3 bg-zinc-900 text-white text-sm font-bold rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
               >
-                {phoneSubmitting ? 'Starting…' : 'Start chat'}
+                {phoneSubmitting ? copy.starting : copy.startChat}
               </button>
             </div>
           )}
@@ -339,7 +344,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                               onClick={onOpenCart}
                               className="inline-flex items-center text-[10px] font-bold text-zinc-700 underline underline-offset-2 hover:text-zinc-900 px-1"
                             >
-                              View cart
+                              {copy.viewCart}
                             </button>
                           )}
                         </div>
@@ -368,7 +373,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
               {/* Input bar */}
               <div className="px-3 py-3 border-t border-zinc-100 bg-white">
                 {remaining !== null && remaining <= 5 && (
-                  <p className="text-[10px] text-amber-600 font-bold mb-1.5 px-1">{remaining} message{remaining === 1 ? '' : 's'} remaining today</p>
+                  <p className="text-[10px] text-amber-600 font-bold mb-1.5 px-1">{fill(copy.remainingToday, { n: remaining })}</p>
                 )}
                 {recording ? (
                   <div className="flex items-center gap-2" role="status" aria-live="polite">
@@ -376,7 +381,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                       type="button"
                       onClick={() => stopRecording(true)}
                       className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-                      aria-label="Discard recording"
+                      aria-label={copy.discardRecording}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -394,7 +399,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                       type="button"
                       onClick={() => stopRecording()}
                       className="w-10 h-10 rounded-full bg-zinc-900 text-white flex items-center justify-center hover:bg-zinc-800 flex-shrink-0"
-                      aria-label="Stop and send voice message"
+                      aria-label={copy.stopAndSend}
                     >
                       <Send className="w-4 h-4" />
                     </button>
@@ -408,7 +413,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                     style={{ backgroundColor: primaryColor }}
                   >
                     {transcribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
-                    {transcribing ? 'Transcribing your voice note…' : sending ? 'Sending…' : `Tap to record · up to ${MAX_VOICE_SECONDS} s`}
+                    {transcribing ? copy.transcribing : sending ? copy.sending : fill(copy.tapToRecord, { s: MAX_VOICE_SECONDS })}
                   </button>
                 ) : (
                 <div className="flex items-end gap-2">
@@ -423,7 +428,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                     }}
                     rows={1}
                     maxLength={MAX_MESSAGE_CHARS}
-                    placeholder={transcribing ? 'Transcribing your voice note…' : audioEnabled ? 'Type or record your order…' : 'Ask about our menu…'}
+                    placeholder={transcribing ? copy.transcribing : audioEnabled ? copy.typeOrRecord : copy.askMenu}
                     disabled={sending || transcribing}
                     className="flex-1 px-3 py-2 border border-zinc-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:bg-zinc-50 max-h-24"
                   />
@@ -433,8 +438,8 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                       onClick={startRecording}
                       disabled={sending || transcribing}
                       className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors bg-zinc-100 text-zinc-700 hover:bg-zinc-200 disabled:opacity-50"
-                      aria-label={`Record a voice message (up to ${MAX_VOICE_SECONDS} seconds)`}
-                      title={`Voice message, up to ${MAX_VOICE_SECONDS} seconds`}
+                      aria-label={fill(copy.recordVoice, { s: MAX_VOICE_SECONDS })}
+                      title={fill(copy.recordVoice, { s: MAX_VOICE_SECONDS })}
                     >
                       {transcribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
                     </button>
@@ -443,7 +448,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                     onClick={() => sendMessage(input)}
                     disabled={sending || !input.trim() || transcribing}
                     className="w-10 h-10 rounded-full bg-zinc-900 text-white flex items-center justify-center hover:bg-zinc-800 disabled:opacity-50 flex-shrink-0"
-                    aria-label="Send"
+                    aria-label={copy.send}
                   >
                     <Send className="w-4 h-4" />
                   </button>

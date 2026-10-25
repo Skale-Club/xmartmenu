@@ -15,7 +15,7 @@
  * just means nothing is remembered, never a broken menu.
  */
 import type { IngredientModifications, Product } from '@/types/database'
-import { buildCartKey, type CartEditorState, type CartItem } from './menu-utils'
+import { buildCartKey, type CartAddedVia, type CartEditorState, type CartItem } from './menu-utils'
 
 export type MenuView = 'list' | 'feed'
 
@@ -116,6 +116,7 @@ export interface StoredCartItem {
   note?: string
   ingredientModifications?: IngredientModifications | null
   editorState?: CartEditorState | null
+  addedVia?: CartAddedVia
 }
 
 export function serializeCart(cart: CartItem[]): StoredCartItem[] {
@@ -127,6 +128,7 @@ export function serializeCart(cart: CartItem[]): StoredCartItem[] {
     note: item.note,
     ingredientModifications: item.ingredientModifications ?? null,
     editorState: item.editorState ?? null,
+    ...(item.addedVia ? { addedVia: item.addedVia } : {}),
   }))
 }
 
@@ -163,6 +165,7 @@ export function restoreCart(stored: StoredCartItem[] | null | undefined, product
       note: s.note,
       ingredientModifications: s.ingredientModifications ?? null,
       editorState: s.editorState ?? null,
+      ...(s.addedVia === 'upsell' || s.addedVia === 'chat' ? { addedVia: s.addedVia } : {}),
     })
   }
   return restored
