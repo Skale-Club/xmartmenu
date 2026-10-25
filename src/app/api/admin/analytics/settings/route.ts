@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 const settingsSchema = z.strictObject({
   analytics_enabled: z.boolean(),
@@ -19,7 +21,7 @@ const settingsSchema = z.strictObject({
   }
 })
 
-export async function PATCH(request: Request) {
+async function handlePATCH(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') {
@@ -46,7 +48,7 @@ export async function PATCH(request: Request) {
     .single()
 
   if (error) {
-    console.error('PATCH /api/admin/analytics/settings:', error)
+    log.error('PATCH /api/admin/analytics/settings', { err: error })
     return NextResponse.json({ error: 'Could not save settings' }, { status: 500 })
   }
 
@@ -54,3 +56,5 @@ export async function PATCH(request: Request) {
 }
 
 export const dynamic = 'force-dynamic'
+
+export const PATCH = withApi('PATCH /api/admin/analytics/settings', handlePATCH)

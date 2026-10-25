@@ -1,6 +1,8 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { generatePassword } from '@/lib/auth/password-gen'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 interface Props { params: Promise<{ id: string; staffId: string }> }
 
@@ -26,15 +28,15 @@ async function assertSuperadminAndStaff(tenantId: string, staffId: string) {
   return { service, staffProfile }
 }
 
-export async function PATCH(_req: Request, { params }: Props) {
+async function handlePATCH(_req: Request, { params }: Props) {
   const { id: tenantId, staffId } = await params
   const ctx = await assertSuperadminAndStaff(tenantId, staffId)
-  if ('error' in ctx) return ctx.error
+  if ('error' in ctx && ctx.error) return ctx.error
 
   const password = generatePassword()
   const { data: authUser, error: authError } = await ctx.service.auth.admin.getUserById(staffId)
   if (authError) {
-    console.error('PATCH /api/superadmin/tenants/[id]/staff/[staffId]:', authError)
+    log.error('PATCH /api/superadmin/tenants/[id]/staff/[staffId]', { err: authError })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -46,7 +48,7 @@ export async function PATCH(_req: Request, { params }: Props) {
     .update({ must_change_password: true, password_changed_at: null })
     .eq('id', staffId)
   if (profileUpdateError) {
-    console.error('PATCH /api/superadmin/tenants/[id]/staff/[staffId] profile:', profileUpdateError)
+    log.error('PATCH /api/superadmin/tenants/[id]/staff/[staffId] profile', { err: profileUpdateError })
     return NextResponse.json({ error: 'Failed to prepare password reset' }, { status: 500 })
   }
 
@@ -59,7 +61,7 @@ export async function PATCH(_req: Request, { params }: Props) {
       must_change_password: ctx.staffProfile.must_change_password,
       password_changed_at: ctx.staffProfile.password_changed_at,
     }).eq('id', staffId)
-    console.error('PATCH /api/superadmin/tenants/[id]/staff/[staffId]:', updateAuthError)
+    log.error('PATCH /api/superadmin/tenants/[id]/staff/[staffId]', { err: updateAuthError })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -70,18 +72,21 @@ export async function PATCH(_req: Request, { params }: Props) {
   })
 }
 
-export async function DELETE(_req: Request, { params }: Props) {
+async function handleDELETE(_req: Request, { params }: Props) {
   const { id: tenantId, staffId } = await params
   const ctx = await assertSuperadminAndStaff(tenantId, staffId)
-  if ('error' in ctx) return ctx.error
+  if ('error' in ctx && ctx.error) return ctx.error
 
   const { error: demoteError } = await ctx.service
     .from('profiles')
     .update({ role: 'customer', tenant_id: null })
     .eq('id', staffId)
   if (demoteError) {
-    console.error('DELETE /api/superadmin/tenants/[id]/staff/[staffId]:', demoteError)
+    log.error('DELETE /api/superadmin/tenants/[id]/staff/[staffId]', { err: demoteError })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = withApi('PATCH /api/superadmin/tenants/[id]/staff/[staffId]', handlePATCH)
+export const DELETE = withApi('DELETE /api/superadmin/tenants/[id]/staff/[staffId]', handleDELETE)

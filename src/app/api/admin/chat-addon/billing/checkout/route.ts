@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
+import { withApi } from '@/lib/observability/with-api'
 
 async function createSession() {
   const effective = await getEffectiveTenant()
@@ -60,12 +61,12 @@ async function createSession() {
   return NextResponse.json({ url: session.url })
 }
 
-export async function POST() {
+async function handlePOST() {
   const r = await createSession()
   return r
 }
 
-export async function GET() {
+async function handleGET() {
   // Convenience: redirect directly to the Checkout URL so the admin can link
   // <a href="/api/admin/chat-addon/billing/checkout"> in the upgrade banner.
   const r = await createSession()
@@ -74,3 +75,6 @@ export async function GET() {
   if (data?.url) return NextResponse.redirect(data.url, { status: 303 })
   return r
 }
+
+export const POST = withApi('POST /api/admin/chat-addon/billing/checkout', handlePOST)
+export const GET = withApi('GET /api/admin/chat-addon/billing/checkout', handleGET)

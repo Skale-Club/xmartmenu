@@ -1,0 +1,47 @@
+name: Uptime
+
+# Every 15 minutes: is production up and can it reach its database?
+# Calls /api/health/ready (503 when the database is down). A failed run is
+# shown in Actions and GitHub e-mails the workflow's owner. Run it by hand
+# from Actions → Uptime → Run workflow to check a deploy.
+#
+# Optional: repository variable APP_URL (defaults to production) and secret
+# HEALTH_TOKEN (same as the app's) to also print which integrations are set.
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ready:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check /api/health/ready
+        env:
+          APP_URL: ${{ vars.APP_URL || 'https://xmartmenu.skale.club' }}
+          HEALTH_TOKEN: ${{ secrets.HEALTH_TOKEN }}
+        run: |
+          auth=()
+          if [ -n "$HEALTH_TOKEN" ]; then auth=(-H "Authorization: Bearer $HEALTH_TOKEN"); fi
+          for attempt in 1 2 3; do
+            code=$(curl -sS -o body.json -w '%{http_code}' --max-time 20 "${auth[@]}" "$APP_URL/api/health/ready" || echo 000)
+            if [ "$code" = "200" ]; then break; fi
+            echo "Attempt $attempt: HTTP $code"; sleep 10
+          done
+          echo "HTTP $code"
+          cat body.json 2>/dev/null || true
+          {
+            echo "## $APP_URL — HTTP $code"
+            echo '```json'
+            cat body.json 2>/dev/null || echo '(no body)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" != "200" ]; then
+            echo "::error::Production health check failed (HTTP $code)"
+            exit 1
+          fi
+          if grep -q '"status":"degraded"' body.json; then
+            echo "::warning::Production is up but degraded (slow database)"
+          fi

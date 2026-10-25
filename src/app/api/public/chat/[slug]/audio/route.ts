@@ -16,6 +16,8 @@ import { MAX_USER_MESSAGE_CHARS } from '@/lib/chat-agent'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { transcribeWithOpenRouter, transcriptionModelId, OpenRouterError } from '@/lib/ai/openrouter'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -23,7 +25,7 @@ export const maxDuration = 30
 // A 60 s voice note is well under 2 MB in any browser codec; this only stops abuse.
 const MAX_BYTES = 5 * 1024 * 1024 // 5 MB
 
-export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+async function handlePOST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
 
   const rl = await rateLimit('chat-audio', getClientIp(request), 8, '5 m')
@@ -87,8 +89,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     const text = transcript.trim().slice(0, MAX_USER_MESSAGE_CHARS)
     return NextResponse.json({ transcript: text, voice_token: text ? signVoiceTranscript(voiceTokenSecret(), conversationId, text) : null })
   } catch (e) {
-    console.error('audio.transcribe_error', e)
+    log.error('audio.transcribe_error', { err: e })
     if (e instanceof OpenRouterError) return NextResponse.json({ error: 'Transcription service unavailable' }, { status: 502 })
     return NextResponse.json({ error: 'Transcription failed' }, { status: 500 })
   }
 }
+
+export const POST = withApi('POST /api/public/chat/[slug]/audio', handlePOST)

@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function GET() {
+async function handleGET() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -14,13 +16,13 @@ export async function GET() {
     .order('created_at')
 
   if (error) {
-    console.error('GET /api/admin/delivery-zones:', error)
+    log.error('GET /api/admin/delivery-zones', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data ?? [])
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -43,8 +45,11 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    console.error('POST /api/admin/delivery-zones:', error)
+    log.error('POST /api/admin/delivery-zones', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data, { status: 201 })
 }
+
+export const GET = withApi('GET /api/admin/delivery-zones', handleGET)
+export const POST = withApi('POST /api/admin/delivery-zones', handlePOST)

@@ -13,7 +13,8 @@
 -- Every id is fixed and mirrored in tests/e2e/fixtures/seed.ts.
 -- Logins (password for all: Test-Pass-1234!):
 --   owner@test-menu.local, owner@test-waiter.local, staff@test-waiter.local,
---   owner@test-self.local,  staff@test-self.local,  staff@test-switch.local
+--   owner@test-self.local,  staff@test-self.local,  staff@test-switch.local,
+--   superadmin@test.local (platform superadmin, no restaurant)
 -- =============================================================================
 
 -- ── Users ────────────────────────────────────────────────────────────────────
@@ -34,13 +35,14 @@ FROM (VALUES
   ('a0000000-0000-4000-8000-000000000003'::uuid, 'staff@test-waiter.local', 'Waiter Staff'),
   ('a0000000-0000-4000-8000-000000000004'::uuid, 'owner@test-self.local',   'Self Owner'),
   ('a0000000-0000-4000-8000-000000000005'::uuid, 'staff@test-self.local',   'Self Staff'),
-  ('a0000000-0000-4000-8000-000000000006'::uuid, 'staff@test-switch.local', 'Switch Staff')
+  ('a0000000-0000-4000-8000-000000000006'::uuid, 'staff@test-switch.local', 'Switch Staff'),
+  ('a0000000-0000-4000-8000-000000000007'::uuid, 'superadmin@test.local',   'Test Superadmin')
 ) AS u(id, email, full_name);
 
 INSERT INTO auth.identities (id, provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
 SELECT gen_random_uuid(), u.id::text, u.id, jsonb_build_object('sub', u.id::text, 'email', u.email, 'email_verified', true), 'email', now(), now(), now()
 FROM auth.users u
-WHERE u.email LIKE '%@test-%.local';
+WHERE u.email LIKE '%@test-%.local' OR u.email = 'superadmin@test.local';
 
 -- ── Restaurants ──────────────────────────────────────────────────────────────
 INSERT INTO public.tenants (id, slug, name, is_active) VALUES
@@ -74,6 +76,9 @@ FROM (VALUES
   ('a0000000-0000-4000-8000-000000000006'::uuid, 'b0000000-0000-4000-8000-000000000004'::uuid, 'store-staff')
 ) AS v(id, tenant_id, role)
 WHERE p.id = v.id;
+
+UPDATE public.profiles SET role = 'superadmin', tenant_id = NULL, must_change_password = false
+WHERE id = 'a0000000-0000-4000-8000-000000000007';
 
 -- ── Menus ────────────────────────────────────────────────────────────────────
 INSERT INTO public.menus (id, tenant_id, name, slug, language, supported_languages, is_active, is_default) VALUES

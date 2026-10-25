@@ -2,8 +2,10 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -34,7 +36,7 @@ export async function PATCH(
   const service = await createServiceClient()
   const { data, error } = await service.from('tenants').update(update).eq('id', id).select().single()
   if (error) {
-    console.error('PATCH /api/superadmin/tenants/[id]:', error)
+    log.error('PATCH /api/superadmin/tenants/[id]', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   revalidatePath('/tenants')
@@ -42,7 +44,7 @@ export async function PATCH(
   return NextResponse.json(data)
 }
 
-export async function DELETE(
+async function handleDELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -59,7 +61,7 @@ export async function DELETE(
     for (const p of profiles) {
       const { error: userDeleteError } = await service.auth.admin.deleteUser(p.id)
       if (userDeleteError) {
-        console.error('DELETE /api/superadmin/tenants/[id] auth user:', userDeleteError)
+        log.error('DELETE /api/superadmin/tenants/[id] auth user', { err: userDeleteError })
         return NextResponse.json({ error: 'Failed to remove all restaurant users. Please retry.' }, { status: 500 })
       }
     }
@@ -71,7 +73,7 @@ export async function DELETE(
   // Deleta tenant (cascade deleta categorias, produtos, etc.)
   const { error } = await service.from('tenants').delete().eq('id', id)
   if (error) {
-    console.error('DELETE /api/superadmin/tenants/[id]:', error)
+    log.error('DELETE /api/superadmin/tenants/[id]', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -80,3 +82,6 @@ export async function DELETE(
 
   return NextResponse.json({ success: true })
 }
+
+export const PATCH = withApi('PATCH /api/superadmin/tenants/[id]', handlePATCH)
+export const DELETE = withApi('DELETE /api/superadmin/tenants/[id]', handleDELETE)

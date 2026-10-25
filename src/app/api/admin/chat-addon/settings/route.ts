@@ -9,12 +9,14 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
 import { encryptApiKey, maskApiKey, decryptApiKey } from '@/lib/crypto'
 import { getChatAddonStatus } from '@/lib/chat-addon'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 function isMaskedValue(v: string | null | undefined) {
   return typeof v === 'string' && v.includes('••')
 }
 
-export async function GET() {
+async function handleGET() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -46,7 +48,7 @@ export async function GET() {
   })
 }
 
-export async function PUT(request: Request) {
+async function handlePUT(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -96,9 +98,12 @@ export async function PUT(request: Request) {
     .upsert(payload, { onConflict: 'tenant_id' })
 
   if (error) {
-    console.error('chat_addon_settings.upsert_error', error)
+    log.error('chat_addon_settings.upsert_error', { err: error })
     return NextResponse.json({ error: 'Failed to save settings' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
 }
+
+export const GET = withApi('GET /api/admin/chat-addon/settings', handleGET)
+export const PUT = withApi('PUT /api/admin/chat-addon/settings', handlePUT)

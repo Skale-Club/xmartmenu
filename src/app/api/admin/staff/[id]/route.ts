@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { checkPasswordChangeRequired } from '@/lib/auth/password-guard'
 import { generatePassword } from '@/lib/auth/password-gen'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -32,18 +34,18 @@ async function assertStaffOwnership(staffId: string) {
   return { service, staffProfile: profile }
 }
 
-export async function PATCH(_req: Request, { params }: Props) {
+async function handlePATCH(_req: Request, { params }: Props) {
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   const { id } = await params
   const ctx = await assertStaffOwnership(id)
-  if ('error' in ctx) return ctx.error
+  if ('error' in ctx && ctx.error) return ctx.error
 
   const password = generatePassword()
 
   const { data: authUser, error: authError } = await ctx.service.auth.admin.getUserById(id)
   if (authError) {
-    console.error('PATCH /api/admin/staff/[id]:', authError)
+    log.error('PATCH /api/admin/staff/[id]', { err: authError })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -55,7 +57,7 @@ export async function PATCH(_req: Request, { params }: Props) {
     user_metadata: { full_name: ctx.staffProfile.full_name ?? undefined },
   })
   if (updateAuthError) {
-    console.error('PATCH /api/admin/staff/[id]:', updateAuthError)
+    log.error('PATCH /api/admin/staff/[id]', { err: updateAuthError })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -67,7 +69,7 @@ export async function PATCH(_req: Request, { params }: Props) {
     })
     .eq('id', id)
   if (updateProfileError) {
-    console.error('PATCH /api/admin/staff/[id]:', updateProfileError)
+    log.error('PATCH /api/admin/staff/[id]', { err: updateProfileError })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -82,21 +84,24 @@ export async function PATCH(_req: Request, { params }: Props) {
   })
 }
 
-export async function DELETE(_req: Request, { params }: Props) {
+async function handleDELETE(_req: Request, { params }: Props) {
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   const { id } = await params
   const ctx = await assertStaffOwnership(id)
-  if ('error' in ctx) return ctx.error
+  if ('error' in ctx && ctx.error) return ctx.error
 
   const { error: demoteError } = await ctx.service
     .from('profiles')
     .update({ role: 'customer', tenant_id: null })
     .eq('id', id)
   if (demoteError) {
-    console.error('DELETE /api/admin/staff/[id]:', demoteError)
+    log.error('DELETE /api/admin/staff/[id]', { err: demoteError })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = withApi('PATCH /api/admin/staff/[id]', handlePATCH)
+export const DELETE = withApi('DELETE /api/admin/staff/[id]', handleDELETE)

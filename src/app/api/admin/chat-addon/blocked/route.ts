@@ -5,8 +5,9 @@
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function GET() {
+async function handleGET() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -21,7 +22,7 @@ export async function GET() {
   return NextResponse.json({ blocked: data ?? [] })
 }
 
-export async function DELETE(request: Request) {
+async function handleDELETE(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -50,3 +51,6 @@ export async function DELETE(request: Request) {
 
   return NextResponse.json({ ok: true })
 }
+
+export const GET = withApi('GET /api/admin/chat-addon/blocked', handleGET)
+export const DELETE = withApi('DELETE /api/admin/chat-addon/blocked', handleDELETE)

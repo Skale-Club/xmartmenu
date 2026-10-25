@@ -4,6 +4,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getStorageClient } from '@/lib/storage'
 import { convertBufferToWebP } from '@/lib/upload'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
 
 const RASTER_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.avif', '.heic', '.bmp', '.tiff']
 const BUCKETS = ['tenant-assets', 'product-images'] as const
@@ -59,7 +60,7 @@ function isAuthorized(request: Request): boolean {
   return timingSafeEqual(a, b)
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const authorized = isAuthorized(request) || await assertSuperadmin()
   if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -143,7 +144,7 @@ export async function POST(request: Request) {
 }
 
 // GET: quick inventory
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const authorized = isAuthorized(request) || await assertSuperadmin()
   if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -159,3 +160,6 @@ export async function GET(request: Request) {
 
   return NextResponse.json({ report })
 }
+
+export const POST = withApi('POST /api/superadmin/migrate-webp', handlePOST)
+export const GET = withApi('GET /api/superadmin/migrate-webp', handleGET)

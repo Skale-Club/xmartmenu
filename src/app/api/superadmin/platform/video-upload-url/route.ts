@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { getStorageClient } from '@/lib/storage'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function GET() {
+async function handleGET() {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -20,7 +22,9 @@ export async function GET() {
 
     return NextResponse.json({ signedUrl: url, path, publicUrl })
   } catch (err) {
-    console.error('GET /api/superadmin/platform/video-upload-url:', err)
+    log.error('GET /api/superadmin/platform/video-upload-url', { err: err })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const GET = withApi('GET /api/superadmin/platform/video-upload-url', handleGET)

@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { slugify } from '@/lib/utils'
 import { MENU_LANGUAGE_CODES } from '@/components/menu/menu-i18n'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 const ALLOWED_LANGUAGE_CODES: readonly string[] = MENU_LANGUAGE_CODES
 
@@ -39,7 +41,7 @@ async function getTenantContext() {
   return { tenantId: effective.tenantId, role: effective.role }
 }
 
-export async function GET() {
+async function handleGET() {
   const ctx = await getTenantContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -53,7 +55,7 @@ export async function GET() {
   return NextResponse.json(data ?? [])
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const ctx = await getTenantContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (ctx.role === 'store-staff') {
@@ -89,8 +91,11 @@ export async function POST(request: Request) {
     .select().single()
 
   if (error) {
-    console.error('POST /api/admin/menus:', error)
+    log.error('POST /api/admin/menus', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data, { status: 201 })
 }
+
+export const GET = withApi('GET /api/admin/menus', handleGET)
+export const POST = withApi('POST /api/admin/menus', handlePOST)

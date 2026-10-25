@@ -11,8 +11,9 @@ import { revalidatePath } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function GET() {
+async function handleGET() {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
@@ -42,7 +43,7 @@ const decisionSchema = z.object({
   reason: z.string().max(1000).optional(),
 })
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = decisionSchema.safeParse(await request.json().catch(() => null))
@@ -106,3 +107,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true, action: 'rejected' })
 }
+
+export const GET = withApi('GET /api/superadmin/blog/posts', handleGET)
+export const POST = withApi('POST /api/superadmin/blog/posts', handlePOST)

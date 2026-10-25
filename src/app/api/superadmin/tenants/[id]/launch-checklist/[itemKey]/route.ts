@@ -3,11 +3,13 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { isLaunchChecklistKey, isLaunchChecklistStatus } from '@/lib/launch-checklist'
 import { LaunchChecklistSetupError, setLaunchChecklistItem } from '@/lib/admin/launch-checklist-data'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 // Set one launch-checklist item for one restaurant (super-admin → Clients →
 // Launch checklist). Body: { status: 'pending' | 'done' | 'na', note?: string }.
 // An omitted note keeps the stored one, so ticking a box never wipes it.
-export async function PUT(
+async function handlePUT(
   request: Request,
   { params }: { params: Promise<{ id: string; itemKey: string }> },
 ) {
@@ -38,7 +40,9 @@ export async function PUT(
     return NextResponse.json(entry)
   } catch (error) {
     if (error instanceof LaunchChecklistSetupError) return NextResponse.json({ error: error.message }, { status: 503 })
-    console.error('PUT /api/superadmin/tenants/[id]/launch-checklist/[itemKey]:', error)
+    log.error('PUT /api/superadmin/tenants/[id]/launch-checklist/[itemKey]', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const PUT = withApi('PUT /api/superadmin/tenants/[id]/launch-checklist/[itemKey]', handlePUT)

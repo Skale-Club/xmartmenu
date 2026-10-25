@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function GET() {
+async function handleGET() {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -14,14 +16,14 @@ export async function GET() {
     .order('sort_order', { ascending: true })
 
   if (error) {
-    console.error('Failed to fetch plans:', error)
+    log.error('Failed to fetch plans', { err: error })
     return NextResponse.json({ error: 'Failed to fetch plans' }, { status: 500 })
   }
 
   return NextResponse.json(data || [])
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -79,9 +81,12 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    console.error('Failed to create plan:', error)
+    log.error('Failed to create plan', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json(data, { status: 201 })
 }
+
+export const GET = withApi('GET /api/superadmin/plans', handleGET)
+export const POST = withApi('POST /api/superadmin/plans', handlePOST)

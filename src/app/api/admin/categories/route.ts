@@ -4,8 +4,10 @@ import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import { NextResponse } from 'next/server'
 import { sanitizeTranslations } from '@/lib/menu-translations'
 import { parseCourse } from '@/components/menu/upsell'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') {
@@ -50,8 +52,10 @@ export async function POST(request: Request) {
     .single()
 
   if (error) {
-    console.error('POST /api/admin/categories:', error)
+    log.error('POST /api/admin/categories', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data, { status: 201 })
 }
+
+export const POST = withApi('POST /api/admin/categories', handlePOST)

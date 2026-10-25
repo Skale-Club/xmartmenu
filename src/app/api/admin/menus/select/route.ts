@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -31,3 +32,5 @@ export async function POST(request: Request) {
 
   return res
 }
+
+export const POST = withApi('POST /api/admin/menus/select', handlePOST)

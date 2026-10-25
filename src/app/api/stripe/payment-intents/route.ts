@@ -10,8 +10,10 @@ import { createClient } from '@/lib/supabase/server'
 import { getOrCreatePaymentIntent, isStripeEnabled } from '@/lib/stripe'
 import { getTenantPlan } from '@/lib/tenant-plan'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     const rl = await rateLimit('payment-intents', getClientIp(request), 12, '1 m')
     if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ client_secret: clientSecret })
   } catch (error) {
-    console.error('PaymentIntent creation error:', error)
+    log.error('PaymentIntent creation error', { err: error })
     
     if (error instanceof Error) {
       if (error.message.includes('No active Stripe connection')) {
@@ -112,3 +114,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create payment intent' }, { status: 500 })
   }
 }
+
+export const POST = withApi('POST /api/stripe/payment-intents', handlePOST)

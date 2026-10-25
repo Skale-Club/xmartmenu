@@ -1,6 +1,8 @@
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 const HEX = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 
@@ -10,7 +12,7 @@ const HEX = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
  * previous direct client-side tenant_settings write: validates colors (hex),
  * caps text fields, coerces booleans, and scopes to the caller's own tenant.
  */
-export async function PATCH(request: Request) {
+async function handlePATCH(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -60,8 +62,10 @@ export async function PATCH(request: Request) {
     .upsert(update, { onConflict: 'tenant_id' })
 
   if (error) {
-    console.error('PATCH /api/admin/branding:', error)
+    log.error('PATCH /api/admin/branding', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = withApi('PATCH /api/admin/branding', handlePATCH)

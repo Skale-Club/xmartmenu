@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -13,7 +15,7 @@ async function assertOwnership(zoneId: string) {
   return { supabase, role: effective.role }
 }
 
-export async function PATCH(request: Request, { params }: Props) {
+async function handlePATCH(request: Request, { params }: Props) {
   const { id } = await params
   const ctx = await assertOwnership(id)
   if (!ctx) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -27,13 +29,13 @@ export async function PATCH(request: Request, { params }: Props) {
 
   const { data, error } = await ctx.supabase.from('delivery_zones').update(update).eq('id', id).select().single()
   if (error) {
-    console.error('PATCH /api/admin/delivery-zones/[id]:', error)
+    log.error('PATCH /api/admin/delivery-zones/[id]', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data)
 }
 
-export async function DELETE(_req: Request, { params }: Props) {
+async function handleDELETE(_req: Request, { params }: Props) {
   const { id } = await params
   const ctx = await assertOwnership(id)
   if (!ctx) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -42,3 +44,6 @@ export async function DELETE(_req: Request, { params }: Props) {
   await ctx.supabase.from('delivery_zones').delete().eq('id', id)
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = withApi('PATCH /api/admin/delivery-zones/[id]', handlePATCH)
+export const DELETE = withApi('DELETE /api/admin/delivery-zones/[id]', handleDELETE)

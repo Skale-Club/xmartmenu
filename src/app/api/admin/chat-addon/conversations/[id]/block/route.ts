@@ -5,8 +5,9 @@
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -45,3 +46,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withApi('POST /api/admin/chat-addon/conversations/[id]/block', handlePOST)

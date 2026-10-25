@@ -1,10 +1,12 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 interface Props { params: Promise<{ id: string; menuId: string }> }
 
-export async function GET(req: Request, { params }: Props) {
+async function handleGET(req: Request, { params }: Props) {
   const { id: tenantId, menuId } = await params
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -27,8 +29,10 @@ export async function GET(req: Request, { params }: Props) {
   const { data, error } = await query
 
   if (error) {
-    console.error('GET /api/superadmin/tenants/[id]/menus/[menuId]/products-list:', error)
+    log.error('GET /api/superadmin/tenants/[id]/menus/[menuId]/products-list', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json({ products: data ?? [] })
 }
+
+export const GET = withApi('GET /api/superadmin/tenants/[id]/menus/[menuId]/products-list', handleGET)

@@ -11,6 +11,8 @@ import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { encryptApiKey, maskApiKey, decryptApiKey } from '@/lib/crypto'
 import { nextScheduledRun } from '@/lib/blog/schedule'
 import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 const MASKED = '••••'
 
@@ -31,7 +33,7 @@ const patchSchema = z.object({
   openrouterApiKey: z.string().max(400).optional(),
 })
 
-export async function GET() {
+async function handleGET() {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
@@ -79,7 +81,7 @@ export async function GET() {
   })
 }
 
-export async function PATCH(request: Request) {
+async function handlePATCH(request: Request) {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = patchSchema.safeParse(await request.json().catch(() => null))
@@ -128,9 +130,12 @@ export async function PATCH(request: Request) {
     ? await service.from('blog_settings').update(update).eq('id', prev.id)
     : await service.from('blog_settings').insert(update)
   if (error) {
-    console.error('PATCH /api/superadmin/blog/settings:', error)
+    log.error('PATCH /api/superadmin/blog/settings', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json({ ok: true })
 }
+
+export const GET = withApi('GET /api/superadmin/blog/settings', handleGET)
+export const PATCH = withApi('PATCH /api/superadmin/blog/settings', handlePATCH)

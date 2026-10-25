@@ -12,6 +12,8 @@ import { getTenantPlan } from '@/lib/tenant-plan'
 import { isStripeEnabled } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 const BillingCycleSchema = z.object({
   billing_cycle: z.enum(['monthly', 'annual'])
@@ -21,7 +23,7 @@ const BillingCycleSchema = z.object({
  * GET /api/tenant/subscription
  * Returns subscription details with effective plan and Stripe status
  */
-export async function GET() {
+async function handleGET() {
   try {
     const effective = await getEffectiveTenant()
     if (!effective) {
@@ -80,7 +82,7 @@ export async function GET() {
       stripeAccountId,
     })
   } catch (error) {
-    console.error('GET /api/tenant/subscription error:', error)
+    log.error('GET /api/tenant/subscription error', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
@@ -89,7 +91,7 @@ export async function GET() {
  * PATCH /api/tenant/subscription
  * Updates billing_cycle preference
  */
-export async function PATCH(request: NextRequest) {
+async function handlePATCH(request: NextRequest) {
   try {
     const effective = await getEffectiveTenant()
     if (!effective) {
@@ -121,7 +123,7 @@ export async function PATCH(request: NextRequest) {
       .single()
 
     if (updateError) {
-      console.error('Failed to update billing cycle:', updateError)
+      log.error('Failed to update billing cycle', { err: updateError })
       return NextResponse.json(
         { error: 'Failed to update billing cycle' },
         { status: 500 }
@@ -135,7 +137,10 @@ export async function PATCH(request: NextRequest) {
       },
     })
   } catch (error) {
-    console.error('PATCH /api/tenant/subscription error:', error)
+    log.error('PATCH /api/tenant/subscription error', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const GET = withApi('GET /api/tenant/subscription', handleGET)
+export const PATCH = withApi('PATCH /api/tenant/subscription', handlePATCH)

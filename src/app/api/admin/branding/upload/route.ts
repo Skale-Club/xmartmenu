@@ -2,8 +2,10 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { validateAndConvertToWebP } from '@/lib/upload'
 import { getStorageClient } from '@/lib/storage'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   // Uploads overwrite the live logo/banner file, so they are owner-only like the branding PATCH.
@@ -29,10 +31,12 @@ export async function POST(request: Request) {
     })
     return NextResponse.json({ url: publicUrl })
   } catch (err) {
-    console.error('POST /api/admin/branding/upload:', err)
+    log.error('POST /api/admin/branding/upload', { err: err })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
+
+export const POST = withApi('POST /api/admin/branding/upload', handlePOST)

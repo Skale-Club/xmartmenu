@@ -74,3 +74,18 @@ test.describe('table links in the admin', () => {
     })
   })
 })
+
+test.describe('superadmin audit trail', () => {
+  test.use({ storageState: storageStatePath('superadmin') })
+
+  test('lists changes with restaurant, who and what changed, filterable', async ({ page }) => {
+    await page.goto('/audit?days=1')
+    await expect(page.getByRole('heading', { name: 'Audit trail' })).toBeVisible()
+    await expect(page.getByRole('table')).toContainText(TENANTS.self.name)
+
+    await page.getByLabel('What').selectOption('restaurant_tables')
+    await page.getByRole('button', { name: 'Filter' }).click()
+    await expect(page).toHaveURL(/table=restaurant_tables/)
+    await expect(page.getByRole('table')).toContainText('Mesa 4')
+  })
+})

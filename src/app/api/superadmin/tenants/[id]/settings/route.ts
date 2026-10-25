@@ -1,8 +1,10 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function GET(
+async function handleGET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -16,7 +18,7 @@ export async function GET(
   return NextResponse.json({ tenant, settings })
 }
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -59,8 +61,11 @@ export async function PATCH(
     .single()
 
   if (error) {
-    console.error('PATCH /api/superadmin/tenants/[id]/settings:', error)
+    log.error('PATCH /api/superadmin/tenants/[id]/settings', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data)
 }
+
+export const GET = withApi('GET /api/superadmin/tenants/[id]/settings', handleGET)
+export const PATCH = withApi('PATCH /api/superadmin/tenants/[id]/settings', handlePATCH)

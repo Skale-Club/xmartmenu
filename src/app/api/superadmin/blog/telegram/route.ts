@@ -15,6 +15,8 @@ import { encryptApiKey, decryptApiKey } from '@/lib/crypto'
 import { parseTelegramTarget } from '@/lib/blog/contract'
 import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
 import { deleteTelegramWebhook, setTelegramWebhook, webhookUrl } from '@/lib/blog/telegram'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 const MASKED = '••••'
 
@@ -27,7 +29,7 @@ const patchSchema = z.object({
   approvalsChatIds: z.array(z.string().max(100)).optional(),
 })
 
-export async function GET() {
+async function handleGET() {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
@@ -54,7 +56,7 @@ export async function GET() {
   })
 }
 
-export async function PATCH(request: Request) {
+async function handlePATCH(request: Request) {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = patchSchema.safeParse(await request.json().catch(() => null))
@@ -165,7 +167,7 @@ export async function PATCH(request: Request) {
     ? await service.from('telegram_settings').update(update).eq('id', prevRow.id)
     : await service.from('telegram_settings').insert(update)
   if (error) {
-    console.error('PATCH /api/superadmin/blog/telegram:', error)
+    log.error('PATCH /api/superadmin/blog/telegram', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -193,3 +195,6 @@ function decryptOrNull(encrypted: string | null | undefined): string | null {
 function siteUrl(): string {
   return (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com').replace(/\/+$/, '')
 }
+
+export const GET = withApi('GET /api/superadmin/blog/telegram', handleGET)
+export const PATCH = withApi('PATCH /api/superadmin/blog/telegram', handlePATCH)

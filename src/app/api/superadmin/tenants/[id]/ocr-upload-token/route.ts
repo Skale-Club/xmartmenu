@@ -1,11 +1,13 @@
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { getStorageClient } from '@/lib/storage'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 // GET /api/superadmin/tenants/[id]/ocr-upload-token?filename=menu.jpg
 // Returns { uploadUrl, storagePath } for direct browser upload to storage.
 // Bypasses Vercel 4.5 MB serverless body limit (PITFALLS.md Pitfall 4, D-01).
-export async function GET(
+async function handleGET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -33,10 +35,12 @@ export async function GET(
       ...(token !== undefined ? { token } : {}),
     })
   } catch (err) {
-    console.error('POST /api/superadmin/tenants/[id]/ocr-upload-token:', err)
+    log.error('POST /api/superadmin/tenants/[id]/ocr-upload-token', { err: err })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
+
+export const GET = withApi('GET /api/superadmin/tenants/[id]/ocr-upload-token', handleGET)

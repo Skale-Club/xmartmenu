@@ -21,6 +21,14 @@ export const USERS = {
   selfOwner: { email: 'owner@test-self.local', tenant: 'self' },
   selfStaff: { email: 'staff@test-self.local', tenant: 'self' },
   switchStaff: { email: 'staff@test-switch.local', tenant: 'switch' },
+  superadmin: { email: 'superadmin@test.local', tenant: null },
+} as const
+
+/** auth.users ids from the seed (audit actor checks). */
+export const USER_IDS = {
+  selfOwner: 'a0000000-0000-4000-8000-000000000004',
+  selfStaff: 'a0000000-0000-4000-8000-000000000005',
+  superadmin: 'a0000000-0000-4000-8000-000000000007',
 } as const
 
 export type UserKey = keyof typeof USERS

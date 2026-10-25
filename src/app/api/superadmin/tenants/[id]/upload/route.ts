@@ -2,8 +2,10 @@ import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { validateAndConvertToWebP } from '@/lib/upload'
 import { getStorageClient } from '@/lib/storage'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function POST(
+async function handlePOST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -30,10 +32,12 @@ export async function POST(
     })
     return NextResponse.json({ url: publicUrl })
   } catch (err) {
-    console.error('POST /api/superadmin/tenants/[id]/upload:', err)
+    log.error('POST /api/superadmin/tenants/[id]/upload', { err: err })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
     )
   }
 }
+
+export const POST = withApi('POST /api/superadmin/tenants/[id]/upload', handlePOST)

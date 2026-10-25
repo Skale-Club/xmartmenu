@@ -29,6 +29,7 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
+import { withApi } from '@/lib/observability/with-api'
 
 const BATCH_SIZE = 100 // tenants enqueued per invocation page
 const THROTTLE_MS = 50 // delay between per-tenant enqueues to avoid stampeding /api/v1/sync
@@ -110,7 +111,7 @@ export async function runBackfillBatch(opts: {
  * service-role keyset read of `tenants`, and the real enqueueXphereSync
  * (reason 'backfill'). Returns { enqueued, skipped, nextCursor, done }.
  */
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const guard = await assertSuperadmin()
   if (!guard) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -141,3 +142,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json(result)
 }
+
+export const POST = withApi('POST /api/superadmin/xphere/backfill', handlePOST)

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { rateLimit } from '@/lib/rate-limit'
 import { parseTranslateRequest, pickTranslationModel, translateMenuTexts } from '@/lib/ai/translate-menu'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 /**
  * POST { from, to: string[], items: { key: text } } → { translations: { lang: { key: text } } }
@@ -9,7 +11,7 @@ import { parseTranslateRequest, pickTranslationModel, translateMenuTexts } from 
  * Suggests translations of menu texts for the owner to review in the admin;
  * it saves nothing.
  */
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -29,10 +31,12 @@ export async function POST(request: Request) {
     const translations = await translateMenuTexts(provider.model, parsed)
     return NextResponse.json({ translations })
   } catch (error) {
-    console.error('POST /api/admin/translate:', error)
+    log.error('POST /api/admin/translate', { err: error })
     return NextResponse.json({ error: 'The translation service did not answer. Try again.' }, { status: 502 })
   }
 }
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
+
+export const POST = withApi('POST /api/admin/translate', handlePOST)

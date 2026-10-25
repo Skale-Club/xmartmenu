@@ -12,8 +12,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { fetchAllRssSources } from '@/lib/blog/rss'
 import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function GET() {
+async function handleGET() {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
@@ -37,7 +38,7 @@ const bodySchema = z.union([
   z.object({ action: z.literal('fetch') }),
 ])
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null))
@@ -79,3 +80,6 @@ export async function POST(request: Request) {
   const summary = await fetchAllRssSources(service, null)
   return NextResponse.json(summary)
 }
+
+export const GET = withApi('GET /api/superadmin/blog/rss', handleGET)
+export const POST = withApi('POST /api/superadmin/blog/rss', handlePOST)

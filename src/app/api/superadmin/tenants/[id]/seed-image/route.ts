@@ -14,6 +14,8 @@ import { NextResponse } from 'next/server'
 import { sanitizeForPrompt } from '@/lib/ai/sanitize'
 import { convertBufferToWebP } from '@/lib/upload'
 import { getStorageClient } from '@/lib/storage'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 // Node.js runtime required | Sharp uses native bindings (cannot run on Edge)
 export const runtime = 'nodejs'
@@ -34,7 +36,7 @@ async function generateSeedImage(apiKey: string, engine: ImageEngine, prompt: st
   return { webpBuffer: await convertBufferToWebP(cropped), totalTokens: image.totalTokens }
 }
 
-export async function POST(
+async function handlePOST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -131,7 +133,7 @@ export async function POST(
 
       if (settingsErr) throw new Error(`tenant_settings update failed: ${settingsErr.message}`)
     } catch (err) {
-      console.error('[seed-image] image_cover error:', err)
+      log.error('[seed-image] image_cover error', { err: err })
       return NextResponse.json(
         { error: 'Internal server error' },
         { status: 500 }
@@ -149,7 +151,7 @@ export async function POST(
         token_count: totalTokens,
       }, { onConflict: 'tenant_id,feature_key,date' })
     } catch (e) {
-      console.error('[ai_usage] non-blocking log failed:', e)
+      log.error('[ai_usage] non-blocking log failed', { err: e })
     }
 
     // D-19: Revalidate ISR cache
@@ -173,7 +175,7 @@ export async function POST(
       .order('position', { ascending: true })
 
     if (prodFetchErr) {
-      console.error('[seed-image] product fetch error:', prodFetchErr)
+      log.error('[seed-image] product fetch error', { err: prodFetchErr })
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
     if (!products || products.length === 0) {
@@ -224,11 +226,11 @@ export async function POST(
             token_count: result.totalTokens,
           }, { onConflict: 'tenant_id,feature_key,date' })
         } catch (e) {
-          console.error('[ai_usage] non-blocking log failed:', e)
+          log.error('[ai_usage] non-blocking log failed', { err: e })
         }
       }
     } catch (err) {
-      console.error('[seed-image] image_products error:', err)
+      log.error('[seed-image] image_products error', { err: err })
       // Return partial success info (D-07)
       return NextResponse.json(
         {
@@ -298,7 +300,7 @@ export async function POST(
 
       if (updateErr) throw new Error(`Product image_url update failed: ${updateErr.message}`)
     } catch (err) {
-      console.error('[seed-image] image_single_product error:', err)
+      log.error('[seed-image] image_single_product error', { err: err })
       return NextResponse.json(
         { error: 'Internal server error' },
         { status: 500 }
@@ -316,7 +318,7 @@ export async function POST(
         token_count: totalTokens,
       }, { onConflict: 'tenant_id,feature_key,date' })
     } catch (e) {
-      console.error('[ai_usage] non-blocking log failed:', e)
+      log.error('[ai_usage] non-blocking log failed', { err: e })
     }
 
     // D-19: Revalidate ISR cache
@@ -330,3 +332,5 @@ export async function POST(
 
   return NextResponse.json({ error: `Unknown image seed type: ${type}` }, { status: 400 })
 }
+
+export const POST = withApi('POST /api/superadmin/tenants/[id]/seed-image', handlePOST)

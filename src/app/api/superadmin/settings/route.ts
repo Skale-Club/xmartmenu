@@ -2,19 +2,21 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function GET() {
+async function handleGET() {
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const service = await createServiceClient()
   const { data, error } = await service.from('platform_settings').select('*').single()
   if (error) {
-    console.error('GET /api/superadmin/settings:', error)
+    log.error('GET /api/superadmin/settings', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data)
 }
 
-export async function PATCH(request: Request) {
+async function handlePATCH(request: Request) {
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
@@ -37,7 +39,7 @@ export async function PATCH(request: Request) {
       .select()
       .single()
     if (error) {
-      console.error('PATCH /api/superadmin/settings:', error)
+      log.error('PATCH /api/superadmin/settings', { err: error })
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
     result = data
@@ -48,7 +50,7 @@ export async function PATCH(request: Request) {
       .select()
       .single()
     if (error) {
-      console.error('PATCH /api/superadmin/settings:', error)
+      log.error('PATCH /api/superadmin/settings', { err: error })
       return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
     }
     result = data
@@ -65,3 +67,6 @@ export async function PATCH(request: Request) {
 
   return NextResponse.json(result)
 }
+
+export const GET = withApi('GET /api/superadmin/settings', handleGET)
+export const PATCH = withApi('PATCH /api/superadmin/settings', handlePATCH)

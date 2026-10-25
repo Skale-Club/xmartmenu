@@ -9,6 +9,8 @@ import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { hashPhone } from '@/lib/crypto'
 import { getChatAddonStatus } from '@/lib/chat-addon'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 export const runtime = 'nodejs'
 
@@ -19,7 +21,7 @@ function validatePhone(phone: string): boolean {
   return digits.length >= 8 && digits.length <= 15
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+async function handlePOST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
   const { phone } = (await request.json()) as Body
   if (!phone || !validatePhone(phone)) {
@@ -74,7 +76,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       .select('id')
       .single()
     if (error || !inserted) {
-      console.error('chat_conversations.insert_error', error)
+      log.error('chat_conversations.insert_error', { err: error })
       return NextResponse.json({ error: 'Failed to create conversation' }, { status: 500 })
     }
     conversationId = inserted.id
@@ -93,3 +95,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     messages_today: existing?.message_count ?? 0,
   })
 }
+
+export const POST = withApi('POST /api/public/chat/[slug]/session', handlePOST)

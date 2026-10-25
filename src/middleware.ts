@@ -4,6 +4,7 @@ import { updateSession } from './lib/supabase/middleware'
 // invariant (no entry may have a named route) and the regression history.
 import { BLOCKED_TENANT_SLUGS } from './lib/marketing/blocked-tenant-slugs'
 import { resolveFeedRewritePath } from './lib/feed-route'
+import { REQUEST_ID_HEADER, resolveRequestId } from './lib/observability/request-id'
 
 // Cache BOTH hits and misses. Without caching misses, every request carrying an
 // unknown Host header (bots hitting the raw IP, preview hosts, misconfigured
@@ -43,7 +44,18 @@ async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
   return data.slug
 }
 
+// Every request gets an id (or keeps the proxy's): forwarded to the app in
+// x-request-id — logs, Sentry and the audit trail carry it — and returned to
+// the browser in the same header, so a user report leads to the exact logs.
 export async function middleware(request: NextRequest) {
+  const requestId = resolveRequestId(request.headers)
+  request.headers.set(REQUEST_ID_HEADER, requestId)
+  const response = await route(request)
+  response.headers.set(REQUEST_ID_HEADER, requestId)
+  return response
+}
+
+async function route(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Internal QStash worker routes authenticate by signature, not session.

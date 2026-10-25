@@ -3,6 +3,7 @@ import dns from 'dns'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { createServiceClient } from '@/lib/supabase/server'
+import { withApi } from '@/lib/observability/with-api'
 
 const dnsLookup = (host: string) =>
   new Promise<string | null>((resolve) => {
@@ -19,7 +20,7 @@ const dnsResolve4 = (host: string) =>
     dns.resolve4(host, (err, addresses) => resolve(err || !addresses ? [] : addresses))
   })
 
-export async function POST(
+async function handlePOST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -109,3 +110,5 @@ export async function POST(
       : 'No CNAME or A record matches platform',
   })
 }
+
+export const POST = withApi('POST /api/admin/tenants/[id]/verify-domain', handlePOST)

@@ -1,8 +1,10 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -65,8 +67,10 @@ export async function PATCH(
     if (error.code === '23505') {
       return NextResponse.json({ error: 'A location with this slug already exists' }, { status: 409 })
     }
-    console.error('PATCH /api/admin/locations/[id]:', error)
+    log.error('PATCH /api/admin/locations/[id]', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data)
 }
+
+export const PATCH = withApi('PATCH /api/admin/locations/[id]', handlePATCH)

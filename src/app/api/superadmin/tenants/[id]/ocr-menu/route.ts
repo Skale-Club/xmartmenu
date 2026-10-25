@@ -6,12 +6,14 @@ import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { OcrMenuSchema } from '@/lib/ai/schemas'
 import { getStorageClient } from '@/lib/storage'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 // Node.js runtime required | the AI SDK uses native Node APIs (D-04 constraint)
 export const runtime = 'nodejs'
 export const maxDuration = 60  // Vision via OpenRouter: typically 5–15s; 60s headroom
 
-export async function POST(
+async function handlePOST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -55,7 +57,7 @@ export async function POST(
   try {
     imageBuffer = await getStorageClient().download('tenant-assets', storagePath)
   } catch (downloadError) {
-    console.error('POST /api/superadmin/tenants/[id]/ocr-menu (download):', downloadError)
+    log.error('POST /api/superadmin/tenants/[id]/ocr-menu (download)', { err: downloadError })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -203,7 +205,7 @@ export async function POST(
     }
 
   } catch (err) {
-    console.error('[ocr-menu] vision or insert error:', err)
+    log.error('[ocr-menu] vision or insert error', { err: err })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -221,7 +223,7 @@ export async function POST(
       token_count: totalTokens,
     }, { onConflict: 'tenant_id,feature_key,date' })
   } catch (e) {
-    console.error('[ai_usage] non-blocking log failed:', e)
+    log.error('[ai_usage] non-blocking log failed', { err: e })
   }
 
   // ── Invalidate ISR cache (D-10) ────────────────────────────────────────────
@@ -237,3 +239,5 @@ export async function POST(
     tokensUsed: totalTokens,
   })
 }
+
+export const POST = withApi('POST /api/superadmin/tenants/[id]/ocr-menu', handlePOST)

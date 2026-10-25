@@ -1,8 +1,9 @@
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { getSafePreviewDestination } from '@/lib/admin/tenant-management'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const tenantId = searchParams.get('tenant')
   if (!tenantId) return NextResponse.redirect(`${origin}/tenants`)
@@ -20,3 +21,5 @@ export async function GET(request: Request) {
   })
   return response
 }
+
+export const GET = withApi('GET /api/admin/enter-preview', handleGET)

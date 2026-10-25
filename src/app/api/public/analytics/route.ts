@@ -6,6 +6,8 @@ import {
   analyticsBatchSchema,
   validateEventTimes,
 } from '@/lib/analytics/contracts'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 export const runtime = 'nodejs'
 
@@ -34,7 +36,7 @@ function sameSessionIdentity(existing: SessionIdentity, incoming: SessionIdentit
  * entities against the tenant/menu, and uses client_event_id for idempotency.
  * Analytics is deliberately independent from menu rendering and ordering.
  */
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const rate = await rateLimit('public-menu-analytics', getClientIp(request), 30, '1 m')
     if (!rate.ok) {
@@ -126,7 +128,7 @@ export async function POST(request: Request) {
         .in('id', productIds)
 
       if (productsError) {
-        console.error('analytics.products_validation_error', productsError)
+        log.error('analytics.products_validation_error', { err: productsError })
         return NextResponse.json({ ok: false }, { status: 500 })
       }
       const validProductIds = new Set(
@@ -148,7 +150,7 @@ export async function POST(request: Request) {
         .in('id', categoryIds)
 
       if (categoriesError) {
-        console.error('analytics.categories_validation_error', categoriesError)
+        log.error('analytics.categories_validation_error', { err: categoriesError })
         return NextResponse.json({ ok: false }, { status: 500 })
       }
       const validCategoryIds = new Set(
@@ -176,7 +178,7 @@ export async function POST(request: Request) {
       .maybeSingle()
 
     if (existingSessionError) {
-      console.error('analytics.session_lookup_error', existingSessionError)
+      log.error('analytics.session_lookup_error', { err: existingSessionError })
       return NextResponse.json({ ok: false }, { status: 500 })
     }
     if (existingSession && !sameSessionIdentity(existingSession as SessionIdentity, incomingIdentity)) {
@@ -191,7 +193,7 @@ export async function POST(request: Request) {
         .eq('id', session.id)
         .eq('tenant_id', session.tenant_id)
       if (error) {
-        console.error('analytics.session_update_error', error)
+        log.error('analytics.session_update_error', { err: error })
         return NextResponse.json({ ok: false }, { status: 500 })
       }
     } else {
@@ -204,7 +206,7 @@ export async function POST(request: Request) {
         last_seen_at: now,
       })
       if (error) {
-        console.error('analytics.session_create_error', error)
+        log.error('analytics.session_create_error', { err: error })
         return NextResponse.json({ ok: false }, { status: 500 })
       }
     }
@@ -232,13 +234,15 @@ export async function POST(request: Request) {
       .upsert(rows, { onConflict: 'client_event_id', ignoreDuplicates: true })
 
     if (insertError) {
-      console.error('analytics.events_insert_error', insertError)
+      log.error('analytics.events_insert_error', { err: insertError })
       return NextResponse.json({ ok: false }, { status: 500 })
     }
 
     return NextResponse.json({ ok: true, received: events.length })
   } catch (error) {
-    console.error('analytics.ingest_error', error)
+    log.error('analytics.ingest_error', { err: error })
     return NextResponse.json({ ok: false }, { status: 500 })
   }
 }
+
+export const POST = withApi('POST /api/public/analytics', handlePOST)

@@ -3,12 +3,14 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { revalidatePath } from 'next/cache'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 interface RouteParams {
   params: Promise<{ id: string }>
 }
 
-export async function GET(request: Request, { params }: RouteParams) {
+async function handleGET(request: Request, { params }: RouteParams) {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -23,7 +25,7 @@ export async function GET(request: Request, { params }: RouteParams) {
     .single()
 
   if (subError && subError.code !== 'PGRST116') {
-    console.error('Failed to fetch subscription:', subError)
+    log.error('Failed to fetch subscription', { err: subError })
     return NextResponse.json({ error: 'Failed to fetch subscription' }, { status: 500 })
   }
 
@@ -50,7 +52,7 @@ export async function GET(request: Request, { params }: RouteParams) {
   return NextResponse.json(subscription)
 }
 
-export async function PUT(request: Request, { params }: RouteParams) {
+async function handlePUT(request: Request, { params }: RouteParams) {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -169,7 +171,7 @@ export async function PUT(request: Request, { params }: RouteParams) {
   }
 
   if (error) {
-    console.error('Failed to update subscription:', error)
+    log.error('Failed to update subscription', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -183,3 +185,6 @@ export async function PUT(request: Request, { params }: RouteParams) {
 
   return NextResponse.json(data)
 }
+
+export const GET = withApi('GET /api/superadmin/tenants/[id]/subscription', handleGET)
+export const PUT = withApi('PUT /api/superadmin/tenants/[id]/subscription', handlePUT)

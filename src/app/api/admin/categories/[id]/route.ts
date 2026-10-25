@@ -3,8 +3,10 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 import { sanitizeTranslations } from '@/lib/menu-translations'
 import { parseCourse } from '@/components/menu/upsell'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -32,13 +34,13 @@ export async function PATCH(
     .single()
 
   if (error) {
-    console.error('PATCH /api/admin/categories/[id]:', error)
+    log.error('PATCH /api/admin/categories/[id]', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data)
 }
 
-export async function DELETE(
+async function handleDELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -57,8 +59,11 @@ export async function DELETE(
     .eq('tenant_id', effective.tenantId)
 
   if (error) {
-    console.error('DELETE /api/admin/categories/[id]:', error)
+    log.error('DELETE /api/admin/categories/[id]', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json({ success: true })
 }
+
+export const PATCH = withApi('PATCH /api/admin/categories/[id]', handlePATCH)
+export const DELETE = withApi('DELETE /api/admin/categories/[id]', handleDELETE)

@@ -2,13 +2,15 @@ import { NextResponse } from 'next/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { getStorageClient } from '@/lib/storage'
 import { validateAndConvertToWebP } from '@/lib/upload'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime']
 
 export const maxDuration = 60
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -66,7 +68,9 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   } catch (err) {
-    console.error('[upload] unhandled error:', err)
+    log.error('[upload] unhandled error', { err: err })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const POST = withApi('POST /api/superadmin/platform/upload', handlePOST)

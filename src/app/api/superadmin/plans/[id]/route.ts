@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 interface RouteParams {
   params: Promise<{ id: string }>
 }
 
-export async function GET(request: Request, { params }: RouteParams) {
+async function handleGET(request: Request, { params }: RouteParams) {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -20,14 +22,14 @@ export async function GET(request: Request, { params }: RouteParams) {
     .single()
 
   if (error) {
-    console.error('Failed to fetch plan:', error)
+    log.error('Failed to fetch plan', { err: error })
     return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
   }
 
   return NextResponse.json(data)
 }
 
-export async function PUT(request: Request, { params }: RouteParams) {
+async function handlePUT(request: Request, { params }: RouteParams) {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -109,14 +111,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
     .single()
 
   if (error) {
-    console.error('Failed to update plan:', error)
+    log.error('Failed to update plan', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json(data)
 }
 
-export async function DELETE(request: Request, { params }: RouteParams) {
+async function handleDELETE(request: Request, { params }: RouteParams) {
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -143,9 +145,13 @@ export async function DELETE(request: Request, { params }: RouteParams) {
     .eq('id', id)
 
   if (error) {
-    console.error('Failed to delete plan:', error)
+    log.error('Failed to delete plan', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return new NextResponse(null, { status: 204 })
 }
+
+export const GET = withApi('GET /api/superadmin/plans/[id]', handleGET)
+export const PUT = withApi('PUT /api/superadmin/plans/[id]', handlePUT)
+export const DELETE = withApi('DELETE /api/superadmin/plans/[id]', handleDELETE)

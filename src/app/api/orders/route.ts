@@ -9,6 +9,8 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { phoneMatchKey } from '@/lib/phone'
 import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
 import { computeOptionUnit, type ServerOptionGroup } from '@/lib/menu/option-pricing'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 interface CartEditorState {
   singleSelections?: Record<string, string>
@@ -90,7 +92,7 @@ function computeIngredientDelta(
   return delta
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   try {
     const rl = await rateLimit('orders-create', getClientIp(request), 12, '1 m')
     if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
@@ -232,7 +234,7 @@ export async function POST(request: Request) {
       .eq('tenant_id', tenant_id)
 
     if (productsError || !dbProducts) {
-      console.error('orders.products_fetch_error', productsError)
+      log.error('orders.products_fetch_error', { err: productsError })
       return NextResponse.json({ error: 'Failed to validate products' }, { status: 500 })
     }
     if (dbProducts.length !== productIds.length) {
@@ -369,7 +371,7 @@ export async function POST(request: Request) {
       .single()
 
     if (orderError || !order) {
-      console.error('orders.create_error', orderError)
+      log.error('orders.create_error', { err: orderError })
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
     }
 
@@ -389,7 +391,7 @@ export async function POST(request: Request) {
       .insert(orderItems)
 
     if (itemsError) {
-      console.error('orders.items_create_error', itemsError)
+      log.error('orders.items_create_error', { err: itemsError })
       await service.from('orders').delete().eq('id', order.id)
       return NextResponse.json({ error: 'Failed to create order items' }, { status: 500 })
     }
@@ -398,12 +400,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id: order.id, status: order.status, total: order.total, order_type: order.order_type, requires_payment: requiresPayment })
   } catch (error) {
-    console.error('orders.error', error)
+    log.error('orders.error', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
 
-export async function GET() {
+async function handleGET() {
   try {
     // P0-07 fix: require auth, derive tenant from session, never trust query
     // string. Forbid customer-role accounts.
@@ -431,13 +433,16 @@ export async function GET() {
       .limit(ORDERS_MAX_ROWS)
 
     if (ordersError) {
-      console.error('orders.fetch_error', ordersError)
+      log.error('orders.fetch_error', { err: ordersError })
       return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 })
     }
 
     return NextResponse.json({ orders: orders ?? [] })
   } catch (error) {
-    console.error('orders.fetch_error', error)
+    log.error('orders.fetch_error', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const POST = withApi('POST /api/orders', handlePOST)
+export const GET = withApi('GET /api/orders', handleGET)

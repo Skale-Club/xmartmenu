@@ -8,8 +8,9 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function POST() {
+async function handlePOST() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -33,3 +34,5 @@ export async function POST() {
 
   return NextResponse.json({ url: session.url })
 }
+
+export const POST = withApi('POST /api/tenant/subscription/portal', handlePOST)

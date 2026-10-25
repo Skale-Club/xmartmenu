@@ -1,4 +1,5 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { setRequestContext } from '@/lib/observability/context'
 import { normalizeRole, parseSuperadminEmails } from '@/lib/auth/role-utils'
 import { captureSecurityEvent } from '@/lib/observability'
 
@@ -49,5 +50,7 @@ export async function assertSuperadmin() {
     .select('role')
     .eq('id', user.id)
     .single()
-  return normalizeRole(profile?.role) === 'superadmin' ? supabase : null
+  const isSuperadmin = normalizeRole(profile?.role) === 'superadmin'
+  if (isSuperadmin) setRequestContext({ actorId: user.id, role: 'superadmin' })
+  return isSuperadmin ? supabase : null
 }

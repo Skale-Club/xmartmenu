@@ -18,8 +18,10 @@ async function assertStoreAdmin() {
 // secure password on create. Plaintext returned once in the response so the
 // admin can hand it to the new staff member.
 import { generatePassword as generateStaffPassword } from '@/lib/auth/password-gen'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function GET() {
+async function handleGET() {
   const ctx = await assertStoreAdmin()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -47,7 +49,7 @@ export async function GET() {
   return NextResponse.json(staffWithEmail)
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   const ctx = await assertStoreAdmin()
@@ -72,7 +74,7 @@ export async function POST(request: Request) {
     if (userError.message.includes('already been registered')) {
       return NextResponse.json({ error: 'This email is already registered' }, { status: 409 })
     }
-    console.error('POST /api/admin/staff:', userError)
+    log.error('POST /api/admin/staff', { err: userError })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -102,3 +104,6 @@ export async function POST(request: Request) {
     credentials: { email, password: staffPassword },
   }, { status: 201 })
 }
+
+export const GET = withApi('GET /api/admin/staff', handleGET)
+export const POST = withApi('POST /api/admin/staff', handlePOST)

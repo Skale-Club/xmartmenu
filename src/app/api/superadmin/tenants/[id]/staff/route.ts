@@ -2,12 +2,14 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { checkPasswordChangeRequired } from '@/lib/auth/password-guard'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 interface Props { params: Promise<{ id: string }> }
 
 const DEFAULT_STAFF_PASSWORD = process.env.DEFAULT_STAFF_PASSWORD?.trim() || 'Staff@12345'
 
-export async function GET(_req: Request, { params }: Props) {
+async function handleGET(_req: Request, { params }: Props) {
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -33,7 +35,7 @@ export async function GET(_req: Request, { params }: Props) {
   return NextResponse.json(staffWithEmail)
 }
 
-export async function POST(request: Request, { params }: Props) {
+async function handlePOST(request: Request, { params }: Props) {
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -57,7 +59,7 @@ export async function POST(request: Request, { params }: Props) {
     if (userError.message.includes('already been registered')) {
       return NextResponse.json({ error: 'This email is already registered' }, { status: 409 })
     }
-    console.error('POST /api/superadmin/tenants/[id]/staff:', userError)
+    log.error('POST /api/superadmin/tenants/[id]/staff', { err: userError })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
@@ -72,7 +74,7 @@ export async function POST(request: Request, { params }: Props) {
     }, { onConflict: 'id' })
 
     if (profileError) {
-      console.error('POST /api/superadmin/tenants/[id]/staff profile:', profileError)
+      log.error('POST /api/superadmin/tenants/[id]/staff profile', { err: profileError })
       await service.auth.admin.deleteUser(userData.user.id)
       return NextResponse.json({ error: 'Failed to link this staff member to the restaurant' }, { status: 500 })
     }
@@ -88,3 +90,6 @@ export async function POST(request: Request, { params }: Props) {
     credentials: { email, password: DEFAULT_STAFF_PASSWORD },
   }, { status: 201 })
 }
+
+export const GET = withApi('GET /api/superadmin/tenants/[id]/staff', handleGET)
+export const POST = withApi('POST /api/superadmin/tenants/[id]/staff', handlePOST)

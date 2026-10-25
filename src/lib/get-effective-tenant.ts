@@ -2,6 +2,7 @@ import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { normalizeRole } from '@/lib/auth/role-utils'
 import type { UserRole } from '@/types/database'
+import { setRequestContext } from '@/lib/observability/context'
 
 interface EffectiveTenant {
   tenantId: string
@@ -36,10 +37,13 @@ export async function getEffectiveTenant(): Promise<EffectiveTenant | null> {
       .single()
 
     if (!tenant) return null
+    // Logs, Sentry and the audit trail attribute this request to the superadmin.
+    setRequestContext({ actorId: user.id, tenantId: tenant.id, role: 'superadmin' })
     return { tenantId: tenant.id, slug: tenant.slug, name: tenant.name, role: 'superadmin' }
   }
 
   const t = profile.tenants as any
+  setRequestContext({ actorId: user.id, tenantId: profile.tenant_id, role: normalizedRole ?? profile.role })
   return {
     tenantId: profile.tenant_id,
     slug: t?.slug ?? '',

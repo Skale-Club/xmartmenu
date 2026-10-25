@@ -1,6 +1,8 @@
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 /**
  * PATCH /api/admin/seo
@@ -9,7 +11,7 @@ import { NextResponse } from 'next/server'
  * scopes the write to the caller's own tenant. Empty strings persist as NULL so
  * the public pages fall back to derived values.
  */
-export async function PATCH(request: Request) {
+async function handlePATCH(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -50,8 +52,10 @@ export async function PATCH(request: Request) {
     .upsert(update, { onConflict: 'tenant_id' })
 
   if (error) {
-    console.error('PATCH /api/admin/seo:', error)
+    log.error('PATCH /api/admin/seo', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json({ ok: true })
 }
+
+export const PATCH = withApi('PATCH /api/admin/seo', handlePATCH)

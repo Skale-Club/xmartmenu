@@ -4,8 +4,10 @@ import { NextResponse } from 'next/server'
 import { generatePassword } from '@/lib/auth/password-gen'
 import { validateTenantSlug } from '@/lib/admin/tenant-management'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function GET() {
+async function handleGET() {
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -17,7 +19,7 @@ export async function GET() {
   return NextResponse.json(data)
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json().catch(() => null)
@@ -57,7 +59,7 @@ export async function POST(request: Request) {
     .single()
 
   if (tenantError || !tenant) {
-    console.error('POST /api/superadmin/tenants create tenant:', tenantError)
+    log.error('POST /api/superadmin/tenants create tenant', { err: tenantError })
     return NextResponse.json({ error: 'Failed to create the restaurant.' }, { status: 500 })
   }
 
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
 
   const { error: settingsError } = await service.from('tenant_settings').insert({ tenant_id: tenant.id })
   if (settingsError) {
-    console.error('POST /api/superadmin/tenants create settings:', settingsError)
+    log.error('POST /api/superadmin/tenants create settings', { err: settingsError })
     await cleanup()
     return NextResponse.json({ error: 'Failed to create restaurant settings.' }, { status: 500 })
   }
@@ -85,7 +87,7 @@ export async function POST(request: Request) {
     .select('tenant_id, plan_id, status, plan:plans(id, name, slug)')
     .single()
   if (subscriptionError || !subscription) {
-    console.error('POST /api/superadmin/tenants create subscription:', subscriptionError)
+    log.error('POST /api/superadmin/tenants create subscription', { err: subscriptionError })
     await cleanup()
     return NextResponse.json({ error: 'Failed to assign the subscription plan.' }, { status: 500 })
   }
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
     position: 0,
   })
   if (menuError) {
-    console.error('POST /api/superadmin/tenants create menu:', menuError)
+    log.error('POST /api/superadmin/tenants create menu', { err: menuError })
     await cleanup()
     return NextResponse.json({ error: 'Failed to create the default menu.' }, { status: 500 })
   }
@@ -116,7 +118,7 @@ export async function POST(request: Request) {
   })
 
   if (userError || !userData.user) {
-    console.error('POST /api/superadmin/tenants create owner:', userError)
+    log.error('POST /api/superadmin/tenants create owner', { err: userError })
     await cleanup()
     const duplicate = userError?.message.toLowerCase().includes('already')
     return NextResponse.json(
@@ -134,7 +136,7 @@ export async function POST(request: Request) {
     password_changed_at: null,
   }, { onConflict: 'id' })
   if (profileError) {
-    console.error('POST /api/superadmin/tenants create owner profile:', profileError)
+    log.error('POST /api/superadmin/tenants create owner profile', { err: profileError })
     await cleanup()
     return NextResponse.json({ error: 'Failed to link the administrator to the restaurant.' }, { status: 500 })
   }
@@ -148,3 +150,6 @@ export async function POST(request: Request) {
     credentials: { email, password: tempPassword },
   }, { status: 201 })
 }
+
+export const GET = withApi('GET /api/superadmin/tenants', handleGET)
+export const POST = withApi('POST /api/superadmin/tenants', handlePOST)

@@ -2,8 +2,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function GET() {
+async function handleGET() {
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = await createServiceClient()
@@ -32,3 +33,5 @@ export async function GET() {
 
   return NextResponse.json(users)
 }
+
+export const GET = withApi('GET /api/superadmin/users', handleGET)

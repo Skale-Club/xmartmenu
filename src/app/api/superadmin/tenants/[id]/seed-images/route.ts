@@ -1,13 +1,14 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
 
 // Short-lived route: only inserts a DB row + dispatches GH Actions.
 // Actual image generation happens in GH Actions (no Vercel timeout risk).
 export const runtime = 'nodejs'
 export const maxDuration = 15
 
-export async function POST(
+async function handlePOST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -88,3 +89,5 @@ export async function POST(
 
   return NextResponse.json({ jobId })
 }
+
+export const POST = withApi('POST /api/superadmin/tenants/[id]/seed-images', handlePOST)

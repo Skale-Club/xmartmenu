@@ -1,8 +1,10 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function GET() {
+async function handleGET() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -14,13 +16,13 @@ export async function GET() {
     .order('created_at', { ascending: true })
 
   if (error) {
-    console.error('GET /api/admin/locations:', error)
+    log.error('GET /api/admin/locations', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data ?? [])
 }
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') {
@@ -81,8 +83,11 @@ export async function POST(request: Request) {
     if (error.code === '23505') {
       return NextResponse.json({ error: 'A location with this slug already exists' }, { status: 409 })
     }
-    console.error('POST /api/admin/locations:', error)
+    log.error('POST /api/admin/locations', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
   return NextResponse.json(data, { status: 201 })
 }
+
+export const GET = withApi('GET /api/admin/locations', handleGET)
+export const POST = withApi('POST /api/admin/locations', handlePOST)

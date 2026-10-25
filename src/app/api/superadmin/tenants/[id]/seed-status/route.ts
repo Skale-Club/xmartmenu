@@ -2,13 +2,14 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
 
 // Polling endpoint | called every 3s by TenantDetailClient.
 // When status transitions to 'complete', revalidates the tenant's public menu ISR cache
 // so newly seeded images become visible without an extra round-trip from GH Actions.
 export const runtime = 'nodejs'
 
-export async function GET(
+async function handleGET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -55,3 +56,5 @@ export async function GET(
     errorMessage: job.error_message ?? null,
   })
 }
+
+export const GET = withApi('GET /api/superadmin/tenants/[id]/seed-status', handleGET)

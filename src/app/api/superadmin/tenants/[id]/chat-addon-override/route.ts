@@ -8,8 +8,9 @@
 import { NextResponse } from 'next/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { createServiceClient } from '@/lib/supabase/server'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+async function handlePOST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ok = await assertSuperadmin()
   if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -28,3 +29,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (error) return NextResponse.json({ error: 'Failed to update override' }, { status: 500 })
   return NextResponse.json({ ok: true })
 }
+
+export const POST = withApi('POST /api/superadmin/tenants/[id]/chat-addon-override', handlePOST)

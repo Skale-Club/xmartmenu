@@ -1,12 +1,14 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 // Lists products for a given menu | used by AI Tools per-product image seed UI (AI-09).
 // Mirrors the existing /menus/[menuId]/categories-list pattern.
 export const runtime = 'nodejs'
 
-export async function GET(
+async function handleGET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -30,9 +32,11 @@ export async function GET(
     .order('position', { ascending: true })
 
   if (error) {
-    console.error('GET /api/superadmin/tenants/[id]/products-list:', error)
+    log.error('GET /api/superadmin/tenants/[id]/products-list', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json({ products: products ?? [] })
 }
+
+export const GET = withApi('GET /api/superadmin/tenants/[id]/products-list', handleGET)

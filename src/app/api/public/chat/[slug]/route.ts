@@ -36,6 +36,8 @@ import {
 import { computeOpenStatus, describeOrdering, describeProfile, resolveOrderingMode, resolveTimeZone } from '@/lib/chat-context'
 import { isStripeEnabled } from '@/lib/stripe'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -53,7 +55,7 @@ interface ChatRequestBody {
   voice_token?: string
 }
 
-export async function POST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
+async function handlePOST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
 
   const ip = getClientIp(request)
@@ -135,7 +137,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     try {
       fromVoice = channels.voice && verifyVoiceTranscript(voiceTokenSecret(), conversation_id, userMessage, body?.voice_token)
     } catch (e) {
-      console.error('chat.voice_token_error', e)
+      log.error('chat.voice_token_error', { err: e })
     }
     if (!fromVoice) return NextResponse.json({ error: 'This restaurant takes voice messages only' }, { status: 403 })
   }
@@ -151,7 +153,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   try {
     openRouterKey = decryptApiKey(settings.openrouter_api_key)
   } catch (e) {
-    console.error('chat.decrypt_error', e)
+    log.error('chat.decrypt_error', { err: e })
     return NextResponse.json({ error: 'Server config error' }, { status: 500 })
   }
 
@@ -235,7 +237,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       ordersEnabled: canAddToCart,
     })
   } catch (e) {
-    console.error('chat.generate_error', e)
+    log.error('chat.generate_error', { err: e })
     return NextResponse.json({ error: 'Assistant temporarily unavailable' }, { status: 502 })
   }
 
@@ -271,3 +273,5 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     remaining_today: Math.max(0, limit - used - 1),
   })
 }
+
+export const POST = withApi('POST /api/public/chat/[slug]', handlePOST)

@@ -11,6 +11,8 @@ import {
   SingleCategorySeedSchema,
   SingleProductSeedSchema,
 } from '@/lib/ai/schemas'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 // Node.js runtime required | the AI SDK uses native Node APIs (D-04 constraint)
 export const runtime = 'nodejs'
@@ -18,7 +20,7 @@ export const maxDuration = 60  // Text via OpenRouter: < 10s typical; 60s headro
 
 type SeedType = 'menu' | 'categories' | 'products' | 'copy' | 'single_category' | 'single_product'
 
-export async function POST(
+async function handlePOST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -411,7 +413,7 @@ export async function POST(
     }
 
   } catch (err) {
-    console.error('[seed] generation or insert error:', err)
+    log.error('[seed] generation or insert error', { err: err })
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
@@ -429,7 +431,7 @@ export async function POST(
       token_count: totalTokens,
     }, { onConflict: 'tenant_id,feature_key,date' })
   } catch (e) {
-    console.error('[ai_usage] non-blocking log failed:', e)
+    log.error('[ai_usage] non-blocking log failed', { err: e })
   }
 
   // ── Invalidate ISR cache (D-10) ────────────────────────────────────────────
@@ -445,3 +447,5 @@ export async function POST(
     tokensUsed: totalTokens,
   })
 }
+
+export const POST = withApi('POST /api/superadmin/tenants/[id]/seed', handlePOST)

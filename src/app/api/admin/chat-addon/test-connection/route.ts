@@ -7,8 +7,9 @@
  */
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function POST(request: Request) {
+async function handlePOST(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -40,3 +41,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: e instanceof Error ? e.message : 'Network error' }, { status: 200 })
   }
 }
+
+export const POST = withApi('POST /api/admin/chat-addon/test-connection', handlePOST)

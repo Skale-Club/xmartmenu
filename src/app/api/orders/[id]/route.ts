@@ -2,12 +2,14 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 const VALID_STATUSES = [
   'pending', 'paid', 'payment_failed', 'preparing', 'ready', 'done', 'cancelled',
 ] as const
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -58,7 +60,7 @@ export async function PATCH(
       .single()
 
     if (error || !order) {
-      console.error('orders.update_error', error)
+      log.error('orders.update_error', { err: error })
       return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
     }
 
@@ -70,7 +72,9 @@ export async function PATCH(
 
     return NextResponse.json({ id: order.id, status: order.status })
   } catch (error) {
-    console.error('orders.update_error', error)
+    log.error('orders.update_error', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
+
+export const PATCH = withApi('PATCH /api/orders/[id]', handlePATCH)

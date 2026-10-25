@@ -73,5 +73,7 @@ export default withSentryConfig(config, {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+  // Same release as the runtime SDKs (Docker GIT_SHA -> NEXT_PUBLIC_RELEASE).
+  release: process.env.NEXT_PUBLIC_RELEASE ? { name: process.env.NEXT_PUBLIC_RELEASE } : undefined,
   disableLogger: true,
 });

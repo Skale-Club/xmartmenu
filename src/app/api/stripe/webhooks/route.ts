@@ -24,6 +24,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { captureSecurityEvent } from '@/lib/observability'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
 import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
 type UpdateResult = { success: boolean; error?: string }
 
@@ -32,14 +34,14 @@ function tsToIso(unix: number | null | undefined): string | null {
   return typeof unix === 'number' ? new Date(unix * 1000).toISOString() : null
 }
 
-export async function POST(request: NextRequest) {
+async function handlePOST(request: NextRequest) {
   try {
     // 1. Get raw body and signature header
     const body = await request.text()
     const signature = request.headers.get('stripe-signature')
 
     if (!signature) {
-      console.error('Missing Stripe signature header')
+      log.error('Missing Stripe signature header')
       captureSecurityEvent('Stripe webhook: missing signature header')
       return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
     }
@@ -53,7 +55,7 @@ export async function POST(request: NextRequest) {
         process.env.STRIPE_WEBHOOK_SECRET!
       )
     } catch (sigError) {
-      console.error('Webhook signature verification failed:', sigError)
+      log.error('Webhook signature verification failed', { err: sigError })
       captureSecurityEvent('Stripe webhook: signature verification failed', {
         message: sigError instanceof Error ? sigError.message : String(sigError),
       })
@@ -106,7 +108,7 @@ export async function POST(request: NextRequest) {
             .single()
 
           if (fetchErr || !order) {
-            console.error('payment_intent.succeeded for unknown order:', orderId, fetchErr)
+            log.error('payment_intent.succeeded for unknown order', { order_id: orderId, err: fetchErr })
             // Nothing to update; treat as processed so Stripe stops retrying.
             break
           }
@@ -135,7 +137,7 @@ export async function POST(request: NextRequest) {
             .in('status', ['awaiting_payment', 'pending'])
 
           if (updateError) {
-            console.error('Failed to update order to paid:', updateError)
+            log.error('Failed to update order to paid', { err: updateError })
             updateResult = { success: false, error: updateError.message }
           } else {
             await recordTrustedOrderAnalyticsEvent(orderId, 'order_completed')
@@ -159,7 +161,7 @@ export async function POST(request: NextRequest) {
             .in('status', ['awaiting_payment', 'pending'])
 
           if (updateError) {
-            console.error('Failed to update order to payment_failed:', updateError)
+            log.error('Failed to update order to payment_failed', { err: updateError })
             updateResult = { success: false, error: updateError.message }
           }
         }
@@ -180,7 +182,7 @@ export async function POST(request: NextRequest) {
             .eq('id', orderId)
             .eq('status', 'awaiting_payment')
           if (updateError) {
-            console.error('Failed to cancel awaiting_payment order:', updateError)
+            log.error('Failed to cancel awaiting_payment order', { err: updateError })
             updateResult = { success: false, error: updateError.message }
           } else {
             await recordTrustedOrderAnalyticsEvent(orderId, 'order_cancelled')
@@ -213,7 +215,7 @@ export async function POST(request: NextRequest) {
             })
             .eq('tenant_id', tenantId)
           if (subErr) {
-            console.error('Failed to activate plan subscription:', subErr)
+            log.error('Failed to activate plan subscription', { err: subErr })
             updateResult = { success: false, error: subErr.message }
           }
           // #2 (LIF-02): paid plan activated → Opportunity moves to Active/Won.
@@ -230,7 +232,7 @@ export async function POST(request: NextRequest) {
             })
             .eq('tenant_id', tenantId)
           if (subErr) {
-            console.error('Failed to activate chat addon:', subErr)
+            log.error('Failed to activate chat addon', { err: subErr })
             updateResult = { success: false, error: subErr.message }
           }
         }
@@ -321,7 +323,7 @@ export async function POST(request: NextRequest) {
             })
             .eq('tenant_id', tenantId)
           if (error) {
-            console.error('Failed to sync plan subscription:', error)
+            log.error('Failed to sync plan subscription', { err: error })
             updateResult = { success: false, error: error.message }
           }
           // #5 (LIF-05) churn — deleted path only.
@@ -394,7 +396,7 @@ export async function POST(request: NextRequest) {
             .update({ status: 'past_due' })
             .eq('stripe_subscription_id', subscriptionId)
           if (error) {
-            console.error('Failed to mark subscription past_due:', error)
+            log.error('Failed to mark subscription past_due', { err: error })
             updateResult = { success: false, error: error.message }
           }
           // #4 (LIF-04): dunning → Opportunity At Risk. This branch only carries
@@ -460,7 +462,7 @@ export async function POST(request: NextRequest) {
     // 5. On failure, do NOT record idempotency — return 500 so Stripe retries
     // and the event is genuinely reprocessed (all handlers above are idempotent).
     if (!updateResult.success) {
-      console.error(`Event ${eventId} business logic failed: ${updateResult.error}`)
+      log.error('Event ${eventId} business logic failed: ${updateResult.error}')
       return NextResponse.json({ received: false, error: updateResult.error }, { status: 500 })
     }
 
@@ -477,7 +479,7 @@ export async function POST(request: NextRequest) {
       )
 
     if (insertError) {
-      console.error('Failed to record processed event:', insertError)
+      log.error('Failed to record processed event', { err: insertError })
       // The work succeeded; a duplicate delivery would just redo idempotent work.
     }
 
@@ -494,8 +496,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ received: true })
   } catch (error) {
-    console.error('Webhook processing error:', error)
+    log.error('Webhook processing error', { err: error })
     // Unexpected error — return 500 so Stripe retries.
     return NextResponse.json({ error: 'Processing error' }, { status: 500 })
   }
 }
+
+export const POST = withApi('POST /api/stripe/webhooks', handlePOST)

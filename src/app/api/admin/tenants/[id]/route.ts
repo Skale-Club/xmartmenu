@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
+import { withApi } from '@/lib/observability/with-api'
+import { log } from '@/lib/observability/log'
 
-export async function PATCH(
+async function handlePATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -41,9 +43,11 @@ export async function PATCH(
     .single()
 
   if (error) {
-    console.error('PATCH /api/admin/tenants/[id]:', error)
+    log.error('PATCH /api/admin/tenants/[id]', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
   return NextResponse.json({ tenant: data })
 }
+
+export const PATCH = withApi('PATCH /api/admin/tenants/[id]', handlePATCH)

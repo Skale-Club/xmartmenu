@@ -6,8 +6,9 @@
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -39,3 +40,5 @@ export async function GET(request: Request) {
     page_size: pageSize,
   })
 }
+
+export const GET = withApi('GET /api/admin/chat-addon/conversations', handleGET)
