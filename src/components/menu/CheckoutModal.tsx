@@ -1,12 +1,14 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
-import { X, ChevronLeft, User, Phone, CheckCircle, UtensilsCrossed, Package, Truck, MapPin } from 'lucide-react'
-import { formatPrice } from '@/lib/utils'
-import type { UICopyEntry, CartItem } from './menu-utils'
+import { useId, useState, type ReactNode } from 'react'
+import { X, ChevronLeft, Check, UtensilsCrossed, Package, Truck, MapPin } from 'lucide-react'
+import type { CartItem } from './menu-utils'
 import { getProductImages, summarizeOptions, summarizeIngredientMods } from './menu-utils'
+import { formatMoney, getMenuCopy } from './menu-i18n'
 import type { DeliveryZone } from '@/types/database'
+import { computePrimaryForeground } from '@/lib/color-utils'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 function findMatchingZone(zipcode: string | undefined, zones: DeliveryZone[] | undefined): DeliveryZone | null {
   if (!zipcode || !zones || zones.length === 0) return null
@@ -16,24 +18,23 @@ function findMatchingZone(zipcode: string | undefined, zones: DeliveryZone[] | u
 }
 
 /**
- * Structured checkout consolidation page. Shows a read-only order summary
- * (product photos, options, ingredient changes, line totals) plus the
- * order-type / delivery / tip / customer sections and a payment summary,
- * with a final "Place order" confirmation. Item editing happens in CartPanel.
+ * Checkout: one calm column — what you're ordering, how you want it, your
+ * details, the totals — with "Place order · total" pinned at the bottom.
+ * Phones: a sheet from the bottom. Larger screens: centred. Item editing
+ * happens in CartPanel.
  */
-export default function CheckoutModal({ cart, confirmedCart, currency, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, ui, primaryColor, accentColor, orderTypeConfig, orderType, deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, deliveryZones, tipsEnabled, tipPercentages, tipCents, onTipChange, onOrderTypeChange, onDeliveryFieldChange, onClose, onBack, onCustomerNameChange, onCustomerPhoneChange, onSubmit }: {
+export default function CheckoutModal({ cart, confirmedCart, currency, lang, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, primaryColor, orderTypeConfig, orderType, deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, deliveryZones, tipsEnabled, tipPercentages, tipCents, onTipChange, onOrderTypeChange, onDeliveryFieldChange, onClose, onBack, onCustomerNameChange, onCustomerPhoneChange, onSubmit }: {
   cart: CartItem[]
   confirmedCart: CartItem[]
   currency: string
+  lang: string
   customerName: string
   customerPhone: string
   submittingOrder: boolean
   orderSuccess: boolean
   orderError: string | null
   orderId: string | null
-  ui: UICopyEntry
   primaryColor?: string
-  accentColor?: string
   orderTypeConfig?: { dineIn: boolean; pickup: boolean; delivery: boolean; deliveryFeeCents: number }
   orderType?: string
   deliveryStreet?: string
@@ -56,17 +57,19 @@ export default function CheckoutModal({ cart, confirmedCart, currency, customerN
 }) {
   const [selectedTipKey, setSelectedTipKey] = useState<'pct1' | 'pct2' | 'pct3' | 'custom' | null>(null)
   const [customTipValue, setCustomTipValue] = useState('')
+  const copy = getMenuCopy(lang)
+  const money = (value: number) => formatMoney(value, currency, lang)
+  const primary = primaryColor ?? '#18181b'
+  const onPrimary = computePrimaryForeground(primary)
 
   const total = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const confirmedTotal = confirmedCart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
-  const accent = accentColor ?? '#09090b'
-  const primary = primaryColor ?? '#F52323'
-  const tipDollars = (tipCents ?? 0) / 100
+  const tipAmount = (tipCents ?? 0) / 100
   const matchedZone = findMatchingZone(deliveryZipcode, deliveryZones)
   const deliveryFeeCents = orderType === 'delivery'
     ? (matchedZone != null ? matchedZone.fee_cents : (orderTypeConfig?.deliveryFeeCents ?? 0))
     : 0
-  const grandTotal = total + deliveryFeeCents / 100 + tipDollars
+  const grandTotal = total + deliveryFeeCents / 100 + tipAmount
 
   function handleTipPct(key: 'pct1' | 'pct2' | 'pct3', pct: number) {
     if (selectedTipKey === key) {
@@ -93,295 +96,278 @@ export default function CheckoutModal({ cart, confirmedCart, currency, customerN
 
   function handleCustomTipInput(value: string) {
     setCustomTipValue(value)
-    const dollars = parseFloat(value)
-    onTipChange?.(isNaN(dollars) ? 0 : Math.max(0, Math.round(dollars * 100)))
+    const amount = parseFloat(value)
+    onTipChange?.(isNaN(amount) ? 0 : Math.max(0, Math.round(amount * 100)))
   }
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-0 sm:px-4" onClick={onClose}>
-      <div
-        className="relative bg-[#b0b8c8] w-full sm:max-w-3xl rounded-t-2xl sm:rounded-2xl overflow-hidden max-h-[92vh] flex flex-col sm:flex-row shadow-2xl"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Close */}
-        <button onClick={onClose} className="absolute top-4 right-4 z-20 w-8 h-8 flex items-center justify-center rounded-full bg-white/60 hover:bg-white transition-all text-zinc-500 shadow-sm">
-          <X className="w-4 h-4" />
-        </button>
+  const activeTypes: { key: string; label: string; Icon: typeof Truck }[] = []
+  if (orderTypeConfig?.dineIn) activeTypes.push({ key: 'dine_in', label: copy.dineIn, Icon: UtensilsCrossed })
+  if (orderTypeConfig?.pickup) activeTypes.push({ key: 'pickup', label: copy.pickup, Icon: Package })
+  if (orderTypeConfig?.delivery) activeTypes.push({ key: 'delivery', label: copy.delivery, Icon: Truck })
 
-        {/* ── LEFT: structured order summary ── */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <div className="px-6 pt-6 pb-4 flex items-center gap-2">
-            {!orderSuccess && (
-              <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/60 hover:bg-white transition-all text-zinc-600" aria-label="Back to cart">
-                <ChevronLeft className="w-4 h-4" />
+  const showForm = !orderSuccess && cart.length > 0
+
+  return (
+    <ModalPortal onClose={onClose}>
+      <div className="menu-root fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={copy.checkoutTitle}
+          className="relative flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:max-h-[calc(100dvh-2rem)] sm:max-w-xl sm:rounded-3xl"
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className="flex shrink-0 items-center gap-1 border-b border-zinc-100 bg-white px-2 py-2">
+            {!orderSuccess ? (
+              <button type="button" onClick={onBack} className="flex size-11 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-zinc-100" aria-label={copy.backToCart}>
+                <ChevronLeft className="size-5" />
               </button>
-            )}
-            <h3 className="text-lg font-black text-zinc-800 tracking-tight">Checkout</h3>
+            ) : <span className="size-11" />}
+            <h2 className="flex-1 text-center text-[17px] font-semibold text-zinc-900">{orderSuccess ? copy.orderPlaced : copy.checkoutTitle}</h2>
+            <button type="button" onClick={onClose} className="flex size-11 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900" aria-label={copy.close}>
+              <X className="size-5" />
+            </button>
           </div>
 
           {orderSuccess && orderId ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle className="w-8 h-8 text-green-600" />
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 pt-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+              <div className="flex flex-col items-center text-center">
+                <div className="flex size-16 items-center justify-center rounded-full bg-emerald-50">
+                  <Check className="size-8 text-emerald-600" strokeWidth={2.5} />
+                </div>
+                <p className="mt-4 text-[22px] font-semibold tracking-tight text-zinc-900">{copy.orderPlaced}</p>
+                <p className="mt-1 max-w-xs text-[15px] text-zinc-500">{copy.orderThankYou}</p>
+                <p className="mt-4 rounded-full bg-white px-4 py-2 font-mono text-sm font-semibold text-zinc-700 shadow-card">
+                  {copy.orderNumber} #{orderId.slice(0, 8).toUpperCase()}
+                </p>
               </div>
-              <h4 className="text-xl font-black text-zinc-900">{ui.orderPlaced}</h4>
-              <p className="text-sm text-zinc-500">{ui.orderThankYou}</p>
-              <p className="text-sm font-mono font-bold text-zinc-700 bg-white px-4 py-2 rounded-lg">
-                {ui.orderNumber} #{orderId.slice(0, 8).toUpperCase()}
-              </p>
-              <div className="w-full border-t border-zinc-200 pt-4 space-y-2 text-left">
-                {confirmedCart.map(item => (
-                  <div key={item.cartKey} className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-medium text-zinc-800">{item.product.name} × {item.quantity}</span>
-                    <span className="text-sm font-bold">{formatPrice(item.unitPrice * item.quantity, currency)}</span>
+              <Card className="mt-6">
+                <div className="divide-y divide-zinc-100">
+                  {confirmedCart.map(item => (
+                    <div key={item.cartKey} className="flex items-center justify-between gap-3 px-4 py-3">
+                      <span className="text-[15px] text-zinc-800">{item.quantity}× {item.product.name}</span>
+                      <span className="text-[15px] font-medium tabular-nums text-zinc-900">{money(item.unitPrice * item.quantity)}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <span className="text-[15px] font-semibold text-zinc-900">{copy.total}</span>
+                    <span className="text-[17px] font-semibold tabular-nums text-zinc-900">{money(confirmedTotal)}</span>
                   </div>
-                ))}
-              </div>
-              <div className="w-full flex items-center justify-between border-t border-zinc-300 pt-3">
-                <span className="font-black text-zinc-900">Total</span>
-                <span className="text-lg font-black text-zinc-900">{formatPrice(confirmedTotal, currency)}</span>
-              </div>
-              <button onClick={onClose} className="w-full py-3 rounded-xl text-sm font-black bg-zinc-900 text-white hover:bg-zinc-700 transition-all mt-2">
-                Close
+                </div>
+              </Card>
+              <button type="button" onClick={onClose} className="mt-6 h-12 w-full rounded-2xl bg-zinc-900 text-[15px] font-semibold text-white transition-opacity hover:opacity-90">
+                {copy.close}
               </button>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto px-6 space-y-3 pb-6">
-              {cart.map(item => {
-                const img = getProductImages(item.product)[0]
-                const optionsText = summarizeOptions(item.selectedOptions)
-                const ingredientLabels = summarizeIngredientMods(item.ingredientModifications)
-                return (
-                  <div key={item.cartKey} className="flex gap-3 bg-white/60 rounded-xl p-3">
-                    <div className="w-16 h-16 rounded-lg overflow-hidden bg-zinc-100 flex-shrink-0">
-                      {img
-                        ? <Image src={img} alt={item.product.name} width={64} height={64} className="w-full h-full object-cover" />
-                        : <div className="w-full h-full flex items-center justify-center text-xl">🍽️</div>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-black text-zinc-900 leading-tight">{item.product.name}</p>
-                        <span className="text-xs font-black text-zinc-700 flex-shrink-0">×{item.quantity}</span>
+            <>
+              <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
+                {/* What you're ordering */}
+                <Card>
+                  <div className="divide-y divide-zinc-100">
+                    {cart.map(item => {
+                      const img = getProductImages(item.product)[0]
+                      const optionsText = summarizeOptions(item.selectedOptions)
+                      const ingredientLabels = summarizeIngredientMods(item.ingredientModifications, copy)
+                      const details = [optionsText, ingredientLabels.join(' · ')].filter(Boolean).join(' · ')
+                      return (
+                        <div key={item.cartKey} className="flex gap-3 px-4 py-3">
+                          <div className="size-12 shrink-0 overflow-hidden rounded-lg bg-zinc-100">
+                            {img
+                              ? <Image src={img} alt="" width={48} height={48} className="size-full object-cover" />
+                              : <div className="flex size-full items-center justify-center"><UtensilsCrossed className="size-4 text-zinc-300" /></div>}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="text-[15px] font-medium leading-snug text-zinc-900">
+                                <span className="text-zinc-500">{item.quantity}×</span> {item.product.name}
+                              </p>
+                              <span className="shrink-0 text-[15px] font-medium tabular-nums text-zinc-900">{money(item.unitPrice * item.quantity)}</span>
+                            </div>
+                            {details && <p className="mt-0.5 line-clamp-2 text-[13px] text-zinc-500">{details}</p>}
+                            {item.note && <p className="mt-0.5 line-clamp-1 text-[13px] italic text-zinc-400">&ldquo;{item.note}&rdquo;</p>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </Card>
+
+                {showForm && activeTypes.length >= 2 && (
+                  <Card title={copy.orderType}>
+                    <div className="px-4 pb-4">
+                      <div className="grid gap-1 rounded-xl bg-zinc-100 p-1" style={{ gridTemplateColumns: `repeat(${activeTypes.length}, minmax(0, 1fr))` }}>
+                        {activeTypes.map(({ key, label, Icon }) => {
+                          const active = orderType === key
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              aria-pressed={active}
+                              onClick={() => onOrderTypeChange?.(key)}
+                              className={`flex h-11 items-center justify-center gap-1.5 rounded-lg text-[14px] font-medium transition-colors ${active ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
+                            >
+                              <Icon className="size-4" />
+                              {label}
+                            </button>
+                          )
+                        })}
                       </div>
-                      {optionsText && <p className="text-[11px] text-zinc-500 mt-0.5">{optionsText}</p>}
-                      {ingredientLabels.length > 0 && (
-                        <p className="text-[11px] text-zinc-400 mt-0.5">{ingredientLabels.join(' · ')}</p>
-                      )}
-                      {item.note && <p className="text-[11px] italic text-zinc-400 mt-0.5">“{item.note}”</p>}
-                      <p className="text-sm font-black text-zinc-800 mt-1">{formatPrice(item.unitPrice * item.quantity, currency)}</p>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+                  </Card>
+                )}
 
-        {/* ── RIGHT: order details + payment ── */}
-        {!orderSuccess && cart.length > 0 && (
-          <div className="sm:w-72 bg-zinc-800 flex flex-col rounded-b-2xl sm:rounded-r-2xl sm:rounded-bl-none p-6 gap-5 overflow-y-auto">
-            <h3 className="text-sm font-black text-zinc-300 uppercase tracking-widest pt-6 sm:pt-0">Order Details</h3>
+                {showForm && orderType === 'delivery' && (
+                  <Card title={copy.deliveryAddress}>
+                    <div className="space-y-3 px-4 pb-4">
+                      <Field label={copy.street} value={deliveryStreet ?? ''} onChange={v => onDeliveryFieldChange?.('street', v)} autoComplete="address-line1" required />
+                      <Field label={copy.complement} value={deliveryComplement ?? ''} onChange={v => onDeliveryFieldChange?.('complement', v)} autoComplete="address-line2" />
+                      <div className="grid grid-cols-[2fr_3fr] gap-3">
+                        <Field label={copy.zipcode} value={deliveryZipcode ?? ''} onChange={v => onDeliveryFieldChange?.('zipcode', v)} autoComplete="postal-code" inputMode="numeric" />
+                        <Field label={copy.city} value={deliveryCity ?? ''} onChange={v => onDeliveryFieldChange?.('city', v)} autoComplete="address-level2" />
+                      </div>
+                      <Field label={copy.deliveryNotes} value={deliveryNotes ?? ''} onChange={v => onDeliveryFieldChange?.('notes', v)} />
+                      {deliveryZones && deliveryZones.length > 0 && deliveryZipcode && (
+                        matchedZone ? (
+                          <p className="flex items-center gap-1.5 text-[13px] font-medium text-emerald-700">
+                            <MapPin className="size-3.5" />
+                            {matchedZone.name} · {money(matchedZone.fee_cents / 100)}
+                          </p>
+                        ) : (
+                          <p className="text-[13px] font-medium text-amber-700">{copy.noDeliveryZone}</p>
+                        )
+                      )}
+                    </div>
+                  </Card>
+                )}
 
-            {/* Order type selector — shown only when 2+ types active */}
-            {orderTypeConfig && (() => {
-              const activeTypes: { key: string; label: string; Icon: React.ElementType }[] = []
-              if (orderTypeConfig.dineIn)   activeTypes.push({ key: 'dine_in',  label: 'Dine-In',  Icon: UtensilsCrossed })
-              if (orderTypeConfig.pickup)   activeTypes.push({ key: 'pickup',   label: 'Pick-Up',  Icon: Package })
-              if (orderTypeConfig.delivery) activeTypes.push({ key: 'delivery', label: 'Delivery', Icon: Truck })
-              if (activeTypes.length < 2) return null
-              return (
-                <div className="space-y-2">
-                  <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Order Type</p>
-                  <div className="flex gap-2 flex-wrap">
-                    {activeTypes.map(({ key, label, Icon }) => (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => onOrderTypeChange?.(key)}
-                        className={orderType === key
-                          ? "px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest bg-[#e8eaf0] text-zinc-900 border border-[#e8eaf0] cursor-pointer flex items-center gap-1.5"
-                          : "px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest border border-zinc-600 text-zinc-400 bg-transparent hover:border-zinc-400 transition-all cursor-pointer flex items-center gap-1.5"
-                        }
-                      >
-                        <Icon className="w-3 h-3" />
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )
-            })()}
+                {showForm && tipsEnabled && tipPercentages && (
+                  <Card title={copy.tip}>
+                    <div className="space-y-3 px-4 pb-4">
+                      <div className="grid grid-cols-4 gap-2">
+                        {(['pct1', 'pct2', 'pct3'] as const).map((key, i) => {
+                          const pct = tipPercentages[i]
+                          const active = selectedTipKey === key
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              aria-pressed={active}
+                              onClick={() => handleTipPct(key, pct)}
+                              className={`h-11 rounded-xl border text-[14px] font-medium tabular-nums transition-colors ${active ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300'}`}
+                            >
+                              {pct}%
+                            </button>
+                          )
+                        })}
+                        <button
+                          type="button"
+                          aria-pressed={selectedTipKey === 'custom'}
+                          onClick={handleCustomTip}
+                          className={`h-11 rounded-xl border text-[14px] font-medium transition-colors ${selectedTipKey === 'custom' ? 'border-zinc-900 bg-zinc-900 text-white' : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300'}`}
+                        >
+                          {copy.tipCustom}
+                        </button>
+                      </div>
+                      {selectedTipKey === 'custom' && (
+                        <Field label={copy.tipAmount} value={customTipValue} onChange={handleCustomTipInput} inputMode="decimal" type="number" />
+                      )}
+                    </div>
+                  </Card>
+                )}
 
-            {/* Delivery address — shown only when delivery selected */}
-            {orderType === 'delivery' && (
-              <div className="space-y-2">
-                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Delivery Address</p>
-                <div className="relative">
-                  <MapPin className="absolute left-3 top-3 w-4 h-4 text-zinc-500 pointer-events-none" />
-                  <input
-                    type="text"
-                    value={deliveryStreet ?? ''}
-                    onChange={e => onDeliveryFieldChange?.('street', e.target.value)}
-                    placeholder="Street and number *"
-                    className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
-                  />
-                </div>
-                <input
-                  type="text"
-                  value={deliveryComplement ?? ''}
-                  onChange={e => onDeliveryFieldChange?.('complement', e.target.value)}
-                  placeholder="Apt, floor... (optional)"
-                  className="w-full px-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
-                />
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={deliveryZipcode ?? ''}
-                    onChange={e => onDeliveryFieldChange?.('zipcode', e.target.value)}
-                    placeholder="Zipcode"
-                    className="w-2/5 px-3 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
-                  />
-                  <input
-                    type="text"
-                    value={deliveryCity ?? ''}
-                    onChange={e => onDeliveryFieldChange?.('city', e.target.value)}
-                    placeholder="City"
-                    className="w-3/5 px-3 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
-                  />
-                </div>
-                <input
-                  type="text"
-                  value={deliveryNotes ?? ''}
-                  onChange={e => onDeliveryFieldChange?.('notes', e.target.value)}
-                  placeholder="Delivery notes (optional)"
-                  className="w-full px-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
-                />
-                {deliveryZones && deliveryZones.length > 0 && deliveryZipcode && (
-                  matchedZone ? (
-                    <p className="text-[10px] font-bold text-green-400 flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {matchedZone.name} — {formatPrice(matchedZone.fee_cents / 100, currency)}
-                    </p>
-                  ) : (
-                    <p className="text-[10px] font-bold text-amber-400">No delivery zone for this zipcode — flat fee applies</p>
-                  )
+                {showForm && (
+                  <Card title={copy.yourDetails}>
+                    <div className="space-y-3 px-4 pb-4">
+                      <Field label={copy.yourName} value={customerName} onChange={onCustomerNameChange} autoComplete="name" required />
+                      <Field label={copy.phone} value={customerPhone} onChange={onCustomerPhoneChange} autoComplete="tel" type="tel" inputMode="tel" required />
+                    </div>
+                  </Card>
+                )}
+
+                {showForm && (
+                  <Card title={copy.paymentSummary}>
+                    <dl className="space-y-1.5 px-4 pb-4 text-[15px]">
+                      <div className="flex justify-between"><dt className="text-zinc-500">{copy.subtotal}</dt><dd className="tabular-nums text-zinc-800">{money(total)}</dd></div>
+                      {deliveryFeeCents > 0 && (
+                        <div className="flex justify-between"><dt className="text-zinc-500">{copy.deliveryFee}</dt><dd className="tabular-nums text-zinc-800">{money(deliveryFeeCents / 100)}</dd></div>
+                      )}
+                      {tipAmount > 0 && (
+                        <div className="flex justify-between"><dt className="text-zinc-500">{copy.tip}</dt><dd className="tabular-nums text-zinc-800">{money(tipAmount)}</dd></div>
+                      )}
+                      <div className="flex justify-between border-t border-zinc-100 pt-2"><dt className="font-semibold text-zinc-900">{copy.total}</dt><dd className="font-semibold tabular-nums text-zinc-900">{money(grandTotal)}</dd></div>
+                    </dl>
+                  </Card>
                 )}
               </div>
-            )}
 
-            {/* Tip selector */}
-            {tipsEnabled && tipPercentages && (
-              <div className="space-y-2">
-                <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Add a Tip</p>
-                <div className="flex gap-1.5 flex-wrap">
-                  {(['pct1', 'pct2', 'pct3'] as const).map((key, i) => {
-                    const pct = tipPercentages[i]
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        onClick={() => handleTipPct(key, pct)}
-                        className={selectedTipKey === key
-                          ? "px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-[#e8eaf0] text-zinc-900 border border-[#e8eaf0] cursor-pointer"
-                          : "px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-zinc-600 text-zinc-400 bg-transparent hover:border-zinc-400 transition-all cursor-pointer"
-                        }
-                      >
-                        {pct}%
-                      </button>
-                    )
-                  })}
+              {showForm && (
+                <div className="shrink-0 space-y-2 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                  {orderError && (
+                    <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-[13px] font-medium text-red-700">{orderError}</p>
+                  )}
                   <button
                     type="button"
-                    onClick={handleCustomTip}
-                    className={selectedTipKey === 'custom'
-                      ? "px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest bg-[#e8eaf0] text-zinc-900 border border-[#e8eaf0] cursor-pointer"
-                      : "px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-zinc-600 text-zinc-400 bg-transparent hover:border-zinc-400 transition-all cursor-pointer"
-                    }
+                    onClick={onSubmit}
+                    disabled={submittingOrder}
+                    style={{ backgroundColor: primary, color: onPrimary }}
+                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-6 text-base font-semibold shadow-float transition-[opacity,scale] hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
                   >
-                    Custom
+                    {submittingOrder ? copy.placingOrder : (
+                      <>
+                        <span>{copy.placeOrder}</span>
+                        <span aria-hidden="true" className="opacity-70">·</span>
+                        <span className="tabular-nums">{money(grandTotal)}</span>
+                      </>
+                    )}
                   </button>
                 </div>
-                {selectedTipKey === 'custom' && (
-                  <input
-                    type="number"
-                    min={0}
-                    step={0.01}
-                    placeholder="Enter tip amount"
-                    value={customTipValue}
-                    onChange={e => handleCustomTipInput(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
-                  />
-                )}
-              </div>
-            )}
-
-            {/* Payment summary */}
-            <div className="bg-[#e8eaf0] rounded-xl p-4 shadow-lg">
-              <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-3">Payment summary</p>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">Subtotal</span>
-                  <span className="text-xs font-bold text-zinc-700">{formatPrice(total, currency)}</span>
-                </div>
-                {deliveryFeeCents > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">Delivery fee</span>
-                    <span className="text-xs font-bold text-zinc-700">{formatPrice(deliveryFeeCents / 100, currency)}</span>
-                  </div>
-                )}
-                {tipDollars > 0 && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-500">Tip</span>
-                    <span className="text-xs font-bold text-zinc-700">{formatPrice(tipDollars, currency)}</span>
-                  </div>
-                )}
-                <div className="border-t border-zinc-300 pt-2 mt-1 flex items-center justify-between">
-                  <span className="text-sm font-black text-zinc-900">Total</span>
-                  <span className="text-base font-black" style={{ color: accent }}>{formatPrice(grandTotal, currency)}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Customer fields */}
-            <div className="space-y-3">
-              <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Your details</p>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <input
-                  type="text"
-                  value={customerName}
-                  onChange={e => onCustomerNameChange(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
-                />
-              </div>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                <input
-                  type="tel"
-                  value={customerPhone}
-                  onChange={e => onCustomerPhoneChange(e.target.value)}
-                  placeholder="Phone number"
-                  className="w-full pl-9 pr-4 py-3 rounded-xl bg-white/10 text-sm font-medium text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 transition-all border border-zinc-700"
-                />
-              </div>
-            </div>
-
-            {orderError && (
-              <p className="text-xs text-red-400 bg-red-900/30 rounded-lg px-3 py-2">{orderError}</p>
-            )}
-
-            <button
-              onClick={onSubmit}
-              disabled={submittingOrder}
-              style={{ backgroundColor: primary }}
-              className="mt-auto w-full py-3.5 rounded-xl text-sm font-black uppercase tracking-widest text-white hover:opacity-90 transition-all active:scale-95 disabled:opacity-50 shadow-lg"
-            >
-              {submittingOrder ? 'Placing order...' : 'Place order'}
-            </button>
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </div>
       </div>
+    </ModalPortal>
+  )
+}
+
+function Card({ title, className = '', children }: { title?: string; className?: string; children: ReactNode }) {
+  return (
+    <section className={`overflow-hidden rounded-2xl bg-white shadow-card ${className}`}>
+      {title && <h3 className="px-4 pt-4 pb-3 text-[15px] font-semibold text-zinc-900">{title}</h3>}
+      {children}
+    </section>
+  )
+}
+
+function Field({ label, value, onChange, type = 'text', inputMode, autoComplete, required = false }: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+  type?: string
+  inputMode?: 'text' | 'numeric' | 'decimal' | 'tel'
+  autoComplete?: string
+  required?: boolean
+}) {
+  const id = useId()
+  return (
+    <div>
+      <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-zinc-600">
+        {label}{required && <span aria-hidden="true" className="text-zinc-400"> *</span>}
+      </label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        inputMode={inputMode}
+        autoComplete={autoComplete}
+        required={required}
+        min={type === 'number' ? 0 : undefined}
+        step={type === 'number' ? 0.01 : undefined}
+        className="h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-[16px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-zinc-900/5"
+      />
     </div>
   )
 }

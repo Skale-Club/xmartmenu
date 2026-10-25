@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
-import { formatPrice } from '@/lib/utils'
+import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
 import type { Product, ProductMedia } from '@/types/database'
 import { getFeedSlideDuration, getProductImages, orderFeedMedia } from './menu-utils'
 
@@ -11,6 +11,8 @@ interface FeedProps {
   products: Product[]
   productMediaByProductId: Record<string, ProductMedia[]>
   currency: string
+  /** The guest's language, for every label and the price format. */
+  lang: string
   primaryColor: string
   accentColor: string
   autoplayVideos: boolean
@@ -26,12 +28,17 @@ interface FeedProps {
   onIncrement: (product: Product) => void
   onDecrement: (product: Product) => void
   onMediaEvent: (event: 'media_started' | 'media_completed' | 'media_swiped', product: Product, mediaType: 'image' | 'video', mediaIndex: number) => void
+  /** Dish to open on (restored after a reload). */
+  initialIndex?: number
+  /** Reports the dish on screen, so the page can restore it. */
+  onIndexChange?: (index: number) => void
 }
 
 export default function MenuFeed({
   products,
   productMediaByProductId,
   currency,
+  lang,
   primaryColor,
   accentColor,
   autoplayVideos,
@@ -47,8 +54,32 @@ export default function MenuFeed({
   onIncrement,
   onDecrement,
   onMediaEvent,
+  initialIndex = 0,
+  onIndexChange,
 }: FeedProps) {
+  const copy = getMenuCopy(lang)
   const feedScrollerRef = useRef<HTMLDivElement | null>(null)
+  const lastIndexRef = useRef(initialIndex)
+
+  // Land on the restored dish without animating through the ones before it.
+  useEffect(() => {
+    const scroller = feedScrollerRef.current
+    const index = Math.min(initialIndex, products.length - 1)
+    if (!scroller || index <= 0) return
+    scroller.scrollTo({ top: index * scroller.clientHeight, behavior: 'instant' })
+    // Mount-only: initialIndex is a starting point, not a controlled value.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const reportIndex = useCallback(() => {
+    const scroller = feedScrollerRef.current
+    if (!scroller || !onIndexChange || scroller.clientHeight === 0) return
+    const index = Math.round(scroller.scrollTop / scroller.clientHeight)
+    if (index !== lastIndexRef.current) {
+      lastIndexRef.current = index
+      onIndexChange(index)
+    }
+  }, [onIndexChange])
   const advanceDish = useCallback((dishIndex: number) => {
     const scroller = feedScrollerRef.current
     if (!scroller || dishIndex >= products.length - 1) return
@@ -70,7 +101,7 @@ export default function MenuFeed({
           <button
             type="button"
             onClick={onOpenCart}
-            aria-label={`Open order with ${cartCount} items`}
+            aria-label={fill(copy.openOrderCount, { count: cartCount })}
             className="pointer-events-auto relative flex size-11 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white shadow-xl backdrop-blur-xl transition active:scale-95"
           >
             <ShoppingBag className="size-4" />
@@ -80,12 +111,12 @@ export default function MenuFeed({
           </button>
         ) : (
           <span className="rounded-full border border-white/15 bg-black/45 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-white/75 backdrop-blur-xl">
-            {products.length} dishes
+            {fill(copy.dishesCount, { count: products.length })}
           </span>
         )}
       </div>
 
-      <div ref={feedScrollerRef} tabIndex={0} aria-label="Swipe vertically through dishes" className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain scroll-smooth touch-pan-y outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div ref={feedScrollerRef} onScroll={reportIndex} tabIndex={0} aria-label="Swipe vertically through dishes" className="h-[100dvh] snap-y snap-mandatory overflow-y-auto overscroll-y-contain scroll-smooth touch-pan-y outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {products.map((product, index) => {
           const quantity = quantityFor(product.id)
           const customizable = hasCustomization(product.id)
@@ -107,6 +138,7 @@ export default function MenuFeed({
                 dishIndex={index}
                 onAdvanceDish={advanceDish}
                 onOpen={() => onOpen(product)}
+                viewDishLabel={copy.viewDish}
                 onMediaEvent={(event, mediaType, mediaIndex) => onMediaEvent(event, product, mediaType, mediaIndex)}
               />
 
@@ -115,17 +147,17 @@ export default function MenuFeed({
                 <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/65">
                   <span>{String(index + 1).padStart(2, '0')} / {String(products.length).padStart(2, '0')}</span>
                   <span className="h-px w-8 bg-white/35" />
-                  <span>Swipe for next dish</span>
+                  <span>{copy.swipeNext}</span>
                 </div>
 
                 <div className="mb-3 flex flex-wrap gap-1.5">
-                  {product.is_featured ? <span className="rounded-full border border-amber-300/30 bg-amber-300/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-amber-100 backdrop-blur">Chef pick</span> : null}
-                  {product.tags?.slice(0, 2).map(tag => <span key={tag} className="rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-white/85 backdrop-blur">{tag}</span>)}
+                  {product.is_featured ? <span className="rounded-full border border-amber-300/30 bg-amber-300/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-amber-100 backdrop-blur">{copy.chefPick}</span> : null}
+                  {product.tags?.slice(0, 2).map(tag => <span key={tag} className="rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-white/85 backdrop-blur">{translateTag(tag, lang)}</span>)}
                 </div>
 
                 <div className="flex items-end justify-between gap-5">
                   <h2 className="max-w-[72%] text-[clamp(1.75rem,8vw,2.65rem)] font-black leading-[0.95] tracking-[-0.045em] text-white drop-shadow-lg">{product.name}</h2>
-                  <p className="shrink-0 text-xl font-black tracking-tight text-white drop-shadow-lg">{formatPrice(product.price, currency)}</p>
+                  <p className="shrink-0 text-xl font-black tracking-tight text-white drop-shadow-lg">{formatMoney(product.price, currency, lang)}</p>
                 </div>
 
                 {product.description ? <p className="mt-3 line-clamp-2 max-w-[90%] text-sm font-medium leading-relaxed text-white/75 drop-shadow">{product.description}</p> : null}
@@ -147,7 +179,7 @@ export default function MenuFeed({
                       className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-5 text-xs font-black uppercase tracking-widest text-white shadow-2xl transition active:scale-[0.98]"
                       style={{ backgroundColor: primaryColor, boxShadow: `0 18px 45px ${primaryColor}45` }}
                     >
-                      <ShoppingBag className="size-4" /> {customizable ? 'Customize' : 'Order now'}
+                      <ShoppingBag className="size-4" /> {customizable ? copy.customize : copy.orderNow}
                     </button>
                   ) : null}
 
@@ -166,7 +198,7 @@ export default function MenuFeed({
                       className="min-h-12 flex-1 rounded-full bg-white px-5 text-xs font-black uppercase tracking-widest"
                       style={{ color: accentColor }}
                     >
-                      View dish
+                      {copy.viewDish}
                     </button>
                   ) : null}
                 </div>
@@ -188,6 +220,7 @@ function FeedMedia({
   dishIndex,
   onAdvanceDish,
   onOpen,
+  viewDishLabel,
   onMediaEvent,
 }: {
   product: Product
@@ -198,6 +231,7 @@ function FeedMedia({
   dishIndex: number
   onAdvanceDish: (dishIndex: number) => void
   onOpen: () => void
+  viewDishLabel: string
   onMediaEvent: (event: 'media_started' | 'media_completed' | 'media_swiped', mediaType: 'image' | 'video', index: number) => void
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null)
@@ -341,7 +375,7 @@ function FeedMedia({
         />
       ) : (
         <button type="button" onClick={onOpen} className="flex h-full w-full flex-col items-center justify-center gap-3 bg-[radial-gradient(circle_at_center,_#27272a,_#09090b_70%)] text-white/60">
-          <span className="text-7xl">🍽️</span><span className="text-[10px] font-black uppercase tracking-[0.24em]">View dish</span>
+          <span className="text-7xl">🍽️</span><span className="text-[10px] font-black uppercase tracking-[0.24em]">{viewDishLabel}</span>
         </button>
       )}
 

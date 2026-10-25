@@ -2,34 +2,13 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { formatPrice } from '@/lib/utils'
+import { Check, ChevronLeft, ChevronRight, Minus, Plus, X } from 'lucide-react'
 import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import { UI_COPY, getProductImages, type CartEditorState } from './menu-utils'
-
-const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
-  'Vegetarian': { en: 'Vegetarian' },
-  'Vegan': { en: 'Vegan' },
-  'Gluten-Free': { en: 'Gluten-Free' },
-  'Spicy': { en: 'Spicy' },
-  'Chef\'s special': { en: 'Chef\'s special' },
-}
-
-const TAG_COLORS: Record<string, string> = {
-  'Vegetarian': 'bg-green-100 text-green-700',
-  'Vegan': 'bg-emerald-100 text-emerald-700',
-  'Gluten-Free': 'bg-amber-100 text-amber-700',
-  'Spicy': 'bg-red-100 text-red-700',
-  'Chef\'s special': 'bg-purple-100 text-purple-700',
-}
-
-function translateTag(tag: string, lang: string): string {
-  return TAG_TRANSLATIONS[tag]?.[lang] ?? tag
-}
-
-function getTagStyle(tag: string): string {
-  return TAG_COLORS[tag] ?? 'bg-zinc-100 text-zinc-600'
-}
+import { getProductImages, type CartEditorState } from './menu-utils'
+import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
+import { computePrimaryForeground } from '@/lib/color-utils'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 type MediaSlide = { type: 'image'; url: string } | { type: 'video'; url: string }
 
@@ -84,10 +63,11 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, accentColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, submitLabel = 'Order', onPrevProduct, onNextProduct }: {
-  product: Product; accentColor: string; currency: string; whatsapp?: string | null;
+export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct }: {
+  product: Product; primaryColor: string; currency: string; whatsapp?: string | null;
   lang: string; onClose: () => void; onWhatsApp: () => void;
-  onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void;
+  /** quantity: how many of this exact configuration to add (always 1 when editing a cart item). */
+  onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, quantity?: number) => void;
   onCustomizationStarted?: () => void
   optionGroups?: GroupWithOptions[]
   itemNotesEnabled?: boolean
@@ -95,7 +75,6 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   productIngredients?: ProductIngredientWithIngredient[]
   productMedia?: ProductMedia[]
   initialEditorState?: CartEditorState | null  // when set, the modal opens in Edit mode pre-filled with these selections
-  submitLabel?: string
   onPrevProduct?: () => void  // navigate to the previous dish (undefined = no previous / disabled)
   onNextProduct?: () => void  // navigate to the next dish
 }) {
@@ -138,7 +117,8 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
   const [itemNote, setItemNote] = useState(initialEditorState?.note ?? '')
   const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>(initialEditorState?.ingredientSteppers ?? {})
   const [addedIngredients, setAddedIngredients] = useState<string[]>(initialEditorState?.addedIngredients ?? [])
-  const [showAddIngredient, setShowAddIngredient] = useState(false)
+  const [quantity, setQuantity] = useState(1)
+  const [attentionGroupId, setAttentionGroupId] = useState<string | null>(null)
   const customizationTrackedRef = useRef(false)
 
   useEffect(() => {
@@ -149,7 +129,8 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
     setItemNote(initialEditorState?.note ?? '')  // Pitfall 6: reset note when new product opens
     setIngredientSteppers(initialEditorState?.ingredientSteppers ?? {})
     setAddedIngredients(initialEditorState?.addedIngredients ?? [])
-    setShowAddIngredient(false)
+    setQuantity(1)
+    setAttentionGroupId(null)
     customizationTrackedRef.current = false
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id])
@@ -308,480 +289,531 @@ export default function ProductModal({ product, accentColor, currency, whatsapp,
     setTouchOffsetX(0)
   }
 
+  const copy = getMenuCopy(lang)
+  const money = (value: number) => formatMoney(value, currency, lang)
+  const onPrimary = computePrimaryForeground(primaryColor)
+  const isEditing = !!initialEditorState
+  const defaultIngredients = productIngredients.filter(pi => pi.is_default)
+  const extraIngredients = productIngredients.filter(pi => !pi.is_default)
+
+  function groupSatisfied(group: GroupWithOptions): boolean {
+    if (!group.required) return true
+    if (group.type === 'single') return !!singleSelections[group.id]
+    if (group.type === 'half_and_half') {
+      const half = halfSelections[group.id]
+      return !!half?.half1 && !!half?.half2
+    }
+    if (group.type === 'multiple') return (multiSelections[group.id] ?? []).length >= group.min_selections
+    return true
+  }
+
+  function groupHint(group: GroupWithOptions): string {
+    const need = group.required ? copy.required : copy.optional
+    if (group.type === 'single' || group.type === 'half_and_half') return group.type === 'single' ? `${copy.chooseOne} · ${need}` : need
+    const min = group.min_selections
+    const max = group.max_selections
+    let rule: string | null = null
+    if (min > 0 && max !== null && min !== max) rule = fill(copy.chooseBetween, { min, max })
+    else if (min > 0) rule = fill(copy.chooseAtLeast, { min })
+    else if (max !== null) rule = fill(copy.chooseUpTo, { max })
+    return rule ? `${rule} · ${need}` : need
+  }
+
+  function submit() {
+    if (!onAddToCart) return
+    if (!canAddToCart) {
+      // Point at the first required choice still missing instead of a dead button.
+      const missing = optionGroups.find(g => !groupSatisfied(g))
+      if (missing) {
+        setAttentionGroupId(missing.id)
+        document.getElementById(`option-group-${missing.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      return
+    }
+    const opts: Record<string, unknown> = {}
+    for (const group of optionGroups) {
+      if (group.type === 'single') {
+        const optId = singleSelections[group.id]
+        if (optId) {
+          const opt = group.options.find(o => o.id === optId)
+          if (opt) opts[group.name] = opt.name
+        }
+      } else if (group.type === 'half_and_half') {
+        const half = halfSelections[group.id]
+        if (half?.half1 && half?.half2) {
+          const opt1 = group.options.find(o => o.id === half.half1)
+          const opt2 = group.options.find(o => o.id === half.half2)
+          if (opt1 && opt2) opts[group.name] = `${opt1.name} / ${opt2.name}`
+        }
+      } else if (group.type === 'multiple') {
+        const sel = multiSelections[group.id] ?? []
+        if (sel.length > 0) {
+          opts[group.name] = sel
+            .map(id => group.options.find(o => o.id === id)?.name)
+            .filter(Boolean)
+            .join(', ')
+        }
+      }
+    }
+    const mods = buildIngredientModifications()
+    const editorState: CartEditorState = {
+      singleSelections,
+      halfSelections,
+      multiSelections,
+      ingredientSteppers,
+      addedIngredients,
+      note: itemNote,
+    }
+    onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods, editorState, isEditing ? 1 : quantity)
+  }
+
+  const closeButton = (
+    <button
+      type="button"
+      onClick={onClose}
+      aria-label={copy.close}
+      className="flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-900 shadow-sm transition-colors hover:bg-white"
+    >
+      <X className="size-5" />
+    </button>
+  )
+
+  // Phones: a sheet from the bottom. Larger screens: centred, never taller than the viewport.
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 px-0 sm:px-4" onClick={onClose}>
-      <div className="relative max-h-dvh w-full sm:max-h-[calc(100dvh-2rem)] sm:max-w-md lg:max-w-lg" onClick={e => e.stopPropagation()}>
+    <ModalPortal onClose={onClose}>
+    <div className="menu-root fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+      <div className="relative w-full sm:max-w-lg" onClick={e => e.stopPropagation()}>
       {onPrevProduct && (
         <button
+          type="button"
           onClick={onPrevProduct}
-          aria-label="Previous dish"
-          className="hidden sm:flex absolute top-1/2 -translate-y-1/2 -left-14 z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-zinc-900 shadow-lg items-center justify-center text-2xl leading-none transition-all active:scale-90"
+          aria-label={copy.previousDish}
+          className="absolute top-1/2 -left-14 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-zinc-900 shadow-float transition-[scale] active:scale-90 sm:flex"
         >
-          ‹
+          <ChevronLeft className="size-5" />
         </button>
       )}
       {onNextProduct && (
         <button
+          type="button"
           onClick={onNextProduct}
-          aria-label="Next dish"
-          className="hidden sm:flex absolute top-1/2 -translate-y-1/2 -right-14 z-20 w-11 h-11 rounded-full bg-white/90 hover:bg-white text-zinc-900 shadow-lg items-center justify-center text-2xl leading-none transition-all active:scale-90"
+          aria-label={copy.nextDish}
+          className="absolute top-1/2 -right-14 z-20 hidden size-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-zinc-900 shadow-float transition-[scale] active:scale-90 sm:flex"
         >
-          ›
+          <ChevronRight className="size-5" />
         </button>
       )}
-      <div role="dialog" aria-modal="true" aria-label={product.name} className="max-h-dvh w-full overflow-y-auto rounded-t-2xl bg-white overscroll-contain sm:max-h-[calc(100dvh-2rem)] sm:rounded-2xl">
-        {mediaSlides.length > 0 && (
-          <div
-            className="relative w-full aspect-video bg-zinc-100 overflow-hidden"
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            onTouchCancel={handleTouchEnd}
-          >
-            {mediaSlides[slideIndex]?.type === 'video' ? (
-              <VideoSlide url={mediaSlides[slideIndex].url} />
-            ) : (
-              <Image
-                src={mediaSlides[slideIndex]?.url ?? ''}
-                alt={`${product.name} ${imageIndex + 1}`}
-                fill
-                className={`object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
-                style={{ transform: `translateX(${touchOffsetX}px)` }}
-                sizes="(max-width: 768px) 100vw, 448px"
-              />
-            )}
-            {hasManySlides && (
-              <>
-                <button
-                  onClick={prevImage}
-                  className="absolute z-10 left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/75 text-white w-9 h-9 rounded-full shadow-md flex items-center justify-center"
-                  aria-label="Previous"
-                  type="button"
-                >
-                  ‹
-                </button>
-                <button
-                  onClick={nextImage}
-                  className="absolute z-10 right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/75 text-white w-9 h-9 rounded-full shadow-md flex items-center justify-center"
-                  aria-label="Next"
-                  type="button"
-                >
-                  ›
-                </button>
-                <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1.5">
-                  {mediaSlides.map((slide, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setSlideIndex(i)}
-                      className={`rounded-full ${i === slideIndex ? 'bg-white' : 'bg-white/50'} ${slide.type === 'video' ? 'w-3 h-1.5' : 'w-1.5 h-1.5'}`}
-                      aria-label={`Go to ${slide.type} ${i + 1}`}
-                    />
+      <div role="dialog" aria-modal="true" aria-label={product.name} className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:max-h-[calc(100dvh-2rem)] sm:rounded-3xl">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {mediaSlides.length > 0 ? (
+            <div
+              className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-100"
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              onTouchCancel={handleTouchEnd}
+            >
+              {mediaSlides[slideIndex]?.type === 'video' ? (
+                <VideoSlide url={mediaSlides[slideIndex].url} />
+              ) : (
+                <Image
+                  src={mediaSlides[slideIndex]?.url ?? ''}
+                  alt={`${product.name} ${imageIndex + 1}`}
+                  fill
+                  className={`object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
+                  style={{ transform: `translateX(${touchOffsetX}px)` }}
+                  sizes="(max-width: 640px) 100vw, 512px"
+                />
+              )}
+              <div className="absolute top-3 right-3 z-10">{closeButton}</div>
+              {hasManySlides && (
+                <>
+                  <button
+                    type="button"
+                    onClick={prevImage}
+                    className="absolute top-1/2 left-3 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-900 shadow-sm sm:flex"
+                    aria-label={copy.previousPhoto}
+                  >
+                    <ChevronLeft className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextImage}
+                    className="absolute top-1/2 right-3 z-10 hidden size-9 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-zinc-900 shadow-sm sm:flex"
+                    aria-label={copy.nextPhoto}
+                  >
+                    <ChevronRight className="size-4" />
+                  </button>
+                  <div className="absolute inset-x-0 bottom-3 flex justify-center gap-1.5">
+                    {mediaSlides.map((slide, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setSlideIndex(i)}
+                        className={`h-1.5 rounded-full transition-all ${i === slideIndex ? 'w-5 bg-white' : 'w-1.5 bg-white/60'}`}
+                        aria-label={`${slide.type === 'video' ? 'Video' : copy.nextPhoto} ${i + 1}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <div className="flex justify-end px-3 pt-3">{closeButton}</div>
+          )}
+
+          <div className="space-y-4 px-5 pt-4 pb-6" onTouchStart={handleBodyTouchStart} onTouchEnd={handleBodyTouchEnd}>
+            <div>
+              <div className="flex items-start justify-between gap-4">
+                <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900">{product.name}</h2>
+                <div className="shrink-0 text-right">
+                  <p className="text-[20px] font-semibold tabular-nums tracking-tight text-zinc-900">{money(product.price)}</p>
+                  {product.original_price && product.original_price > product.price && (
+                    <p className="text-[13px] tabular-nums text-zinc-400 line-through">{money(product.original_price)}</p>
+                  )}
+                </div>
+              </div>
+              {product.description && <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">{product.description}</p>}
+              {product.tags?.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {product.tags.map(tag => (
+                    <span key={tag} className="rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] font-medium text-zinc-700">{translateTag(tag, lang)}</span>
                   ))}
                 </div>
-              </>
-            )}
-          </div>
-        )}
-        <div className="p-5 sm:p-6" onTouchStart={handleBodyTouchStart} onTouchEnd={handleBodyTouchEnd}>
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <h3 className="text-lg font-bold text-zinc-900">{product.name}</h3>
-            <button onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 flex-shrink-0 items-center justify-center rounded-full text-xl leading-none text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600">✕</button>
-          </div>
-          {product.tags?.length > 0 && (
-            <div className="flex gap-1.5 mb-3 flex-wrap">
-              {product.tags.map(tag => {
-                const translated = translateTag(tag, lang)
-                return <span key={tag} className={`text-xs px-2 py-0.5 rounded-full ${getTagStyle(translated)}`}>{translated}</span>
-              })}
+              )}
             </div>
-          )}
-          {product.description && <p className="text-sm text-zinc-600 mb-4 leading-relaxed">{product.description}</p>}
-          {optionGroups.length > 0 && (
-            <div className="mt-4 space-y-6">
-              {optionGroups.map(group => {
-                const groupUi = UI_COPY[lang] ?? UI_COPY.en
-                // Min/max hint text
-                const hintText = (() => {
-                  const min = group.min_selections
-                  const max = group.max_selections
-                  if (min > 0 && max !== null && min !== max) return groupUi.chooseBetween.replace('{min}', String(min)).replace('{max}', String(max))
-                  if (min > 0 && (max === null || max === min)) return groupUi.chooseAtLeast.replace('{min}', String(min))
-                  if (max !== null) return groupUi.chooseUpTo.replace('{max}', String(max))
-                  return null
-                })()
 
-                return (
-                  <div key={group.id}>
-                    {/* Group header */}
-                    <div className="flex items-center mb-2">
-                      <span className="text-sm font-bold text-zinc-900">{group.name}</span>
-                      {group.required && (
-                        <span className="ml-2 text-xs bg-red-50 text-red-600 px-1.5 py-0.5 rounded">
-                          {groupUi.required}
-                        </span>
-                      )}
-                    </div>
-                    {hintText && group.type !== 'half_and_half' && (
-                      <p className="text-xs text-zinc-400 mb-2">{hintText}</p>
-                    )}
-
-                    {/* Single-type: radio buttons */}
-                    {group.type === 'single' && (
-                      <div className="space-y-1">
-                        {group.options.map(opt => {
-                          const isSelected = singleSelections[group.id] === opt.id
-                          return (
-                            <label
-                              key={opt.id}
-                              className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border cursor-pointer min-h-[44px] ${isSelected ? 'bg-zinc-50 border-zinc-900' : 'bg-white border-zinc-200'}`}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <input
-                                  type="radio"
-                                  name={group.id}
-                                  value={opt.id}
-                                  checked={isSelected}
-                                  onChange={() => {
-                                    notifyCustomizationStarted()
-                                    setSingleSelections(prev => ({ ...prev, [group.id]: opt.id }))
-                                  }}
-                                  className="sr-only"
-                                />
-                                <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`} />
-                                <span className="text-sm text-zinc-900 truncate">{opt.name}</span>
-                                {opt.price_modifier !== 0 && opt.base_price === null && (
-                                  <span className="text-sm text-zinc-500 flex-shrink-0">
-                                    {opt.price_modifier > 0 ? '+' : ''}{formatPrice(opt.price_modifier, currency)}
-                                  </span>
-                                )}
-                              </div>
-                              {opt.base_price !== null && (
-                                <span className="text-sm font-bold text-zinc-900 flex-shrink-0">{formatPrice(opt.base_price, currency)}</span>
-                              )}
-                            </label>
-                          )
-                        })}
-                      </div>
-                    )}
-
-                    {/* Multiple-type: checkboxes */}
-                    {group.type === 'multiple' && (() => {
-                      const selected = multiSelections[group.id] ?? []
-                      const maxReached = group.max_selections !== null && selected.length >= group.max_selections
-                      return (
-                        <div className="space-y-1">
-                          {group.options.map(opt => {
-                            const isChecked = selected.includes(opt.id)
-                            const isDisabled = maxReached && !isChecked
-                            return (
-                              <label
-                                key={opt.id}
-                                aria-disabled={isDisabled ? 'true' : undefined}
-                                className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border cursor-pointer min-h-[44px] ${isChecked ? 'bg-zinc-50 border-zinc-900' : 'bg-white border-zinc-200'} ${isDisabled ? 'opacity-40 pointer-events-none' : ''}`}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <input
-                                    type="checkbox"
-                                    value={opt.id}
-                                    checked={isChecked}
-                                    onChange={() => {
-                                      notifyCustomizationStarted()
-                                      setMultiSelections(prev => {
-                                        const cur = prev[group.id] ?? []
-                                        return {
-                                          ...prev,
-                                          [group.id]: isChecked ? cur.filter(id => id !== opt.id) : [...cur, opt.id],
-                                        }
-                                      })
-                                    }}
-                                    className="sr-only"
-                                  />
-                                  <span className={`w-4 h-4 rounded border-2 flex-shrink-0 flex items-center justify-center ${isChecked ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`}>
-                                    {isChecked && (
-                                      <svg viewBox="0 0 12 12" fill="none" stroke="white" strokeWidth="2.5" className="w-3 h-3">
-                                        <polyline points="2,6 5,9 10,3" />
-                                      </svg>
-                                    )}
-                                  </span>
-                                  <span className="text-sm text-zinc-900 truncate">{opt.name}</span>
-                                  {opt.price_modifier !== 0 && (
-                                    <span className="text-sm text-zinc-500 flex-shrink-0">
-                                      {opt.price_modifier > 0 ? '+' : ''}{formatPrice(opt.price_modifier, currency)}
-                                    </span>
-                                  )}
-                                </div>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      )
-                    })()}
-
-                    {/* Half-and-half: two stacked radio selectors */}
-                    {group.type === 'half_and_half' && (() => {
-                      const half = halfSelections[group.id] ?? { half1: null, half2: null }
-                      const groupUiLocal = UI_COPY[lang] ?? UI_COPY.en
-                      const halfNames: Array<'half1' | 'half2'> = ['half1', 'half2']
-                      const halfLabels = [groupUiLocal.firstHalf, groupUiLocal.secondHalf]
-                      const halfPrice = (() => {
-                        if (!half.half1 || !half.half2) return null
-                        const opt1 = group.options.find(o => o.id === half.half1)
-                        const opt2 = group.options.find(o => o.id === half.half2)
-                        return Math.max(opt1?.base_price ?? 0, opt2?.base_price ?? 0)
-                      })()
-                      return (
-                        <div className="rounded-2xl border border-zinc-100 bg-zinc-50 p-3 space-y-3">
-                          {halfNames.map((halfKey, idx) => (
-                            <div key={halfKey}>
-                              <p className="text-xs font-bold text-zinc-500 uppercase tracking-wide mb-1">
-                                {group.name} | {halfLabels[idx]}
-                              </p>
-                              <div className="space-y-1">
-                                {group.options.map(opt => {
-                                  const isSelected = half[halfKey] === opt.id
-                                  return (
-                                    <label
-                                      key={opt.id}
-                                      className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border cursor-pointer min-h-[44px] ${isSelected ? 'bg-white border-zinc-900' : 'bg-white border-zinc-200'}`}
-                                    >
-                                      <div className="flex items-center gap-2 min-w-0">
-                                        <input
-                                          type="radio"
-                                          name={`${group.id}-${halfKey}`}
-                                          value={opt.id}
-                                          checked={isSelected}
-                                          onChange={() => {
-                                            notifyCustomizationStarted()
-                                            setHalfSelections(prev => ({
-                                              ...prev,
-                                              [group.id]: { ...(prev[group.id] ?? { half1: null, half2: null }), [halfKey]: opt.id },
-                                            }))
-                                          }}
-                                          className="sr-only"
-                                        />
-                                        <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isSelected ? 'border-zinc-900 bg-zinc-900' : 'border-zinc-300'}`} />
-                                        <span className="text-sm text-zinc-900 truncate">{opt.name}</span>
-                                      </div>
-                                      {opt.base_price !== null && (
-                                        <span className="text-sm font-bold text-zinc-900 flex-shrink-0">{formatPrice(opt.base_price, currency)}</span>
-                                      )}
-                                    </label>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          ))}
-                          {halfPrice !== null && (
-                            <p className="text-xs text-zinc-500 pt-1">
-                              Price: {formatPrice(halfPrice, currency)}
-                            </p>
-                          )}
-                        </div>
-                      )
-                    })()}
+            {optionGroups.map(group => {
+              const needsAttention = attentionGroupId === group.id && !groupSatisfied(group)
+              return (
+                <section
+                  key={group.id}
+                  id={`option-group-${group.id}`}
+                  className={`overflow-hidden rounded-2xl bg-white shadow-card transition-shadow ${needsAttention ? 'ring-2 ring-red-300' : ''}`}
+                >
+                  <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2">
+                    <h3 className="text-[15px] font-semibold text-zinc-900">{group.name}</h3>
+                    <span className={`text-right text-[12px] font-medium ${needsAttention ? 'text-red-600' : 'text-zinc-500'}`}>{groupHint(group)}</span>
                   </div>
-                )
-              })}
-            </div>
-          )}
-          {ingredientCustomizationEnabled && productIngredients.length > 0 && (
-            <div className="px-5 pt-4 pb-2">
-              <p className="text-xs font-semibold text-zinc-500 uppercase mb-2">Ingredients</p>
 
-              {/* Default ingredient chips with stepper */}
-              <div className="space-y-2">
-                {productIngredients.filter(pi => pi.is_default).map(pi => {
-                  const stepperVal = ingredientSteppers[pi.ingredient_id] ?? 0
-                  const extraPrice = pi.extra_price_override ?? pi.ingredient.default_extra_price
-                  return (
-                    <div key={pi.ingredient_id} className="flex items-center justify-between gap-2">
-                      <span className={`text-sm flex-1 ${stepperVal === -1 ? 'text-red-600 line-through' : 'text-zinc-800'}`}>
-                        {pi.ingredient.name}
-                      </span>
-                      {stepperVal === 1 && extraPrice > 0 && (
-                        <span className="text-xs text-amber-600">+{formatPrice(extraPrice, currency)}</span>
-                      )}
-                      <div className="flex items-center gap-1">
-                        {([-1, 0, 1] as const).map(val => (
-                          <button
-                            key={val}
-                            onClick={() => {
+                  {group.type === 'single' && group.options.map(opt => {
+                    const isSelected = singleSelections[group.id] === opt.id
+                    return (
+                      <label key={opt.id} className="flex min-h-[52px] cursor-pointer items-center justify-between gap-3 border-t border-zinc-100 px-4 py-2">
+                        <span className="flex min-w-0 items-center gap-3">
+                          <input
+                            type="radio"
+                            name={group.id}
+                            value={opt.id}
+                            checked={isSelected}
+                            onChange={() => {
                               notifyCustomizationStarted()
-                              setIngredientSteppers(prev => ({ ...prev, [pi.ingredient_id]: val }))
+                              setSingleSelections(prev => ({ ...prev, [group.id]: opt.id }))
                             }}
-                            className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors
-                              ${stepperVal === val
-                                ? 'bg-zinc-900 text-white'
-                                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}
-                          >
-                            {val === -1 ? '−' : val === 0 ? '0' : '+'}
-                          </button>
+                            className="peer sr-only"
+                          />
+                          <RadioMark selected={isSelected} color={primaryColor} />
+                          <span className="text-[15px] text-zinc-900">{opt.name}</span>
+                        </span>
+                        {opt.base_price !== null ? (
+                          <span className="shrink-0 text-[14px] tabular-nums text-zinc-500">{money(opt.base_price)}</span>
+                        ) : opt.price_modifier !== 0 ? (
+                          <span className="shrink-0 text-[14px] tabular-nums text-zinc-500">{opt.price_modifier > 0 ? '+' : '−'}{money(Math.abs(opt.price_modifier))}</span>
+                        ) : null}
+                      </label>
+                    )
+                  })}
+
+                  {group.type === 'multiple' && (() => {
+                    const selected = multiSelections[group.id] ?? []
+                    const maxReached = group.max_selections !== null && selected.length >= group.max_selections
+                    return group.options.map(opt => {
+                      const isChecked = selected.includes(opt.id)
+                      const isDisabled = maxReached && !isChecked
+                      return (
+                        <label
+                          key={opt.id}
+                          aria-disabled={isDisabled ? 'true' : undefined}
+                          className={`flex min-h-[52px] cursor-pointer items-center justify-between gap-3 border-t border-zinc-100 px-4 py-2 ${isDisabled ? 'pointer-events-none opacity-40' : ''}`}
+                        >
+                          <span className="flex min-w-0 items-center gap-3">
+                            <input
+                              type="checkbox"
+                              value={opt.id}
+                              checked={isChecked}
+                              onChange={() => {
+                                notifyCustomizationStarted()
+                                setMultiSelections(prev => {
+                                  const cur = prev[group.id] ?? []
+                                  return { ...prev, [group.id]: isChecked ? cur.filter(id => id !== opt.id) : [...cur, opt.id] }
+                                })
+                              }}
+                              className="sr-only"
+                            />
+                            <CheckMark checked={isChecked} color={primaryColor} />
+                            <span className="text-[15px] text-zinc-900">{opt.name}</span>
+                          </span>
+                          {opt.price_modifier !== 0 && (
+                            <span className="shrink-0 text-[14px] tabular-nums text-zinc-500">{opt.price_modifier > 0 ? '+' : '−'}{money(Math.abs(opt.price_modifier))}</span>
+                          )}
+                        </label>
+                      )
+                    })
+                  })()}
+
+                  {group.type === 'half_and_half' && (() => {
+                    const half = halfSelections[group.id] ?? { half1: null, half2: null }
+                    const halves: Array<{ key: 'half1' | 'half2'; label: string }> = [
+                      { key: 'half1', label: copy.firstHalf },
+                      { key: 'half2', label: copy.secondHalf },
+                    ]
+                    const halfPrice = half.half1 && half.half2
+                      ? Math.max(group.options.find(o => o.id === half.half1)?.base_price ?? 0, group.options.find(o => o.id === half.half2)?.base_price ?? 0)
+                      : null
+                    return (
+                      <>
+                        {halves.map(({ key, label }) => (
+                          <div key={key}>
+                            <p className="border-t border-zinc-100 bg-zinc-50 px-4 py-2 text-[13px] font-medium text-zinc-500">{label}</p>
+                            {group.options.map(opt => {
+                              const isSelected = half[key] === opt.id
+                              return (
+                                <label key={opt.id} className="flex min-h-[52px] cursor-pointer items-center justify-between gap-3 border-t border-zinc-100 px-4 py-2">
+                                  <span className="flex min-w-0 items-center gap-3">
+                                    <input
+                                      type="radio"
+                                      name={`${group.id}-${key}`}
+                                      value={opt.id}
+                                      checked={isSelected}
+                                      onChange={() => {
+                                        notifyCustomizationStarted()
+                                        setHalfSelections(prev => ({
+                                          ...prev,
+                                          [group.id]: { ...(prev[group.id] ?? { half1: null, half2: null }), [key]: opt.id },
+                                        }))
+                                      }}
+                                      className="sr-only"
+                                    />
+                                    <RadioMark selected={isSelected} color={primaryColor} />
+                                    <span className="text-[15px] text-zinc-900">{opt.name}</span>
+                                  </span>
+                                  {opt.base_price !== null && (
+                                    <span className="shrink-0 text-[14px] tabular-nums text-zinc-500">{money(opt.base_price)}</span>
+                                  )}
+                                </label>
+                              )
+                            })}
+                          </div>
                         ))}
-                      </div>
+                        {halfPrice !== null && (
+                          <p className="border-t border-zinc-100 px-4 py-3 text-[13px] font-medium text-zinc-600">{fill(copy.halfPrice, { price: money(halfPrice) })}</p>
+                        )}
+                      </>
+                    )
+                  })()}
+                  <div className="h-1" />
+                </section>
+              )
+            })}
+
+            {ingredientCustomizationEnabled && defaultIngredients.length > 0 && (
+              <section className="overflow-hidden rounded-2xl bg-white shadow-card">
+                <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2">
+                  <h3 className="text-[15px] font-semibold text-zinc-900">{copy.ingredients}</h3>
+                  <span className="text-[12px] font-medium text-zinc-500">{copy.ingredientsHint}</span>
+                </div>
+                {defaultIngredients.map(pi => {
+                  const value = ingredientSteppers[pi.ingredient_id] ?? 0
+                  const count = value + 1
+                  const extraPrice = pi.extra_price_override ?? pi.ingredient.default_extra_price
+                  const setValue = (next: number) => {
+                    notifyCustomizationStarted()
+                    setIngredientSteppers(prev => ({ ...prev, [pi.ingredient_id]: Math.max(-1, Math.min(1, next)) }))
+                  }
+                  return (
+                    <div key={pi.ingredient_id} className="flex min-h-[52px] items-center justify-between gap-3 border-t border-zinc-100 px-4 py-2">
+                      <span className="min-w-0">
+                        <span className={`text-[15px] ${value === -1 ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>{pi.ingredient.name}</span>
+                        {value === 1 && extraPrice > 0 && (
+                          <span className="ml-2 text-[13px] tabular-nums text-zinc-500">+{money(extraPrice)}</span>
+                        )}
+                      </span>
+                      <Stepper
+                        value={count}
+                        onDecrement={() => setValue(value - 1)}
+                        onIncrement={() => setValue(value + 1)}
+                        canDecrement={value > -1}
+                        canIncrement={value < 1}
+                        decrementLabel={fill(copy.withoutNamed, { name: pi.ingredient.name })}
+                        incrementLabel={fill(copy.extraNamed, { name: pi.ingredient.name })}
+                        color={primaryColor}
+                      />
                     </div>
                   )
                 })}
-              </div>
+                <div className="h-1" />
+              </section>
+            )}
 
-              {/* Add ingredient expandable picker */}
-              {productIngredients.filter(pi => !pi.is_default && !addedIngredients.includes(pi.ingredient_id)).length > 0 && (
-                <div className="mt-3">
-                  <button
-                    onClick={() => {
-                      notifyCustomizationStarted()
-                      setShowAddIngredient(v => !v)
-                    }}
-                    className="text-sm text-zinc-600 underline underline-offset-2 hover:text-zinc-900"
-                  >
-                    + Add ingredient
-                  </button>
-                  {showAddIngredient && (
-                    <div className="mt-2 border border-zinc-200 rounded-xl overflow-hidden">
-                      {productIngredients
-                        .filter(pi => !pi.is_default && !addedIngredients.includes(pi.ingredient_id))
-                        .map(pi => {
-                          const addPrice = pi.add_price_override ?? pi.ingredient.default_add_price
-                          return (
-                            <div key={pi.ingredient_id} className="flex items-center justify-between px-3 py-2 border-b border-zinc-100 last:border-b-0">
-                              <span className="text-sm text-zinc-800">{pi.ingredient.name}</span>
-                              <div className="flex items-center gap-2">
-                                {addPrice > 0 && (
-                                  <span className="text-xs text-zinc-500">+{formatPrice(addPrice, currency)}</span>
-                                )}
-                                <button
-                                  onClick={() => {
-                                    notifyCustomizationStarted()
-                                    setAddedIngredients(prev => [...prev, pi.ingredient_id])
-                                    setShowAddIngredient(false)
-                                  }}
-                                  className="text-xs bg-zinc-900 text-white px-2 py-1 rounded-lg hover:bg-zinc-800"
-                                >
-                                  Add
-                                </button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                    </div>
-                  )}
+            {ingredientCustomizationEnabled && extraIngredients.length > 0 && (
+              <section className="overflow-hidden rounded-2xl bg-white shadow-card">
+                <div className="px-4 pt-4 pb-2">
+                  <h3 className="text-[15px] font-semibold text-zinc-900">{copy.extras}</h3>
                 </div>
-              )}
-
-              {/* Selected added ingredients as removable chips */}
-              {addedIngredients.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {addedIngredients.map(ingId => {
-                    const pi = productIngredients.find(p => p.ingredient_id === ingId)
-                    if (!pi) return null
-                    const addPrice = pi.add_price_override ?? pi.ingredient.default_add_price
-                    return (
-                      <div key={ingId} className="flex items-center gap-1 bg-green-50 border border-green-200 rounded-full px-2 py-1">
-                        <span className="text-xs text-green-600">
-                          {pi.ingredient.name}{addPrice > 0 ? ` +${formatPrice(addPrice, currency)}` : ''}
-                        </span>
-                        <button
-                          onClick={() => {
+                {extraIngredients.map(pi => {
+                  const checked = addedIngredients.includes(pi.ingredient_id)
+                  const addPrice = pi.add_price_override ?? pi.ingredient.default_add_price
+                  return (
+                    <label key={pi.ingredient_id} className="flex min-h-[52px] cursor-pointer items-center justify-between gap-3 border-t border-zinc-100 px-4 py-2">
+                      <span className="flex min-w-0 items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
                             notifyCustomizationStarted()
-                            setAddedIngredients(prev => prev.filter(id => id !== ingId))
+                            setAddedIngredients(prev => checked ? prev.filter(id => id !== pi.ingredient_id) : [...prev, pi.ingredient_id])
                           }}
-                          className="text-green-500 hover:text-green-700 text-xs leading-none ml-0.5"
-                          aria-label={`Remove ${pi.ingredient.name}`}
-                        >
-                          &#x2715;
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-          {itemNotesEnabled && (
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-zinc-700 mb-1">
-                Notes
-                <span className="ml-2 text-xs text-zinc-400 font-normal">Max. 140 characters</span>
-              </label>
-              <textarea
-                value={itemNote}
-                onChange={e => setItemNote(e.target.value.slice(0, 140))}
-                placeholder="Ex: no ice, well done..."
-                rows={2}
-                maxLength={140}
-                className="w-full px-3 py-2 border border-zinc-200 rounded-xl text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 resize-none"
-              />
-              <p className="text-xs text-zinc-400 text-right mt-1">{itemNote.length}/140</p>
-            </div>
-          )}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mt-4">
-            <div>
-              {product.original_price && <p className="text-sm text-zinc-400 line-through">{formatPrice(product.original_price, currency)}</p>}
-              <p style={{ color: accentColor }} className="text-2xl font-bold">
-                {formatPrice(finalUnitPrice, currency)}
-              </p>
-              {optionGroups.length > 0 && finalUnitPrice !== product.price && (
-                <p className="text-xs text-zinc-400">Base: {formatPrice(product.price, currency)}</p>
-              )}
-            </div>
-            <div className="flex flex-col sm:flex-row gap-2">
-              {whatsapp && (
-                <button onClick={onWhatsApp} className="w-full sm:w-auto bg-green-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-green-600 transition-colors">
-                  Order via WhatsApp
-                </button>
-              )}
-              {onAddToCart && (
-                <button
-                  onClick={() => {
-                    if (!onAddToCart) return
-                    // Build selectedOptions from current selections
-                    const opts: Record<string, unknown> = {}
-                    for (const group of optionGroups) {
-                      if (group.type === 'single') {
-                        const optId = singleSelections[group.id]
-                        if (optId) {
-                          const opt = group.options.find(o => o.id === optId)
-                          if (opt) opts[group.name] = opt.name
-                        }
-                      } else if (group.type === 'half_and_half') {
-                        const half = halfSelections[group.id]
-                        if (half?.half1 && half?.half2) {
-                          const opt1 = group.options.find(o => o.id === half.half1)
-                          const opt2 = group.options.find(o => o.id === half.half2)
-                          if (opt1 && opt2) opts[group.name] = `${opt1.name} / ${opt2.name}`
-                        }
-                      } else if (group.type === 'multiple') {
-                        const sel = multiSelections[group.id] ?? []
-                        if (sel.length > 0) {
-                          opts[group.name] = sel
-                            .map(id => group.options.find(o => o.id === id)?.name)
-                            .filter(Boolean)
-                            .join(', ')
-                        }
-                      }
-                    }
-                    const mods = buildIngredientModifications()
-                    const editorState: CartEditorState = {
-                      singleSelections,
-                      halfSelections,
-                      multiSelections,
-                      ingredientSteppers,
-                      addedIngredients,
-                      note: itemNote,
-                    }
-                    onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods, editorState)
-                  }}
-                  disabled={!canAddToCart}
-                  aria-disabled={!canAddToCart}
-                  className={`w-full sm:w-auto bg-zinc-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors ${canAddToCart ? 'hover:bg-zinc-800' : 'opacity-50 cursor-not-allowed'}`}
-                >
-                  {submitLabel}
-                </button>
-              )}
-            </div>
+                          className="sr-only"
+                        />
+                        <CheckMark checked={checked} color={primaryColor} />
+                        <span className="text-[15px] text-zinc-900">{pi.ingredient.name}</span>
+                      </span>
+                      {addPrice > 0 && <span className="shrink-0 text-[14px] tabular-nums text-zinc-500">+{money(addPrice)}</span>}
+                    </label>
+                  )
+                })}
+                <div className="h-1" />
+              </section>
+            )}
+
+            {itemNotesEnabled && (
+              <section className="rounded-2xl bg-white p-4 shadow-card">
+                <label htmlFor={`note-${product.id}`} className="flex items-baseline justify-between gap-3">
+                  <span className="text-[15px] font-semibold text-zinc-900">{copy.notes}</span>
+                  <span className="text-[12px] font-medium tabular-nums text-zinc-500">{itemNote.length}/140</span>
+                </label>
+                <textarea
+                  id={`note-${product.id}`}
+                  value={itemNote}
+                  onChange={e => setItemNote(e.target.value.slice(0, 140))}
+                  placeholder={copy.notesPlaceholder}
+                  rows={2}
+                  maxLength={140}
+                  className="mt-2 w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[16px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-zinc-900/5"
+                />
+              </section>
+            )}
           </div>
         </div>
+
+        {(onAddToCart || whatsapp) && (
+          <div className="shrink-0 space-y-2 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            {onAddToCart && (
+              <div className="flex items-center gap-3">
+                {!isEditing && (
+                  <div className="flex h-[52px] shrink-0 items-center rounded-2xl border border-zinc-200 bg-white px-1">
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                      disabled={quantity <= 1}
+                      aria-label={copy.decrease}
+                      className="flex size-10 items-center justify-center rounded-xl text-zinc-800 transition-colors hover:bg-zinc-100 disabled:text-zinc-300"
+                    >
+                      <Minus className="size-4" />
+                    </button>
+                    <span className="min-w-7 text-center text-[16px] font-semibold tabular-nums text-zinc-900" aria-label={copy.quantity}>{quantity}</span>
+                    <button
+                      type="button"
+                      onClick={() => setQuantity(q => Math.min(99, q + 1))}
+                      aria-label={copy.increase}
+                      className="flex size-10 items-center justify-center rounded-xl text-zinc-800 transition-colors hover:bg-zinc-100"
+                    >
+                      <Plus className="size-4" />
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={submit}
+                  aria-disabled={!canAddToCart}
+                  style={{ backgroundColor: primaryColor, color: onPrimary }}
+                  className={`flex h-[52px] min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-[16px] font-semibold shadow-float transition-[opacity,scale] active:scale-[0.98] ${canAddToCart ? 'hover:opacity-95' : 'opacity-50'}`}
+                >
+                  {canAddToCart ? (
+                    <>
+                      <span className="truncate">{isEditing ? copy.updateItem : copy.addToOrder}</span>
+                      <span aria-hidden="true" className="opacity-70">·</span>
+                      <span className="tabular-nums">{money(finalUnitPrice * (isEditing ? 1 : quantity))}</span>
+                    </>
+                  ) : (
+                    <span className="truncate text-[15px]">{copy.chooseRequired}</span>
+                  )}
+                </button>
+              </div>
+            )}
+            {whatsapp && (
+              <button
+                type="button"
+                onClick={onWhatsApp}
+                className={onAddToCart
+                  ? 'w-full py-1.5 text-[14px] font-medium text-emerald-700 hover:underline'
+                  : 'flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#25D366] text-[16px] font-semibold text-white transition-opacity hover:opacity-95'}
+              >
+                {copy.orderWhatsApp}
+              </button>
+            )}
+          </div>
+        )}
       </div>
       </div>
     </div>
+    </ModalPortal>
+  )
+}
+
+function RadioMark({ selected, color }: { selected: boolean; color: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex size-[22px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors"
+      style={selected ? { backgroundColor: color, borderColor: color } : { borderColor: '#d4d4d8' }}
+    >
+      {selected && <span className="size-2 rounded-full bg-white" />}
+    </span>
+  )
+}
+
+function CheckMark({ checked, color }: { checked: boolean; color: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex size-[22px] shrink-0 items-center justify-center rounded-md border-[1.5px] transition-colors"
+      style={checked ? { backgroundColor: color, borderColor: color } : { borderColor: '#d4d4d8' }}
+    >
+      {checked && <Check className="size-3.5 text-white" strokeWidth={3} />}
+    </span>
+  )
+}
+
+function Stepper({ value, onDecrement, onIncrement, canDecrement, canIncrement, decrementLabel, incrementLabel, color }: {
+  value: number
+  onDecrement: () => void
+  onIncrement: () => void
+  canDecrement: boolean
+  canIncrement: boolean
+  decrementLabel: string
+  incrementLabel: string
+  color: string
+}) {
+  return (
+    <span className="flex h-9 shrink-0 items-center rounded-full border border-zinc-200 bg-white px-0.5">
+      <button type="button" onClick={onDecrement} disabled={!canDecrement} aria-label={decrementLabel} className="flex size-8 items-center justify-center rounded-full text-zinc-800 transition-colors hover:bg-zinc-100 disabled:text-zinc-300">
+        <Minus className="size-3.5" />
+      </button>
+      <span className="min-w-5 text-center text-[15px] font-semibold tabular-nums text-zinc-900">{value}</span>
+      <button type="button" onClick={onIncrement} disabled={!canIncrement} aria-label={incrementLabel} className="flex size-8 items-center justify-center rounded-full transition-colors hover:bg-zinc-100 disabled:text-zinc-300" style={canIncrement ? { color } : undefined}>
+        <Plus className="size-3.5" />
+      </button>
+    </span>
   )
 }

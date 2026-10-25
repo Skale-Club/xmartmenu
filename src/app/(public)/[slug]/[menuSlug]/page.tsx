@@ -141,11 +141,12 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       : Promise.resolve({ data: [] }),
   ])
 
-  const directOrdersEnabled = tenant.tenant_settings?.direct_orders_enabled ?? false
   const productIds = (products ?? []).map(p => p.id)
 
+  // Option groups (sizes, flavours…) are part of the dish: shown even on a
+  // browse-only menu, and required before a dish with them can be ordered.
   const optionGroupsByProductId: Record<string, GroupWithOptions[]> = {}
-  if (directOrdersEnabled && productIds.length > 0) {
+  if (productIds.length > 0) {
     const { data: rawGroups } = await supabase
       .from('product_option_groups')
       .select('*, options:product_options(*)')
@@ -273,7 +274,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       menu={menu}
       location={location ? { id: location.id, name: location.name } : null}
       initialLanguage={lang}
-      initialView={view === 'feed' ? 'feed' : undefined}
+      initialView={view === 'feed' || view === 'list' ? view : undefined}
       footerBrand={footerBrand}
       optionGroupsByProductId={optionGroupsByProductId}
       ingredientCustomizationEnabled={ingredientCustomizationEnabled}

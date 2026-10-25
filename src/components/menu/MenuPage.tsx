@@ -4,28 +4,48 @@ import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { motion, AnimatePresence } from 'framer-motion'
-import { formatPrice, getInitials } from '@/lib/utils'
+import { motion } from 'framer-motion'
+import { getInitials } from '@/lib/utils'
 import { MenuAnalyticsTracker } from '@/lib/analytics/client'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import { UI_COPY, type CartItem, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed } from './menu-utils'
+import { type CartItem, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed } from './menu-utils'
+import { fill, formatClock, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, menuLanguage, translateTag, type MenuCopy } from './menu-i18n'
+import { computeOpenState, resolveTimeZone, type OpenState } from '@/lib/chat-context'
+import { computePrimaryForeground } from '@/lib/color-utils'
+import {
+  CART_TTL_MS,
+  browserStorage,
+  cartStorageKey,
+  isDraftEmpty,
+  normalizeScreenState,
+  readStored,
+  removeStored,
+  resolveInitialView,
+  restoreCart,
+  serializeCart,
+  sessionStorageKey,
+  urlWithView,
+  writeStored,
+  type MenuView,
+  type StoredCartItem,
+} from './menu-session'
+import ModalPortal from '@/components/ui/ModalPortal'
 import {
   MapPin,
   Phone,
-  Clock,
   Search,
   X,
-  ChevronRight,
-  ChevronLeft,
-  Star,
   Camera,
   MessageCircle,
   Mail,
-  ShoppingBag,
-  LayoutGrid,
-  Rows3,
-  Sparkles
+  Sparkles,
+  Plus,
+  Minus,
+  Languages,
+  ChevronDown,
+  UtensilsCrossed,
+  Clapperboard,
 } from 'lucide-react'
 
 const ProductModal = dynamic(() => import('./ProductModal'), { ssr: false })
@@ -76,11 +96,6 @@ interface Props {
   chatAddonAudioEnabled?: boolean
 }
 
-const DAYS: Record<string, string> = {
-  mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday',
-  thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
-}
-
 function getTranslatedMenuField(
   menu: Props['menu'],
   lang: string,
@@ -96,11 +111,21 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
   const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
-  const [menuView, setMenuView] = useState<'list' | 'feed'>(() =>
-    feedEnabled && (initialView === 'feed' || tenant.tenant_settings?.menu_default_view === 'feed')
-      ? 'feed'
-      : 'list'
-  )
+  const [menuView, setMenuView] = useState<MenuView>(() => resolveInitialView({
+    urlView: initialView,
+    defaultView: tenant.tenant_settings?.menu_default_view,
+    feedEnabled,
+  }))
+  // Switching views writes ?view= into the URL, so a reload (or a /feed link
+  // the customer navigated away from) lands where they were.
+  function changeView(view: MenuView) {
+    setMenuView(view)
+    try {
+      window.history.replaceState(window.history.state, '', urlWithView(window.location.href, view))
+    } catch {
+      // URL sync is best-effort
+    }
+  }
   const isMobileViewport = useSyncExternalStore(
     subscribeToMobileViewport,
     getMobileViewportSnapshot,
@@ -111,12 +136,10 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     : (tenant.tenant_settings?.pickup_enabled ?? false) ? 'pickup'
     : 'delivery'
   const [search, setSearch] = useState('')
-  const [activeCategory, setActiveCategory] = useState<string | null>(null)
+  // Tabs scroll to a section instead of filtering; the list is never narrowed to one category.
+  const activeCategory: string | null = null
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
   const [selectedProductSource, setSelectedProductSource] = useState<'grid' | 'featured' | 'detail' | 'cart' | 'feed'>('detail')
-  const [showFooterAtEnd, setShowFooterAtEnd] = useState(false)
-  const [footerHeight, setFooterHeight] = useState(0)
-  const [pauseFeaturedAutoScroll, setPauseFeaturedAutoScroll] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState(initialLanguage ?? menu?.language ?? 'en')
   const [visibleCategory, setVisibleCategory] = useState<string | null>(null)
   const [cart, setCart] = useState<CartItem[]>([])
@@ -141,7 +164,6 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const [tipCents, setTipCents] = useState(0)
   const [analyticsTracker, setAnalyticsTracker] = useState<MenuAnalyticsTracker | null>(null)
   const [analyticsDebug, setAnalyticsDebug] = useState(false)
-  const footerRef = useRef<HTMLElement | null>(null)
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
   const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   const categoryFilterRef = useRef<HTMLDivElement | null>(null)
@@ -167,11 +189,33 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     settings?.tip_percentage_3 ?? 20,
   ]
   const featured = products.filter(p => p.is_featured)
-  const featuredBase = featured.length === 1 ? [featured[0], featured[0], featured[0]] : featured
   const supportedLanguages = menu?.supported_languages?.length ? menu.supported_languages : [menu?.language ?? 'en']
-  const ui = UI_COPY[selectedLanguage] ?? UI_COPY.en
+  const copy = getMenuCopy(selectedLanguage)
   const menuTitle = getTranslatedMenuField(menu, selectedLanguage, 'name', menu?.name ?? tenant.name)
-  const menuDescription = getTranslatedMenuField(menu, selectedLanguage, 'description', menu?.description ?? '')
+
+  // The guest's language: ?lang= (also written on change, so a reload keeps
+  // it), otherwise the phone's language when this menu offers it.
+  function changeLanguage(lang: string) {
+    setSelectedLanguage(lang)
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set('lang', lang)
+      window.history.replaceState(window.history.state, '', url.toString())
+    } catch {
+      // URL sync is best-effort
+    }
+  }
+  useEffect(() => {
+    if (supportedLanguages.length < 2) return
+    if (new URLSearchParams(window.location.search).has('lang')) return
+    const match = matchDeviceLanguage(navigator.languages?.length ? navigator.languages : [navigator.language], supportedLanguages)
+    if (match && match !== selectedLanguage) setSelectedLanguage(match)
+    // Mount-only: a suggestion, never a fight with the guest's own choice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    document.documentElement.lang = localeFor(selectedLanguage)
+  }, [selectedLanguage])
 
   useEffect(() => {
     if (process.env.NODE_ENV !== 'development') return
@@ -220,7 +264,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
   function openWhatsApp(product: Product) {
     if (!whatsapp) return
-    const msg = encodeURIComponent(`Hi! I'd like to order: ${product.name} | ${formatPrice(product.price, currency)}`)
+    const msg = encodeURIComponent(fill(copy.whatsappMessage, { item: `${product.name} · ${formatMoney(product.price, currency, selectedLanguage)}` }))
     window.open(`https://wa.me/${whatsapp}?text=${msg}`, '_blank')
   }
 
@@ -234,21 +278,22 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed') {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed', quantity = 1) {
     const key = buildCartKey(product.id, selectedOptions)
+    const amount = Math.max(1, Math.floor(quantity))
     setCart(prev => {
       const existing = prev.find(item => item.cartKey === key)
       if (existing) {
         return prev.map(item =>
-          item.cartKey === key ? { ...item, quantity: item.quantity + 1, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications, editorState: editorState ?? item.editorState } : item
+          item.cartKey === key ? { ...item, quantity: item.quantity + amount, note: note ?? item.note, ingredientModifications: ingredientModifications ?? item.ingredientModifications, editorState: editorState ?? item.editorState } : item
         )
       }
-      return [...prev, { product, quantity: 1, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications, editorState }]
+      return [...prev, { product, quantity: amount, selectedOptions, unitPrice, cartKey: key, note, ingredientModifications, editorState }]
     })
     analyticsTracker?.track({
       event_name: 'add_to_cart',
       product_id: product.id,
-      quantity: 1,
+      quantity: amount,
       source: source ?? (selectedProduct?.id === product.id ? 'detail' : 'grid'),
     })
   }
@@ -316,15 +361,15 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
 
   async function submitOrder() {
     if (!customerName.trim() || !customerPhone.trim()) {
-      setOrderError('Please fill in your name and phone number')
+      setOrderError(copy.errNamePhone)
       return
     }
     if (cart.length === 0) {
-      setOrderError('Your cart is empty')
+      setOrderError(copy.errCartEmpty)
       return
     }
     if (orderType === 'delivery' && !deliveryStreet.trim()) {
-      setOrderError('Please enter your delivery street address')
+      setOrderError(copy.errStreet)
       return
     }
 
@@ -368,7 +413,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       const data = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit order')
+        throw new Error(copy.errSubmit)
       }
 
       // Customer (QR / public-menu) orders that require online payment skip the
@@ -376,6 +421,11 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       // already exists in 'awaiting_payment' and only reaches the kitchen once
       // the payment webhook flips it to 'paid'.
       if (data.requires_payment) {
+        // The order now exists (awaiting payment): the cart and the form are
+        // spent, so coming back to the menu must not offer them again.
+        removeStored(browserStorage('local'), cartKey)
+        removeStored(browserStorage('session'), screenKey)
+        setCart([])
         router.push(`/checkout/${data.id}`)
         return
       }
@@ -394,7 +444,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
       setOrderType(defaultOrderType)
       setTipCents(0)
     } catch (error) {
-      setOrderError(error instanceof Error ? error.message : 'Failed to submit order')
+      setOrderError(error instanceof Error && error.message ? error.message : copy.errSubmit)
     } finally {
       setSubmittingOrder(false)
     }
@@ -406,7 +456,6 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     ? (settings as { email?: string | null }).email ?? null
     : null
   const hasContact = settings?.phone || settings?.instagram || settings?.whatsapp || settings?.address || email
-  const hasFixedFooter = hasContact || footerBrand
 
   useEffect(() => {
     if (!menu?.id || !analyticsEnabled) return
@@ -570,70 +619,56 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     }
   }, [analyticsTracker, activeCategory, search, filtered.length, featured.length, activeMenuView])
 
-  function selectCategory(categoryId: string | null) {
-    const nextCategory = categoryId && activeCategory === categoryId ? null : categoryId
-    setActiveCategory(nextCategory)
-    if (nextCategory) {
-      analyticsTracker?.track({
-        event_name: 'category_selected',
-        category_id: nextCategory,
-      })
+  function selectCategory(sectionId: string) {
+    const target = categoryRefs.current[sectionId]
+    if (target) {
+      const nav = categoryFilterRef.current?.closest('nav')
+      const offset = (nav?.getBoundingClientRect().height ?? 0) + 8
+      window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY - offset, behavior: 'smooth' })
+    }
+    setVisibleCategory(sectionId)
+    if (sectionId !== FEATURED_TAB && sectionId !== OTHER_TAB) {
+      analyticsTracker?.track({ event_name: 'category_selected', category_id: sectionId })
     }
   }
 
+  // The current tab is the last section whose top has passed under the tab
+  // bar — computed from the scroll position, so jumps and fast flicks agree.
   useEffect(() => {
-    const onScroll = () => {
-      const currentY = window.scrollY
-      const viewportBottom = currentY + window.innerHeight
-      const pageBottom = document.documentElement.scrollHeight
-      const isAtEnd = viewportBottom >= pageBottom - 24
-      setShowFooterAtEnd(isAtEnd)
-    }
-
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll)
-    return () => {
-      window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
-    }
-  }, [])
-
-  useEffect(() => {
-    if (activeCategory || search) {
+    if (search) {
       setVisibleCategory(null)
       return
     }
-
-    const getRootMargin = () => {
-      if (typeof window === 'undefined') return '-20% 0px -60% 0px'
-      return window.innerWidth < 640 ? '-80px 0px -60% 0px' : '-20% 0px -60% 0px'
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visibleEntries = entries.filter(e => e.isIntersecting)
-        if (visibleEntries.length === 0) return
-
-        const topEntry = visibleEntries.reduce((a, b) =>
-          a.boundingClientRect.top < b.boundingClientRect.top ? a : b
-        )
-        const categoryId = topEntry.target.getAttribute('data-category-id')
-        if (categoryId) setVisibleCategory(categoryId)
-      },
-      {
-        rootMargin: getRootMargin(),
-        threshold: 0,
+    let frame = 0
+    const update = () => {
+      frame = 0
+      const nav = categoryFilterRef.current?.closest('nav')
+      // At the very end of the page the last sections can't scroll up to the
+      // bar; there the last one on screen is the current one.
+      const atEnd = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4
+      const line = atEnd ? window.innerHeight * 0.85 : (nav?.getBoundingClientRect().bottom ?? 0) + 24
+      let current: string | null = null
+      let currentTop = -Infinity
+      for (const [id, el] of Object.entries(categoryRefs.current)) {
+        if (!el || !el.isConnected) continue
+        const top = el.getBoundingClientRect().top
+        if (top <= line && top > currentTop) {
+          current = id
+          currentTop = top
+        }
       }
-    )
-
-    const refs = categoryRefs.current
-    Object.values(refs).forEach(el => {
-      if (el) observer.observe(el)
-    })
-
-    return () => observer.disconnect()
-  }, [groupedByCategory, activeCategory, search])
+      setVisibleCategory(current)
+    }
+    const onScroll = () => { if (!frame) frame = window.requestAnimationFrame(update) }
+    update()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    window.addEventListener('resize', onScroll)
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame)
+      window.removeEventListener('scroll', onScroll)
+      window.removeEventListener('resize', onScroll)
+    }
+  }, [search, groupedByCategory.length, uncategorized.length])
 
   useEffect(() => {
     if (!visibleCategory) return
@@ -649,20 +684,76 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     }
   }, [visibleCategory])
 
+  // ── Persistence across reloads (see menu-session.ts) ──────────────────────
+  const cartKey = cartStorageKey(tenant.id, menu?.id)
+  const screenKey = sessionStorageKey(tenant.id, menu?.id)
+  const [restored, setRestored] = useState(false)
+  const [feedIndex, setFeedIndex] = useState(0)
+
+  // Restore once, after hydration (storage doesn't exist on the server).
   useEffect(() => {
-    if (!hasFixedFooter) {
-      setFooterHeight(0)
-      return
-    }
+    const now = Date.now()
+    const screen = normalizeScreenState(readStored(browserStorage('session'), screenKey, now))
+    const savedCart = directOrdersEnabled
+      ? restoreCart(readStored<StoredCartItem[]>(browserStorage('local'), cartKey, now, CART_TTL_MS), products)
+      : []
 
-    const measure = () => {
-      setFooterHeight(footerRef.current?.offsetHeight ?? 0)
+    if (savedCart.length) {
+      // Restoring is not "adding": don't pop the desktop drawer open for it.
+      autoOpenedRef.current = true
+      setCart(savedCart)
     }
+    if (screen.placedOrder) {
+      setConfirmedCart(restoreCart(screen.placedOrder.items, products))
+      setOrderId(screen.placedOrder.id)
+      setOrderSuccess(true)
+      setCheckoutOpen(true)
+    } else if (savedCart.length) {
+      setCartOpen(screen.cartOpen)
+      setCheckoutOpen(screen.checkoutOpen)
+    }
+    if (screen.draft) {
+      setCustomerName(screen.draft.customerName)
+      setCustomerPhone(screen.draft.customerPhone)
+      if (screen.draft.orderType) setOrderType(screen.draft.orderType as typeof orderType)
+      setDeliveryStreet(screen.draft.deliveryStreet)
+      setDeliveryComplement(screen.draft.deliveryComplement)
+      setDeliveryZipcode(screen.draft.deliveryZipcode)
+      setDeliveryCity(screen.draft.deliveryCity)
+      setDeliveryNotes(screen.draft.deliveryNotes)
+      setTipCents(screen.draft.tipCents)
+    }
+    const openProductAgain = screen.productId ? products.find(p => p.id === screen.productId) : undefined
+    if (openProductAgain) setSelectedProduct(openProductAgain)
+    setFeedIndex(screen.feedIndex)
+    setRestored(true)
+    // Mount-only: later changes are written by the effects below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-    measure()
-    window.addEventListener('resize', measure)
-    return () => window.removeEventListener('resize', measure)
-  }, [hasFixedFooter, hasContact, footerBrand])
+  useEffect(() => {
+    if (!restored) return
+    if (cart.length) writeStored(browserStorage('local'), cartKey, serializeCart(cart), Date.now())
+    else removeStored(browserStorage('local'), cartKey)
+  }, [restored, cart, cartKey])
+
+  useEffect(() => {
+    if (!restored) return
+    const draft = {
+      customerName, customerPhone, orderType,
+      deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, tipCents,
+    }
+    writeStored(browserStorage('session'), screenKey, {
+      cartOpen,
+      checkoutOpen,
+      productId: selectedProduct?.id ?? null,
+      feedIndex,
+      draft: isDraftEmpty(draft, defaultOrderType) ? null : draft,
+      placedOrder: orderSuccess && orderId ? { id: orderId, items: serializeCart(confirmedCart) } : null,
+    }, Date.now())
+  }, [restored, screenKey, cartOpen, checkoutOpen, selectedProduct, feedIndex, customerName, customerPhone, orderType,
+    deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, tipCents, defaultOrderType,
+    orderSuccess, orderId, confirmedCart])
 
   // Auto-open the side panel once on desktop when the first item is added.
   useEffect(() => {
@@ -677,10 +768,9 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   }, [cart.length])
 
 
-  // Match the panel's actual on-screen visibility so the page reflow never
-  // desyncs from the panel (e.g. emptying the cart while the panel is open, or
-  // opening checkout). CartPanel uses the same `cartOpen && !checkoutOpen`.
-  const panelPushing = directOrdersEnabled && cartOpen && !checkoutOpen
+  // The cart drawer's actual on-screen visibility (CartPanel uses the same
+  // `cartOpen && !checkoutOpen`); the chat widget steps aside while it is open.
+  const cartPanelVisible = directOrdersEnabled && cartOpen && !checkoutOpen
   const editingItem = editingCartKey ? cart.find(i => i.cartKey === editingCartKey) ?? null : null
 
   function closeProductModal() {
@@ -692,316 +782,236 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
     }
   }
 
+  // ── Presentation ───────────────────────────────────────────────────────────
+  const onPrimary = computePrimaryForeground(primaryColor)
+  const money = (value: number) => formatMoney(value, currency, selectedLanguage)
+  const hasCustomization = (productId: string) =>
+    (optionGroupsByProductId[productId]?.length ?? 0) > 0
+    || (ingredientCustomizationEnabled && (productIngredientsByProductId[productId]?.length ?? 0) > 0)
+
+  // Open/closed is computed on the client only (it depends on "now").
+  const [openInfo, setOpenInfo] = useState<{ state: OpenState; todayIndex: number | null } | null>(null)
+  useEffect(() => {
+    const timeZone = resolveTimeZone({ country: settings?.country, region: settings?.region, currency })
+    const update = () => {
+      const result = computeOpenState(hours as Record<string, string | null | undefined> | null | undefined, new Date(), timeZone)
+      setOpenInfo({ state: result.state, todayIndex: result.todayIndex })
+    }
+    update()
+    const timer = window.setInterval(update, 60_000)
+    return () => window.clearInterval(timer)
+  }, [hours, settings?.country, settings?.region, currency])
+  const openLabel = openInfo ? describeOpenState(openInfo.state, copy, selectedLanguage) : null
+
+  const contextParts = [menuTitle !== tenant.name ? menuTitle : null, settings?.business_type, settings?.price_range]
+    .filter((part): part is string => !!part && !!part.trim())
+
+  const tabs: Array<{ id: string; label: string }> = [
+    ...(featured.length > 0 && !search ? [{ id: FEATURED_TAB, label: copy.featured }] : []),
+    ...groupedByCategory.map(({ category }) => ({ id: category.id, label: category.name })),
+    ...(uncategorized.length > 0 ? [{ id: OTHER_TAB, label: copy.other }] : []),
+  ]
+  const activeTab = visibleCategory ?? tabs[0]?.id ?? null
+  const showOrderBar = directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && activeMenuView === 'list'
+
   return (
-    <div className={`min-h-screen bg-zinc-50 text-zinc-900 transition-[padding] duration-300 ${panelPushing ? 'lg:pr-[380px]' : ''}`}>
-      {/* Premium Header */}
-      <motion.header
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="relative text-white min-h-[280px] flex items-center justify-center overflow-hidden"
-        style={!settings?.banner_url ? { backgroundColor: primaryColor } : undefined}
-      >
-        {/* Banner with modern treatment */}
-        {settings?.banner_url && (
-          <>
-            <Image
-              src={settings.banner_url}
-              alt="Banner"
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover scale-110"
-            />
-            {/* Multi-layer overlay for depth */}
-            <div className="absolute inset-0 bg-black/40" />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/20 to-zinc-950" />
-            <div className="absolute inset-0" style={{ backgroundColor: primaryColor, opacity: 0.2 }} />
-          </>
-        )}
-
-        {/* Header Content */}
-        <div className="relative z-10 w-full max-w-5xl px-4 py-10 flex flex-col items-center">
-          
-          <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="flex flex-col items-center gap-6"
-          >
-            {/* Title Group — logo above name on all screen sizes */}
-            <div className="flex flex-col items-center gap-4">
-              {/* Logo with Glassmorphism */}
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", damping: 15 }}
-              >
-                {settings?.logo_url ? (
-                  <div className="relative w-16 h-16 sm:w-20 sm:h-20 bg-white rounded-lg ring-1 ring-white/30 shadow-2xl overflow-hidden">
-                    <Image
-                      src={settings.logo_url}
-                      alt={tenant.name}
-                      fill
-                      priority
-                      className="object-contain p-2.5 sm:p-3"
-                    />
-                  </div>
-                ) : (
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg bg-white/10 backdrop-blur-xl ring-1 ring-white/40 flex items-center justify-center text-xl font-black tracking-tighter text-white shadow-2xl">
-                    {getInitials(tenant.name)}
-                  </div>
-                )}
-              </motion.div>
-
-              <div className="text-center">
-                <h1 className="text-3xl sm:text-4xl font-black tracking-tighter drop-shadow-xl text-white">
-                  {tenant.name}
-                </h1>
-                {menuTitle && (
-                  <div className="flex items-center justify-center gap-3 mt-1">
-                    <p className="text-[10px] sm:text-xs font-black text-white/90 uppercase tracking-[0.3em]">
-                      {menuTitle}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {settings?.tagline && (
-              <p className="text-sm sm:text-base font-medium text-white/60 max-w-lg mx-auto text-center leading-relaxed">
-                {settings.tagline}
-              </p>
-            )}
-
-
-
-          </motion.div>
-        </div>
-
-        {/* Language Switcher */}
-        {supportedLanguages.length > 1 && (
-          <div className="absolute top-6 right-6 z-20">
-            <div className="flex items-center gap-1.5 p-1.5 bg-black/40 backdrop-blur-2xl rounded-lg border border-white/10 shadow-2xl">
-              {supportedLanguages.map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => {
-                    setSelectedLanguage(lang)
-                    const url = new URL(window.location.href)
-                    url.searchParams.set('lang', lang)
-                    window.history.replaceState({}, '', url.toString())
-                  }}
-                  className={`text-[10px] font-black px-3 py-2 rounded-full transition-all duration-300 ${
-                    selectedLanguage === lang 
-                      ? 'bg-white text-zinc-900 shadow-xl scale-105' 
-                      : 'text-white/50 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  {lang.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </motion.header>
-
-      {/* Modern Category Filter */}
-      {(categories.length > 0 || feedEnabled) && (
-        <div className="sticky top-0 z-30 bg-zinc-50/80 backdrop-blur-xl border-b border-zinc-200 shadow-sm">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div ref={categoryFilterRef} className="flex gap-2 justify-start md:justify-center items-center overflow-x-auto py-4 scrollbar-hide no-scrollbar">
-              {feedEnabled && (
-                <button
-                  type="button"
-                  onClick={() => setMenuView(activeMenuView === 'feed' ? 'list' : 'feed')}
-                  aria-pressed={activeMenuView === 'feed'}
-                  aria-label={activeMenuView === 'feed' ? ui.viewMenu : ui.viewFeed}
-                  style={activeMenuView === 'feed'
-                    ? { backgroundColor: accentColor }
-                    : { backgroundColor: primaryColor, boxShadow: `0 10px 24px ${primaryColor}35` }}
-                  className="md:hidden flex h-10 flex-shrink-0 items-center gap-2 rounded-full px-4 text-[11px] font-black uppercase tracking-[0.14em] text-white transition-all active:scale-95"
-                >
-                  {activeMenuView === 'feed' ? <Rows3 className="size-4" /> : <LayoutGrid className="size-4" />}
-                  <span>{activeMenuView === 'feed' ? ui.viewMenu : ui.viewFeed}</span>
-                </button>
-              )}
-              {hasHours && (
-                <button
-                  onClick={() => setShowHoursModal(true)}
-                  className="flex-shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-full bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 shadow-sm text-xs font-black uppercase tracking-widest transition-all hover:scale-105 active:scale-95"
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                  {ui.hoursBtn}
-                </button>
-              )}
-
-              <AnimatePresence mode="wait">
-                {showSearch ? (
-                  <motion.div
-                    key="search-input"
-                    initial={{ width: 0, opacity: 0 }}
-                    animate={{ width: 'auto', opacity: 1 }}
-                    exit={{ width: 0, opacity: 0 }}
-                    className="overflow-hidden"
-                  >
-                    <input
-                      autoFocus
-                      type="search"
-                      value={search}
-                      onChange={e => setSearch(e.target.value)}
-                      placeholder="Find something delicious..."
-                      className="w-64 sm:w-96 px-6 py-2.5 rounded-full bg-white border border-zinc-200 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900 transition-all shadow-sm"
-                    />
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="categories-list"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex gap-2"
-                  >
-                    <button
-                      onClick={() => selectCategory(null)}
-                      style={!activeCategory && !visibleCategory ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                      className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
-                        !activeCategory && !visibleCategory ? 'shadow-md scale-105' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:scale-105'
-                      }`}
-                    >
-                      {ui.all}
-                    </button>
-                    {categories.filter(cat => cat.name?.trim()).map(cat => (
-                      <button
-                        key={cat.id}
-                        ref={el => { categoryButtonRefs.current[cat.id] = el }}
-                        onClick={() => selectCategory(cat.id)}
-                        style={activeCategory === cat.id || visibleCategory === cat.id ? { backgroundColor: primaryColor, color: '#fff' } : {}}
-                        className={`flex-shrink-0 text-xs font-black uppercase tracking-widest px-5 py-2.5 rounded-full transition-all shadow-sm active:scale-95 ${
-                          activeCategory === cat.id || visibleCategory === cat.id ? 'shadow-md scale-105' : 'bg-white text-zinc-700 border border-zinc-200 hover:border-zinc-300 hover:scale-105'
-                        }`}
-                      >
-                        {cat.name}
-                      </button>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
+    <div className="menu-root min-h-screen bg-menu text-zinc-900" lang={localeFor(selectedLanguage)}>
+      {/* Header: banner, then identity with the logo overlapping its edge */}
+      <header className="relative">
+        <div
+          className="relative h-44 overflow-hidden sm:h-64"
+          style={!settings?.banner_url ? { background: `linear-gradient(135deg, color-mix(in srgb, ${primaryColor} 26%, white), color-mix(in srgb, ${primaryColor} 8%, white))` } : undefined}
+        >
+          {settings?.banner_url && (
+            <>
+              <Image src={settings.banner_url} alt="" fill priority sizes="100vw" className="object-cover" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/10" />
+            </>
+          )}
+          <div className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3 flex items-center gap-2 sm:right-5 sm:top-5">
+            {feedEnabled && (
               <button
-                onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
-                aria-label={showSearch ? 'Close search' : 'Search menu'}
-                className={`flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-full transition-all duration-300 ${
-                  showSearch ? 'bg-zinc-900 text-white' : 'bg-white text-zinc-500 border border-zinc-200 hover:border-zinc-300 shadow-sm'
-                }`}
+                type="button"
+                onClick={() => changeView('feed')}
+                aria-label={copy.viewFeed}
+                className="flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-900 shadow-sm transition-[scale] active:scale-95 md:hidden"
               >
-                {showSearch ? <X className="w-5 h-5" /> : <Search className="w-5 h-5" />}
+                <Clapperboard className="size-[18px]" />
               </button>
-            </div>
+            )}
+            {supportedLanguages.length > 1 && (
+              <label className="relative flex h-10 cursor-pointer items-center gap-1.5 rounded-full bg-white/95 pl-3 pr-2 text-[14px] font-medium text-zinc-900 shadow-sm">
+                <Languages className="size-4 text-zinc-600" aria-hidden="true" />
+                <span>{menuLanguage(selectedLanguage).nativeName}</span>
+                <ChevronDown className="size-4 text-zinc-500" aria-hidden="true" />
+                <select
+                  aria-label={copy.language}
+                  value={selectedLanguage}
+                  onChange={e => changeLanguage(e.target.value)}
+                  className="absolute inset-0 cursor-pointer opacity-0"
+                >
+                  {supportedLanguages.map(code => (
+                    <option key={code} value={code}>{menuLanguage(code).nativeName}</option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
         </div>
+
+        <div className="mx-auto max-w-5xl px-5 sm:px-8">
+          <div className="relative -mt-9 size-[72px] overflow-hidden rounded-2xl bg-white shadow-card ring-1 ring-black/5 sm:-mt-12 sm:size-24">
+            {settings?.logo_url ? (
+              <Image src={settings.logo_url} alt={tenant.name} fill priority sizes="96px" className="object-contain p-2" />
+            ) : (
+              <div className="flex size-full items-center justify-center text-xl font-semibold text-zinc-700">{getInitials(tenant.name)}</div>
+            )}
+          </div>
+          <h1 className="mt-3 text-[26px] font-bold leading-tight tracking-tight text-zinc-900 sm:text-[32px]">{tenant.name}</h1>
+          {(contextParts.length > 0 || openLabel || hasHours) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-zinc-500">
+              {contextParts.map((part, i) => (
+                <span key={i} className="flex items-center gap-2">
+                  {i > 0 && <span aria-hidden="true">·</span>}
+                  {part}
+                </span>
+              ))}
+              {(openLabel || hasHours) && (
+                <>
+                  {contextParts.length > 0 && <span aria-hidden="true">·</span>}
+                  <button
+                    type="button"
+                    onClick={() => setShowHoursModal(true)}
+                    disabled={!hasHours}
+                    className={`inline-flex items-center gap-1.5 font-medium ${openLabel?.open ? 'text-emerald-700' : 'text-zinc-600'} enabled:hover:underline`}
+                  >
+                    {openLabel && <span aria-hidden="true" className={`size-[7px] rounded-full ${openLabel.open ? 'bg-emerald-500' : 'bg-zinc-400'}`} />}
+                    {openLabel ? openLabel.text : copy.hoursTitle}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+          {settings?.tagline && (
+            <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-zinc-600">{settings.tagline}</p>
+          )}
+        </div>
+      </header>
+
+      {/* Sticky category tabs */}
+      {activeMenuView === 'list' && (tabs.length > 0 || showSearch) && (
+        <nav className="sticky top-0 z-30 mt-5 border-b border-zinc-200/70 bg-menu/90 backdrop-blur-md" aria-label={copy.viewMenu}>
+          <div className="mx-auto flex max-w-5xl items-center px-2 sm:px-6">
+            {showSearch ? (
+              <div className="flex h-14 min-w-0 flex-1 items-center gap-2 px-3">
+                <Search className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" />
+                <input
+                  autoFocus
+                  type="search"
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder={copy.search}
+                  aria-label={copy.search}
+                  className="h-10 min-w-0 flex-1 bg-transparent text-[16px] text-zinc-900 outline-none placeholder:text-zinc-400"
+                />
+              </div>
+            ) : (
+              <div ref={categoryFilterRef} className="scrollbar-hide no-scrollbar flex h-14 min-w-0 flex-1 items-stretch gap-6 overflow-x-auto px-3">
+                {tabs.map(tab => {
+                  const active = activeTab === tab.id
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      ref={el => { categoryButtonRefs.current[tab.id] = el }}
+                      onClick={() => selectCategory(tab.id)}
+                      aria-current={active ? 'true' : undefined}
+                      className={`relative flex shrink-0 items-center whitespace-nowrap text-[15px] font-medium transition-colors ${active ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-800'}`}
+                    >
+                      {tab.label}
+                      {active && <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full" style={{ backgroundColor: primaryColor }} />}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => { if (showSearch) { setShowSearch(false); setSearch('') } else { setShowSearch(true) } }}
+              aria-label={showSearch ? copy.searchClose : copy.searchOpen}
+              className="flex size-11 shrink-0 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-zinc-200/60"
+            >
+              {showSearch ? <X className="size-5" /> : <Search className="size-5" />}
+            </button>
+          </div>
+        </nav>
       )}
 
-      {/* Featured Section — full viewport width, outside max-w container */}
-      {activeMenuView === 'list' && featured.length > 0 && !search && !activeCategory && (
-        <section className="relative w-full pt-10 sm:pt-16 pb-0">
-          <div className="scrollbar-hide w-full overflow-x-auto pb-4 md:overflow-hidden">
-            <div className="absolute top-3 sm:top-5 left-4 sm:left-6 lg:left-8 z-10 flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm border border-zinc-100">
-              <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
-              <span className="text-xs font-black text-zinc-900 uppercase tracking-widest">{ui.featured}</span>
-            </div>
-            <div className="flex gap-6 w-max px-4 sm:px-6 lg:px-8 animate-marquee">
-              {[...featuredBase, ...featuredBase].map((p, idx) => (
-                <motion.div
-                  key={`${p.id}-${idx}`}
+      {/* Featured: a quiet row you swipe yourself */}
+      {activeMenuView === 'list' && featured.length > 0 && !search && (
+        <section
+          ref={el => { categoryRefs.current[FEATURED_TAB] = el }}
+          data-category-id={FEATURED_TAB}
+          className="mx-auto max-w-5xl scroll-mt-16 pt-6 sm:pt-8"
+        >
+          <h2 className="px-5 text-[20px] font-semibold tracking-tight text-zinc-900 sm:px-8">{copy.featured}</h2>
+          <div className="scrollbar-hide mt-3 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 sm:scroll-px-8 sm:gap-4 sm:px-8">
+            {featured.map(p => {
+              const image = getProductImages(p)[0]
+              return (
+                <button
+                  key={p.id}
+                  type="button"
                   data-analytics-product-id={p.id}
                   data-analytics-source="featured"
-                  role="button"
-                  tabIndex={0}
                   onClick={() => openProduct(p, 'featured')}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openProduct(p, 'featured') } }}
-                  whileHover={{ y: -8 }}
-                  className="flex-shrink-0 w-64 sm:w-80 bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-lg shadow-zinc-200/50 hover:shadow-xl transition-all duration-500 cursor-pointer"
+                  className="w-[156px] shrink-0 snap-start text-left sm:w-[220px]"
                 >
-                  <div className="relative w-full aspect-[4/3] bg-zinc-50 overflow-hidden">
-                    {getProductImages(p)[0]
-                      ? <Image src={getProductImages(p)[0]} alt={p.name} fill className="object-cover transition-transform duration-700 hover:scale-110" sizes="320px" />
-                      : <div className="w-full h-full flex items-center justify-center text-4xl">🍽️</div>}
-                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm">
-                      <span style={{ color: accentColor }} className="text-sm font-black tracking-tight">{formatPrice(p.price, currency)}</span>
-                    </div>
+                  <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-zinc-100">
+                    {image
+                      ? <Image src={image} alt="" fill sizes="(max-width: 640px) 156px, 220px" className="object-cover" />
+                      : <DishPlaceholder />}
                   </div>
-                  <div className="p-6">
-                    <h3 className="text-lg font-black text-zinc-900 leading-tight mb-2 truncate">{p.name}</h3>
-                    <p className="text-xs text-zinc-500 font-medium line-clamp-2 leading-relaxed">
-                      {p.description || "No description available."}
-                    </p>
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                        View Details <ChevronRight className="w-3 h-3 ml-1" />
-                      </div>
-                      {directOrdersEnabled && (() => {
-                        const cartKey = buildCartKey(p.id, {})
-                        const qty = cart.find(i => i.cartKey === cartKey)?.quantity ?? 0
-                        return qty === 0 ? (
-                          <button
-                            onClick={e => { e.stopPropagation(); addToCart(p, {}, p.price) }}
-                            style={{ backgroundColor: primaryColor }}
-                            className="w-9 h-9 rounded-full text-white flex items-center justify-center hover:opacity-80 active:scale-90 transition-all flex-shrink-0 shadow-md"
-                          >
-                            <ShoppingBag className="w-4 h-4" />
-                          </button>
-                        ) : (
-                          <div onClick={e => e.stopPropagation()} className="flex items-center rounded-full border border-zinc-200 shadow-sm overflow-hidden">
-                            <button onClick={() => updateCartQuantity(cartKey, qty - 1)} className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all flex items-center justify-center">
-                              <ChevronLeft className="w-3.5 h-3.5 text-zinc-600" />
-                            </button>
-                            <span className="text-sm font-black min-w-[1.25rem] text-center text-zinc-900 px-1">{qty}</span>
-                            <button onClick={() => updateCartQuantity(cartKey, qty + 1)} className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all flex items-center justify-center">
-                              <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-                            </button>
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                  <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-zinc-900 sm:text-[15px]">{p.name}</p>
+                  <p className="mt-0.5 text-[14px] font-medium tabular-nums text-zinc-600">{money(p.price)}</p>
+                </button>
+              )
+            })}
           </div>
         </section>
       )}
 
       <main
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 space-y-16"
-        style={hasFixedFooter ? { paddingBottom: `${footerHeight + 40}px` } : undefined}
+        className="mx-auto max-w-5xl space-y-8 px-4 pt-6 sm:px-8 sm:pt-8"
+        style={{ paddingBottom: showOrderBar ? 112 : 48 }}
       >
-
         {activeMenuView === 'list' && filtered.length === 0 && (
-          <div className="text-center py-24 bg-white rounded-xl border border-zinc-100 shadow-sm">
-            <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Search className="w-10 h-10 text-zinc-300" />
+          <div className="py-20 text-center">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-zinc-100">
+              <Search className="size-6 text-zinc-400" />
             </div>
-            <h3 className="text-xl font-black text-zinc-900 tracking-tight">{ui.noItems}</h3>
-            <p className="text-zinc-500 mt-2 font-medium">{ui.tryAnother}</p>
+            <p className="mt-4 text-[17px] font-semibold text-zinc-900">{copy.noItems}</p>
+            <p className="mt-1 text-[15px] text-zinc-500">{copy.tryAnother}</p>
           </div>
         )}
 
-        {activeMenuView === 'feed' && feedProducts.length > 0 ? (
+        {activeMenuView === 'feed' && feedProducts.length > 0 && restored ? (
           <MenuFeed
             products={feedProducts}
             productMediaByProductId={productMediaByProductId}
             currency={currency}
+            lang={selectedLanguage}
             primaryColor={primaryColor}
             accentColor={accentColor}
             autoplayVideos={feedAutoplayVideos}
             directOrdersEnabled={directOrdersEnabled}
             cartCount={cartCount}
-            exitLabel={ui.viewMenu}
-            onExit={() => setMenuView('list')}
+            exitLabel={copy.viewMenu}
+            onExit={() => changeView('list')}
+            initialIndex={feedIndex}
+            onIndexChange={setFeedIndex}
             onOpenCart={() => setCartOpen(true)}
-            hasCustomization={productId =>
-              (optionGroupsByProductId[productId]?.length ?? 0) > 0
-              || (ingredientCustomizationEnabled && (productIngredientsByProductId[productId]?.length ?? 0) > 0)
-            }
+            hasCustomization={hasCustomization}
             quantityFor={productId => cart.find(item => item.cartKey === buildCartKey(productId, {}))?.quantity ?? 0}
             onOpen={product => openProduct(product, 'feed')}
             onAdd={product => addToCart(product, {}, product.price, undefined, undefined, undefined, 'feed')}
@@ -1025,179 +1035,122 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           />
         ) : activeMenuView === 'feed' ? (
           <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-zinc-950 px-6 text-center text-white md:hidden" role="status">
-            <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-zinc-50">
-              <Sparkles className="size-7 text-zinc-300" />
+            <div className="mx-auto mb-5 flex size-16 items-center justify-center rounded-full bg-white/10">
+              <Sparkles className="size-7 text-white/70" />
             </div>
-            <h3 className="text-xl font-black tracking-tight">{ui.feedEmptyTitle}</h3>
-            <p className="mx-auto mt-2 max-w-sm text-sm font-medium text-white/60">{ui.feedEmptyDescription}</p>
+            <h3 className="text-xl font-semibold tracking-tight">{copy.feedEmptyTitle}</h3>
+            <p className="mx-auto mt-2 max-w-sm text-[15px] text-white/60">{copy.feedEmptyDescription}</p>
             <button
               type="button"
-              onClick={() => setMenuView('list')}
-              style={{ backgroundColor: primaryColor }}
-              className="mt-6 min-h-11 rounded-full px-6 text-xs font-black uppercase tracking-[0.14em] text-white transition-transform active:scale-95"
+              onClick={() => changeView('list')}
+              style={{ backgroundColor: primaryColor, color: onPrimary }}
+              className="mt-6 h-12 rounded-2xl px-6 text-[15px] font-semibold transition-[scale] active:scale-95"
             >
-              {ui.viewMenu}
+              {copy.viewMenu}
             </button>
           </div>
         ) : activeMenuView === 'list' ? (
           <>
-        {/* Regular Sections */}
-        {groupedByCategory.map(({ category, items }) => (
-          <section
-            key={category.id}
-            ref={el => { categoryRefs.current[category.id] = el }}
-            data-category-id={category.id}
-            className="space-y-8"
-          >
-            <div className="flex items-center gap-4">
-              <h2 className="text-2xl font-black text-zinc-900 tracking-tight whitespace-nowrap">
-                {category.name}
-              </h2>
-              <div className="h-px w-full bg-zinc-100" />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-              {items.map((p) => {
-                const cartKey = buildCartKey(p.id, {})
-                const qty = cart.find(i => i.cartKey === cartKey)?.quantity ?? 0
-                return (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    accentColor={accentColor}
-                    primaryColor={primaryColor}
-                    currency={currency}
-                    lang={selectedLanguage}
-                    onClick={() => openProduct(p, 'grid')}
-                    {...(directOrdersEnabled ? {
-                      cartQuantity: qty,
-                      onAdd: () => addToCart(p, {}, p.price),
-                      onIncrement: () => updateCartQuantity(cartKey, qty + 1),
-                      onDecrement: () => updateCartQuantity(cartKey, qty - 1),
-                    } : {})}
-                  />
-                )
-              })}
-            </div>
-          </section>
-        ))}
-
-        {uncategorized.length > 0 && (
-          <section className="space-y-8">
-            <div className="flex items-center gap-4">
-              <h2 className="text-2xl font-black text-zinc-900 tracking-tight whitespace-nowrap">{ui.other}</h2>
-              <div className="h-px w-full bg-zinc-100" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
-              {uncategorized.map(p => {
-                const cartKey = buildCartKey(p.id, {})
-                const qty = cart.find(i => i.cartKey === cartKey)?.quantity ?? 0
-                return (
-                  <ProductCard
-                    key={p.id}
-                    product={p}
-                    accentColor={accentColor}
-                    primaryColor={primaryColor}
-                    currency={currency}
-                    lang={selectedLanguage}
-                    onClick={() => openProduct(p, 'grid')}
-                    {...(directOrdersEnabled ? {
-                      cartQuantity: qty,
-                      onAdd: () => addToCart(p, {}, p.price),
-                      onIncrement: () => updateCartQuantity(cartKey, qty + 1),
-                      onDecrement: () => updateCartQuantity(cartKey, qty - 1),
-                    } : {})}
-                  />
-                )
-              })}
-            </div>
-          </section>
-        )}
+            {[...groupedByCategory.map(({ category, items }) => ({ id: category.id, title: category.name, description: category.description, items })),
+              ...(uncategorized.length > 0 ? [{ id: OTHER_TAB, title: copy.other, description: null as string | null, items: uncategorized }] : []),
+            ].map(section => (
+              <section
+                key={section.id}
+                ref={el => { categoryRefs.current[section.id] = el }}
+                data-category-id={section.id}
+                className="scroll-mt-16"
+              >
+                <h2 className="px-1 text-[20px] font-semibold tracking-tight text-zinc-900">{section.title}</h2>
+                {section.description && <p className="mt-0.5 px-1 text-[14px] text-zinc-500">{section.description}</p>}
+                <div className="mt-3 grid gap-2.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+                  {section.items.map(p => {
+                    const key = buildCartKey(p.id, {})
+                    const qty = cart.find(i => i.cartKey === key)?.quantity ?? 0
+                    const customizable = hasCustomization(p.id)
+                    return (
+                      <ProductCard
+                        key={p.id}
+                        product={p}
+                        lang={selectedLanguage}
+                        currency={currency}
+                        primaryColor={primaryColor}
+                        onOpen={() => openProduct(p, 'grid')}
+                        {...(directOrdersEnabled ? {
+                          cartQuantity: customizable ? 0 : qty,
+                          // A dish with choices to make opens its sheet instead of
+                          // going into the order without them.
+                          onAdd: customizable ? () => openProduct(p, 'grid') : () => addToCart(p, {}, p.price),
+                          onIncrement: () => updateCartQuantity(key, qty + 1),
+                          onDecrement: () => updateCartQuantity(key, qty - 1),
+                        } : {})}
+                      />
+                    )
+                  })}
+                </div>
+              </section>
+            ))}
           </>
         ) : null}
       </main>
 
-      {/* Desktop: floating button to re-open the side panel after it's collapsed */}
-      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && activeMenuView === 'list' && (
-        <motion.button
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          onClick={() => setCartOpen(true)}
-          className="hidden lg:flex fixed bottom-8 right-8 z-40 bg-zinc-900 text-white pl-6 pr-4 py-4 rounded-lg shadow-2xl shadow-zinc-950/20 items-center gap-4 hover:bg-zinc-800 transition-all hover:scale-105 active:scale-95"
-          aria-label="Open cart"
-        >
-          <div className="flex flex-col items-start leading-none">
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">My Order</span>
-            <span className="text-lg font-black">{formatPrice(cartTotal, currency)}</span>
-          </div>
-          <div className="relative bg-white/10 p-3 rounded-lg">
-            <ShoppingBag className="w-5 h-5" />
-            <div className="absolute -top-1.5 -right-1.5 text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-white" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
-          </div>
-        </motion.button>
-      )}
-
-      {/* Mobile: bottom order bar that opens the cart drawer */}
-      {directOrdersEnabled && cart.length > 0 && !cartOpen && !checkoutOpen && activeMenuView === 'list' && (
-        <motion.button
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          onClick={() => setCartOpen(true)}
-          className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-zinc-900 text-white px-5 py-4 flex items-center justify-between gap-4 shadow-2xl shadow-zinc-950/30"
-        >
-          <div className="flex items-center gap-3">
-            <div className="relative bg-white/10 p-2.5 rounded-lg">
-              <ShoppingBag className="w-5 h-5" />
-              <div className="absolute -top-1.5 -right-1.5 text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center font-black shadow-lg ring-2 ring-zinc-900 text-white" style={{ backgroundColor: primaryColor }}>{cartCount}</div>
-            </div>
-            <span className="text-xs font-black uppercase tracking-widest text-zinc-300">View order</span>
-          </div>
-          <span className="text-lg font-black">{formatPrice(cartTotal, currency)}</span>
-        </motion.button>
-      )}
-
-      {/* Footer */}
-      {hasFixedFooter && activeMenuView === 'list' && (
-        <footer ref={footerRef} className={`fixed bottom-0 inset-x-0 z-40 border-t border-zinc-100 bg-white/90 backdrop-blur-2xl transition-all duration-500 ${panelPushing ? 'lg:right-[380px]' : ''} ${showFooterAtEnd ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0 pointer-events-none'}`}>
-          <div className="max-w-7xl mx-auto px-4 py-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-              {hasContact && (
-                <div className="flex flex-wrap items-center justify-center gap-8 text-xs font-bold text-zinc-500">
-                  {settings?.address && (
-                    <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 flex items-center gap-2">
-                      <MapPin className="w-3.5 h-3.5" /> <span className="max-w-[220px] line-clamp-1">{settings.address}</span>
-                    </a>
-                  )}
-                  {settings?.phone && (
-                    <a href={`tel:${settings.phone}`} className="hover:text-zinc-900 flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5" /> {settings.phone}
-                    </a>
-                  )}
-                  {settings?.whatsapp && (
-                    <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 flex items-center gap-2 text-green-600">
-                      <MessageCircle className="w-3.5 h-3.5 fill-green-600/10" /> WhatsApp
-                    </a>
-                  )}
-                  {settings?.instagram && (
-                    <a href={`https://instagram.com/${settings.instagram}`} target="_blank" rel="noopener noreferrer" className="hover:text-zinc-900 flex items-center gap-2 text-pink-600">
-                      <Camera className="w-3.5 h-3.5" /> @{settings.instagram}
-                    </a>
-                  )}
-                  {email && (
-                    <a href={`mailto:${email}`} className="hover:text-zinc-900 flex items-center gap-2">
-                      <Mail className="w-3.5 h-3.5" /> {email}
-                    </a>
-                  )}
-                </div>
-              )}
-              {footerBrand && (
-                <div className="text-[10px] font-black text-zinc-300 uppercase tracking-[0.3em]">
-                  Powered by <a href="/" className="text-zinc-900 hover:text-primary transition-colors">{footerBrand}</a>
-                </div>
-              )}
-            </div>
+      {/* Contact and credits: a plain footer at the end of the page */}
+      {activeMenuView === 'list' && (hasContact || footerBrand) && (
+        <footer className="border-t border-zinc-200/70" style={{ marginBottom: showOrderBar ? 88 : 0 }}>
+          <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-5 py-8 sm:flex-row sm:justify-between sm:px-8">
+            {hasContact && (
+              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-zinc-500">
+                {settings?.address && (
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
+                    <MapPin className="size-3.5" /> <span className="max-w-[240px] truncate">{settings.address}</span>
+                  </a>
+                )}
+                {settings?.phone && (
+                  <a href={`tel:${settings.phone}`} className="flex items-center gap-1.5 hover:text-zinc-900">
+                    <Phone className="size-3.5" /> {settings.phone}
+                  </a>
+                )}
+                {settings?.whatsapp && (
+                  <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
+                    <MessageCircle className="size-3.5" /> WhatsApp
+                  </a>
+                )}
+                {settings?.instagram && (
+                  <a href={`https://instagram.com/${settings.instagram}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
+                    <Camera className="size-3.5" /> @{settings.instagram}
+                  </a>
+                )}
+                {email && (
+                  <a href={`mailto:${email}`} className="flex items-center gap-1.5 hover:text-zinc-900">
+                    <Mail className="size-3.5" /> {email}
+                  </a>
+                )}
+              </div>
+            )}
+            {footerBrand && (
+              <p className="text-[12px] text-zinc-400">
+                {copy.poweredBy} <a href="/" className="font-medium text-zinc-600 hover:text-zinc-900">{footerBrand}</a>
+              </p>
+            )}
           </div>
         </footer>
+      )}
+
+      {/* Order bar: floating, in the restaurant's colour */}
+      {showOrderBar && (
+        <motion.button
+          type="button"
+          initial={{ y: 24, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          onClick={() => setCartOpen(true)}
+          style={{ backgroundColor: primaryColor, color: onPrimary }}
+          className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex h-14 items-center justify-between rounded-2xl px-4 shadow-float transition-[scale] active:scale-[0.98] sm:inset-x-auto sm:right-6 sm:bottom-6 sm:min-w-[320px]"
+        >
+          <span className="flex items-center gap-3">
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-black/15 px-1.5 text-[13px] font-bold tabular-nums">{cartCount}</span>
+            <span className="text-[15px] font-semibold">{copy.viewOrder}</span>
+          </span>
+          <span className="text-[15px] font-semibold tabular-nums">{money(cartTotal)}</span>
+        </motion.button>
       )}
 
       {/* Modals */}
@@ -1210,7 +1163,7 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           product={selectedProduct}
           onPrevProduct={!editingCartKey && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
           onNextProduct={!editingCartKey && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
-          accentColor={accentColor}
+          primaryColor={primaryColor}
           currency={currency}
           whatsapp={whatsapp}
           lang={selectedLanguage}
@@ -1222,18 +1175,17 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
           initialEditorState={editingItem?.editorState ?? null}
-          submitLabel={editingCartKey ? 'Update item' : 'Order'}
           onCustomizationStarted={() => analyticsTracker?.track({
             event_name: 'product_customization_started',
             product_id: selectedProduct.id,
             source: selectedProductSource === 'feed' ? 'feed' : 'detail',
           })}
           onAddToCart={directOrdersEnabled
-            ? (selectedOptions, unitPrice, note, ingredientModifications, editorState) => {
+            ? (selectedOptions, unitPrice, note, ingredientModifications, editorState, quantity) => {
                 if (editingCartKey) {
                   replaceCartItem(editingCartKey, selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState)
                 } else {
-                  addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState)
+                  addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState, undefined, quantity ?? 1)
                 }
                 closeProductModal()
               }
@@ -1246,10 +1198,15 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         <AiChatWidget
           tenantSlug={tenant.slug}
           tenantName={tenant.name}
-          primaryColor={(settings as any)?.primary_color ?? '#F52323'}
+          primaryColor={primaryColor}
           audioEnabled={chatAddonAudioEnabled}
           products={products}
           onAddToCart={addToCart}
+          menuId={menu?.id ?? null}
+          locationId={location?.id ?? null}
+          cartOpen={cartPanelVisible}
+          orderBarVisible={showOrderBar}
+          onOpenCart={directOrdersEnabled ? () => setCartOpen(true) : undefined}
         />
       )}
 
@@ -1260,49 +1217,51 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
         />
       ) : null}
 
-      <AnimatePresence>
-        {showHoursModal && (
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setShowHoursModal(false)}>
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+      {showHoursModal && (
+        <ModalPortal onClose={() => setShowHoursModal(false)}>
+          <div className="menu-root fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-[2px]" onClick={() => setShowHoursModal(false)} lang={localeFor(selectedLanguage)}>
+            <div
               role="dialog"
               aria-modal="true"
-              aria-label={ui.hoursTitle}
-              className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:max-w-sm sm:rounded-lg"
+              aria-label={copy.hoursTitle}
+              className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-3xl bg-white shadow-float"
               onClick={e => e.stopPropagation()}
             >
-              <div className="sticky top-0 flex items-center justify-between border-b border-zinc-50 bg-zinc-50 px-4 py-4 sm:p-8">
-                <h3 className="text-xl font-black text-zinc-900 tracking-tight flex items-center gap-3">
-                  <Clock className="w-5 h-5 text-primary" />
-                  {ui.hoursTitle}
-                </h3>
-                <button onClick={() => setShowHoursModal(false)} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-white transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
+              <div className="flex items-center justify-between px-5 pt-4 pb-2">
+                <h2 className="text-[17px] font-semibold text-zinc-900">{copy.hoursTitle}</h2>
+                <button type="button" onClick={() => setShowHoursModal(false)} aria-label={copy.close} className="flex size-10 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
+                  <X className="size-5" />
+                </button>
               </div>
-              <div className="space-y-4 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-8">
-                {Object.entries(DAYS).map(([key, label]) => {
+              {openLabel && (
+                <p className={`mx-5 mb-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium ${openLabel.open ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                  <span aria-hidden="true" className={`size-[7px] rounded-full ${openLabel.open ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
+                  {openLabel.text}
+                </p>
+              )}
+              <ul className="px-5 pb-5">
+                {WEEK_KEYS.map(({ key, index }) => {
                   const value = hours?.[key as keyof typeof hours]
-                  if (!value) return null
+                  const isToday = openInfo?.todayIndex === index
                   return (
-                    <div key={key} className="flex justify-between items-center py-2 border-b border-zinc-50 last:border-0">
-                      <span className="text-sm font-bold text-zinc-500">{label}</span>
-                      <span className="text-sm font-black text-zinc-900">{value}</span>
-                    </div>
+                    <li key={key} className={`flex items-center justify-between gap-4 border-b border-zinc-100 py-3 text-[15px] last:border-0 ${isToday ? 'font-semibold text-zinc-900' : 'text-zinc-600'}`}>
+                      <span className="shrink-0 capitalize">{formatWeekday(index, selectedLanguage)}{isToday && <span className="ml-2 text-[12px] font-medium text-zinc-400">{copy.today}</span>}</span>
+                      <span className="min-w-0 break-words text-right tabular-nums">{value || copy.closed}</span>
+                    </li>
                   )
                 })}
-              </div>
-            </motion.div>
+              </ul>
+            </div>
           </div>
-        )}
-      </AnimatePresence>
+        </ModalPortal>
+      )}
 
       {directOrdersEnabled && (
         <CartPanel
           cart={cart}
           currency={currency}
+          lang={selectedLanguage}
           primaryColor={primaryColor}
-          accentColor={accentColor}
           open={cartOpen && !checkoutOpen}
           onClose={() => setCartOpen(false)}
           onCheckout={() => setCheckoutOpen(true)}
@@ -1317,15 +1276,14 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
           cart={cart}
           confirmedCart={confirmedCart}
           currency={currency}
+          lang={selectedLanguage}
           customerName={customerName}
           customerPhone={customerPhone}
           submittingOrder={submittingOrder}
           orderSuccess={orderSuccess}
           orderError={orderError}
           orderId={orderId}
-          ui={ui}
           primaryColor={primaryColor}
-          accentColor={accentColor}
           onClose={() => {
             setCheckoutOpen(false)
             setOrderSuccess(false)
@@ -1364,109 +1322,104 @@ export default function MenuPage({ tenant, categories, products, menu = null, lo
   )
 }
 
-const TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
-  'Vegetarian': { en: 'Vegetarian' },
-  'Vegan': { en: 'Vegan' },
-  'Gluten-Free': { en: 'Gluten-Free' },
-  'Spicy': { en: 'Spicy' },
-  'Chef\'s special': { en: 'Chef\'s special' },
+const FEATURED_TAB = '__featured'
+const OTHER_TAB = '__other'
+// Monday first; index = JS weekday (0 = Sunday).
+const WEEK_KEYS = [
+  { key: 'mon', index: 1 }, { key: 'tue', index: 2 }, { key: 'wed', index: 3 }, { key: 'thu', index: 4 },
+  { key: 'fri', index: 5 }, { key: 'sat', index: 6 }, { key: 'sun', index: 0 },
+]
+
+function describeOpenState(state: OpenState, copy: MenuCopy, lang: string): { text: string; open: boolean } | null {
+  if (state.kind === 'open') return { text: fill(copy.openUntil, { time: formatClock(state.closesAt, lang) }), open: true }
+  if (state.kind === 'closed') {
+    if (!state.opens) return { text: copy.closed, open: false }
+    const time = formatClock(state.opens.minutes, lang)
+    if (state.opens.inDays === 0) return { text: fill(copy.closedOpensToday, { time }), open: false }
+    if (state.opens.inDays === 1) return { text: fill(copy.closedOpensTomorrow, { time }), open: false }
+    return { text: fill(copy.closedOpensOn, { day: formatWeekday(state.opens.dayIndex, lang), time }), open: false }
+  }
+  return null
 }
 
-function translateTag(tag: string, lang: string): string {
-  return TAG_TRANSLATIONS[tag]?.[lang] ?? tag
+function DishPlaceholder() {
+  return (
+    <div className="flex size-full items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-200/70">
+      <UtensilsCrossed className="size-6 text-zinc-300" aria-hidden="true" />
+    </div>
+  )
 }
 
-function ProductCard({ product, accentColor, primaryColor, currency, lang, onClick, cartQuantity, onAdd, onIncrement, onDecrement }: {
-  product: Product; accentColor: string; primaryColor: string; currency: string; lang: string; onClick: () => void
+/**
+ * One dish. Phones: a row — text left, photo right with the add button on it.
+ * Larger screens: a card with the photo on top. The whole card opens the dish.
+ */
+function ProductCard({ product, lang, currency, primaryColor, onOpen, cartQuantity, onAdd, onIncrement, onDecrement }: {
+  product: Product; lang: string; currency: string; primaryColor: string; onOpen: () => void
   cartQuantity?: number; onAdd?: () => void; onIncrement?: () => void; onDecrement?: () => void
 }) {
-  const images = getProductImages(product)
+  const copy = getMenuCopy(lang)
+  const image = getProductImages(product)[0]
+  const quantity = cartQuantity ?? 0
+  const promo = product.original_price && product.original_price > product.price ? product.original_price : null
   return (
-    <motion.div
+    <article
       data-analytics-product-id={product.id}
       data-analytics-source="grid"
-      role="button"
-      tabIndex={0}
-      onClick={onClick}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick() } }}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
-      className="group w-full h-full flex flex-col bg-white rounded-lg border border-zinc-100 overflow-hidden text-left shadow-sm hover:shadow-xl hover:shadow-zinc-200/40 transition-all duration-300 cursor-pointer"
+      className="group relative flex gap-3 rounded-2xl bg-white p-3 shadow-card transition-shadow hover:shadow-[0_2px_6px_rgb(0_0_0/0.06),0_12px_32px_rgb(0_0_0/0.08)] sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0"
     >
-      <div className="relative w-full aspect-square bg-zinc-50 overflow-hidden">
-        {images[0]
-          ? <Image src={images[0]} alt={product.name} fill className="object-cover transition-transform duration-700 group-hover:scale-110" sizes="(max-width: 768px) 50vw, 25vw" />
-          : <div className="w-full h-full flex items-center justify-center text-4xl bg-zinc-50">🍽️</div>}
-
-        {product.is_featured && (
-          <div className="absolute top-4 left-4 bg-amber-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-full shadow-lg flex items-center gap-1.5">
-            <Star className="w-3 h-3 fill-white" /> Featured
-          </div>
-        )}
-      </div>
-
-      <div className="p-6 flex flex-col flex-grow">
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="text-base font-black text-zinc-900 leading-tight line-clamp-1">{product.name}</h3>
-        </div>
-
-        {product.tags?.length > 0 && (
-          <div className="flex gap-1.5 mb-3 flex-wrap">
-            {product.tags.map(tag => {
-              const translated = translateTag(tag, lang)
-              return (
-                <span
-                  key={tag}
-                  style={{
-                    backgroundColor: `color-mix(in srgb, ${primaryColor} 12%, white)`,
-                    color: primaryColor,
-                  }}
-                  className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full"
-                >
-                  {translated}
-                </span>
-              )
-            })}
-          </div>
-        )}
-
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={product.name}
+        className="absolute inset-0 z-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
+      />
+      <div className="pointer-events-none flex min-w-0 flex-1 flex-col sm:order-2 sm:p-4">
+        <h3 className="line-clamp-2 text-[16px] font-semibold leading-snug text-zinc-900">{product.name}</h3>
         {product.description && (
-          <p className="text-xs text-zinc-500 font-medium line-clamp-2 leading-relaxed mb-4">
-            {product.description}
-          </p>
+          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-zinc-500">{product.description}</p>
         )}
-
-        <div className="mt-auto pt-3">
-          <div className="mb-3">
-            <span style={{ color: accentColor }} className="text-lg font-black tracking-tight">{formatPrice(product.price, currency)}</span>
+        {product.tags?.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-1">
+            {product.tags.slice(0, 2).map(tag => (
+              <span key={tag} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{translateTag(tag, lang)}</span>
+            ))}
           </div>
-          <div className="flex items-center justify-between">
-          <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-zinc-300 group-hover:text-zinc-900 transition-colors">
-            Details <ChevronRight className="w-3 h-3 ml-1 group-hover:translate-x-1 transition-transform" />
-          </div>
-          {onAdd && (cartQuantity ?? 0) === 0 && (
-            <button
-              onClick={e => { e.stopPropagation(); onAdd() }}
-              style={{ backgroundColor: primaryColor }}
-              className="px-4 py-2 rounded-full text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center hover:opacity-80 active:scale-95 transition-all flex-shrink-0 shadow-md"
-            >
-              Order
-            </button>
-          )}
-          {onIncrement && onDecrement && (cartQuantity ?? 0) > 0 && (
-            <div onClick={e => e.stopPropagation()} className="flex items-center rounded-full border border-zinc-200 shadow-sm overflow-hidden">
-              <button onClick={onDecrement} className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all flex items-center justify-center">
-                <ChevronLeft className="w-3.5 h-3.5 text-zinc-600" />
-              </button>
-              <span className="text-sm font-black min-w-[1.25rem] text-center text-zinc-900 px-1">{cartQuantity}</span>
-              <button onClick={onIncrement} className="px-2.5 py-1.5 hover:bg-zinc-100 transition-all flex items-center justify-center">
-                <ChevronRight className="w-3.5 h-3.5 text-zinc-600" />
-              </button>
-            </div>
-          )}
-          </div>
+        )}
+        <div className="mt-auto flex items-baseline gap-2 pt-2">
+          <span className="text-[15px] font-semibold tabular-nums text-zinc-900">{formatMoney(product.price, currency, lang)}</span>
+          {promo && <span className="text-[13px] tabular-nums text-zinc-400 line-through">{formatMoney(promo, currency, lang)}</span>}
         </div>
       </div>
-    </motion.div>
+      <div className="pointer-events-none relative size-[104px] shrink-0 sm:order-1 sm:aspect-[4/3] sm:size-auto sm:w-full">
+        <div className="relative size-full overflow-hidden rounded-xl bg-zinc-100 sm:rounded-none">
+          {image
+            ? <Image src={image} alt="" fill sizes="(max-width: 640px) 104px, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-500 sm:group-hover:scale-[1.03]" />
+            : <DishPlaceholder />}
+        </div>
+        {onAdd && quantity === 0 && (
+          <button
+            type="button"
+            onClick={onAdd}
+            aria-label={fill(copy.addNamed, { name: product.name })}
+            style={{ color: primaryColor }}
+            className="pointer-events-auto absolute right-1.5 bottom-1.5 z-10 flex size-9 items-center justify-center rounded-full bg-white shadow-[0_1px_4px_rgb(0_0_0/0.18)] transition-[scale] active:scale-90 sm:right-3 sm:bottom-3"
+          >
+            <Plus className="size-[18px]" strokeWidth={2.5} />
+          </button>
+        )}
+        {onIncrement && onDecrement && quantity > 0 && (
+          <div className="pointer-events-auto absolute right-1.5 bottom-1.5 z-10 flex h-9 items-center rounded-full bg-white px-0.5 shadow-[0_1px_4px_rgb(0_0_0/0.18)] sm:right-3 sm:bottom-3">
+            <button type="button" onClick={onDecrement} aria-label={fill(copy.removeNamed, { name: product.name })} className="flex size-8 items-center justify-center rounded-full text-zinc-800">
+              <Minus className="size-3.5" strokeWidth={2.5} />
+            </button>
+            <span className="min-w-4 text-center text-[14px] font-semibold tabular-nums text-zinc-900">{quantity}</span>
+            <button type="button" onClick={onIncrement} aria-label={fill(copy.addNamed, { name: product.name })} style={{ color: primaryColor }} className="flex size-8 items-center justify-center rounded-full">
+              <Plus className="size-3.5" strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
+      </div>
+    </article>
   )
 }

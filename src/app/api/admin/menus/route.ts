@@ -2,8 +2,9 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { slugify } from '@/lib/utils'
+import { MENU_LANGUAGE_CODES } from '@/components/menu/menu-i18n'
 
-const ALLOWED_LANGUAGE_CODES = ['en', 'pt', 'es', 'fr', 'de', 'it']
+const ALLOWED_LANGUAGE_CODES: readonly string[] = MENU_LANGUAGE_CODES
 
 function sanitizeLanguages(language: unknown, supported: unknown): { language: string; supported_languages: string[] } {
   const base = typeof language === 'string' && ALLOWED_LANGUAGE_CODES.includes(language) ? language : 'en'

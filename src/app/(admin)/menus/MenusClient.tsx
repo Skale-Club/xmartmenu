@@ -1,17 +1,19 @@
 ﻿'use client'
-import { type Dispatch, type ReactNode, type SetStateAction, useState } from 'react'
+import { type Dispatch, type SetStateAction, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { Plus, LayoutDashboard, Globe, Settings, Trash2, Eye, Edit3, CheckCircle2, ChevronRight, X, ArrowRight, Lock, Unlock } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Modal from '@/components/ui/Modal'
+import { MENU_LANGUAGES } from '@/components/menu/menu-i18n'
 
 const PURPOSES = ['restaurant', 'bar', 'cafe', 'hotel', 'salon', 'retail', 'other']
-const LANGUAGES = [
-  { value: 'en', label: 'English' }, { value: 'pt', label: 'Portuguese' },
-  { value: 'es', label: 'Spanish' }, { value: 'fr', label: 'French' },
-  { value: 'de', label: 'German' }, { value: 'it', label: 'Italian' },
-]
+// The languages a guest can switch the menu to (English name + native name).
+const LANGUAGES = MENU_LANGUAGES.map(l => ({
+  value: l.code,
+  label: l.englishName === l.nativeName ? l.englishName : `${l.englishName} · ${l.nativeName}`,
+}))
 
 type MenuTranslations = Record<string, { name?: string; description?: string }>
 interface Menu {
@@ -76,32 +78,6 @@ function toDraft(menu?: Menu): MenuDraft {
     is_private: menu.is_private ?? false,
     price_multiplier: menu.price_multiplier ?? 1.00,
   }
-}
-
-function Modal({
-  open,
-  title,
-  onClose,
-  children,
-}: {
-  open: boolean
-  title: string
-  onClose: () => void
-  children: ReactNode
-}) {
-  if (!open) return null
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4">
-      <div role="dialog" aria-modal="true" aria-label={title} className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:max-w-2xl sm:rounded-lg">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-100 bg-white px-4 py-4 sm:px-8 sm:py-6">
-          <h2 className="text-xl font-black text-zinc-950 tracking-tight">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-zinc-100 transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
-        </div>
-        <div className="p-4 sm:p-8">{children}</div>
-      </div>
-    </div>
-  )
 }
 
 function MenuFormFields({
@@ -372,7 +348,7 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
     <div className="p-8 w-full space-y-8">
       <ConfirmDialog open={!!confirmId} title="Delete menu" message="Delete this menu? All categories and products in it will also be deleted." onConfirm={handleDelete} onCancel={() => setConfirmId(null)} />
 
-      <Modal open={createOpen} title="New Menu Instance" onClose={() => setCreateOpen(false)}>
+      <Modal size="lg" open={createOpen} title="New Menu Instance" onClose={() => setCreateOpen(false)}>
         <form onSubmit={handleCreate} className="space-y-8">
           <MenuFormFields draft={createForm} setDraft={setCreateForm} />
           <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">
@@ -384,7 +360,7 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
         </form>
       </Modal>
 
-      <Modal open={!!editingId} title="Edit Menu Settings" onClose={cancelEdit}>
+      <Modal size="lg" open={!!editingId} title="Edit Menu Settings" onClose={cancelEdit}>
         <form onSubmit={saveEdit} className="space-y-8">
           <MenuFormFields draft={editForm} setDraft={setEditForm} />
           <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4">

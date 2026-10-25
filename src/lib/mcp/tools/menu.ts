@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { createServiceClient } from '@/lib/supabase/server'
 import { slugify } from '@/lib/utils'
+import { MENU_LANGUAGE_CODES } from '@/components/menu/menu-i18n'
 import {
   checkDestructiveAllowed,
   errorResult,
@@ -12,7 +13,7 @@ import {
   textResult,
 } from '../helpers'
 
-const ALLOWED_LANGUAGE_CODES = ['en', 'pt', 'es', 'fr', 'de', 'it']
+const ALLOWED_LANGUAGE_CODES: readonly string[] = MENU_LANGUAGE_CODES
 
 // Mirrors the language/translation sanitizers in the admin/menus routes.
 function sanitizeLanguages(language: unknown, supported: unknown): { language: string; supported_languages: string[] } {
@@ -124,7 +125,7 @@ export function registerMenuWriteTools(server: McpServer): void {
       inputSchema: {
         tenant: z.string().min(1).describe('id ou slug do tenant'),
         name: z.string().min(1),
-        language: z.enum(['en', 'pt', 'es', 'fr', 'de', 'it']).optional().describe("Idioma base (default 'en')"),
+        language: z.enum(MENU_LANGUAGE_CODES).optional().describe("Idioma base (default 'en')"),
         supported_languages: z.array(z.string()).optional(),
         purpose: z.string().optional().describe("Default 'restaurant'"),
         description: z.string().nullable().optional(),

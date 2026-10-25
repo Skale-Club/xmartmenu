@@ -10,6 +10,7 @@ import ScanRecorder from '@/components/menu/ScanRecorder'
 import JsonLdScript from '@/components/seo/JsonLdScript'
 import type { Metadata } from 'next'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
+import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import {
   getCanonicalUrl,
@@ -162,6 +163,29 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     (tenant.tenant_settings as any)?.ingredient_customization_enabled ?? false
   const productIds = products.map((p: any) => p.id)
 
+  // Option groups (sizes, flavours…) are part of the dish: shown even on a
+  // browse-only menu, and required before a dish with them can be ordered.
+  const optionGroupsByProductId: Record<string, GroupWithOptions[]> = {}
+  if (productIds.length > 0) {
+    const { data: rawGroups } = await supabase
+      .from('product_option_groups')
+      .select('*, options:product_options(*)')
+      .in('product_id', productIds)
+      .order('position')
+      .order('position', { referencedTable: 'product_options' })
+
+    for (const group of rawGroups ?? []) {
+      const filtered: GroupWithOptions = {
+        ...group,
+        options: (group.options as GroupWithOptions['options']).filter(o => o.is_available),
+      }
+      if (!optionGroupsByProductId[group.product_id]) {
+        optionGroupsByProductId[group.product_id] = []
+      }
+      optionGroupsByProductId[group.product_id].push(filtered)
+    }
+  }
+
   const productIngredientsByProductId: Record<string, ProductIngredientWithIngredient[]> = {}
   if (ingredientCustomizationEnabled && productIds.length > 0) {
     const { data: rawPIs } = await supabase
@@ -232,8 +256,9 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
         products={products}
         menu={resolvedMenu ?? null}
         initialLanguage={lang}
-        initialView={view === 'feed' ? 'feed' : undefined}
+        initialView={view === 'feed' || view === 'list' ? view : undefined}
         footerBrand={footerBrand}
+        optionGroupsByProductId={optionGroupsByProductId}
         ingredientCustomizationEnabled={ingredientCustomizationEnabled}
         productIngredientsByProductId={productIngredientsByProductId}
         deliveryZones={(deliveryZones ?? []) as any}

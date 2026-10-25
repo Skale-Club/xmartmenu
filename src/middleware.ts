@@ -80,7 +80,9 @@ export async function middleware(request: NextRequest) {
     if (feedRewritePath) {
       const url = request.nextUrl.clone()
       url.pathname = feedRewritePath
-      url.searchParams.set('view', 'feed')
+      // A /feed link opens the feed, unless the URL already says otherwise:
+      // the customer switched to the list (?view=list) and then reloaded.
+      if (!url.searchParams.has('view')) url.searchParams.set('view', 'feed')
       return await updateSession(request, url)
     }
 

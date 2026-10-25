@@ -21,6 +21,25 @@ body[data-menu-feed="open"] [data-install-prompt] {
   --color-primary-foreground: var(--primary-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  /* Public menu: warm off-white ground, one soft card shadow. */
+  --color-menu: #fafaf9;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 6px 20px rgb(0 0 0 / 0.045);
+  --shadow-float: 0 10px 30px rgb(0 0 0 / 0.16);
+}
+
+/*
+ * Public menu typography. Inter covers Latin, Cyrillic and Greek; the rest
+ * falls through to the phone's own fonts for that script (Hiragino / Yu
+ * Gothic for Japanese, PingFang / Microsoft YaHei for Chinese, Apple SD Gothic
+ * / Malgun Gothic for Korean, Noto for Devanagari) — the lang attribute on the
+ * menu root makes the browser pick the right CJK glyph forms.
+ */
+.menu-root {
+  font-family: var(--font-inter), system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Hiragino Kaku Gothic ProN",
+    "Yu Gothic UI", "PingFang SC", "PingFang TC", "Microsoft YaHei", "Microsoft JhengHei", "Apple SD Gothic Neo",
+    "Malgun Gothic", "Noto Sans", "Noto Sans CJK JP", "Noto Sans Devanagari", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
