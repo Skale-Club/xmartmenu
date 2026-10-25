@@ -138,7 +138,7 @@ export async function POST(request: Request) {
 
       const { data: newTenant, error: tenantError } = await service
         .from('tenants')
-        .insert({ name: company_name.trim(), slug, plan: 'free' })
+        .insert({ name: company_name.trim(), slug, plan: 'menu' })
         .select()
         .single()
 
@@ -181,9 +181,8 @@ export async function POST(request: Request) {
       // every feature gate (orders, payments, stripe-connect) defaulted off
       // even after the tenant had paid.
       //
-      // tenants.plan ('free') stays as a legacy denormalized snapshot until
-      // a future phase drops the column entirely. tenant_subscriptions is
-      // now the canonical source of truth.
+      // tenant_subscriptions is the source of truth; tenants.plan mirrors
+      // its plan slug (mirror_tenant_plan trigger).
       const { data: entryPlan, error: entryPlanError } = await service
         .from('plans')
         .select('id')

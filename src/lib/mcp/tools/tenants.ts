@@ -115,6 +115,20 @@ export function registerTenantReadTools(server: McpServer): void {
   )
 }
 
+/**
+ * Puts a tenant on a plan (by slug: menu, orders, payments). tenants.plan
+ * follows through the mirror_tenant_plan trigger.
+ */
+async function assignPlan(service: ReturnType<typeof createServiceClient>, tenantId: string, slug: string): Promise<string | null> {
+  const { data: plan } = await service.from('plans').select('id').eq('slug', slug).eq('is_active', true).maybeSingle()
+  if (!plan) return `Plano não encontrado ou inativo: ${slug} (use list_plans)`
+  const { data: existing } = await service.from('tenant_subscriptions').select('id').eq('tenant_id', tenantId).maybeSingle()
+  const { error } = existing
+    ? await service.from('tenant_subscriptions').update({ plan_id: plan.id }).eq('tenant_id', tenantId)
+    : await service.from('tenant_subscriptions').insert({ tenant_id: tenantId, plan_id: plan.id, billing_cycle: 'monthly', status: 'active' })
+  return error ? `Erro ao atribuir plano: ${error.message}` : null
+}
+
 /** Write tools for tenants (create/update). Mirrors the superadmin routes. */
 export function registerTenantWriteTools(server: McpServer): void {
   server.registerTool(
@@ -127,7 +141,7 @@ export function registerTenantWriteTools(server: McpServer): void {
         name: z.string().min(1).describe('Nome do restaurante'),
         slug: z.string().min(1).describe('Slug único (usado na URL pública)'),
         email: z.string().email().describe('Email do dono (store-admin)'),
-        plan: z.string().optional().describe("Plano legado (free/pro/enterprise). Default 'free'"),
+        plan: z.string().optional().describe("Slug do plano (menu, orders, payments — ver list_plans). Default 'menu'"),
       },
       annotations: { readOnlyHint: false },
     },
@@ -139,12 +153,17 @@ export function registerTenantWriteTools(server: McpServer): void {
 
       const { data: tenant, error: tenantError } = await service
         .from('tenants')
-        .insert({ name, slug, plan: plan ?? 'free' })
+        .insert({ name, slug, plan: plan ?? 'menu' })
         .select()
         .single()
       if (tenantError || !tenant) return errorResult(`Erro ao criar tenant: ${tenantError?.message}`)
 
       await service.from('tenant_settings').insert({ tenant_id: tenant.id })
+      const planError = await assignPlan(service, tenant.id, plan ?? 'menu')
+      if (planError) {
+        await service.from('tenants').delete().eq('id', tenant.id)
+        return errorResult(planError)
+      }
 
       const tempPassword = generatePassword()
       const { data: userData, error: userError } = await service.auth.admin.createUser({
@@ -176,11 +195,11 @@ export function registerTenantWriteTools(server: McpServer): void {
     'update_tenant',
     {
       title: 'Atualizar tenant',
-      description: 'Atualiza campos básicos de um tenant: is_active, plan (legado) e/ou name.',
+      description: 'Atualiza campos básicos de um tenant: is_active, plano (slug, cria/atualiza a assinatura) e/ou name.',
       inputSchema: {
         tenant: z.string().min(1).describe('id ou slug do tenant'),
         is_active: z.boolean().optional(),
-        plan: z.string().optional().describe('Plano legado (free/pro/enterprise)'),
+        plan: z.string().optional().describe('Slug do plano (menu, orders, payments — ver list_plans)'),
         name: z.string().min(1).optional(),
       },
       annotations: { readOnlyHint: false },
@@ -190,15 +209,20 @@ export function registerTenantWriteTools(server: McpServer): void {
       const tenantId = await resolveTenantId(service, tenant)
       if (!tenantId) return errorResult(`Tenant não encontrado: ${tenant}`)
 
+      if (plan !== undefined) {
+        const planError = await assignPlan(service, tenantId, plan)
+        if (planError) return errorResult(planError)
+      }
       const update: Record<string, unknown> = {}
       if (is_active !== undefined) update.is_active = is_active
-      if (plan !== undefined) update.plan = plan
       if (name !== undefined) update.name = name
-      if (Object.keys(update).length === 0) return errorResult('Nada para atualizar.')
+      if (Object.keys(update).length === 0 && plan === undefined) return errorResult('Nada para atualizar.')
 
-      const { data, error } = await service.from('tenants').update(update).eq('id', tenantId).select().single()
+      const { data, error } = Object.keys(update).length
+        ? await service.from('tenants').update(update).eq('id', tenantId).select().single()
+        : await service.from('tenants').select().eq('id', tenantId).single()
       if (error) return errorResult(`Erro ao atualizar tenant: ${error.message}`)
-      logMcpMutation('update_tenant', extra, { tenantId, update })
+      logMcpMutation('update_tenant', extra, { tenantId, update, plan })
       return jsonResult(data)
     },
   )

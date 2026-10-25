@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import TenantAiCard from './TenantAiCard'
+import { planBadgeClass } from '@/lib/plan-badge'
 import {
   ArrowLeft,
   Rocket,
@@ -61,6 +62,7 @@ interface Menu {
 interface Plan {
   id: string
   name: string
+  slug: string
   monthly_price: number
   annual_price: number
   transaction_fee_pct: number
@@ -437,8 +439,7 @@ export default function TenantDetailClient({
   const [subscriptionLoading, setSubscriptionLoading] = useState(false)
 
   const input = 'min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-zinc-400 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50'
-  const planBadge = tenant.plan === 'pro' ? 'bg-blue-100 text-blue-700' :
-    tenant.plan === 'enterprise' ? 'bg-purple-100 text-purple-700' : 'bg-zinc-100 text-zinc-600'
+  const planBadge = planBadgeClass(subscription?.plan?.slug ?? tenant.plan)
   const hasXphereConnection = Boolean(
     tenant.xphere_account_id ||
     tenant.xphere_contact_id ||
@@ -476,7 +477,7 @@ export default function TenantDetailClient({
             <div className="min-w-0">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <h1 className="truncate text-xl font-bold text-zinc-950 text-balance sm:text-2xl">{tenant.name}</h1>
-                <span className={`inline-flex min-h-7 items-center rounded-full px-2.5 text-[11px] font-bold uppercase ${planBadge}`}>{tenant.plan ?? 'No plan'}</span>
+                <span className={`inline-flex min-h-7 items-center rounded-full px-2.5 text-[11px] font-bold uppercase ${planBadge}`}>{subscription?.plan?.name ?? tenant.plan ?? 'No plan'}</span>
                 <span className={`inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold ${tenant.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
                   {tenant.is_active && <CheckCircle2 className="size-3.5" />}
                   {tenant.is_active ? 'Active' : 'Inactive'}

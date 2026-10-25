@@ -175,9 +175,7 @@ async function handlePUT(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
-  if (selectedPlan) {
-    await service.from('tenants').update({ plan: selectedPlan.slug }).eq('id', tenantId)
-  }
+  // tenants.plan follows plan_id through the mirror_tenant_plan trigger.
   const { data: tenant } = await service.from('tenants').select('slug').eq('id', tenantId).maybeSingle()
   revalidatePath('/tenants')
   if (tenant?.slug) revalidatePath(`/${tenant.slug}`, 'layout')
