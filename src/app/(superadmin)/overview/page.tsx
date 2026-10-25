@@ -4,6 +4,10 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
 import { isPendingTenantAssignment } from '@/lib/admin/tenant-management'
 import DashboardOverview from './DashboardOverview'
+import PlatformActivity from './PlatformActivity'
+import { normalizePlatformOverview } from '@/lib/analytics/engagement'
+
+const ACTIVITY_DAYS = 30
 
 export default async function OverviewPage() {
   const service = await createServiceClient()
@@ -16,11 +20,16 @@ export default async function OverviewPage() {
     { data: profiles },
     allUsers,
     { data: scansToday },
+    { data: activity },
   ] = await Promise.all([
     service.from('tenants').select('id, name, slug, plan, is_active, created_at'),
     service.from('profiles').select('id, role, tenant_id'),
     listAllAuthUsers(service),
     service.from('scan_events').select('tenant_id').gte('scanned_at', `${todayBRT}T03:00:00.000Z`),
+    service.rpc('get_platform_menu_overview', {
+      p_started_at: new Date(Date.now() - ACTIVITY_DAYS * 86_400_000).toISOString(),
+      p_ended_at: new Date().toISOString(),
+    }),
   ])
 
   const allTenants = tenants ?? []
@@ -40,9 +49,9 @@ export default async function OverviewPage() {
 
   const active = allTenants.filter(t => t.is_active).length
   const planCount = {
-    free: allTenants.filter(t => t.plan === 'free').length,
-    pro: allTenants.filter(t => t.plan === 'pro').length,
-    enterprise: allTenants.filter(t => t.plan === 'enterprise').length,
+    menu: allTenants.filter(t => t.plan === 'menu').length,
+    orders: allTenants.filter(t => t.plan === 'orders').length,
+    payments: allTenants.filter(t => t.plan === 'payments').length,
   }
   const unassigned = allProfiles.filter(p => isPendingTenantAssignment(p)).length
   const recent = [...allTenants]
@@ -50,6 +59,7 @@ export default async function OverviewPage() {
     .slice(0, 5)
 
   return (
+    <>
     <DashboardOverview 
       allTenants={allTenants}
       allUsers={allUsers}
@@ -60,5 +70,7 @@ export default async function OverviewPage() {
       topScanners={topScanners}
       active={active}
     />
+    <PlatformActivity rows={normalizePlatformOverview(activity)} days={ACTIVITY_DAYS} />
+    </>
   )
 }

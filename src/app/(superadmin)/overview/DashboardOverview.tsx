@@ -2,6 +2,7 @@
 
 import { motion } from 'framer-motion'
 import Link from 'next/link'
+import { planBadgeClass } from '@/lib/plan-badge'
 import { 
   Building2, 
   Users, 
@@ -20,9 +21,9 @@ interface DashboardOverviewProps {
   allUsers: any[]
   unassigned: number
   planCount: {
-    free: number
-    pro: number
-    enterprise: number
+    menu: number
+    orders: number
+    payments: number
   }
   totalScansToday: number
   recent: any[]
@@ -68,15 +69,15 @@ export default function DashboardOverview({
           color={unassigned > 0 ? 'amber' : 'zinc'} 
         />
         <StatCard 
-          label="Revenue Clients" 
-          value={planCount.pro + planCount.enterprise} 
-          sub={`${planCount.enterprise} enterprise tier`} 
+          label="Ordering Clients" 
+          value={planCount.orders + planCount.payments} 
+          sub={`${planCount.payments} with online payments`} 
           icon={<Star className="w-5 h-5" />}
           color="blue" 
         />
         <StatCard 
-          label="Free Tier" 
-          value={planCount.free} 
+          label="Menu Only" 
+          value={planCount.menu} 
           sub="Potential upgrades" 
           icon={<Zap className="w-5 h-5" />}
           color="zinc" 
@@ -125,11 +126,7 @@ export default function DashboardOverview({
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-[10px] px-2 py-1 rounded-lg font-bold uppercase tracking-tight ${
-                    t.plan === 'pro' ? 'bg-blue-50 text-blue-600' :
-                    t.plan === 'enterprise' ? 'bg-purple-50 text-purple-600' :
-                    'bg-zinc-50 text-zinc-400'
-                  }`}>{t.plan}</span>
+                  <span className={`text-[10px] px-2 py-1 rounded-lg font-bold uppercase tracking-tight ${planBadgeClass(t.plan)}`}>{t.plan}</span>
                   <div className={`w-2 h-2 rounded-full ${t.is_active ? 'bg-green-500 shadow-sm shadow-green-100' : 'bg-zinc-300'}`} />
                 </div>
               </motion.div>

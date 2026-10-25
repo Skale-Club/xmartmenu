@@ -27,7 +27,10 @@ import {
   type ProductAnalyticsRow,
 } from '@/lib/analytics/dashboard'
 import AnalyticsSettingsPanel, { type AnalyticsExperienceSettings } from './AnalyticsSettingsPanel'
-import { normalizeUpsellAnalytics, upsellTakeRate } from '@/lib/analytics/upsell'
+import EngagementSection from './EngagementSection'
+import { normalizeEngagement } from '@/lib/analytics/engagement'
+import { resolveTimeZone } from '@/lib/chat-context'
+import { normalizeOrderAttribution, normalizeUpsellAnalytics, revenueShare, upsellTakeRate } from '@/lib/analytics/upsell'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,14 +71,16 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
     locationsResult,
     settingsResult,
     upsellResult,
+    attributionResult,
   ] = await Promise.all([
     service.rpc('get_menu_analytics_overview', rpcParams),
     service.rpc('get_menu_analytics_overview', previousRpcParams),
     service.rpc('get_menu_product_analytics', rpcParams),
     service.from('menus').select('id, name').eq('tenant_id', effective.tenantId).order('position'),
     service.from('locations').select('id, name').eq('tenant_id', effective.tenantId).eq('is_active', true).order('name'),
-    service.from('tenant_settings').select('currency, analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos').eq('tenant_id', effective.tenantId).maybeSingle(),
+    service.from('tenant_settings').select('currency, country, region, analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos').eq('tenant_id', effective.tenantId).maybeSingle(),
     service.rpc('get_menu_upsell_analytics', rpcParams),
+    service.rpc('get_order_attribution', { p_tenant_id: rpcParams.p_tenant_id, p_started_at: rpcParams.p_started_at, p_ended_at: rpcParams.p_ended_at, p_location_id: rpcParams.p_location_id }),
   ])
 
   const overview = normalizeOverview(overviewResult.data?.[0] ?? EMPTY_ANALYTICS_OVERVIEW)
@@ -95,6 +100,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
   }
   const unavailable = Boolean(overviewResult.error || productsResult.error)
   const upsell = normalizeUpsellAnalytics(upsellResult.data)
+  const attribution = normalizeOrderAttribution(attributionResult.data)
+  // Hours are shown in the restaurant's own time zone.
+  const timeZone = resolveTimeZone({ country: settingsResult.data?.country, region: settingsResult.data?.region, currency: settingsResult.data?.currency }) ?? 'UTC'
+  const engagementResult = await service.rpc('get_menu_engagement', { ...rpcParams, p_time_zone: timeZone })
+  const engagement = normalizeEngagement(engagementResult.data)
 
   const kpis = [
     { label: 'Menu sessions', value: compact(overview.sessions), previous: previous.sessions, current: overview.sessions, icon: Users, help: 'Anonymous menu visits started in this period.' },
@@ -207,11 +217,28 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
         </section>
       </div>
 
+      <EngagementSection data={engagement} timeZone={timeZone} />
+
       <section className="rounded-2xl border border-zinc-100 bg-white p-5 sm:p-7">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div><p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Complete your order</p><h2 className="mt-1 text-xl font-black text-zinc-950">Sides, drinks and desserts after a dish</h2></div>
           <Link href="/settings/menu-display" className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline">Set up suggestions</Link>
         </div>
+        {(upsell.shown > 0 || attribution.upsell.revenue > 0 || attribution.chat.revenue > 0) && (
+          <div className="mb-5 grid gap-3 sm:grid-cols-3">
+            {[
+              { label: 'Sold via suggestions', value: formatPrice(attribution.upsell.revenue, currency), sub: `${compact(attribution.upsell.orders)} orders · ${formatPercent(revenueShare(attribution.upsell, attribution))} of item revenue`, help: 'Real revenue from items guests added in "Complete your order", in orders that went through (not cancelled or unpaid).' },
+              { label: 'Sold via AI chat', value: formatPrice(attribution.chat.revenue, currency), sub: `${compact(attribution.chat.orders)} orders · ${formatPercent(revenueShare(attribution.chat, attribution))} of item revenue`, help: 'Real revenue from items the AI assistant put in the cart, in orders that went through.' },
+              { label: 'Orders in period', value: compact(attribution.orders), sub: `${formatPrice(attribution.items_revenue, currency)} in items`, help: 'Orders that went through in this period (any source).' },
+            ].map(card => (
+              <div key={card.label} className="rounded-xl border border-primary/20 bg-primary/5 p-4" title={card.help}>
+                <p className="text-[10px] font-black uppercase tracking-widest text-zinc-500">{card.label}</p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-zinc-950">{card.value}</p>
+                <p className="mt-0.5 text-[11px] font-medium text-zinc-500">{card.sub}</p>
+              </div>
+            ))}
+          </div>
+        )}
         {upsell.shown > 0 ? (
           <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
             <div className="grid grid-cols-2 gap-3">
