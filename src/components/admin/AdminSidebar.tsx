@@ -29,7 +29,8 @@ import {
   Bot,
   Inbox,
   Search,
-  BarChart3
+  BarChart3,
+  LayoutTemplate,
 } from 'lucide-react'
 
 const mainItems = [
@@ -47,6 +48,7 @@ const adminPanelItems = [
   { href: '/settings/locations', label: 'Locations', icon: Building2 },
   { href: '/settings/subscription', label: 'Subscription', icon: CreditCard },
   { href: '/settings/branding', label: 'Branding', icon: Palette },
+  { href: '/settings/menu-display', label: 'Menu display', icon: LayoutTemplate },
   { href: '/settings/seo', label: 'SEO', icon: Search },
   { href: '/settings/chat', label: 'AI Chat', icon: Bot },
   { href: '/settings/qrcode', label: 'QR Code', icon: QrCode },
