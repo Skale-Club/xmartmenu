@@ -17,6 +17,7 @@
 // de nenhum tenant, então não existe prefixo de tenant sob o qual guardá-lo.
 // =============================================================================
 import { getStorageClient } from '@/lib/storage'
+import { OPENROUTER_BASE_URL } from '@/lib/ai/openrouter'
 
 /** Medido nos produtos irmãos: uma capa PNG de 1433 KB virou 94 KB em q82,
  *  sem diferença visível. */
@@ -32,7 +33,7 @@ const TARGET_HEIGHT = 9
 const ASPECT_TOLERANCE = 0.05
 
 const IMAGE_TIMEOUT_MS = 90_000
-const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
+const OPENROUTER_BASE = OPENROUTER_BASE_URL
 
 import type { BlogScope } from '@/lib/blog/scope'
 
@@ -62,8 +63,9 @@ async function requestImage(
   apiKey: string,
   model: string,
   prompt: string,
+  fetchImpl: typeof fetch = fetch,
 ): Promise<{ bytes: Buffer; mime: string } | null> {
-  const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+  const res = await fetchImpl(`${OPENROUTER_BASE}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -155,6 +157,8 @@ export async function generateCoverImage(args: {
   scope?: BlogScope
   apiKey: string | null
   model: string
+  /** Records the call's cost (ai/access.ts meteredFetch). */
+  fetchImpl?: typeof fetch
   title: string
   focusKeyword: string | null
   slug: string
@@ -164,7 +168,7 @@ export async function generateCoverImage(args: {
 
   const started = Date.now()
   try {
-    const image = await requestImage(args.apiKey, model, coverPrompt(args.title, args.focusKeyword))
+    const image = await requestImage(args.apiKey, model, coverPrompt(args.title, args.focusKeyword), args.fetchImpl)
     if (!image) return null
 
     const normalised = await normaliseTo16x9(image.bytes, image.mime)

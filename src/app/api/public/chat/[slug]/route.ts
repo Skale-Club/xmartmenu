@@ -18,10 +18,11 @@
  */
 import { NextResponse } from 'next/server'
 import { openRouterModel } from '@/lib/ai/openrouter'
+import { resolveAiAccess, runAi } from '@/lib/ai/access'
 import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
 import { hasAnyChannel, resolveChatChannels, verifyVoiceTranscript } from '@/lib/chat-channels'
 import { createServiceClient } from '@/lib/supabase/server'
-import { decryptApiKey, voiceTokenSecret } from '@/lib/crypto'
+import { voiceTokenSecret } from '@/lib/crypto'
 import { countMessagesLast24h, getChatAddonStatus } from '@/lib/chat-addon'
 import {
   HISTORY_LIMIT,
@@ -119,14 +120,16 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
     .maybeSingle()
   if (blocked) return NextResponse.json({ error: 'This number is blocked' }, { status: 403 })
 
-  // Addon settings (model + decrypted key)
+  // Addon settings (model, channels, limits). Which key pays is decided by
+  // the client's AI billing mode (src/lib/ai/billing-rules.ts).
   const { data: settings } = await supabase
     .from('chat_addon_settings')
-    .select('openrouter_api_key, openrouter_model, rate_limit_per_phone_per_day, text_enabled, audio_enabled')
+    .select('openrouter_model, rate_limit_per_phone_per_day, text_enabled, audio_enabled')
     .eq('tenant_id', tenant.id)
     .maybeSingle()
-  if (!settings?.openrouter_api_key) {
-    return NextResponse.json({ error: 'OpenRouter API key not configured' }, { status: 503 })
+  const access = await resolveAiAccess(tenant.id, 'chat')
+  if (!settings || !access) {
+    return NextResponse.json({ error: 'AI assistant not configured' }, { status: 503 })
   }
 
   // The restaurant decides how guests may write: typed text, voice notes or both.
@@ -147,14 +150,6 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
   const used = await countMessagesLast24h(supabase, tenant.id, convo.phone_hash)
   if (used >= limit) {
     return NextResponse.json({ error: 'Daily message limit reached', limit, used }, { status: 429 })
-  }
-
-  let openRouterKey: string
-  try {
-    openRouterKey = decryptApiKey(settings.openrouter_api_key)
-  } catch (e) {
-    log.error('chat.decrypt_error', { err: e })
-    return NextResponse.json({ error: 'Server config error' }, { status: 500 })
   }
 
   const rawSettings = (tenant.tenant_settings as any) ?? {}
@@ -229,13 +224,14 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
 
   let result
   try {
-    result = await runChatAgent({
-      model: openRouterModel(openRouterKey, settings.openrouter_model || 'openai/gpt-4o-mini'),
+    const modelId = settings.openrouter_model || 'openai/gpt-4o-mini'
+    result = await runAi(access, choice => runChatAgent({
+      model: openRouterModel(choice.apiKey, modelId, access.fetchFor(choice, modelId)),
       system: systemPrompt,
       messages: buildModelMessages([...(history ?? [])].reverse(), userMessage),
       catalog,
       ordersEnabled: canAddToCart,
-    })
+    }))
   } catch (e) {
     log.error('chat.generate_error', { err: e })
     return NextResponse.json({ error: 'Assistant temporarily unavailable' }, { status: 502 })

@@ -1,7 +1,8 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { generateObject } from 'ai'
-import { openRouterModel, platformOpenRouterKey, PLATFORM_KEY_MISSING, visionModelId } from '@/lib/ai/openrouter'
+import { openRouterModel, PLATFORM_KEY_MISSING, visionModelId } from '@/lib/ai/openrouter'
+import { resolveAiAccess } from '@/lib/ai/access'
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { OcrMenuSchema } from '@/lib/ai/schemas'
@@ -24,8 +25,8 @@ async function handlePOST(
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // All AI goes through OpenRouter on the platform key (src/lib/ai/openrouter.ts).
-  const openRouterKey = platformOpenRouterKey()
-  if (!openRouterKey) return NextResponse.json({ error: PLATFORM_KEY_MISSING }, { status: 503 })
+  const access = await resolveAiAccess(tenantId, 'ocr')
+  if (!access) return NextResponse.json({ error: PLATFORM_KEY_MISSING }, { status: 503 })
 
   const body = await request.json()
   const { storagePath, menuId } = body as { storagePath?: string; menuId?: string }
@@ -78,7 +79,7 @@ async function handlePOST(
   try {
     // Vision model (OpenRouter) with OcrMenuSchema for structured extraction
     const { object: ocrResult, usage } = await generateObject({
-      model: openRouterModel(openRouterKey, visionModelId()),
+      model: openRouterModel(access.primary.apiKey, visionModelId(), access.fetchFor(access.primary, visionModelId())),
       schema: OcrMenuSchema,
       messages: [
         {

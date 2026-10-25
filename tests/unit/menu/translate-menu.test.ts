@@ -4,7 +4,6 @@ import {
   MAX_TRANSLATE_ITEMS,
   buildTranslatePrompt,
   parseTranslateRequest,
-  pickTranslationModel,
   translateMenuTexts,
 } from '@/lib/ai/translate-menu'
 
@@ -30,15 +29,6 @@ describe('parseTranslateRequest', () => {
     expect(parseTranslateRequest({ from: 'pt', to: ['en'], items: many })).toHaveProperty('error')
     const long = Object.fromEntries(Array.from({ length: 7 }, (_, i) => [`k${i}`, 'x'.repeat(2000)]))
     expect(parseTranslateRequest({ from: 'pt', to: ['en'], items: long })).toEqual({ error: 'Texts are too long to translate at once' })
-  })
-})
-
-describe('pickTranslationModel', () => {
-  it('uses OpenRouter on the platform key, with the model overridable', () => {
-    expect(pickTranslationModel({ OPENROUTER_API_KEY: 'k' })?.label).toBe('google/gemini-2.5-flash')
-    expect(pickTranslationModel({ OPENROUTER_API_KEY: 'k', OPENROUTER_TEXT_MODEL: 'openai/gpt-5-mini' })?.label).toBe('openai/gpt-5-mini')
-    expect(pickTranslationModel({ OPENROUTER_API_KEY: ' ' })).toBeNull()
-    expect(pickTranslationModel({ GOOGLE_GENERATIVE_AI_API_KEY: 'g', OPENAI_API_KEY: 'o' })).toBeNull()
   })
 })
 

@@ -8,7 +8,6 @@
  * dropped. Nothing is saved here — the owner reviews before saving.
  */
 import { generateObject, type LanguageModel } from 'ai'
-import { openRouterModel, platformOpenRouterKey, textModelId } from '@/lib/ai/openrouter'
 import { z } from 'zod'
 import { MENU_LANGUAGE_CODES, menuLanguage } from '@/components/menu/menu-i18n'
 
@@ -48,14 +47,6 @@ export function parseTranslateRequest(body: unknown): TranslateRequest | { error
   if (count > MAX_TRANSLATE_ITEMS) return { error: `Too many texts (max ${MAX_TRANSLATE_ITEMS})` }
   if (chars > MAX_TRANSLATE_CHARS) return { error: 'Texts are too long to translate at once' }
   return { from, to: targets.slice(0, MAX_TARGET_LANGUAGES), items: clean }
-}
-
-/** The OpenRouter text model on the platform key; null when this deployment has no key. */
-export function pickTranslationModel(env: Record<string, string | undefined> = process.env): { model: LanguageModel; label: string } | null {
-  const key = platformOpenRouterKey(env)
-  if (!key) return null
-  const label = textModelId(env)
-  return { model: openRouterModel(key, label), label }
 }
 
 const responseSchema = z.object({

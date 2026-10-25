@@ -1,20 +1,15 @@
 /**
  * Admin chat-addon settings API.
- * GET  — returns settings with API keys masked
- * PUT  — upserts settings; encrypts keys before persisting; preserves
- *        existing ciphertext when the client sends back the masked value.
+ * GET  — returns the chat settings (never the key columns)
+ * PUT  — upserts them. The OpenRouter key is not set here any more: it lives
+ *        in tenant_ai_settings (Settings › AI & billing, /api/admin/ai).
  */
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
-import { encryptApiKey, maskApiKey, decryptApiKey } from '@/lib/crypto'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
-
-function isMaskedValue(v: string | null | undefined) {
-  return typeof v === 'string' && v.includes('••')
-}
 
 async function handleGET() {
   const effective = await getEffectiveTenant()
@@ -30,17 +25,12 @@ async function handleGET() {
 
   const status = await getChatAddonStatus(effective.tenantId)
 
-  // Mask keys before returning
-  const openrouter_masked = data?.openrouter_api_key
-    ? (() => { try { return maskApiKey(decryptApiKey(data.openrouter_api_key)) } catch { return '••••' } })()
-    : ''
-
   return NextResponse.json({
     settings: data
       ? {
           ...data,
-          openrouter_api_key: openrouter_masked,
-          // Legacy: voice notes run on the OpenRouter key now.
+          // Legacy key columns: keys live in tenant_ai_settings now.
+          openrouter_api_key: undefined,
           audio_api_key: undefined,
         }
       : null,
@@ -56,7 +46,6 @@ async function handlePUT(request: Request) {
   const body = await request.json()
   const {
     enabled,
-    openrouter_api_key,
     openrouter_model,
     audio_enabled,
     text_enabled,
@@ -65,21 +54,6 @@ async function handlePUT(request: Request) {
   } = body as Record<string, any>
 
   const supabase = createServiceClient()
-  const { data: existing } = await supabase
-    .from('chat_addon_settings')
-    .select('openrouter_api_key')
-    .eq('tenant_id', effective.tenantId)
-    .maybeSingle()
-
-  // Only re-encrypt keys when the client sent a new plaintext value.
-  // Masked values mean "keep existing ciphertext".
-  let nextOpenrouterKey: string | null | undefined = undefined
-  if (typeof openrouter_api_key === 'string') {
-    if (openrouter_api_key === '') nextOpenrouterKey = null
-    else if (isMaskedValue(openrouter_api_key)) nextOpenrouterKey = existing?.openrouter_api_key ?? null
-    else nextOpenrouterKey = encryptApiKey(openrouter_api_key)
-  }
-
   const payload: Record<string, unknown> = { tenant_id: effective.tenantId, updated_at: new Date().toISOString() }
   if (typeof enabled === 'boolean') payload.enabled = enabled
   if (typeof openrouter_model === 'string') payload.openrouter_model = openrouter_model
@@ -91,7 +65,6 @@ async function handlePUT(request: Request) {
   if (typeof rate_limit_per_phone_per_day === 'number') {
     payload.rate_limit_per_phone_per_day = Math.max(1, Math.min(500, Math.floor(rate_limit_per_phone_per_day)))
   }
-  if (nextOpenrouterKey !== undefined) payload.openrouter_api_key = nextOpenrouterKey
 
   const { error } = await supabase
     .from('chat_addon_settings')

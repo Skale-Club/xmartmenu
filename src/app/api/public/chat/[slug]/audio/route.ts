@@ -10,7 +10,8 @@
  */
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
-import { decryptApiKey, voiceTokenSecret } from '@/lib/crypto'
+import { voiceTokenSecret } from '@/lib/crypto'
+import { resolveAiAccess, runAi } from '@/lib/ai/access'
 import { signVoiceTranscript } from '@/lib/chat-channels'
 import { MAX_USER_MESSAGE_CHARS } from '@/lib/chat-agent'
 import { getChatAddonStatus } from '@/lib/chat-addon'
@@ -63,27 +64,27 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
     return NextResponse.json({ error: 'Invalid conversation' }, { status: 400 })
   }
 
-  // Voice notes are transcribed through OpenRouter on the tenant's own key,
-  // the same one the assistant uses; audio_provider picks Whisper or Deepgram.
+  // Voice notes are transcribed through OpenRouter, paid like the assistant:
+  // the client's key or ours per their AI billing mode; audio_provider picks
+  // Whisper or Deepgram.
   const { data: settings } = await supabase
     .from('chat_addon_settings')
-    .select('audio_enabled, audio_provider, openrouter_api_key')
+    .select('audio_enabled, audio_provider')
     .eq('tenant_id', tenant.id)
     .maybeSingle()
-  if (!settings?.audio_enabled || !settings.openrouter_api_key) {
+  const access = settings?.audio_enabled ? await resolveAiAccess(tenant.id, 'transcription') : null
+  if (!settings?.audio_enabled || !access) {
     return NextResponse.json({ error: 'Audio not configured' }, { status: 503 })
   }
 
-  let openRouterKey: string
-  try { openRouterKey = decryptApiKey(settings.openrouter_api_key) }
-  catch { return NextResponse.json({ error: 'Server config error' }, { status: 500 }) }
-
   try {
-    const transcript = await transcribeWithOpenRouter({
-      apiKey: openRouterKey,
-      model: transcriptionModelId(settings.audio_provider),
+    const model = transcriptionModelId(settings.audio_provider)
+    const transcript = await runAi(access, choice => transcribeWithOpenRouter({
+      apiKey: choice.apiKey,
+      model,
       audio,
-    })
+      fetchImpl: access.fetchFor(choice, model),
+    }))
     // Capped like a typed message, then signed so the chat route accepts it
     // even when the restaurant switched typed messages off.
     const text = transcript.trim().slice(0, MAX_USER_MESSAGE_CHARS)

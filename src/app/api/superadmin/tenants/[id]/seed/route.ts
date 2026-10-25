@@ -1,7 +1,8 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { generateObject } from 'ai'
-import { openRouterModel, platformOpenRouterKey, PLATFORM_KEY_MISSING, textModelId } from '@/lib/ai/openrouter'
+import { openRouterModel, PLATFORM_KEY_MISSING, textModelId } from '@/lib/ai/openrouter'
+import { resolveAiAccess } from '@/lib/ai/access'
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { sanitizeForPrompt } from '@/lib/ai/sanitize'
@@ -31,9 +32,9 @@ async function handlePOST(
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // All AI goes through OpenRouter on the platform key (src/lib/ai/openrouter.ts).
-  const openRouterKey = platformOpenRouterKey()
-  if (!openRouterKey) return NextResponse.json({ error: PLATFORM_KEY_MISSING }, { status: 503 })
-  const aiModel = openRouterModel(openRouterKey, textModelId())
+  const access = await resolveAiAccess(tenantId, 'seed')
+  if (!access) return NextResponse.json({ error: PLATFORM_KEY_MISSING }, { status: 503 })
+  const aiModel = openRouterModel(access.primary.apiKey, textModelId(), access.fetchFor(access.primary, textModelId()))
 
   const body = await request.json()
   const {

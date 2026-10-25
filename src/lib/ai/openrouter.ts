@@ -16,7 +16,8 @@
 import { createOpenAI } from '@ai-sdk/openai'
 import { defaultSettingsMiddleware, wrapLanguageModel, type LanguageModel } from 'ai'
 
-export const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+// Overridable so tests can point the app at a fake OpenRouter (tests/e2e/mock-openrouter.mjs).
+export const OPENROUTER_BASE_URL = process.env.OPENROUTER_BASE_URL?.trim() || 'https://openrouter.ai/api/v1'
 
 type Env = Record<string, string | undefined>
 
@@ -88,12 +89,14 @@ export function transcriptionModelId(provider: string | null | undefined, env: E
  * fields, which the seed and OCR schemas use, and OpenRouter validates the
  * shape on its side anyway (the AI SDK still checks it against zod).
  */
-export function openRouterModel(apiKey: string, modelId: string): LanguageModel {
+export function openRouterModel(apiKey: string, modelId: string, fetchImpl?: typeof fetch): LanguageModel {
   const provider = createOpenAI({
     name: 'openrouter',
     apiKey,
     baseURL: OPENROUTER_BASE_URL,
     headers: attributionHeaders(),
+    // ai/access.ts meteredFetch: records each call's real cost.
+    ...(fetchImpl ? { fetch: fetchImpl } : {}),
   })
   return wrapLanguageModel({
     model: provider.chat(modelId),

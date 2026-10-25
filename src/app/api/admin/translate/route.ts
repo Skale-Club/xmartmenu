@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { rateLimit } from '@/lib/rate-limit'
-import { parseTranslateRequest, pickTranslationModel, translateMenuTexts } from '@/lib/ai/translate-menu'
+import { parseTranslateRequest, translateMenuTexts } from '@/lib/ai/translate-menu'
+import { resolveAiAccess, runAi } from '@/lib/ai/access'
+import { openRouterModel, textModelId } from '@/lib/ai/openrouter'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 
@@ -22,13 +24,16 @@ async function handlePOST(request: Request) {
   const parsed = parseTranslateRequest(await request.json().catch(() => null))
   if ('error' in parsed) return NextResponse.json({ error: parsed.error }, { status: 400 })
 
-  const provider = pickTranslationModel()
-  if (!provider) {
+  // The client's key or ours, per their billing mode (src/lib/ai/billing-rules.ts).
+  const access = await resolveAiAccess(effective.tenantId, 'translation')
+  if (!access) {
     return NextResponse.json({ error: 'AI translation is not configured on this server. You can still type the translations.' }, { status: 503 })
   }
 
   try {
-    const translations = await translateMenuTexts(provider.model, parsed)
+    const model = textModelId()
+    const translations = await runAi(access, choice =>
+      translateMenuTexts(openRouterModel(choice.apiKey, model, access.fetchFor(choice, model)), parsed))
     return NextResponse.json({ translations })
   } catch (error) {
     log.error('POST /api/admin/translate', { err: error })

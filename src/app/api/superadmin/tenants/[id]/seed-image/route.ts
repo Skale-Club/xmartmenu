@@ -5,10 +5,10 @@ import {
   generateOpenRouterImage,
   imageModelId,
   parseImageEngine,
-  platformOpenRouterKey,
   PLATFORM_KEY_MISSING,
   type ImageEngine,
 } from '@/lib/ai/openrouter'
+import { resolveAiAccess, type ResolvedAiAccess } from '@/lib/ai/access'
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { sanitizeForPrompt } from '@/lib/ai/sanitize'
@@ -30,8 +30,15 @@ type ImageSeedType = 'image_cover' | 'image_products' | 'image_single_product'
  * cropped to the requested shape — engines clamp to their own sizes — and
  * encoded as WebP for storage.
  */
-async function generateSeedImage(apiKey: string, engine: ImageEngine, prompt: string, aspectRatio: string) {
-  const image = await generateOpenRouterImage({ apiKey, model: imageModelId(engine), prompt, aspectRatio })
+async function generateSeedImage(access: ResolvedAiAccess, engine: ImageEngine, prompt: string, aspectRatio: string) {
+  const model = imageModelId(engine)
+  const image = await generateOpenRouterImage({
+    apiKey: access.primary.apiKey,
+    model,
+    prompt,
+    aspectRatio,
+    fetchImpl: access.fetchFor(access.primary, model),
+  })
   const cropped = await cropToAspect(image.bytes, aspectRatio)
   return { webpBuffer: await convertBufferToWebP(cropped), totalTokens: image.totalTokens }
 }
@@ -69,8 +76,8 @@ async function handlePOST(
   if (!menuId) return NextResponse.json({ error: 'menuId is required' }, { status: 400 })
 
   // All AI goes through OpenRouter on the platform key (src/lib/ai/openrouter.ts).
-  const openRouterKey = platformOpenRouterKey()
-  if (!openRouterKey) return NextResponse.json({ error: PLATFORM_KEY_MISSING }, { status: 503 })
+  const access = await resolveAiAccess(tenantId, 'seed_image')
+  if (!access) return NextResponse.json({ error: PLATFORM_KEY_MISSING }, { status: 503 })
 
   // D-18: Sanitize all prompt-bound strings before interpolation (OWASP LLM #1)
   const safeBusinessType = sanitizeForPrompt(businessType)
@@ -115,7 +122,7 @@ async function handlePOST(
       const prompt = `A professional, high-quality restaurant banner photo for a ${safeBusinessType || 'restaurant'} named ${safeCompanyName || 'the restaurant'}. Wide-angle view, warm ambient lighting, food photography style. Suitable as a restaurant website banner.`
 
       // 4:1 is the closest common ratio to BrandingClient's 3:1 recommendation (Pitfall 2)
-      const result = await generateSeedImage(openRouterKey, engine, prompt, '4:1')
+      const result = await generateSeedImage(access, engine, prompt, '4:1')
       totalTokens = result.totalTokens
       const webpBuffer = result.webpBuffer
 
@@ -194,7 +201,7 @@ async function handlePOST(
           : `A professional food photography image of "${product.name}" from a ${safeBusinessType || 'restaurant'}. Square composition, clean background, appetizing presentation.`
 
         // Square for product cards (object-cover safe)
-        const result = await generateSeedImage(openRouterKey, engine, prompt, '1:1')
+        const result = await generateSeedImage(access, engine, prompt, '1:1')
         totalTokens += result.totalTokens
         const webpBuffer = result.webpBuffer
 
@@ -282,7 +289,7 @@ async function handlePOST(
         ? `A professional food photography image of "${product.name}" | ${safeDesc}. Style: ${safeBusinessType || 'restaurant'} dish, square composition, clean background, appetizing presentation.`
         : `A professional food photography image of "${product.name}" from a ${safeBusinessType || 'restaurant'}. Square composition, clean background, appetizing presentation.`
 
-      const result = await generateSeedImage(openRouterKey, engine, prompt, '1:1')
+      const result = await generateSeedImage(access, engine, prompt, '1:1')
       totalTokens = result.totalTokens
       const webpBuffer = result.webpBuffer
 

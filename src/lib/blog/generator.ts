@@ -23,6 +23,9 @@
 //   - A run that cannot produce a good post FAILS rather than publishing a bad
 //     one. Yesterday's post staying up beats two lines under our name.
 // =============================================================================
+import { meteredFetch, resolveAiAccess } from '@/lib/ai/access'
+import type { KeyChoice } from '@/lib/ai/billing-rules'
+import { OPENROUTER_BASE_URL } from '@/lib/ai/openrouter'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { createServiceClient } from '@/lib/supabase/server'
@@ -99,7 +102,7 @@ export type GenerationResult =
   | { status: 'skipped'; reason: BlogSkipReason }
   | { status: 'failed'; error: string; jobId?: string }
 
-const OPENROUTER_BASE = 'https://openrouter.ai/api/v1'
+const OPENROUTER_BASE = OPENROUTER_BASE_URL
 
 /** House model when none is configured, matching the chat addon's default. */
 const DEFAULT_TEXT_MODEL = 'anthropic/claude-sonnet-5'
@@ -182,11 +185,14 @@ async function callTextModel(
   model: string,
   system: string,
   prompt: string,
+  // ai/access.ts meteredFetch: records the call's real cost (and bills it per
+  // the client's AI mode).
+  fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
   const startedAt = Date.now()
   try {
     const text = await withAiRetry('blog_post', async (signal) => {
-      const res = await fetch(`${OPENROUTER_BASE}/chat/completions`, {
+      const res = await fetchImpl(`${OPENROUTER_BASE}/chat/completions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -495,8 +501,16 @@ export async function generateBlogPost(opts: {
     }
   }
 
-  const apiKey = settings.openrouter_api_key
-  if (!apiKey) return { status: 'skipped', reason: 'not_configured' }
+  // Which key pays: a blog-specific key (legacy override in blog settings),
+  // else the client's AI mode — their key, or ours billed / included — and the
+  // platform blog uses the global key (src/lib/ai/billing-rules.ts).
+  const access = settings.openrouter_api_key ? null : await resolveAiAccess(scope, 'blog')
+  const choice: KeyChoice | null = settings.openrouter_api_key
+    ? { apiKey: settings.openrouter_api_key, keySource: scope === null ? 'platform' : 'tenant', billable: false, markupPct: 0 }
+    : access?.primary ?? null
+  if (!choice) return { status: 'skipped', reason: 'not_configured' }
+  const apiKey = choice.apiKey
+  const meter = (model: string) => meteredFetch({ tenantId: scope, feature: 'blog', choice, model })
 
   if (!(await acquireLock(svc, scope, now))) return { status: 'skipped', reason: 'locked' }
 
@@ -595,6 +609,7 @@ export async function generateBlogPost(opts: {
         rssItem
           ? 'Transforme a FONTE em UMA ideia de pauta, no formato que a PAUTA DESTE POST determina. A pauta tem que ser sobre o que a fonte significa para o nosso leitor, não um recontar dela. Devolva APENAS a pauta, nada mais.'
           : 'Proponha UMA ideia de pauta que cumpra a PAUTA DESTE POST: seu pilar, seu formato de título, um único assunto. Devolva APENAS a pauta, nada mais.',
+        meter(textModel),
       )
     ).trim()
     timings.topic = Date.now() - topicStartedAt
@@ -618,6 +633,7 @@ export async function generateBlogPost(opts: {
       ]
         .filter(Boolean)
         .join('\n\n'),
+      meter(textModel),
     )
     timings.content = Date.now() - contentStartedAt
 
@@ -654,8 +670,9 @@ export async function generateBlogPost(opts: {
       // Escopo na CHAVE do storage: as capas de um restaurante ficam sob a
       // pasta dele, não misturadas com as da plataforma.
       scope,
-      apiKey: settings.openrouter_api_key,
+      apiKey,
       model: settings.image_model,
+      fetchImpl: settings.image_model ? meter(settings.image_model) : undefined,
       title: generated.title,
       focusKeyword: generated.focusKeyword || null,
       slug,

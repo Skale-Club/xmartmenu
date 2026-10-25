@@ -26,6 +26,7 @@ import { enqueueXphereSync } from '@/lib/xphere/queue'
 import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { billAiUsage, subscriptionIdFromInvoice } from '@/lib/ai/billing'
 
 type UpdateResult = { success: boolean; error?: string }
 
@@ -363,6 +364,34 @@ async function handlePOST(request: NextRequest) {
               .from('chat_addon_settings')
               .update({ enabled: false })
               .eq('tenant_id', tenantId)
+          }
+        }
+        break
+      }
+
+      case 'invoice.created': {
+        // Plan renewal invoice, still a draft: add the client's AI usage
+        // (real cost + margin) before Stripe finalises it (src/lib/ai/billing.ts).
+        const invoice = event.data.object as Parameters<typeof subscriptionIdFromInvoice>[0] & {
+          id: string
+          status?: string | null
+          currency?: string | null
+          billing_reason?: string | null
+        }
+        const subscriptionId = subscriptionIdFromInvoice(invoice)
+        if (invoice.status === 'draft' && invoice.billing_reason === 'subscription_cycle' && subscriptionId) {
+          const { data: subRow } = await supabase
+            .from('tenant_subscriptions')
+            .select('tenant_id')
+            .eq('stripe_subscription_id', subscriptionId)
+            .maybeSingle()
+          if (subRow?.tenant_id) {
+            try {
+              await billAiUsage({ tenantId: subRow.tenant_id, invoiceId: invoice.id, currency: invoice.currency ?? undefined })
+            } catch (error) {
+              // The usage stays unbilled and goes on the next invoice or "Bill now".
+              log.error('ai.billing_failed', { err: error, tenant_id: subRow.tenant_id, invoice: invoice.id })
+            }
           }
         }
         break
