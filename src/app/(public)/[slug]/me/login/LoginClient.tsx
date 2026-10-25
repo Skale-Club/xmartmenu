@@ -34,7 +34,10 @@ export default function LoginClient({ slug, primaryColor, onSuccess }: Props) {
     })
 
     if (authError) {
-      setError(authError.message)
+      // Phone sign-in needs an SMS provider in Supabase (docs/guest-login.md);
+      // until then say so instead of showing the raw provider error.
+      const unavailable = authError.code === 'phone_provider_disabled' || /phone.*(provider|disabled|not enabled)|unsupported phone provider/i.test(authError.message)
+      setError(unavailable ? 'Signing in with your phone is not available yet. Please ask the staff for help.' : authError.message)
     } else {
       setStep('otp')
     }
