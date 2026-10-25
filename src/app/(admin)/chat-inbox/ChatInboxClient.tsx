@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { MessageSquare, Ban, Download, FileText, X, RefreshCw, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 interface ConversationRow {
   id: string
@@ -233,9 +234,10 @@ export default function ChatInboxClient() {
 
       {/* Thread modal */}
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/60 sm:items-center sm:p-4" onClick={() => setSelected(null)}>
-          <div className="flex max-h-[calc(100dvh-0.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[80vh] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-4 sm:px-6">
+        <ModalPortal onClose={() => setSelected(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 p-3 sm:p-4" onClick={() => setSelected(null)}>
+          <div role="dialog" aria-modal="true" aria-label="Conversation" className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-100 px-4 py-4 sm:px-6">
               <div>
                 <p className="text-xs text-zinc-400 font-bold uppercase">Conversation</p>
                 <p className="text-sm font-mono text-zinc-700">{shortHash(selected.phone_hash)} · {selected.message_count} messages</p>
@@ -262,7 +264,7 @@ export default function ChatInboxClient() {
               </div>
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto bg-zinc-50 px-4 py-4 sm:px-6">
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain bg-zinc-50 px-4 py-4 sm:px-6">
               {threadLoading ? (
                 <p className="text-sm text-zinc-400">Loading…</p>
               ) : thread.length === 0 ? (
@@ -302,6 +304,7 @@ export default function ChatInboxClient() {
             )}
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   )

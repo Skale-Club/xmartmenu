@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { captureSecurityEvent } from '@/lib/observability'
 import { ArrowRight, ChevronLeft, X } from 'lucide-react'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 interface Props {
   open: boolean
@@ -93,8 +94,9 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
   if (!open) return null
 
   return (
+    <ModalPortal closeOnEscape={false}>
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
@@ -102,7 +104,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
         role="dialog"
         aria-modal="true"
         aria-label="Admin sign in"
-        className="relative max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-white/10 bg-zinc-900/95 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl sm:max-w-sm sm:rounded-[1.25rem] sm:p-8"
+        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-[1.25rem] border border-white/10 bg-zinc-900/95 p-5 shadow-2xl backdrop-blur-xl sm:p-8"
         onClick={e => e.stopPropagation()}
       >
         <button
@@ -217,5 +219,6 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
         </p>
       </div>
     </div>
+    </ModalPortal>
   )
 }

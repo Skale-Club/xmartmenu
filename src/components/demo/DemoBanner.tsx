@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Sparkles, X, ArrowRight } from 'lucide-react'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 // Renders nothing unless the visitor is in demo mode (xm_demo cookie set by
 // /demo). Detecting the cookie client-side keeps the public menu pages static —
@@ -23,7 +24,7 @@ export default function DemoBanner() {
 
   return (
     <>
-      <div data-demo-banner className="fixed bottom-4 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-zinc-900/95 px-4 py-3 text-white shadow-2xl backdrop-blur-xl">
+      <div data-demo-banner className="fixed bottom-4 left-1/2 z-[45] flex w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 items-center gap-3 rounded-2xl border border-white/10 bg-zinc-900/95 px-4 py-3 sm:rounded-full text-white shadow-2xl backdrop-blur-xl">
         <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Sparkles className="h-4 w-4" />
         </span>
@@ -105,13 +106,14 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center sm:px-4" onClick={onClose}>
+    <ModalPortal closeOnEscape={false}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Demo access"
-        className="relative max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-white/10 bg-zinc-900/95 p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl backdrop-blur-xl sm:max-w-sm sm:rounded-[1.25rem] sm:p-8"
+        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-[1.25rem] border border-white/10 bg-zinc-900/95 p-5 shadow-2xl backdrop-blur-xl sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -205,5 +207,6 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
         )}
       </div>
     </div>
+    </ModalPortal>
   )
 }

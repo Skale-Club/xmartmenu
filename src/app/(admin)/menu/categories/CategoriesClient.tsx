@@ -1,10 +1,11 @@
 ﻿'use client'
 
-import { type ReactNode, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { Category } from '@/types/database'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { Plus, LayoutGrid, Trash2, Edit3, X, ChevronRight, AlertCircle, ShieldCheck } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Modal from '@/components/ui/Modal'
 
 interface Props {
   categories: Category[]
@@ -12,31 +13,6 @@ interface Props {
   menuId: string | null
   activeMenuName: string | null
   canManage: boolean
-}
-
-function Modal({
-  open,
-  title,
-  onClose,
-  children,
-}: {
-  open: boolean
-  title: string
-  onClose: () => void
-  children: ReactNode
-}) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4">
-      <div role="dialog" aria-modal="true" aria-label={title} className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:max-w-xl sm:rounded-lg">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-100 bg-white px-4 py-4 sm:px-8 sm:py-6">
-          <h2 className="text-xl font-black text-zinc-950 tracking-tight">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-zinc-100 transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
-        </div>
-        <div className="p-4 sm:p-8">{children}</div>
-      </div>
-    </div>
-  )
 }
 
 export default function CategoriesClient({ categories: initial, tenantId, menuId, activeMenuName, canManage }: Props) {
@@ -190,7 +166,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
         )}
       </div>
 
-      <Modal open={canManage && showForm && !!menuId} title={editingId ? 'Refine Category' : 'Create Category'} onClose={cancelForm}>
+      <Modal size="md" open={canManage && showForm && !!menuId} title={editingId ? 'Refine Category' : 'Create Category'} onClose={cancelForm}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Category Name *</label>

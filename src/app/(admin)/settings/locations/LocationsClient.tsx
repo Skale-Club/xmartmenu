@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { MapPin, Plus, Pencil, Building2, ToggleLeft, ToggleRight, AlertCircle, X, Clock, QrCode, Download, BookOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Location } from '@/types/database'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 const DAYS = [
   { key: 'mon', label: 'Monday' },
@@ -68,12 +69,13 @@ function LocationModal({
 }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+    <ModalPortal onClose={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-3 backdrop-blur-sm sm:p-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="flex max-h-[calc(100dvh-0.5rem)] w-full flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-w-lg sm:rounded-[1.5rem]"
+        className="flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:max-w-lg sm:rounded-[1.5rem]"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-4 sm:px-8 sm:py-6">
@@ -105,7 +107,7 @@ function LocationModal({
               />
             </div>
 
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <label className={labelClassName}>URL Slug</label>
               <input
                 value={form.slug}
@@ -188,7 +190,7 @@ function LocationModal({
               />
             </div>
 
-            <div className="col-span-2">
+            <div className="sm:col-span-2">
               <label className={labelClassName}>Phone</label>
               <input
                 type="tel"
@@ -265,6 +267,7 @@ function LocationModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   )
 }
 
@@ -310,12 +313,13 @@ function QRModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+    <ModalPortal onClose={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-3 backdrop-blur-sm sm:p-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label="QR Code"
-        className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:max-w-sm sm:rounded-[1.5rem]"
+        className="max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-[1.5rem]"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-4 sm:px-8 sm:py-6">
@@ -343,6 +347,7 @@ function QRModal({
         </div>
       </div>
     </div>
+    </ModalPortal>
   )
 }
 

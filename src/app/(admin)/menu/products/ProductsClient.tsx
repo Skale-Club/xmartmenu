@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { type ReactNode, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { formatPrice } from '@/lib/utils'
@@ -9,6 +9,7 @@ import Image from 'next/image'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { Plus, Package, Trash2, Edit3, X, ChevronRight, AlertCircle, ShieldCheck, Star, Utensils, Tag, Image as ImageIcon, CheckCircle2, GalleryVerticalEnd } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import Modal from '@/components/ui/Modal'
 
 interface ProductWithCategory extends Product {
   category: { id: string; name: string } | null
@@ -42,31 +43,6 @@ interface Props {
   availableTags?: string[]
   currency?: string
   canManage: boolean
-}
-
-function Modal({
-  open,
-  title,
-  onClose,
-  children,
-}: {
-  open: boolean
-  title: string
-  onClose: () => void
-  children: ReactNode
-}) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4">
-      <div role="dialog" aria-modal="true" aria-label={title} className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:max-w-4xl sm:rounded-xl">
-        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-zinc-100 bg-white px-4 py-4 sm:px-8 sm:py-6">
-          <h2 className="text-xl font-black text-zinc-950 tracking-tight">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-zinc-100 transition-colors"><X className="w-5 h-5 text-zinc-400" /></button>
-        </div>
-        <div className="p-4 sm:p-8">{children}</div>
-      </div>
-    </div>
-  )
 }
 
 export default function ProductsClient({ products: initial, categories, tenantId, menuId, activeMenuName, availableTags, currency = 'USD', canManage }: Props) {
@@ -376,7 +352,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
         ))}
       </div>
 
-      <Modal open={canManage && showForm && !!menuId} title={editingId ? 'Edit Product' : 'Create New Product'} onClose={resetForm}>
+      <Modal size="xl" open={canManage && showForm && !!menuId} title={editingId ? 'Edit Product' : 'Create New Product'} onClose={resetForm}>
         <form onSubmit={handleSubmit} className="space-y-8">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="md:col-span-2 space-y-6">

@@ -1,5 +1,7 @@
 'use client'
 
+import ModalPortal from './ModalPortal'
+
 interface ConfirmDialogProps {
   open: boolean
   title: string
@@ -21,12 +23,14 @@ export default function ConfirmDialog({
 }: ConfirmDialogProps) {
   if (!open) return null
 
+  // Above any other dialog: a confirmation is usually asked from inside one.
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-3 sm:items-center sm:p-4">
+    <ModalPortal onClose={onCancel} closeOnEscape={!loading}>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={() => { if (!loading) onCancel() }} />
-      <div role="alertdialog" aria-modal="true" className="relative max-h-[calc(100dvh-1.5rem)] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
+      <div role="alertdialog" aria-modal="true" aria-label={title} className="relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl sm:p-6">
         <h3 className="text-base font-semibold text-zinc-900 mb-2">{title}</h3>
-        <p className="text-sm text-zinc-500 mb-6">{message}</p>
+        <p className="text-sm text-zinc-500 mb-6 break-words">{message}</p>
         <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}
@@ -45,5 +49,6 @@ export default function ConfirmDialog({
         </div>
       </div>
     </div>
+    </ModalPortal>
   )
 }

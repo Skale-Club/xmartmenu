@@ -3,6 +3,7 @@
 import { ReactNode, useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Menu, X } from 'lucide-react'
+import { lockBodyScroll } from '@/components/ui/ModalPortal'
 
 export default function DashboardShell({
   children,
@@ -25,10 +26,7 @@ export default function DashboardShell({
 }) {
   const [open, setOpen] = useState(false)
 
-  useEffect(() => {
-    document.body.style.overflow = open ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
-  }, [open])
+  useEffect(() => (open ? lockBodyScroll() : undefined), [open])
 
   useEffect(() => {
     if (!open) return

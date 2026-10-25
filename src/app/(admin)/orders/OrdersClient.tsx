@@ -6,6 +6,7 @@ import type { Order, OrderItem } from '@/types/database'
 import { useElapsedTime } from './useElapsedTime'
 import { Bell, BellOff, LayoutGrid, List, MessageSquare, Package, Clock, CheckCircle2, XCircle, AlertCircle, Play, Check, X, Info, ChevronRight, Plus, UtensilsCrossed, Truck, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import ModalPortal from '@/components/ui/ModalPortal'
 
 type OrderWithItems = Order & { order_items: OrderItem[] }
 
@@ -647,9 +648,10 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
 
       {/* Details Modal */}
       {selectedOrder && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-sm sm:items-center sm:p-4" onClick={() => setSelectedOrder(null)}>
-          <div className="max-h-[calc(100dvh-0.5rem)] w-full max-w-2xl overflow-hidden rounded-t-2xl border border-zinc-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-[1.5rem]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-4 py-4 sm:px-10 sm:py-8">
+        <ModalPortal onClose={() => setSelectedOrder(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-3 backdrop-blur-sm sm:p-4" onClick={() => setSelectedOrder(null)}>
+          <div role="dialog" aria-modal="true" aria-label="Order details" className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-[1.5rem]" onClick={e => e.stopPropagation()}>
+            <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 bg-zinc-50/50 px-4 py-4 sm:px-10 sm:py-8">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-[1.25rem] bg-zinc-950 flex items-center justify-center text-primary shadow-xl shadow-zinc-950/10">
                   <Package className="w-6 h-6" />
@@ -662,7 +664,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
               <button onClick={() => setSelectedOrder(null)} className="p-3 hover:bg-zinc-100 rounded-full transition-colors"><X className="w-6 h-6 text-zinc-400" /></button>
             </div>
             
-            <div className="max-h-[calc(100dvh-6rem)] space-y-6 overflow-y-auto p-4 custom-scrollbar sm:max-h-[70vh] sm:space-y-10 sm:p-10">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-4 custom-scrollbar sm:space-y-10 sm:p-10">
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-10">
                 <div className="space-y-6">
                   <div>
@@ -779,7 +781,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
               </div>
             </div>
 
-            <div className="flex flex-col gap-3 border-t border-zinc-100 bg-zinc-50/50 p-4 sm:flex-row sm:gap-4 sm:p-10">
+            <div className="flex shrink-0 flex-col gap-3 border-t border-zinc-100 bg-zinc-50/50 p-4 sm:flex-row sm:gap-4 sm:p-10">
               <div className="flex flex-1 gap-3">
                 {selectedOrder.status === 'pending' && (
                   <button
@@ -831,6 +833,7 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
             </div>
           </div>
         </div>
+        </ModalPortal>
       )}
     </div>
   )

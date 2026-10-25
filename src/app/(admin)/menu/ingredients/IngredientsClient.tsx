@@ -1,10 +1,11 @@
 'use client'
 
-import { type ReactNode, useState } from 'react'
+import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { ChevronUp, ChevronDown, Pencil, Trash2 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { Ingredient } from '@/types/database'
+import Modal from '@/components/ui/Modal'
 
 const CURRENCY_SYMBOL: Record<string, string> = {
   USD: '$', BRL: 'R$', EUR: '€', GBP: '£',
@@ -16,31 +17,6 @@ interface Props {
   tenantId: string
   currency: string
   canManage: boolean
-}
-
-function Modal({
-  open,
-  title,
-  onClose,
-  children,
-}: {
-  open: boolean
-  title: string
-  onClose: () => void
-  children: ReactNode
-}) {
-  if (!open) return null
-  return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center sm:p-4">
-      <div role="dialog" aria-modal="true" aria-label={title} className="max-h-[calc(100dvh-0.5rem)] w-full overflow-y-auto rounded-t-2xl border border-zinc-200 bg-white shadow-xl sm:max-w-4xl sm:rounded-xl">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-4 sm:px-5">
-          <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800">✕</button>
-        </div>
-        <div className="p-4 sm:p-5">{children}</div>
-      </div>
-    </div>
-  )
 }
 
 export default function IngredientsClient({ ingredients: initial, tenantId, currency, canManage }: Props) {
@@ -155,7 +131,7 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
         onCancel={() => setConfirmId(null)}
       />
 
-      <Modal open={canManage && showForm} title={editingId ? 'Edit ingredient' : 'New ingredient'} onClose={resetForm}>
+      <Modal size="xl" open={canManage && showForm} title={editingId ? 'Edit ingredient' : 'New ingredient'} onClose={resetForm}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Name *</label>
