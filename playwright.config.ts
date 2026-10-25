@@ -12,6 +12,9 @@ import { defineConfig, devices } from '@playwright/test'
 const PORT = Number(process.env.E2E_PORT ?? 3100)
 const baseURL = process.env.E2E_BASE_URL ?? `http://localhost:${PORT}`
 const isCI = !!process.env.CI
+// A fake OpenRouter (tests/e2e/mock-openrouter.mjs): AI calls never leave the machine.
+const MOCK_OPENROUTER_PORT = 3199
+const MOCK_OPENROUTER_URL = `http://localhost:${MOCK_OPENROUTER_PORT}`
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -58,14 +61,23 @@ export default defineConfig({
   ],
   // Locally: `npm run test:e2e` starts the dev server against the local stack.
   // CI starts the production build itself and sets E2E_SKIP_WEBSERVER.
-  webServer: process.env.E2E_SKIP_WEBSERVER
-    ? undefined
-    : {
-        command: process.env.E2E_SERVER_COMMAND ?? `npm run dev -- --port ${PORT}`,
-        url: `${baseURL}/api/health`,
-        reuseExistingServer: !isCI,
-        timeout: 180_000,
-        stdout: 'pipe',
-        stderr: 'pipe',
-      },
+  webServer: [
+    {
+      command: 'node tests/e2e/mock-openrouter.mjs',
+      url: `${MOCK_OPENROUTER_URL}/__health`,
+      reuseExistingServer: !isCI,
+      timeout: 20_000,
+    },
+    ...(process.env.E2E_SKIP_WEBSERVER
+      ? []
+      : [{
+          command: process.env.E2E_SERVER_COMMAND ?? `npm run dev -- --port ${PORT}`,
+          url: `${baseURL}/api/health`,
+          reuseExistingServer: !isCI,
+          timeout: 180_000,
+          stdout: 'pipe' as const,
+          stderr: 'pipe' as const,
+          env: { OPENROUTER_BASE_URL: `${MOCK_OPENROUTER_URL}/api/v1` },
+        }]),
+  ],
 })

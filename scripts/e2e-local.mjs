@@ -37,6 +37,8 @@ const env = {
   CHAT_ADDON_ENCRYPTION_KEY: process.env.CHAT_ADDON_ENCRYPTION_KEY ?? '0'.repeat(64),
   NEXT_PUBLIC_APP_URL: 'http://localhost:3100',
   OPENROUTER_API_KEY: '',
+  // AI calls go to the fake OpenRouter Playwright starts (tests/e2e/mock-openrouter.mjs).
+  OPENROUTER_BASE_URL: 'http://localhost:3199/api/v1',
   UPSTASH_REDIS_REST_URL: '',
   UPSTASH_REDIS_REST_TOKEN: '',
   STRIPE_SECRET_KEY: '',

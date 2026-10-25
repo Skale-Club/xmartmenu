@@ -77,6 +77,9 @@ jobs:
       NEXT_PUBLIC_APP_URL: http://localhost:3100
       # Test-only: never real keys in this job.
       CHAT_ADDON_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      # AI calls go to the fake OpenRouter Playwright starts (tests/e2e/mock-openrouter.mjs).
+      OPENROUTER_BASE_URL: http://localhost:3199/api/v1
+      OPENROUTER_API_KEY: ''
       E2E_SERVER_COMMAND: node .next/standalone/server.js
     steps:
       - uses: actions/checkout@v4
