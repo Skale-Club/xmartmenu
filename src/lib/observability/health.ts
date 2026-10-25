@@ -22,9 +22,14 @@ export interface HealthReport {
 
 type Env = Record<string, string | undefined>
 
-/** The build's git sha (Docker build arg GIT_SHA → NEXT_PUBLIC_RELEASE). */
-export function currentRelease(env: Env = process.env): string {
-  return env.NEXT_PUBLIC_RELEASE?.trim() || 'dev'
+/**
+ * The build's git sha (Docker build arg GIT_SHA → NEXT_PUBLIC_RELEASE).
+ * Read literally as process.env.NEXT_PUBLIC_RELEASE: Next.js inlines it at
+ * build time only in that form — the runtime image doesn't have the variable.
+ */
+export function currentRelease(env?: Env): string {
+  const value = env ? env.NEXT_PUBLIC_RELEASE : process.env.NEXT_PUBLIC_RELEASE
+  return value?.trim() || 'dev'
 }
 
 /** Integrations this deployment has configured (no values). */
