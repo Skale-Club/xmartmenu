@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { MessageCircle, X, Send, Mic, MicOff, ShoppingBag, Bot } from 'lucide-react'
+import { MessageCircle, X, Send, Mic, ShoppingBag, Bot, Trash2, Loader2 } from 'lucide-react'
 import type { Product, IngredientModifications } from '@/types/database'
 import type { CartEditorState } from './menu-utils'
 import type { ResolvedCartItem } from '@/lib/chat-agent'
@@ -26,6 +26,16 @@ interface Props {
 // Server-side cap (MAX_USER_MESSAGE_CHARS in chat-agent.ts).
 const MAX_MESSAGE_CHARS = 1000
 
+// Voice notes stop on their own at this length, so an order can be spoken
+// instead of typed without clips the transcription would struggle with.
+const MAX_VOICE_SECONDS = 60
+// Shorter than this is an accidental tap, not a message.
+const MIN_VOICE_MS = 700
+
+function formatSeconds(total: number): string {
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+}
+
 interface Message {
   id: string
   role: 'user' | 'assistant'
@@ -45,11 +55,23 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [recording, setRecording] = useState(false)
+  const [recordSeconds, setRecordSeconds] = useState(0)
+  const [transcribing, setTranscribing] = useState(false)
   const [remaining, setRemaining] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const recordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const recordStartedRef = useRef(0)
+  const discardRecordingRef = useRef(false)
+  const streamRef = useRef<MediaStream | null>(null)
+
+  // Never leave the microphone on when the widget goes away.
+  useEffect(() => () => {
+    if (recordTimerRef.current) clearInterval(recordTimerRef.current)
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+  }, [])
 
   // Restore session from storage
   useEffect(() => {
@@ -106,7 +128,8 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
     if (!text.trim() || !conversationId || sending) return
     setError(null)
     const userMsg: Message = { id: crypto.randomUUID(), role: 'user', content: text }
-    setMessages([...messages, userMsg])
+    // Functional update: a voice note calls this from the recorder's callback.
+    setMessages((prev) => [...prev, userMsg])
     setInput('')
     setSending(true)
 
@@ -153,46 +176,79 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
   }
 
   async function startRecording() {
-    if (!navigator.mediaDevices?.getUserMedia) {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
       setError('Microphone not supported on this browser')
       return
     }
+    setError(null)
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       const mr = new MediaRecorder(stream)
       audioChunksRef.current = []
+      discardRecordingRef.current = false
       mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
       mr.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop())
+        streamRef.current = null
+        const tooShort = Date.now() - recordStartedRef.current < MIN_VOICE_MS
+        if (discardRecordingRef.current || tooShort) return
         const blob = new Blob(audioChunksRef.current, { type: mr.mimeType || 'audio/webm' })
-        await transcribeAndFill(blob)
+        await transcribeAndSend(blob)
       }
       mediaRecorderRef.current = mr
       mr.start()
+      recordStartedRef.current = Date.now()
+      setRecordSeconds(0)
       setRecording(true)
-    } catch (e) {
+      recordTimerRef.current = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - recordStartedRef.current) / 1000)
+        setRecordSeconds(Math.min(elapsed, MAX_VOICE_SECONDS))
+        if (elapsed >= MAX_VOICE_SECONDS) stopRecording()
+      }, 250)
+    } catch {
       setError('Microphone permission denied')
     }
   }
 
-  function stopRecording() {
-    mediaRecorderRef.current?.stop()
+  /** Stops the recorder; the clip is sent unless `discard`. */
+  function stopRecording(discard = false) {
+    discardRecordingRef.current = discard
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current)
+      recordTimerRef.current = null
+    }
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop()
     setRecording(false)
   }
 
-  async function transcribeAndFill(blob: Blob) {
+  // A voice note goes out like a typed message: transcribed, then sent, so a
+  // customer can speak the whole order instead of typing it.
+  async function transcribeAndSend(blob: Blob) {
     if (!conversationId) return
-    const fd = new FormData()
-    fd.append('audio', blob, 'voice.webm')
-    fd.append('conversation_id', conversationId)
-    const res = await fetch(`/api/public/chat/${tenantSlug}/audio`, { method: 'POST', body: fd })
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}))
-      setError(data.error || 'Transcription failed')
-      return
+    setTranscribing(true)
+    try {
+      const fd = new FormData()
+      fd.append('audio', blob, blob.type.includes('mp4') ? 'voice.m4a' : blob.type.includes('ogg') ? 'voice.ogg' : 'voice.webm')
+      fd.append('conversation_id', conversationId)
+      const res = await fetch(`/api/public/chat/${tenantSlug}/audio`, { method: 'POST', body: fd })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || 'Transcription failed')
+        return
+      }
+      const data = await res.json() as { transcript: string }
+      const transcript = data.transcript?.trim().slice(0, MAX_MESSAGE_CHARS)
+      if (!transcript) {
+        setError("Couldn't hear anything in that recording. Try again a little closer to the microphone.")
+        return
+      }
+      await sendMessage(transcript)
+    } catch {
+      setError('Transcription failed')
+    } finally {
+      setTranscribing(false)
     }
-    const data = await res.json() as { transcript: string }
-    setInput((prev) => (prev ? `${prev} ${data.transcript}` : data.transcript))
   }
 
   return (
@@ -308,6 +364,36 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                 {remaining !== null && remaining <= 5 && (
                   <p className="text-[10px] text-amber-600 font-bold mb-1.5 px-1">{remaining} message{remaining === 1 ? '' : 's'} remaining today</p>
                 )}
+                {recording ? (
+                  <div className="flex items-center gap-2" role="status" aria-live="polite">
+                    <button
+                      type="button"
+                      onClick={() => stopRecording(true)}
+                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                      aria-label="Discard recording"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                    <div className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-red-50 border border-red-100">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-red-700 tabular-nums">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" aria-hidden="true" />
+                        {formatSeconds(recordSeconds)}
+                        <span className="text-red-400 font-medium">/ {formatSeconds(MAX_VOICE_SECONDS)}</span>
+                      </div>
+                      <div className="mt-1.5 h-1 rounded-full bg-red-100 overflow-hidden">
+                        <div className="h-full bg-red-500 transition-[width] duration-200" style={{ width: `${(recordSeconds / MAX_VOICE_SECONDS) * 100}%` }} />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => stopRecording()}
+                      className="w-10 h-10 rounded-full bg-zinc-900 text-white flex items-center justify-center hover:bg-zinc-800 flex-shrink-0"
+                      aria-label="Stop and send voice message"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
                 <div className="flex items-end gap-2">
                   <textarea
                     value={input}
@@ -320,32 +406,32 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                     }}
                     rows={1}
                     maxLength={MAX_MESSAGE_CHARS}
-                    placeholder={recording ? 'Recording…' : 'Ask about our menu…'}
-                    disabled={sending || recording}
+                    placeholder={transcribing ? 'Transcribing your voice note…' : audioEnabled ? 'Type or record your order…' : 'Ask about our menu…'}
+                    disabled={sending || transcribing}
                     className="flex-1 px-3 py-2 border border-zinc-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:bg-zinc-50 max-h-24"
                   />
                   {audioEnabled && (
                     <button
                       type="button"
-                      onClick={recording ? stopRecording : startRecording}
-                      disabled={sending}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${
-                        recording ? 'bg-red-500 text-white animate-pulse' : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200'
-                      }`}
-                      aria-label={recording ? 'Stop recording' : 'Start recording'}
+                      onClick={startRecording}
+                      disabled={sending || transcribing}
+                      className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors bg-zinc-100 text-zinc-700 hover:bg-zinc-200 disabled:opacity-50"
+                      aria-label={`Record a voice message (up to ${MAX_VOICE_SECONDS} seconds)`}
+                      title={`Voice message, up to ${MAX_VOICE_SECONDS} seconds`}
                     >
-                      {recording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                      {transcribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
                     </button>
                   )}
                   <button
                     onClick={() => sendMessage(input)}
-                    disabled={sending || !input.trim() || recording}
+                    disabled={sending || !input.trim() || transcribing}
                     className="w-10 h-10 rounded-full bg-zinc-900 text-white flex items-center justify-center hover:bg-zinc-800 disabled:opacity-50 flex-shrink-0"
                     aria-label="Send"
                   >
                     <Send className="w-4 h-4" />
                   </button>
                 </div>
+                )}
               </div>
             </>
           )}

@@ -239,7 +239,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
           >
             <div className="max-w-[70%]">
               <p className="text-sm font-black text-zinc-950 uppercase tracking-tight flex items-center gap-2"><Mic className="w-4 h-4" />Voice messages (STT)</p>
-              <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Customers can record voice notes — transcribed to text, answered in text.</p>
+              <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">Customers can speak their order instead of typing: voice notes up to 60 seconds, transcribed and answered in text.</p>
             </div>
             <button type="button" className={cn(
               "relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none",
