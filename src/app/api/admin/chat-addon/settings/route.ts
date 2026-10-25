@@ -32,16 +32,14 @@ export async function GET() {
   const openrouter_masked = data?.openrouter_api_key
     ? (() => { try { return maskApiKey(decryptApiKey(data.openrouter_api_key)) } catch { return '••••' } })()
     : ''
-  const audio_masked = data?.audio_api_key
-    ? (() => { try { return maskApiKey(decryptApiKey(data.audio_api_key)) } catch { return '••••' } })()
-    : ''
 
   return NextResponse.json({
     settings: data
       ? {
           ...data,
           openrouter_api_key: openrouter_masked,
-          audio_api_key: audio_masked,
+          // Legacy: voice notes run on the OpenRouter key now.
+          audio_api_key: undefined,
         }
       : null,
     status,
@@ -60,14 +58,13 @@ export async function PUT(request: Request) {
     openrouter_model,
     audio_enabled,
     audio_provider,
-    audio_api_key,
     rate_limit_per_phone_per_day,
   } = body as Record<string, any>
 
   const supabase = createServiceClient()
   const { data: existing } = await supabase
     .from('chat_addon_settings')
-    .select('openrouter_api_key, audio_api_key')
+    .select('openrouter_api_key')
     .eq('tenant_id', effective.tenantId)
     .maybeSingle()
 
@@ -78,12 +75,6 @@ export async function PUT(request: Request) {
     if (openrouter_api_key === '') nextOpenrouterKey = null
     else if (isMaskedValue(openrouter_api_key)) nextOpenrouterKey = existing?.openrouter_api_key ?? null
     else nextOpenrouterKey = encryptApiKey(openrouter_api_key)
-  }
-  let nextAudioKey: string | null | undefined = undefined
-  if (typeof audio_api_key === 'string') {
-    if (audio_api_key === '') nextAudioKey = null
-    else if (isMaskedValue(audio_api_key)) nextAudioKey = existing?.audio_api_key ?? null
-    else nextAudioKey = encryptApiKey(audio_api_key)
   }
 
   const payload: Record<string, unknown> = { tenant_id: effective.tenantId, updated_at: new Date().toISOString() }
@@ -97,7 +88,6 @@ export async function PUT(request: Request) {
     payload.rate_limit_per_phone_per_day = Math.max(1, Math.min(500, Math.floor(rate_limit_per_phone_per_day)))
   }
   if (nextOpenrouterKey !== undefined) payload.openrouter_api_key = nextOpenrouterKey
-  if (nextAudioKey !== undefined) payload.audio_api_key = nextAudioKey
 
   const { error } = await supabase
     .from('chat_addon_settings')

@@ -26,9 +26,8 @@ export default async function ChatAddonSettingsPage() {
     openrouter_api_key: settings.openrouter_api_key
       ? (() => { try { return maskApiKey(decryptApiKey(settings.openrouter_api_key)) } catch { return '••••' } })()
       : '',
-    audio_api_key: settings.audio_api_key
-      ? (() => { try { return maskApiKey(decryptApiKey(settings.audio_api_key)) } catch { return '••••' } })()
-      : '',
+    // Legacy: voice notes now run on the OpenRouter key; never send this one out.
+    audio_api_key: undefined,
   } : null
 
   return <ChatAddonClient initialSettings={masked} status={status} />

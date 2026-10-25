@@ -17,7 +17,7 @@
  * cart. Checkout re-prices them from the editor state anyway.
  */
 import { NextResponse } from 'next/server'
-import { createOpenAI } from '@ai-sdk/openai'
+import { openRouterModel } from '@/lib/ai/openrouter'
 import { createServiceClient } from '@/lib/supabase/server'
 import { decryptApiKey } from '@/lib/crypto'
 import { countMessagesLast24h, getChatAddonStatus } from '@/lib/chat-addon'
@@ -204,16 +204,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     canAddToCart,
   })
 
-  // OpenRouter is OpenAI-compatible — point @ai-sdk/openai at it
-  const openrouter = createOpenAI({
-    apiKey: openRouterKey,
-    baseURL: 'https://openrouter.ai/api/v1',
-  })
-
   let result
   try {
     result = await runChatAgent({
-      model: openrouter(settings.openrouter_model || 'openai/gpt-4o-mini'),
+      model: openRouterModel(openRouterKey, settings.openrouter_model || 'openai/gpt-4o-mini'),
       system: systemPrompt,
       messages: buildModelMessages([...(history ?? [])].reverse(), userMessage),
       catalog,

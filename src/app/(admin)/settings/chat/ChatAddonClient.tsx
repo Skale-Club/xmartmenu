@@ -27,7 +27,6 @@ interface Settings {
   openrouter_model: string
   audio_enabled: boolean
   audio_provider: 'whisper' | 'deepgram' | null
-  audio_api_key: string
   rate_limit_per_phone_per_day: number
 }
 
@@ -37,13 +36,11 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
     openrouter_api_key: initialSettings?.openrouter_api_key ?? '',
     openrouter_model: initialSettings?.openrouter_model ?? 'openai/gpt-4o-mini',
     audio_enabled: initialSettings?.audio_enabled ?? false,
-    audio_provider: initialSettings?.audio_provider ?? null,
-    audio_api_key: initialSettings?.audio_api_key ?? '',
+    audio_provider: initialSettings?.audio_provider ?? 'whisper',
     rate_limit_per_phone_per_day: initialSettings?.rate_limit_per_phone_per_day ?? 30,
   })
 
   const [revealKey, setRevealKey] = useState(false)
-  const [revealAudioKey, setRevealAudioKey] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [testResult, setTestResult] = useState<{ ok: boolean; msg?: string } | null>(null)
@@ -258,35 +255,16 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
           {form.audio_enabled && (
             <div className="space-y-4 px-5">
               <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Provider</label>
+                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Transcription model</label>
                 <select
-                  value={form.audio_provider ?? ''}
-                  onChange={e => setForm(f => ({ ...f, audio_provider: e.target.value as 'whisper' | 'deepgram' | null || null }))}
+                  value={form.audio_provider ?? 'whisper'}
+                  onChange={e => setForm(f => ({ ...f, audio_provider: e.target.value === 'deepgram' ? 'deepgram' : 'whisper' }))}
                   className="w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 focus:outline-none focus:ring-2 focus:ring-primary"
                 >
-                  <option value="">— Select —</option>
                   <option value="whisper">OpenAI Whisper</option>
-                  <option value="deepgram">Deepgram</option>
+                  <option value="deepgram">Deepgram Nova</option>
                 </select>
-              </div>
-              <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Audio API key</label>
-                <div className="relative">
-                  <input
-                    type={revealAudioKey ? 'text' : 'password'}
-                    value={form.audio_api_key}
-                    onChange={e => setForm(f => ({ ...f, audio_api_key: e.target.value }))}
-                    placeholder="sk-..."
-                    className="w-full px-5 py-3.5 pr-12 bg-zinc-50 border border-zinc-200 rounded-xl text-sm font-mono text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setRevealAudioKey(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-zinc-400 hover:text-zinc-700"
-                  >
-                    {revealAudioKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
+                <p className="text-[10px] text-zinc-400 mt-2 ml-1">Runs on your OpenRouter key above, billed with the chat. No separate audio key.</p>
               </div>
             </div>
           )}

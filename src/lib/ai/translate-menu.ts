@@ -8,8 +8,7 @@
  * dropped. Nothing is saved here — the owner reviews before saving.
  */
 import { generateObject, type LanguageModel } from 'ai'
-import { google } from '@ai-sdk/google'
-import { createOpenAI } from '@ai-sdk/openai'
+import { openRouterModel, platformOpenRouterKey, textModelId } from '@/lib/ai/openrouter'
 import { z } from 'zod'
 import { MENU_LANGUAGE_CODES, menuLanguage } from '@/components/menu/menu-i18n'
 
@@ -51,14 +50,12 @@ export function parseTranslateRequest(body: unknown): TranslateRequest | { error
   return { from, to: targets.slice(0, MAX_TARGET_LANGUAGES), items: clean }
 }
 
-/** Whichever AI provider this deployment has a key for; null when none. */
+/** The OpenRouter text model on the platform key; null when this deployment has no key. */
 export function pickTranslationModel(env: Record<string, string | undefined> = process.env): { model: LanguageModel; label: string } | null {
-  if (env.GOOGLE_GENERATIVE_AI_API_KEY?.trim()) return { model: google('gemini-2.5-flash'), label: 'gemini-2.5-flash' }
-  if (env.OPENAI_API_KEY?.trim()) {
-    const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY })
-    return { model: openai('gpt-4o-mini'), label: 'gpt-4o-mini' }
-  }
-  return null
+  const key = platformOpenRouterKey(env)
+  if (!key) return null
+  const label = textModelId(env)
+  return { model: openRouterModel(key, label), label }
 }
 
 const responseSchema = z.object({

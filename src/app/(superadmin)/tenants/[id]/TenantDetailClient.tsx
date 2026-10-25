@@ -124,6 +124,8 @@ export default function TenantDetailClient({
 
   // Image seeding state | Phase 10: AI-07, AI-08, AI-09
   const [imageSeedLoading, setImageSeedLoading] = useState<string | null>(null)
+  // Image engine on OpenRouter: Google (Gemini Image) or OpenAI (GPT Image)
+  const [imageEngine, setImageEngine] = useState<'google' | 'openai'>('google')
   const [imageSeedStatus, setImageSeedStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [selectedProductId, setSelectedProductId] = useState<string>('')
   const [menuProducts, setMenuProducts] = useState<{ id: string; name: string }[]>([])
@@ -317,6 +319,7 @@ export default function TenantDetailClient({
         menuId: selectedMenuId,
         businessType: effectiveBusinessType,
         companyName: tenant.name,
+        engine: imageEngine,
       }
       if (type === 'image_single_product' && selectedProductId) {
         body.productId = selectedProductId
@@ -1028,7 +1031,21 @@ export default function TenantDetailClient({
         {/* Image Seeding | Phase 10: AI-07, AI-08, AI-09 */}
         {menus.length > 0 && selectedMenuId && (
           <div className="mt-5 pt-4 border-t border-zinc-100">
-            <p className="text-xs text-zinc-400 mb-3">Image seeding</p>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-zinc-400">Image seeding</p>
+              <label className="flex items-center gap-2 text-xs text-zinc-500">
+                Engine
+                <select
+                  value={imageEngine}
+                  onChange={e => setImageEngine(e.target.value === 'openai' ? 'openai' : 'google')}
+                  disabled={!!imageSeedLoading}
+                  className="min-h-9 rounded-lg border border-zinc-200 bg-white px-2 text-xs font-semibold text-zinc-800"
+                >
+                  <option value="google">Google · Gemini Image</option>
+                  <option value="openai">ChatGPT · GPT Image</option>
+                </select>
+              </label>
+            </div>
             <div className="flex flex-wrap gap-2 mb-3">
               <button
                 onClick={() => void handleSeedImage('image_cover')}

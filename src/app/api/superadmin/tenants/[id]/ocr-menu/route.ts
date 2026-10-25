@@ -1,15 +1,15 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { generateObject } from 'ai'
-import { openai } from '@ai-sdk/openai'
+import { openRouterModel, platformOpenRouterKey, PLATFORM_KEY_MISSING, visionModelId } from '@/lib/ai/openrouter'
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { OcrMenuSchema } from '@/lib/ai/schemas'
 import { getStorageClient } from '@/lib/storage'
 
-// Node.js runtime required | @ai-sdk/openai uses native Node APIs (D-04 constraint)
+// Node.js runtime required | the AI SDK uses native Node APIs (D-04 constraint)
 export const runtime = 'nodejs'
-export const maxDuration = 60  // GPT-4.1-mini vision: typically 5–15s; 60s headroom
+export const maxDuration = 60  // Vision via OpenRouter: typically 5–15s; 60s headroom
 
 export async function POST(
   request: Request,
@@ -20,6 +20,10 @@ export async function POST(
   // Auth guard | assertSuperadmin returns client or null (SEC-03 pattern)
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // All AI goes through OpenRouter on the platform key (src/lib/ai/openrouter.ts).
+  const openRouterKey = platformOpenRouterKey()
+  if (!openRouterKey) return NextResponse.json({ error: PLATFORM_KEY_MISSING }, { status: 503 })
 
   const body = await request.json()
   const { storagePath, menuId } = body as { storagePath?: string; menuId?: string }
@@ -70,9 +74,9 @@ export async function POST(
   let totalTokens = 0
 
   try {
-    // Call GPT-4.1-mini vision with OcrMenuSchema for structured extraction
+    // Vision model (OpenRouter) with OcrMenuSchema for structured extraction
     const { object: ocrResult, usage } = await generateObject({
-      model: openai('gpt-4.1-mini'),
+      model: openRouterModel(openRouterKey, visionModelId()),
       schema: OcrMenuSchema,
       messages: [
         {

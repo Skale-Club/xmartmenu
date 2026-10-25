@@ -1,7 +1,14 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
-import { generateImage } from 'ai'
-import { google } from '@ai-sdk/google'
+import {
+  cropToAspect,
+  generateOpenRouterImage,
+  imageModelId,
+  parseImageEngine,
+  platformOpenRouterKey,
+  PLATFORM_KEY_MISSING,
+  type ImageEngine,
+} from '@/lib/ai/openrouter'
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { sanitizeForPrompt } from '@/lib/ai/sanitize'
@@ -15,6 +22,17 @@ export const runtime = 'nodejs'
 export const maxDuration = 300
 
 type ImageSeedType = 'image_cover' | 'image_products' | 'image_single_product'
+
+/**
+ * One image through OpenRouter (Google Gemini Image or OpenAI GPT Image),
+ * cropped to the requested shape — engines clamp to their own sizes — and
+ * encoded as WebP for storage.
+ */
+async function generateSeedImage(apiKey: string, engine: ImageEngine, prompt: string, aspectRatio: string) {
+  const image = await generateOpenRouterImage({ apiKey, model: imageModelId(engine), prompt, aspectRatio })
+  const cropped = await cropToAspect(image.bytes, aspectRatio)
+  return { webpBuffer: await convertBufferToWebP(cropped), totalTokens: image.totalTokens }
+}
 
 export async function POST(
   request: Request,
@@ -33,16 +51,24 @@ export async function POST(
     productId,
     businessType = '',
     companyName = '',
+    engine: rawEngine,
   } = body as {
     type: ImageSeedType
     menuId: string
     productId?: string
     businessType?: string
     companyName?: string
+    /** 'google' (Gemini Image) or 'openai' (GPT Image); defaults to OPENROUTER_IMAGE_ENGINE. */
+    engine?: string
   }
+  const engine = parseImageEngine(rawEngine)
 
   if (!type) return NextResponse.json({ error: 'type is required' }, { status: 400 })
   if (!menuId) return NextResponse.json({ error: 'menuId is required' }, { status: 400 })
+
+  // All AI goes through OpenRouter on the platform key (src/lib/ai/openrouter.ts).
+  const openRouterKey = platformOpenRouterKey()
+  if (!openRouterKey) return NextResponse.json({ error: PLATFORM_KEY_MISSING }, { status: 503 })
 
   // D-18: Sanitize all prompt-bound strings before interpolation (OWASP LLM #1)
   const safeBusinessType = sanitizeForPrompt(businessType)
@@ -86,16 +112,10 @@ export async function POST(
       // Research recommendation: include "professional restaurant photo" framing for reliability
       const prompt = `A professional, high-quality restaurant banner photo for a ${safeBusinessType || 'restaurant'} named ${safeCompanyName || 'the restaurant'}. Wide-angle view, warm ambient lighting, food photography style. Suitable as a restaurant website banner.`
 
-      const result = await generateImage({
-        model: google.image('gemini-3.1-flash-image-preview'),
-        prompt,
-        aspectRatio: '4:1',  // Closest to BrandingClient's 3:1 recommendation; 3:1 not supported by Nano Banana 2 (Pitfall 2)
-      })
-
-      totalTokens = result.usage?.totalTokens ?? 0  // Pitfall 4: may be undefined
-
-      const rawBuffer = Buffer.from(result.image.base64, 'base64')
-      const webpBuffer = await convertBufferToWebP(rawBuffer)
+      // 4:1 is the closest common ratio to BrandingClient's 3:1 recommendation (Pitfall 2)
+      const result = await generateSeedImage(openRouterKey, engine, prompt, '4:1')
+      totalTokens = result.totalTokens
+      const webpBuffer = result.webpBuffer
 
       // D-15: Storage path for cover = {tenant_id}/banner.webp
       const storagePath = `${tenantId}/banner.webp`
@@ -171,16 +191,10 @@ export async function POST(
           ? `A professional food photography image of "${product.name}" | ${safeDesc}. Style: ${safeBusinessType || 'restaurant'} dish, square composition, clean background, appetizing presentation.`
           : `A professional food photography image of "${product.name}" from a ${safeBusinessType || 'restaurant'}. Square composition, clean background, appetizing presentation.`
 
-        const result = await generateImage({
-          model: google.image('gemini-3.1-flash-image-preview'),
-          prompt,
-          aspectRatio: '1:1',  // Square for product cards (object-cover safe)
-        })
-
-        totalTokens += result.usage?.totalTokens ?? 0
-
-        const rawBuffer = Buffer.from(result.image.base64, 'base64')
-        const webpBuffer = await convertBufferToWebP(rawBuffer)
+        // Square for product cards (object-cover safe)
+        const result = await generateSeedImage(openRouterKey, engine, prompt, '1:1')
+        totalTokens += result.totalTokens
+        const webpBuffer = result.webpBuffer
 
         // D-15: Storage path = {tenant_id}/products/{product_id}.webp
         const storagePath = `${tenantId}/products/${product.id}.webp`
@@ -207,7 +221,7 @@ export async function POST(
             feature_key: 'image_product',
             date: today,
             call_count: 1,
-            token_count: result.usage?.totalTokens ?? 0,
+            token_count: result.totalTokens,
           }, { onConflict: 'tenant_id,feature_key,date' })
         } catch (e) {
           console.error('[ai_usage] non-blocking log failed:', e)
@@ -266,16 +280,9 @@ export async function POST(
         ? `A professional food photography image of "${product.name}" | ${safeDesc}. Style: ${safeBusinessType || 'restaurant'} dish, square composition, clean background, appetizing presentation.`
         : `A professional food photography image of "${product.name}" from a ${safeBusinessType || 'restaurant'}. Square composition, clean background, appetizing presentation.`
 
-      const result = await generateImage({
-        model: google.image('gemini-3.1-flash-image-preview'),
-        prompt,
-        aspectRatio: '1:1',
-      })
-
-      totalTokens = result.usage?.totalTokens ?? 0
-
-      const rawBuffer = Buffer.from(result.image.base64, 'base64')
-      const webpBuffer = await convertBufferToWebP(rawBuffer)
+      const result = await generateSeedImage(openRouterKey, engine, prompt, '1:1')
+      totalTokens = result.totalTokens
+      const webpBuffer = result.webpBuffer
 
       const storagePath = `${tenantId}/products/${product.id}.webp`
       const publicUrl = await getStorageClient().upload('tenant-assets', storagePath, webpBuffer, {

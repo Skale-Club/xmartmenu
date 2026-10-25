@@ -34,11 +34,11 @@ describe('parseTranslateRequest', () => {
 })
 
 describe('pickTranslationModel', () => {
-  it('prefers Gemini, falls back to OpenAI and returns null with no keys', () => {
-    expect(pickTranslationModel({ GOOGLE_GENERATIVE_AI_API_KEY: 'g', OPENAI_API_KEY: 'o' })?.label).toBe('gemini-2.5-flash')
-    expect(pickTranslationModel({ OPENAI_API_KEY: 'o' })?.label).toBe('gpt-4o-mini')
-    expect(pickTranslationModel({ GOOGLE_GENERATIVE_AI_API_KEY: ' ' })).toBeNull()
-    expect(pickTranslationModel({})).toBeNull()
+  it('uses OpenRouter on the platform key, with the model overridable', () => {
+    expect(pickTranslationModel({ OPENROUTER_API_KEY: 'k' })?.label).toBe('google/gemini-2.5-flash')
+    expect(pickTranslationModel({ OPENROUTER_API_KEY: 'k', OPENROUTER_TEXT_MODEL: 'openai/gpt-5-mini' })?.label).toBe('openai/gpt-5-mini')
+    expect(pickTranslationModel({ OPENROUTER_API_KEY: ' ' })).toBeNull()
+    expect(pickTranslationModel({ GOOGLE_GENERATIVE_AI_API_KEY: 'g', OPENAI_API_KEY: 'o' })).toBeNull()
   })
 })
 

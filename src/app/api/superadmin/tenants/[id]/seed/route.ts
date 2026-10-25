@@ -1,7 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { generateObject } from 'ai'
-import { google } from '@ai-sdk/google'
+import { openRouterModel, platformOpenRouterKey, PLATFORM_KEY_MISSING, textModelId } from '@/lib/ai/openrouter'
 import { revalidatePath } from 'next/cache'
 import { NextResponse } from 'next/server'
 import { sanitizeForPrompt } from '@/lib/ai/sanitize'
@@ -12,9 +12,9 @@ import {
   SingleProductSeedSchema,
 } from '@/lib/ai/schemas'
 
-// Node.js runtime required | Gemini SDK uses native Node APIs (D-04 constraint)
+// Node.js runtime required | the AI SDK uses native Node APIs (D-04 constraint)
 export const runtime = 'nodejs'
-export const maxDuration = 60  // Gemini text: < 10s typical; 60s headroom
+export const maxDuration = 60  // Text via OpenRouter: < 10s typical; 60s headroom
 
 type SeedType = 'menu' | 'categories' | 'products' | 'copy' | 'single_category' | 'single_product'
 
@@ -27,6 +27,11 @@ export async function POST(
   // Auth guard | assertSuperadmin returns client or null (SEC-03 pattern)
   const supabase = await assertSuperadmin()
   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // All AI goes through OpenRouter on the platform key (src/lib/ai/openrouter.ts).
+  const openRouterKey = platformOpenRouterKey()
+  if (!openRouterKey) return NextResponse.json({ error: PLATFORM_KEY_MISSING }, { status: 503 })
+  const aiModel = openRouterModel(openRouterKey, textModelId())
 
   const body = await request.json()
   const {
@@ -107,7 +112,7 @@ export async function POST(
         : `Generate 4-6 menu categories for a ${safeBusinessType || 'restaurant'} named """${safeCompanyName || 'the restaurant'}""". Categories should be typical for this establishment type. Include empty products arrays.${langInstruction} Return ONLY valid JSON.`
 
       const { object: menuObj, usage } = await generateObject({
-        model: google('gemini-2.5-flash'),
+        model: aiModel,
         schema: MenuSeedSchema,
         prompt,
       })
@@ -224,7 +229,7 @@ export async function POST(
       const catNames = existingCats.map(c => c.name).join(', ')
 
       const { object: menuObj, usage } = await generateObject({
-        model: google('gemini-2.5-flash'),
+        model: aiModel,
         schema: MenuSeedSchema,
         prompt: `Generate 3-5 menu items for each of these categories of a ${safeBusinessType || 'restaurant'} named """${safeCompanyName || 'the restaurant'}""": ${catNames}. Use the exact category names provided. Include realistic names, descriptions, and prices (numbers only).${langInstruction} Return ONLY valid JSON.`,
       })
@@ -278,7 +283,7 @@ export async function POST(
     else if (type === 'copy') {
       // ── Generate restaurant copy | AI-04 ──────────────────────────────
       const { object: copyObj, usage } = await generateObject({
-        model: google('gemini-2.5-flash'),
+        model: aiModel,
         schema: CopySeedSchema,
         prompt: `Generate a short tagline (max 10 words) and a brief "about us" paragraph (2-3 sentences) for a ${safeBusinessType || 'restaurant'} named """${safeCompanyName || 'the restaurant'}""". Tone: warm, inviting, professional. Return ONLY valid JSON.`,
       })
@@ -316,7 +321,7 @@ export async function POST(
         .single()
 
       const { object: singleCat, usage } = await generateObject({
-        model: google('gemini-2.5-flash'),
+        model: aiModel,
         schema: SingleCategorySeedSchema,
         prompt: `Generate one new menu category for a ${safeBusinessType || 'restaurant'} named """${safeCompanyName || 'the restaurant'}""" that does not already exist. Existing categories: ${[...existingCatNames].join(', ') || 'none'}. Return only a single category with name and description.${langInstruction}`,
       })
@@ -371,7 +376,7 @@ export async function POST(
         .single()
 
       const { object: singleProd, usage } = await generateObject({
-        model: google('gemini-2.5-flash'),
+        model: aiModel,
         schema: SingleProductSeedSchema,
         prompt: `Generate one new menu item for the "${catData?.name ?? 'menu'}" category of a ${safeBusinessType || 'restaurant'} named """${safeCompanyName || 'the restaurant'}""". Existing items: ${[...existingProdNames].join(', ') || 'none'}. Include a realistic name, description, and price (number only, no currency).${langInstruction}`,
       })
