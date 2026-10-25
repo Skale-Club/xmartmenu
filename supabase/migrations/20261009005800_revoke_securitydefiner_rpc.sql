@@ -13,7 +13,16 @@
 -- anon/authenticated inherit — so the grant must be revoked FROM PUBLIC. The
 -- trigger keeps firing (trigger execution does not check the caller's EXECUTE),
 -- and the app never RPC-calls these functions.
+--
+-- rls_auto_enable() is created by the Supabase dashboard ("enable RLS
+-- automatically" event trigger), not by a migration, so a fresh local / CI
+-- database doesn't have it: revoke only when it exists.
 BEGIN;
 REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC, anon, authenticated;
+DO $$
+BEGIN
+  IF to_regprocedure('public.rls_auto_enable()') IS NOT NULL THEN
+    REVOKE EXECUTE ON FUNCTION public.rls_auto_enable() FROM PUBLIC, anon, authenticated;
+  END IF;
+END $$;
 COMMIT;
