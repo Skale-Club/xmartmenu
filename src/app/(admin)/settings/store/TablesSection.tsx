@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
 import { Plus, Trash2, ChevronUp, ChevronDown, Link2, QrCode, Check } from 'lucide-react'
 import { tableMenuUrl } from '@/lib/service-modes'
 import type { RestaurantTable } from '@/types/database'
@@ -74,6 +75,7 @@ const supabase = createClient()
       .select()
       .single()
     if (err) { setError(err.message) } else if (inserted) {
+      notifyPublicMenuChanged()
       setTables(prev => [...prev, inserted as RestaurantTable])
       setNewName('')
     }
@@ -81,7 +83,8 @@ const supabase = createClient()
   }
 
   async function handleDelete(id: string) {
-    await supabase.from('restaurant_tables').delete().eq('id', id)
+    const { error: delError } = await supabase.from('restaurant_tables').delete().eq('id', id)
+    if (!delError) notifyPublicMenuChanged()
     setTables(prev => prev.filter(t => t.id !== id))
   }
 
@@ -92,10 +95,11 @@ const supabase = createClient()
     if (swapIdx < 0 || swapIdx >= sorted.length) return
     const current = sorted[idx]
     const swap = sorted[swapIdx]
-    await Promise.all([
+    const results = await Promise.all([
       supabase.from('restaurant_tables').update({ position: swap.position }).eq('id', current.id),
       supabase.from('restaurant_tables').update({ position: current.position }).eq('id', swap.id),
     ])
+    if (results.every(r => !r.error)) notifyPublicMenuChanged()
     setTables(prev =>
       prev.map(t => {
         if (t.id === current.id) return { ...t, position: swap.position }

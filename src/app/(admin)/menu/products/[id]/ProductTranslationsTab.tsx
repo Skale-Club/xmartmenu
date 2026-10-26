@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
 import TranslationEditor, { type TranslationField, type TranslationValues } from '@/components/admin/TranslationEditor'
 import { addEditorValues as addValues, pickEditorTranslations as pickTranslations, type TextTranslations } from '@/lib/menu-translations'
 import { menuLanguage } from '@/components/menu/menu-i18n'
@@ -95,6 +96,7 @@ export default function ProductTranslationsTab({
       const results = await Promise.all(writes)
       const failed = results.find(r => r.error)
       if (failed?.error) throw new Error(failed.error.message)
+      if (writes.length) notifyPublicMenuChanged()
       onSaved({ product: productTranslations, groups: groupUpdates, options: optionUpdates })
       setStatus({ kind: 'ok', text: writes.length ? 'Translations saved.' : 'Nothing changed.' })
     } catch (error) {

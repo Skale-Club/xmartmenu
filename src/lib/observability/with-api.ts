@@ -11,9 +11,10 @@
  */
 import * as Sentry from '@sentry/nextjs'
 import { NextResponse } from 'next/server'
-import { runWithRequestContext } from './context'
+import { getRequestContext, runWithRequestContext } from './context'
 import { log } from './log'
 import { REQUEST_ID_HEADER, resolveRequestId } from './request-id'
+import { applyMenuCacheAction, menuCacheActionFor } from '@/lib/menu/menu-cache-hooks'
 
 // Next passes `{ params }` as the second argument for dynamic routes; some
 // handlers take a NextRequest, so the request type is generic too.
@@ -41,6 +42,11 @@ export function withApi<R extends Request = Request, C = unknown>(route: string,
       if (status >= 500) log.error('http.request', fields)
       else if (status >= 400) log.warn('http.request', fields)
       else log.info('http.request', fields)
+      // A successful write through an admin, superadmin, billing or webhook
+      // route makes the cached public menu stale (menu-cache-hooks.ts).
+      if (status < 300) {
+        await applyMenuCacheAction(menuCacheActionFor(request.method, new URL(request.url).pathname), getRequestContext()?.tenantSlug)
+      }
       try {
         response.headers.set(REQUEST_ID_HEADER, requestId)
       } catch {

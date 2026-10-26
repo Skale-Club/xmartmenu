@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Sparkles, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
 
 export interface UpsellCandidate {
   id: string
@@ -53,6 +54,7 @@ export default function ProductUpsellCard({
       setStatus({ kind: 'error', text: error.message })
       return
     }
+    notifyPublicMenuChanged()
     setSaved(ids)
     setStatus({ kind: 'ok', text: 'Saved.' })
   }

@@ -14,6 +14,8 @@ export interface RequestContext {
   method?: string
   actorId?: string
   tenantId?: string
+  /** The restaurant's public slug: what the public menu cache is keyed on (menu-cache-hooks.ts). */
+  tenantSlug?: string
   role?: string
 }
 

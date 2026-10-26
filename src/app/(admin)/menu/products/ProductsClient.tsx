@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { compressImageForUpload } from '@/lib/media/client-compress'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
 import { formatPrice } from '@/lib/utils'
 import type { Product, Category } from '@/types/database'
 import Image from 'next/image'
@@ -245,6 +246,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
       if (data) setProducts([...products, data])
     }
 
+    notifyPublicMenuChanged()
     resetForm()
     setLoading(false)
   }
@@ -255,6 +257,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
     // state that never reached the DB (and the public menu keeps the old value).
     const { error } = await supabase.from('products').update({ is_available: !current }).eq('id', id)
     if (error) { setFormError(error.message); return }
+    notifyPublicMenuChanged()
     setProducts(products.map(p => p.id === id ? { ...p, is_available: !current } : p))
   }
 
@@ -262,6 +265,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
     if (!confirmId) return
     const { error } = await supabase.from('products').delete().eq('id', confirmId)
     if (error) { setFormError(error.message); setConfirmId(null); return }
+    notifyPublicMenuChanged()
     setProducts(products.filter(p => p.id !== confirmId))
     setConfirmId(null)
   }

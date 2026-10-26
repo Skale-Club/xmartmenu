@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
 import { ChevronUp, ChevronDown, Pencil, Trash2 } from 'lucide-react'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { Ingredient } from '@/types/database'
@@ -82,13 +83,15 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
       if (error) { setFormError(error.message); setLoading(false); return }
       if (data) setIngredients(prev => [...prev, data])
     }
+    notifyPublicMenuChanged()
     resetForm()
     setLoading(false)
   }
 
   async function confirmDelete() {
     if (!confirmId) return
-    await supabase.from('ingredients').delete().eq('id', confirmId)
+    const { error } = await supabase.from('ingredients').delete().eq('id', confirmId)
+    if (!error) notifyPublicMenuChanged()
     setIngredients(prev => prev.filter(i => i.id !== confirmId))
     setConfirmId(null)
   }
@@ -110,10 +113,11 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
     setIngredients(reordered)
     setReorderInFlight(true)
     try {
-      await Promise.all([
+      const results = await Promise.all([
         supabase.from('ingredients').update({ position: swap.position }).eq('id', current.id),
         supabase.from('ingredients').update({ position: current.position }).eq('id', swap.id),
       ])
+      if (results.every(r => !r.error)) notifyPublicMenuChanged()
     } catch {
       setIngredients(prev)
     } finally {

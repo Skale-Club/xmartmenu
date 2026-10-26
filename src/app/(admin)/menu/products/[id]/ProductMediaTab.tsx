@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { compressImageForUpload } from '@/lib/media/client-compress'
 import Image from 'next/image'
 import { createClient } from '@/lib/supabase/client'
+import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
 import { ChevronUp, ChevronDown, Trash2, Upload, Plus, Film } from 'lucide-react'
 import type { ProductMedia } from '@/types/database'
 
@@ -74,6 +75,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
     const toUpload = Array.from(files).slice(0, remaining)
     // `media` is this render's snapshot; count on from it for every file.
     let nextOrder = media.length > 0 ? Math.max(...media.map(m => m.display_order)) + 1 : 0
+    let wrote = false
 
     for (const file of toUpload) {
       const fd = new FormData()
@@ -89,11 +91,15 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
         .insert({ product_id: productId, tenant_id: tenantId, type: 'image', url, display_order: nextOrder++ })
         .select()
         .single()
-      if (inserted) setMedia(prev => [...prev, inserted as ProductMedia])
+      if (inserted) {
+        wrote = true
+        setMedia(prev => [...prev, inserted as ProductMedia])
+      }
     }
     setUploading(false)
     // Sync products.image_url to the lowest display_order image
     await syncPrimaryImage()
+    if (wrote) notifyPublicMenuChanged()
   }
 
   async function handleAddVideo() {
@@ -107,6 +113,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
       .select()
       .single()
     if (inserted) {
+      notifyPublicMenuChanged()
       setMedia(prev => [...prev, inserted as ProductMedia])
       setVideoUrl('')
       setAddingVideo(false)
@@ -144,6 +151,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
         setVideoNote(`Video compressed from ${(json.original_bytes / 1024 / 1024).toFixed(1)} MB to ${(json.bytes / 1024 / 1024).toFixed(1)} MB.`)
       }
       if (json.poster_url && imageCount === 0) await syncPrimaryImage()
+      notifyPublicMenuChanged()
     }
     setSavingVideo(false)
   }
@@ -153,6 +161,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
     if (delError) { setError(delError.message); return }
     setMedia(prev => prev.filter(m => m.id !== item.id))
     await syncPrimaryImage({ clearWhenNone: item.type === 'image' })
+    notifyPublicMenuChanged()
   }
 
   async function handleMove(item: ProductMedia, direction: 'up' | 'down') {
@@ -166,7 +175,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
     const newOrder = current.display_order
     const swapOrder = swap.display_order
 
-    await Promise.all([
+    const results = await Promise.all([
       supabase.from('product_media').update({ display_order: swapOrder }).eq('id', current.id),
       supabase.from('product_media').update({ display_order: newOrder }).eq('id', swap.id),
     ])
@@ -178,6 +187,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
       })
     )
     await syncPrimaryImage()
+    if (results.every(r => !r.error)) notifyPublicMenuChanged()
   }
 
   // Points products.image_url at the first gallery image. Reads the gallery

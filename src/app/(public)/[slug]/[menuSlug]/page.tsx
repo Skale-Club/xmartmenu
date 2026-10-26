@@ -1,13 +1,13 @@
 export const revalidate = 60
 
 import { notFound } from 'next/navigation'
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { sanitizeTenantForClient } from '@/lib/tenant-public'
 import MenuPage from '@/components/menu/MenuPage'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import PrivateMenuWrapper from '@/components/menu/PrivateMenuWrapper'
 import type { Metadata } from 'next'
-import { getTenantBySlug, loadPublicMenuData } from '@/lib/menu/public-menu-data'
+import { getPublicMenuBase, loadPublicMenuData } from '@/lib/menu/public-menu-data'
 import { parseTableParam } from '@/lib/service-modes'
 import { effectiveMultiplier, scaleOptionGroups, scaleProductIngredients, scaleProducts } from '@/components/menu/price-multiplier'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
@@ -35,15 +35,12 @@ interface Props {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, menuSlug } = await params
-  const supabase = createServiceClient()
-  const tenant = await getTenantBySlug(slug)
-  if (!tenant) return { title: 'Menu' }
-  const [{ data: loc }, { data: menu }] = await Promise.all([
-    supabase.from('locations').select('name').eq('tenant_id', tenant.id).eq('slug', menuSlug).maybeSingle(),
-    supabase.from('menus').select('name').eq('tenant_id', tenant.id).eq('slug', menuSlug).maybeSingle(),
-  ])
+  // Same cached read the page makes (deduplicated per request).
+  const base = await getPublicMenuBase(slug, menuSlug)
+  if (base.kind === 'not_found') return { title: 'Menu' }
+  const tenant = base.tenant
 
-  const sectionName = loc?.name ?? menu?.name ?? 'Menu'
+  const sectionName = (base.kind === 'menu' ? base.location?.name ?? base.menu?.name : null) ?? 'Menu'
   const settings = tenant.tenant_settings as any
   const title = resolveSeoTitle(tenant, settings, sectionName)
   const description = resolveSeoDescription(tenant, settings, `View the ${sectionName} menu`)
