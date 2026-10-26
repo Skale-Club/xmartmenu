@@ -10,6 +10,8 @@ import { StripeProvider } from '@/components/StripeProvider'
 import { CheckoutForm } from './CheckoutForm'
 import { ArrowLeft, ShoppingBag } from 'lucide-react'
 import Link from 'next/link'
+import { formatPrice } from '@/lib/utils'
+import { embeddedCurrency } from '@/components/menu/menu-utils'
 
 interface CheckoutPageProps {
   params: Promise<{ orderId: string }>
@@ -26,7 +28,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
   // Fetch order with items and tenant info
   const { data: order, error } = await supabase
     .from('orders')
-    .select('*, order_items(*), tenants(slug, name)')
+    .select('*, order_items(*), tenants(slug, name, tenant_settings(currency))')
     .eq('id', orderId)
     .single()
 
@@ -137,6 +139,8 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
   }
 
   const returnUrl = `/checkout/${order.id}/confirmation`
+  // Prices in the restaurant's currency (tenant_settings.currency), never a hardcoded one.
+  const currency = embeddedCurrency(order.tenants)
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -177,7 +181,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
                   ) : null}
                 </div>
                 <span className="text-gray-900 font-medium">
-                  R$ {((item.unit_price as number) || 0).toFixed(2).replace('.', ',')}
+                  {formatPrice(Number(item.unit_price) || 0, currency)}
                 </span>
               </div>
             ))}
@@ -187,7 +191,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between items-center">
             <span className="text-lg font-bold text-gray-900">Total</span>
             <span className="text-lg font-bold text-indigo-600">
-              R$ {Number(order.total).toFixed(2).replace('.', ',')}
+              {formatPrice(Number(order.total) || 0, currency)}
             </span>
           </div>
         </div>

@@ -44,6 +44,17 @@ export interface ServiceSettings {
   orders_enabled?: boolean | null
   direct_orders_enabled?: boolean | null
   table_management_enabled?: boolean | null
+  // Switches that only mean something inside an ordering mode. Read by
+  // resolveTenantCapabilities; resolveServiceCapabilities ignores them.
+  whatsapp_orders_enabled?: boolean | null
+  whatsapp?: string | null
+  tips_enabled?: boolean | null
+  item_notes_enabled?: boolean | null
+  ingredient_customization_enabled?: boolean | null
+  dine_in_enabled?: boolean | null
+  pickup_enabled?: boolean | null
+  delivery_enabled?: boolean | null
+  upsell_enabled?: boolean | null
 }
 
 export interface ServiceCapabilities extends PlanServiceAccess {
@@ -65,6 +76,104 @@ export function resolveServiceCapabilities(
     waiterOrdering: access.waiter && ordersOn && settings?.table_management_enabled === true,
   }
 }
+
+/** Plan feature keys that unlock things beyond ordering. */
+export const STRIPE_FEATURE = 'stripe-connect'
+export const BLOG_FEATURE = 'blog'
+
+/** What the plan sells, before the restaurant's own switches. */
+export interface PlanCeiling {
+  /** Staff ordering: waiter app, tables, KDS, waiter calls. */
+  orders: boolean
+  /** Guest ordering from the menu: cart, checkout, order types, tips, delivery. */
+  payments: boolean
+  /** Online payment through Stripe Connect. */
+  stripe: boolean
+  /** Restaurant blog. */
+  blog: boolean
+}
+
+export function planCeiling(features: readonly string[] | null | undefined): PlanCeiling {
+  const has = new Set(features ?? [])
+  const access = planServiceAccess(features)
+  return {
+    orders: access.waiter,
+    payments: access.selfOrder,
+    stripe: has.has(STRIPE_FEATURE),
+    blog: has.has(BLOG_FEATURE),
+  }
+}
+
+/**
+ * Everything a screen or an API needs to know about what this restaurant can
+ * do right now: the plan's ceiling, the modes it switched on, and every
+ * feature that only exists inside a mode. One object, computed once per
+ * request from the plan features and tenant_settings, passed down to the
+ * admin panel, the public menu and the routes — nobody reads plans.features
+ * or a raw settings flag on their own.
+ *
+ * Rules of thumb:
+ *   - `plan.*` is the ceiling (what to show as locked / upgrade hints).
+ *   - everything else is effective right now (what to show as working).
+ *   - `showcase` is the public menu with no guest ordering: a price list.
+ */
+export interface TenantCapabilities extends ServiceCapabilities {
+  /** The richest mode the plan allows. */
+  mode: ServiceMode
+  plan: PlanCeiling
+  /** The public menu is view-only for guests (Digital Menu and Orders plans, or guest ordering switched off). */
+  showcase: boolean
+  /** Orders exist for this restaurant: the KDS and the orders page make sense. */
+  kds: boolean
+  /** Tables are managed (table links, waiter app table grid). */
+  tables: boolean
+  /** Guests on a table link may call a waiter or ask for the bill. */
+  waiterCalls: boolean
+  /** Guests may send their order as a WhatsApp message (any plan, needs a number). */
+  whatsappOrders: boolean
+  /** Guest checkout extras. */
+  tips: boolean
+  dineIn: boolean
+  pickup: boolean
+  delivery: boolean
+  /** "Complete your order" suggestions after a dish is added. */
+  upsell: boolean
+  /** Per-item notes (guest checkout and waiter app). */
+  itemNotes: boolean
+  /** Ingredient add/remove on a dish (guest checkout and waiter app). */
+  ingredientCustomization: boolean
+}
+
+export function resolveTenantCapabilities(
+  features: readonly string[] | null | undefined,
+  settings: ServiceSettings | null | undefined,
+): TenantCapabilities {
+  const service = resolveServiceCapabilities(features, settings)
+  const plan = planCeiling(features)
+  const ordersOn = settings?.orders_enabled === true
+  const anyOrdering = service.guestOrdering || service.waiterOrdering
+  const whatsappNumber = (settings?.whatsapp ?? '').replace(/\D/g, '')
+  return {
+    ...service,
+    mode: planServiceMode(features),
+    plan,
+    showcase: !service.guestOrdering,
+    kds: plan.orders,
+    tables: plan.orders && ordersOn && settings?.table_management_enabled === true,
+    waiterCalls: anyOrdering,
+    whatsappOrders: ordersOn && settings?.whatsapp_orders_enabled === true && whatsappNumber.length > 0,
+    tips: service.guestOrdering && settings?.tips_enabled === true,
+    dineIn: service.guestOrdering && (settings?.dine_in_enabled ?? true) === true,
+    pickup: service.guestOrdering && settings?.pickup_enabled === true,
+    delivery: service.guestOrdering && settings?.delivery_enabled === true,
+    upsell: service.guestOrdering && (settings?.upsell_enabled ?? true) === true,
+    itemNotes: anyOrdering && settings?.item_notes_enabled === true,
+    ingredientCustomization: anyOrdering && settings?.ingredient_customization_enabled === true,
+  }
+}
+
+/** Capabilities of a restaurant with no plan at all: a showcase. */
+export const NO_CAPABILITIES: TenantCapabilities = resolveTenantCapabilities(null, null)
 
 export const SERVICE_MODE_LABELS: Record<ServiceMode, string> = {
   menu: 'Menu only',

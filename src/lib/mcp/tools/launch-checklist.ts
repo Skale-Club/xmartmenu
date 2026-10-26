@@ -6,6 +6,7 @@ import {
   LAUNCH_CHECKLIST_KEYS,
   LAUNCH_CHECKLIST_REASON_LABELS,
   LAUNCH_CHECKLIST_STATUSES,
+  launchChecklistItemsFor,
   resolveLaunchChecklistLink,
   summarizeLaunchChecklist,
   type LaunchChecklistTenant,
@@ -32,8 +33,9 @@ function describeLaunchChecklist(tenant: LaunchChecklistTenant) {
     status: tenant.status,
     siteUrl: tenant.siteUrl,
     customDomain: tenant.primaryDomain,
-    progress: summarizeLaunchChecklist(tenant.entries),
-    items: LAUNCH_CHECKLIST_ITEMS.map((item) => {
+    progress: summarizeLaunchChecklist(tenant.entries, tenant.plan),
+    // Only the items this restaurant's plan can use (launch-checklist.ts).
+    items: launchChecklistItemsFor(tenant.plan).map((item) => {
       const entry = tenant.entries[item.key]
       const signal = tenant.signals[item.key]
       return {
@@ -81,8 +83,8 @@ export function registerLaunchChecklistReadTools(server: McpServer): void {
             name: t.name,
             status: t.status,
             siteUrl: t.siteUrl,
-            ...summarizeLaunchChecklist(t.entries),
-            missing: LAUNCH_CHECKLIST_ITEMS.filter((i) => (t.entries[i.key]?.status ?? 'pending') === 'pending').map((i) => i.key),
+            ...summarizeLaunchChecklist(t.entries, t.plan),
+            missing: launchChecklistItemsFor(t.plan).filter((i) => (t.entries[i.key]?.status ?? 'pending') === 'pending').map((i) => i.key),
           })),
         })
       }

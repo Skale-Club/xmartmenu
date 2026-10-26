@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { notFound } from 'next/navigation'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
+import { isShowcasePlan } from '@/components/admin/plan-views'
 import type { ProductOptionGroup, ProductOption, Ingredient, ProductIngredient } from '@/types/database'
 import ProductDetailClient from './ProductDetailClient'
 import type { UpsellCandidate } from './ProductUpsellCard'
@@ -25,7 +27,7 @@ export default async function ProductDetailPage({
   const tenantId = effective.tenantId
   const canManage = effective.role !== 'store-staff'
 
-  const [{ data: product }, { data: groups }, { data: settings }, { data: ingredients }, { data: productIngredients }] = await Promise.all([
+  const [{ data: product }, { data: groups }, { data: settings }, { data: ingredients }, { data: productIngredients }, capabilities] = await Promise.all([
     supabase
       .from('products')
       .select('*, category:categories(id, name)')
@@ -53,6 +55,7 @@ export default async function ProductDetailPage({
       .select('*')
       .eq('product_id', id)
       .eq('tenant_id', tenantId),
+    getTenantCapabilities(tenantId),
   ])
 
   if (!product) notFound()
@@ -93,6 +96,8 @@ export default async function ProductDetailPage({
       baseLanguage={baseLanguage}
       supportedLanguages={supportedLanguages}
       upsellCandidates={upsellCandidates}
+      showcase={isShowcasePlan(capabilities.plan)}
+      upsellAvailable={capabilities.plan.payments}
     />
   )
 }

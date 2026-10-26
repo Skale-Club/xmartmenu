@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Check, ChevronLeft, ChevronRight, Minus, Plus, X } from 'lucide-react'
+import { Camera, Check, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
 import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { getProductImages, type CartEditorState } from './menu-utils'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { baseName } from '@/lib/menu-translations'
+import { getGuestCopy } from './guest-copy'
+import { contactLinks, displayPrice, optionPriceList, orderedItemText, showcaseItemText } from './showcase'
 import ModalPortal from '@/components/ui/ModalPortal'
 
 type MediaSlide = { type: 'image'; url: string } | { type: 'video'; url: string }
@@ -64,11 +66,19 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct }: {
-  product: Product; primaryColor: string; currency: string; whatsapp?: string | null;
-  lang: string; onClose: () => void; onWhatsApp: () => void;
+export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct }: {
+  product: Product; primaryColor: string; currency: string;
+  /** Set when guests may send their order on WhatsApp (TenantCapabilities.whatsappOrders): shows "Order on WhatsApp". */
+  whatsapp?: string | null;
+  lang: string; onClose: () => void;
+  /** "Order on WhatsApp": `item` names the dish with the choices made (or its sizes, in showcase). */
+  onWhatsApp?: (item: string) => void;
   /** quantity: how many of this exact configuration to add (always 1 when editing a cart item). */
   onAddToCart?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, quantity?: number) => void;
+  /** View-only menu: options as a price list, no choices, no cart (defaults to !onAddToCart). */
+  showcase?: boolean
+  /** The restaurant's contact details (tenant_settings), shown as links in showcase. */
+  contact?: { whatsapp?: string | null; phone?: string | null; instagram?: string | null } | null
   onCustomizationStarted?: () => void
   optionGroups?: GroupWithOptions[]
   itemNotesEnabled?: boolean
@@ -136,8 +146,10 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [product.id])
 
+  const showcase = showcaseProp ?? !onAddToCart
+
   function notifyCustomizationStarted() {
-    if (customizationTrackedRef.current) return
+    if (showcase || customizationTrackedRef.current) return
     customizationTrackedRef.current = true
     onCustomizationStarted?.()
   }
@@ -291,7 +303,9 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
   }
 
   const copy = getMenuCopy(lang)
+  const guestCopy = getGuestCopy(lang)
   const money = (value: number) => formatMoney(value, currency, lang)
+  const headerPrice = displayPrice(product.price, optionGroups)
   const onPrimary = computePrimaryForeground(primaryColor)
   const isEditing = !!initialEditorState
   const defaultIngredients = productIngredients.filter(pi => pi.is_default)
@@ -320,17 +334,14 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
     return rule ? `${rule} · ${need}` : need
   }
 
-  function submit() {
-    if (!onAddToCart) return
-    if (!canAddToCart) {
-      // Point at the first required choice still missing instead of a dead button.
-      const missing = optionGroups.find(g => !groupSatisfied(g))
-      if (missing) {
-        setAttentionGroupId(missing.id)
-        document.getElementById(`option-group-${missing.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }
-      return
-    }
+  // Option groups in the restaurant's own language, for messages it reads.
+  const kitchenGroups = optionGroups.map(group => ({
+    ...group,
+    name: baseName(group),
+    options: group.options.map(opt => ({ ...opt, name: baseName(opt) })),
+  }))
+
+  function buildSelectedOptions(): Record<string, unknown> {
     const opts: Record<string, unknown> = {}
     for (const group of optionGroups) {
       if (group.type === 'single') {
@@ -356,6 +367,28 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
         }
       }
     }
+    return opts
+  }
+
+  /** The dish as named in a WhatsApp order: with the choices made, else with its sizes. */
+  function whatsappItem(): string {
+    const opts = showcase ? {} : buildSelectedOptions()
+    if (Object.keys(opts).length > 0) return orderedItemText(baseName(product), opts, finalUnitPrice, money)
+    return showcaseItemText(baseName(product), product.price, kitchenGroups, money)
+  }
+
+  function submit() {
+    if (!onAddToCart) return
+    if (!canAddToCart) {
+      // Point at the first required choice still missing instead of a dead button.
+      const missing = optionGroups.find(g => !groupSatisfied(g))
+      if (missing) {
+        setAttentionGroupId(missing.id)
+        document.getElementById(`option-group-${missing.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }
+      return
+    }
+    const opts = buildSelectedOptions()
     const mods = buildIngredientModifications()
     const editorState: CartEditorState = {
       singleSelections,
@@ -367,6 +400,12 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
     }
     onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods, editorState, isEditing ? 1 : quantity)
   }
+
+  // Showcase footer: how to reach the restaurant about this dish. WhatsApp is
+  // left out when the green "Order on WhatsApp" button already covers it.
+  const contactDetails = contactLinks(contact, fill(guestCopy.whatsappAsk, { item: baseName(product) }))
+  const contactRow = { ...contactDetails, whatsapp: whatsapp && onWhatsApp ? null : contactDetails.whatsapp }
+  const hasContactRow = !!(contactRow.whatsapp || contactRow.phone || contactRow.instagram)
 
   const closeButton = (
     <button
@@ -468,8 +507,10 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
               <div className="flex items-start justify-between gap-4">
                 <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900">{product.name}</h2>
                 <div className="shrink-0 text-right">
-                  <p className="text-[20px] font-semibold tabular-nums tracking-tight text-zinc-900">{money(product.price)}</p>
-                  {product.original_price && product.original_price > product.price && (
+                  <p className="text-[20px] font-semibold tabular-nums tracking-tight text-zinc-900">
+                    {headerPrice.from ? fill(guestCopy.fromPrice, { price: money(headerPrice.amount) }) : money(headerPrice.amount)}
+                  </p>
+                  {!headerPrice.from && product.original_price && product.original_price > product.price && (
                     <p className="text-[13px] tabular-nums text-zinc-400 line-through">{money(product.original_price)}</p>
                   )}
                 </div>
@@ -484,7 +525,22 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
               )}
             </div>
 
-            {optionGroups.map(group => {
+            {showcase && optionGroups.map(group => group.options.length > 0 && (
+              <section key={group.id} className="overflow-hidden rounded-2xl bg-white shadow-card">
+                <h3 className="px-4 pt-4 pb-2 text-[15px] font-semibold text-zinc-900">{group.name}</h3>
+                <ul>
+                  {optionPriceList(group, money).map(row => (
+                    <li key={row.id} className="flex min-h-[44px] items-center justify-between gap-3 border-t border-zinc-100 px-4 py-2">
+                      <span className="text-[15px] text-zinc-900">{row.name}</span>
+                      {row.price && <span className="shrink-0 text-[14px] tabular-nums text-zinc-600">{row.price}</span>}
+                    </li>
+                  ))}
+                </ul>
+                <div className="h-1" />
+              </section>
+            ))}
+
+            {!showcase && optionGroups.map(group => {
               const needsAttention = attentionGroupId === group.id && !groupSatisfied(group)
               return (
                 <section
@@ -617,7 +673,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
               )
             })}
 
-            {ingredientCustomizationEnabled && defaultIngredients.length > 0 && (
+            {!showcase && ingredientCustomizationEnabled && defaultIngredients.length > 0 && (
               <section className="overflow-hidden rounded-2xl bg-white shadow-card">
                 <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2">
                   <h3 className="text-[15px] font-semibold text-zinc-900">{copy.ingredients}</h3>
@@ -656,7 +712,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
               </section>
             )}
 
-            {ingredientCustomizationEnabled && extraIngredients.length > 0 && (
+            {!showcase && ingredientCustomizationEnabled && extraIngredients.length > 0 && (
               <section className="overflow-hidden rounded-2xl bg-white shadow-card">
                 <div className="px-4 pt-4 pb-2">
                   <h3 className="text-[15px] font-semibold text-zinc-900">{copy.extras}</h3>
@@ -687,7 +743,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
               </section>
             )}
 
-            {itemNotesEnabled && (
+            {!showcase && itemNotesEnabled && (
               <section className="rounded-2xl bg-white p-4 shadow-card">
                 <label htmlFor={`note-${product.id}`} className="flex items-baseline justify-between gap-3">
                   <span className="text-[15px] font-semibold text-zinc-900">{copy.notes}</span>
@@ -707,9 +763,9 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
           </div>
         </div>
 
-        {(onAddToCart || whatsapp) && (
+        {((!showcase && onAddToCart) || (whatsapp && onWhatsApp) || (showcase && hasContactRow)) && (
           <div className="shrink-0 space-y-2 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            {onAddToCart && (
+            {!showcase && onAddToCart && (
               <div className="flex items-center gap-3">
                 {!isEditing && (
                   <div className="flex h-[52px] shrink-0 items-center rounded-2xl border border-zinc-200 bg-white px-1">
@@ -752,16 +808,38 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                 </button>
               </div>
             )}
-            {whatsapp && (
+            {whatsapp && onWhatsApp && (
               <button
                 type="button"
-                onClick={onWhatsApp}
-                className={onAddToCart
+                onClick={() => onWhatsApp(whatsappItem())}
+                className={!showcase && onAddToCart
                   ? 'w-full py-1.5 text-[14px] font-medium text-emerald-700 hover:underline'
                   : 'flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#25D366] text-[16px] font-semibold text-white transition-opacity hover:opacity-95'}
               >
                 {copy.orderWhatsApp}
               </button>
+            )}
+            {showcase && hasContactRow && (
+              <div>
+                <p className="text-[12px] font-medium text-zinc-500">{guestCopy.contactTitle}</p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  {contactRow.whatsapp && (
+                    <a href={contactRow.whatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center gap-1.5 rounded-full border border-zinc-200 px-3.5 text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-50">
+                      <MessageCircle className="size-4 text-emerald-600" aria-hidden="true" /> WhatsApp
+                    </a>
+                  )}
+                  {contactRow.phone && (
+                    <a href={contactRow.phone.url} className="inline-flex h-10 items-center gap-1.5 rounded-full border border-zinc-200 px-3.5 text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-50">
+                      <Phone className="size-4 text-zinc-500" aria-hidden="true" /> {guestCopy.callRestaurant}
+                    </a>
+                  )}
+                  {contactRow.instagram && (
+                    <a href={contactRow.instagram.url} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 min-w-0 items-center gap-1.5 rounded-full border border-zinc-200 px-3.5 text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-50">
+                      <Camera className="size-4 shrink-0 text-zinc-500" aria-hidden="true" /> <span className="truncate">{contactRow.instagram.handle}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
             )}
           </div>
         )}

@@ -1,7 +1,8 @@
 ﻿"use client"
 
-import React, { useState } from 'react'
-import { motion } from 'framer-motion'
+import React, { useEffect, useRef, useState } from 'react'
+import { LazyMotion, domAnimation, m } from 'framer-motion'
+import Image from 'next/image'
 import { Globe, QrCode, Sparkles, ShoppingCart, ChevronDown, Camera, MessageCircle, UserPlus, UtensilsCrossed, ArrowRight, Sandwich, CupSoda, Zap, Star, ChefHat, CreditCard, BookOpen, Coffee, BarChart2, Search, Palette, ClipboardList, Link2 } from 'lucide-react'
 import dynamic from 'next/dynamic'
 
@@ -162,7 +163,7 @@ function getIcon(name: string): React.ComponentType<{ className?: string }> {
 
 function Nav({ appName, logoUrl, onLoginOpen }: { appName?: string | null; logoUrl?: string | null; onLoginOpen: () => void }) {
   return (
-    <motion.nav
+    <m.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
       transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
@@ -171,7 +172,7 @@ function Nav({ appName, logoUrl, onLoginOpen }: { appName?: string | null; logoU
       <div className="mx-auto flex w-full max-w-[1320px] items-center justify-between px-0 sm:px-8">
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
-            <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-8 h-8 object-contain object-center" />
+            <Image src={logoUrl ?? '/icon.png'} alt="Logo" width={32} height={32} className="w-8 h-8 object-contain object-center" />
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">{appName ?? 'XmartMenu'}</span>
           </a>
         </div>
@@ -183,7 +184,55 @@ function Nav({ appName, logoUrl, onLoginOpen }: { appName?: string | null; logoU
           <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
         </button>
       </div>
-    </motion.nav>
+    </m.nav>
+  )
+}
+
+/**
+ * The hero background video is decoration, and the production file weighs
+ * ~17 MB: loaded up front it saturates a phone's connection and pushes the
+ * headline (the LCP element) out to 7 s. So it starts with no `src` and no
+ * preload, and only after the page has loaded and the browser is idle does it
+ * fetch and play — on screens wide enough to be worth it, when the visitor
+ * did not ask for reduced motion or data saving. Until then the poster (or the
+ * section's background) is what shows.
+ */
+function DeferredHeroVideo({ src, poster, onError }: { src: string; poster?: string; onError: () => void }) {
+  const ref = useRef<HTMLVideoElement>(null)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true
+    if (reducedMotion || saveData || window.innerWidth < 768) return
+
+    let cancelled = false
+    const idle = (cb: () => void) => {
+      const w = window as Window & { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }
+      if (w.requestIdleCallback) w.requestIdleCallback(cb, { timeout: 4000 })
+      else setTimeout(cb, 2000)
+    }
+    const start = () => idle(() => { if (!cancelled) setReady(true) })
+    if (document.readyState === 'complete') start()
+    else window.addEventListener('load', start, { once: true })
+    return () => { cancelled = true; window.removeEventListener('load', start) }
+  }, [])
+
+  useEffect(() => {
+    if (!ready) return
+    ref.current?.play().catch(() => { /* autoplay refused: the poster stays */ })
+  }, [ready])
+
+  return (
+    <video
+      ref={ref}
+      muted loop playsInline
+      preload="none"
+      className="absolute inset-0 w-full h-full object-cover"
+      src={ready ? src : undefined}
+      poster={poster}
+      onError={onError}
+    />
   )
 }
 
@@ -209,13 +258,7 @@ function Hero({ s, onLoginOpen }: { s: HeroSettings; onLoginOpen: () => void }) 
       {/* Video background */}
       {bgType === 'video' && bgVideo && !videoError && (
         <>
-          <video
-            autoPlay muted loop playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-            src={bgVideo}
-            poster={bgImage || undefined}
-            onError={() => setVideoError(true)}
-          />
+          <DeferredHeroVideo src={bgVideo} poster={bgImage || undefined} onError={() => setVideoError(true)} />
           <div className="absolute inset-0 bg-black/50" />
         </>
       )}
@@ -251,43 +294,27 @@ function Hero({ s, onLoginOpen }: { s: HeroSettings; onLoginOpen: () => void }) 
       )}
 
       <div className="relative z-10 mx-auto max-w-[1320px] px-4 pb-12 pt-20 text-center sm:px-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
-        >
+        <div>
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/40 text-white text-sm font-medium mb-8">
             <Sparkles className="w-4 h-4" />
             {badge}
           </span>
-        </motion.div>
+        </div>
 
-        <motion.h1
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.3 }}
-          className="text-5xl md:text-[3.6rem] lg:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6"
+        <h1 className="text-5xl md:text-[3.6rem] lg:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6"
         >
           {heading} <br className="hidden sm:block" />
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-red-200 to-white">
             {highlight}
           </span>
-        </motion.h1>
+        </h1>
 
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.4 }}
-          className="text-[0.85rem] sm:text-[1.15rem] text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed"
+        <p className="text-[0.85rem] sm:text-[1.15rem] text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed"
         >
           {sub}
-        </motion.p>
+        </p>
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.5 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4"
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4"
         >
           <button
             onClick={onLoginOpen}
@@ -301,7 +328,7 @@ function Hero({ s, onLoginOpen }: { s: HeroSettings; onLoginOpen: () => void }) 
           >
             {ctaSecondary}
           </a>
-        </motion.div>
+        </div>
       </div>
     </section>
   )
@@ -322,7 +349,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
   return (
     <section id="how-it-works" className="pt-[57px] md:pt-[86px] pb-[86px] px-4 relative select-none">
       <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -330,14 +357,14 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
         >
           <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6 pb-2">{sectionTitle}</h2>
           <p className="text-sm md:text-base text-zinc-400">{sectionSubtitle}</p>
-        </motion.div>
+        </m.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 relative">
           {/* Connecting Line (Desktop) */}
           <div className="hidden md:block absolute top-12 left-[15%] right-[15%] h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
 
           {resolvedSteps.map(({ num, icon: Icon, title, body }, i) => (
-            <motion.div
+            <m.div
               key={num}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -353,7 +380,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
                 <p className="text-base lg:text-2xl font-bold text-white mb-1 lg:mb-3">{title}</p>
                 <p className="text-sm lg:text-base text-zinc-400 leading-relaxed">{body}</p>
               </div>
-            </motion.div>
+            </m.div>
           ))}
         </div>
       </div>
@@ -376,7 +403,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
     <section className="pt-[57px] md:pt-[86px] pb-[86px] px-4 relative select-none">
       <div className="absolute inset-0 bg-zinc-950" />
       <div className="relative z-10 mx-auto max-w-[1320px] px-4 sm:px-8">
-        <motion.div
+        <m.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -386,11 +413,11 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
             {sectionTitle}
           </h2>
           <p className="text-base text-zinc-400">{sectionSubtitle}</p>
-        </motion.div>
+        </m.div>
 
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-6">
           {resolvedFeatures.map(({ icon: Icon, title, body }, i) => (
-            <motion.div
+            <m.div
               key={title}
               initial={{ opacity: 0, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -408,7 +435,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
                 <h3 className="text-base lg:text-xl font-bold text-white mb-3">{title}</h3>
                 <p className="text-sm lg:text-base text-zinc-400 leading-relaxed">{body}</p>
               </div>
-            </motion.div>
+            </m.div>
           ))}
         </div>
       </div>
@@ -422,7 +449,7 @@ function FAQ() {
   return (
     <section className="pt-[57px] md:pt-[86px] pb-[86px] md:pb-[172px] lg:pb-[86px] px-4">
       <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
-        <motion.div 
+        <m.div 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
@@ -431,11 +458,11 @@ function FAQ() {
           <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6 pb-2">
             Frequently asked questions
           </h2>
-        </motion.div>
+        </m.div>
         
         <div className="space-y-4">
           {faqs.map(({ q, a }, i) => (
-            <motion.details 
+            <m.details 
               key={q} 
               initial={{ opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -453,7 +480,7 @@ function FAQ() {
               <div className="relative z-10 p-6 text-zinc-400 text-sm leading-relaxed border-t border-white/5 group-open:animate-in group-open:fade-in group-open:slide-in-from-top-4 duration-300">
                 {a}
               </div>
-            </motion.details>
+            </m.details>
           ))}
         </div>
       </div>
@@ -473,24 +500,27 @@ function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOp
 
       <div className="relative overflow-hidden">
         {data?.bg_image_url && (
-          <img
+          <Image
             src={data.bg_image_url}
             alt=""
             aria-hidden="true"
-            className="absolute inset-0 w-full h-full object-cover"
+            fill
+            sizes="100vw"
+            quality={70}
+            className="object-cover"
           />
         )}
         <div className="absolute inset-0 bg-zinc-950/60 md:bg-zinc-950/50 lg:bg-zinc-950/40" />
         <div className="relative z-20 mx-auto max-w-[1320px] px-4 py-16 text-center sm:px-20 sm:py-24">
-          <motion.h2
+          <m.h2
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             className="text-4xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary via-red-200 to-white mb-6 pb-2 leading-tight tracking-tight"
           >
             {heading}
-          </motion.h2>
-          <motion.p
+          </m.h2>
+          <m.p
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -498,8 +528,8 @@ function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOp
             className="text-lg sm:text-2xl text-zinc-300 mb-10 max-w-2xl mx-auto"
           >
             {text}
-          </motion.p>
-          <motion.div
+          </m.p>
+          <m.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
@@ -511,7 +541,7 @@ function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOp
             >
               Start <ArrowRight className="w-5 h-5" />
             </button>
-          </motion.div>
+          </m.div>
         </div>
       </div>
     </section>
@@ -529,7 +559,7 @@ function Footer({ data, appName, logoUrl }: { data?: FooterData | null; appName?
           {/* Logo + tagline */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-contain object-center" />
+              <Image src={logoUrl ?? '/icon.png'} alt="Logo" width={24} height={24} className="w-6 h-6 object-contain object-center" />
               <span className="text-lg font-bold text-white">{brandName}</span>
             </div>
             <p className="text-zinc-400 text-sm whitespace-nowrap">
@@ -587,6 +617,7 @@ export default function ClientLandingPage({ platformLanding, appName, logoUrl }:
   const [loginOpen, setLoginOpen] = useState(false)
 
   return (
+    <LazyMotion features={domAnimation} strict>
     <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30 select-none">
       <Nav appName={appName} logoUrl={logoUrl} onLoginOpen={() => setLoginOpen(true)} />
       <main>
@@ -599,5 +630,6 @@ export default function ClientLandingPage({ platformLanding, appName, logoUrl }:
       <Footer data={platformLanding?.footer} appName={appName} logoUrl={logoUrl} />
       <AdminLoginModal open={loginOpen} onClose={() => setLoginOpen(false)} logoUrl={logoUrl} />
     </div>
+    </LazyMotion>
   )
 }

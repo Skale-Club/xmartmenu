@@ -31,12 +31,40 @@ export interface OrderSettings {
  */
 export type OrderingMode = 'cart' | 'whatsapp' | 'browse'
 
-export function resolveOrderingMode(s: OrderSettings): OrderingMode {
+/**
+ * The parts of TenantCapabilities (service-modes.ts) the assistant needs.
+ * When passed, the plan decides — settings alone can't turn on a cart the
+ * plan doesn't sell.
+ */
+export interface OrderingCapabilities {
+  guestOrdering: boolean
+  waiterOrdering: boolean
+  waiterCalls: boolean
+  whatsappOrders: boolean
+}
+
+export function resolveOrderingMode(s: OrderSettings, capabilities?: OrderingCapabilities | null): OrderingMode {
+  if (capabilities) {
+    if (capabilities.guestOrdering) return 'cart'
+    if (capabilities.whatsappOrders) return 'whatsapp'
+    return 'browse'
+  }
   // Same defaults as MenuPage: orders_enabled defaults on, direct orders off.
   // Checkout rejects anything unless orders_enabled is explicitly true.
   if (s.orders_enabled === true && s.direct_orders_enabled === true) return 'cart'
   if ((s.orders_enabled ?? true) && s.whatsapp_orders_enabled && s.whatsapp) return 'whatsapp'
   return 'browse'
+}
+
+/** Where a guest who can't order here should turn: the waiter at a table, else the restaurant. */
+function browseNextStep(capabilities: OrderingCapabilities | null | undefined, atTable: boolean): string {
+  if (atTable && capabilities?.waiterCalls) {
+    return 'The customer is at a table: if they want to order, tell them to tap "Call waiter" at the top of the menu and a waiter will take the order at the table.'
+  }
+  if (capabilities?.waiterOrdering) {
+    return 'Orders are taken by the staff at the restaurant: if the customer wants to order, suggest asking a waiter, or contacting the restaurant (see the profile above).'
+  }
+  return 'If the customer wants to order, suggest contacting the restaurant (see the profile above).'
 }
 
 export function formatMoney(amount: number, currency: string | null | undefined): string {
@@ -54,11 +82,18 @@ export interface DeliveryZone {
 
 export function describeOrdering(
   s: OrderSettings,
-  opts: { onlinePayment: boolean; deliveryZones: DeliveryZone[] },
+  opts: {
+    onlinePayment: boolean
+    deliveryZones: DeliveryZone[]
+    /** TenantCapabilities: the plan's say on what exists (recommended). */
+    capabilities?: OrderingCapabilities | null
+    /** The guest opened the menu from a table link (?table=). */
+    atTable?: boolean
+  },
 ): string {
-  const mode = resolveOrderingMode(s)
+  const mode = resolveOrderingMode(s, opts.capabilities)
   if (mode === 'browse') {
-    return 'This menu is for browsing only: orders cannot be placed here. You CANNOT add items to a cart. If the customer wants to order, suggest contacting the restaurant (see the profile above).'
+    return `This menu is for browsing only: orders cannot be placed here. You CANNOT add items to a cart. ${browseNextStep(opts.capabilities, opts.atTable === true)}`
   }
   if (mode === 'whatsapp') {
     return `Orders are placed through WhatsApp (${s.whatsapp}), using the WhatsApp button on each dish. You CANNOT add items to a cart. Help the customer choose, then tell them to order through WhatsApp.`

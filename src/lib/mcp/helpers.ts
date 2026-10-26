@@ -3,6 +3,8 @@ import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/proto
 import type { ServerRequest, ServerNotification } from '@modelcontextprotocol/sdk/types.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { captureSecurityEvent } from '@/lib/observability'
+import { getTenantCapabilities, getTenantPlan } from '@/lib/tenant-plan'
+import { lockedServiceKeys, planRequirementFor } from '@/lib/service-settings'
 
 /**
  * Shared helpers for the xmartmenu MCP tools.
@@ -75,6 +77,49 @@ export function textResult(text: string): CallToolResult {
 /** Error result — surfaced to the model with `isError` so it can react. */
 export function errorResult(message: string): CallToolResult {
   return { content: [{ type: 'text', text: message }], isError: true }
+}
+
+function planLockedResult(planName: string | null | undefined, keys: string[]): CallToolResult {
+  return errorResult(`Not included in the ${planName ?? 'current'} plan: ${keys.join(', ')}. Change the plan first.`)
+}
+
+/**
+ * Plan guard for tenant_settings writes (same rule as PATCH
+ * /api/admin/service-settings): switching on a key the tenant's plan doesn't
+ * include is refused; switching it off, or re-sending the stored value, is
+ * fine. Returns an error result to short-circuit the tool, or `null`.
+ */
+export async function checkSettingsAllowedByPlan(
+  service: SupabaseClient,
+  tenantId: string,
+  values: Record<string, unknown>,
+): Promise<CallToolResult | null> {
+  const planKeys = Object.keys(values).filter((key) => planRequirementFor(key) !== null)
+  if (planKeys.length === 0) return null
+  const [capabilities, plan, current] = await Promise.all([
+    getTenantCapabilities(tenantId, null, service),
+    getTenantPlan(tenantId, service).catch(() => null),
+    service.from('tenant_settings').select(planKeys.join(', ')).eq('tenant_id', tenantId).maybeSingle(),
+  ])
+  const locked = lockedServiceKeys(values, capabilities.plan, (current.data ?? null) as Record<string, unknown> | null)
+  return locked.length > 0 ? planLockedResult(plan?.name, locked) : null
+}
+
+/**
+ * Plan guard for a feature that needs a plan ceiling (e.g. delivery zones need
+ * Menu + Payments). Returns an error result, or `null` when the plan has it.
+ */
+export async function checkPlanIncludes(
+  service: SupabaseClient,
+  tenantId: string,
+  ceiling: 'orders' | 'payments' | 'stripe',
+  feature: string,
+): Promise<CallToolResult | null> {
+  const [capabilities, plan] = await Promise.all([
+    getTenantCapabilities(tenantId, null, service),
+    getTenantPlan(tenantId, service).catch(() => null),
+  ])
+  return capabilities.plan[ceiling] ? null : planLockedResult(plan?.name, [feature])
 }
 
 /** The owner's user id / email resolved by `verifyMcpToken`, for audit logs. */

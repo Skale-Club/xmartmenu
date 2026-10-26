@@ -9,8 +9,9 @@ import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { stripe } from '@/lib/stripe'
+import { withApi } from '@/lib/observability/with-api'
 
-export async function POST() {
+async function handlePOST() {
   // 1. Authenticate and get tenant (cookie client, used only for the
   // identity check).
   const supabase = await createClient()
@@ -22,6 +23,12 @@ export async function POST() {
   const effective = await getEffectiveTenant()
   if (!effective) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  // Disconnecting the payout account stops online payments: owner only.
+  // No plan check — a restaurant that lost Stripe Connect must still be able
+  // to disconnect.
+  if (effective.role !== 'store-admin' && effective.role !== 'superadmin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
   // 2. Soft-delete via the service client. Round-2 P0-07: stripe_connections
@@ -67,3 +74,5 @@ export async function POST() {
     disconnected,
   })
 }
+
+export const POST = withApi('POST /api/stripe/connect/disconnect', handlePOST)

@@ -40,8 +40,11 @@ test.describe('menu-only plan admin', () => {
   test.use({ storageState: storageStatePath('menuOwner') })
 
   test('guest ordering is locked with the plan that unlocks it', async ({ page }) => {
-    await page.goto('/settings/branding')
-    await expect(page.getByText('Available on the Menu + Payments plan')).toBeVisible()
+    // The ordering switches live in Store settings; a plan that lacks guest
+    // ordering shows no switch, only the one hint card naming the plan.
+    await page.goto('/settings/store')
+    await expect(page.getByText(/Available on Menu \+ Payments: .*Guest ordering/)).toBeVisible()
+    await expect(page.getByText('Guests order from the menu')).toHaveCount(0)
   })
 
   test('no waiter app, even with the switch on', async ({ page }) => {

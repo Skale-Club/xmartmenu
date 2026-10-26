@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import MenuDisplayClient from './MenuDisplayClient'
 
 export default async function MenuDisplayPage() {
@@ -17,6 +18,8 @@ export default async function MenuDisplayPage() {
     .eq('tenant_id', effective.tenantId)
     .maybeSingle()
 
+  const capabilities = await getTenantCapabilities(effective.tenantId, null)
+
   const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/+$/, '')
 
   return (
@@ -28,6 +31,7 @@ export default async function MenuDisplayPage() {
         feed_autoplay_videos: data?.feed_autoplay_videos ?? true,
         upsell_enabled: data?.upsell_enabled ?? true,
       }}
+      upsellAvailable={capabilities.plan.payments}
       menuUrl={`${baseUrl}/${effective.slug}`}
       feedUrl={`${baseUrl}/feed/${effective.slug}`}
     />

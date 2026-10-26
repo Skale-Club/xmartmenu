@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { createServiceClient } from '@/lib/supabase/server'
-import { errorResult, jsonResult, logMcpMutation, resolveTenantId } from '../helpers'
+import { checkSettingsAllowedByPlan, errorResult, jsonResult, logMcpMutation, resolveTenantId } from '../helpers'
+import { normalizeWhatsapp } from '@/lib/service-settings'
 
 const HEX = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 const HTTPS = /^https:\/\//
@@ -56,14 +57,23 @@ export function registerBrandingWriteTools(server: McpServer): void {
         primary_color: primary_color.trim(),
         accent_color: accent_color.trim(),
         instagram: str(instagram, 64),
-        whatsapp: str(whatsapp, 32),
         tagline: str(tagline, 120),
         logo_url: logo as string | null,
         banner_url: banner as string | null,
       }
+      // WhatsApp as wa.me expects it (digits, country code first); only written
+      // when sent so it never clears the stored number.
+      if (whatsapp !== undefined) {
+        const normalized = normalizeWhatsapp(whatsapp)
+        if (normalized === undefined) return errorResult('whatsapp inválido (esperado número com DDI).')
+        update.whatsapp = normalized
+      }
       if (whatsapp_orders_enabled !== undefined) update.whatsapp_orders_enabled = whatsapp_orders_enabled === true
       if (orders_enabled !== undefined) update.orders_enabled = orders_enabled === true
       if (direct_orders_enabled !== undefined) update.direct_orders_enabled = direct_orders_enabled === true
+
+      const locked = await checkSettingsAllowedByPlan(service, tenantId, update)
+      if (locked) return locked
 
       const { error } = await service.from('tenant_settings').upsert(update, { onConflict: 'tenant_id' })
       if (error) return errorResult(`Erro ao atualizar branding: ${error.message}`)

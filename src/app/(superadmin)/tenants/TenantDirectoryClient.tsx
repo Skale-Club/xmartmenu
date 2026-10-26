@@ -28,6 +28,20 @@ import {
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { getInitials, slugify } from '@/lib/utils'
 
+const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
+  active: 'Subscribed',
+  trial: 'Trial',
+  past_due: 'Past due',
+  cancelled: 'Cancelled',
+}
+
+const SUBSCRIPTION_STATUS_STYLES: Record<string, string> = {
+  active: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+  trial: 'border-sky-100 bg-sky-50 text-sky-700',
+  past_due: 'border-amber-100 bg-amber-50 text-amber-700',
+  cancelled: 'border-red-100 bg-red-50 text-red-700',
+}
+
 interface ClientRow {
   id: string | null
   name: string | null
@@ -153,6 +167,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
           restaurant.full_name,
           restaurant.plan_name,
           restaurant.plan_slug,
+          restaurant.subscription_status?.replace('_', ' '),
         ].filter(Boolean).join(' '))
         const matchesSearch = terms.every(term => haystack.includes(term))
         const matchesStatus = statusFilter === 'all'
@@ -663,6 +678,9 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
                       {statusLoadingId === tenantId ? 'Saving' : client.is_active ? 'Active' : 'Inactive'}
                     </button>
                     <span className={`flex min-h-8 max-w-full items-center rounded-full border px-3 text-xs font-semibold uppercase ${client.plan_slug === 'payments' ? 'border-purple-100 bg-purple-50 text-purple-700' : client.plan_slug === 'orders' ? 'border-blue-100 bg-blue-50 text-blue-700' : 'border-zinc-100 bg-zinc-50 text-zinc-600'}`}>{client.plan_name ?? client.plan_slug ?? 'No plan'}</span>
+                    {client.subscription_status && (
+                      <span title="Subscription status" className={`flex min-h-8 items-center rounded-full border px-3 text-xs font-semibold ${SUBSCRIPTION_STATUS_STYLES[client.subscription_status] ?? 'border-zinc-100 bg-zinc-50 text-zinc-600'}`}>{SUBSCRIPTION_STATUS_LABELS[client.subscription_status] ?? client.subscription_status}</span>
+                    )}
                   </div>
                 </div>
 

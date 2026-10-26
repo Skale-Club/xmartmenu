@@ -44,6 +44,52 @@ function isSchemaCacheColumnError(message: string) {
   return msg.includes('schema cache') && msg.includes('column')
 }
 
+type ServiceClient = ReturnType<typeof createServiceClient>
+
+/**
+ * tenant_subscriptions is the source of truth for the plan (getTenantPlan
+ * returns null without a row, which turns every plan gate off), so every
+ * tenant needs one. New tenants start on the entry-level plan (slug 'menu',
+ * "Digital Menu"); tenants.plan mirrors its slug (mirror_tenant_plan trigger).
+ * Idempotent: an existing row (whatever its plan) is left alone.
+ */
+async function ensureEntrySubscription(service: ServiceClient, tenantId: string): Promise<'created' | 'exists' | 'error'> {
+  const { data: current, error: currentError } = await service
+    .from('tenant_subscriptions')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+  if (currentError) {
+    console.error('onboarding.lookup_subscription_error', currentError)
+    return 'error'
+  }
+  if (current) return 'exists'
+
+  const { data: entryPlan, error: entryPlanError } = await service
+    .from('plans')
+    .select('id')
+    .eq('slug', 'menu')
+    .eq('is_active', true)
+    .single()
+  if (entryPlanError || !entryPlan) {
+    console.error('onboarding.lookup_entry_plan_error', entryPlanError)
+    return 'error'
+  }
+  const { error: subscriptionError } = await service
+    .from('tenant_subscriptions')
+    .insert({
+      tenant_id: tenantId,
+      plan_id: entryPlan.id,
+      billing_cycle: 'monthly',
+      status: 'active',
+    })
+  if (subscriptionError) {
+    console.error('onboarding.create_subscription_error', subscriptionError)
+    return 'error'
+  }
+  return 'created'
+}
+
 export async function POST(request: Request) {
   try {
     const supabase = await createClient()
@@ -107,6 +153,9 @@ export async function POST(request: Request) {
         // Resume path: tenant already fully configured. Re-assert CRM state with a
         // full-sync (reason 'manual' emits NO onboarded note — no double-post).
         // Enqueue-only + fail-open — never blocks or throws into the response.
+        // Also heal a tenant that finished onboarding without a subscription row
+        // (best effort: ensureEntrySubscription logs its own failures).
+        await ensureEntrySubscription(service, currentProfile.tenant_id)
         await enqueueXphereSync(currentProfile.tenant_id, 'manual')
         return NextResponse.json({
           already_configured: true,
@@ -116,6 +165,11 @@ export async function POST(request: Request) {
       }
 
       // Tenant exists but no menu | previous attempt failed mid-way. Resume from menu creation.
+      // The earlier attempt may have died before the subscription row was
+      // written, which would leave the tenant with no plan at all.
+      if (await ensureEntrySubscription(service, currentProfile.tenant_id) === 'error') {
+        return NextResponse.json({ error: 'Failed to assign default plan' }, { status: 500 })
+      }
       tenant = {
         id: currentProfile.tenant_id,
         slug: (currentProfile.tenants as any)?.slug ?? '',
@@ -175,34 +229,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Failed to update user profile' }, { status: 500 })
       }
 
-      // 3b. Create default tenant_subscriptions row pointing at the
-      // entry-level plan (slug 'menu', "Digital Menu"). Round-2 P1-03:
-      // without this, getTenantPlan() returned null for the new tenant and
-      // every feature gate (orders, payments, stripe-connect) defaulted off
-      // even after the tenant had paid.
-      //
-      // tenant_subscriptions is the source of truth; tenants.plan mirrors
-      // its plan slug (mirror_tenant_plan trigger).
-      const { data: entryPlan, error: entryPlanError } = await service
-        .from('plans')
-        .select('id')
-        .eq('slug', 'menu')
-        .eq('is_active', true)
-        .single()
-      if (entryPlanError || !entryPlan) {
-        console.error('onboarding.lookup_entry_plan_error', entryPlanError)
-        return NextResponse.json({ error: 'Failed to assign default plan' }, { status: 500 })
-      }
-      const { error: subscriptionError } = await service
-        .from('tenant_subscriptions')
-        .insert({
-          tenant_id: tenant.id,
-          plan_id: entryPlan.id,
-          billing_cycle: 'monthly',
-          status: 'active',
-        })
-      if (subscriptionError) {
-        console.error('onboarding.create_subscription_error', subscriptionError)
+      // 3b. Create the default tenant_subscriptions row on the entry-level plan.
+      // Round-2 P1-03: without it getTenantPlan() returns null for the new
+      // tenant and every feature gate (orders, payments, stripe-connect)
+      // defaults off even after the tenant has paid.
+      if (await ensureEntrySubscription(service, tenant.id) === 'error') {
         return NextResponse.json({ error: 'Failed to create subscription' }, { status: 500 })
       }
 

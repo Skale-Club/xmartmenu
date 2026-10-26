@@ -20,7 +20,8 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { EffectivePlan, Plan } from '@/types/database'
-import { resolveServiceCapabilities, type ServiceCapabilities, type ServiceSettings } from '@/lib/service-modes'
+import { initialSettingsForPlan, liveFeatures, ORDERS_ONLY_SETTINGS, PAYMENTS_ONLY_SETTINGS, settingsPatchForPlan } from '@/lib/plan-settings'
+import { resolveServiceCapabilities, resolveTenantCapabilities, type ServiceCapabilities, type ServiceSettings, type TenantCapabilities } from '@/lib/service-modes'
 
 interface SubscriptionWithPlan {
   tenant_id: string
@@ -166,4 +167,90 @@ export async function getTenantServiceCapabilities(
 ): Promise<ServiceCapabilities> {
   const plan = await getTenantPlan(tenantId, client).catch(() => null)
   return resolveServiceCapabilities(plan?.features ?? null, settings)
+}
+
+const CAPABILITY_SETTINGS_COLUMNS = [
+  'orders_enabled', 'direct_orders_enabled', 'table_management_enabled',
+  'whatsapp_orders_enabled', 'whatsapp', 'tips_enabled', 'item_notes_enabled',
+  'ingredient_customization_enabled', 'dine_in_enabled', 'pickup_enabled',
+  'delivery_enabled', 'upsell_enabled',
+].join(', ')
+
+/**
+ * The one object every screen and route reads (service-modes.ts
+ * resolveTenantCapabilities): plan ceiling + the restaurant's switches.
+ * Pass `settings` when the caller already loaded tenant_settings; otherwise
+ * the columns the resolver needs are read with the service client.
+ */
+export async function getTenantCapabilities(
+  tenantId: string,
+  settings?: ServiceSettings | null,
+  client?: SupabaseClient,
+): Promise<TenantCapabilities> {
+  const supabase = client ?? createServiceClient()
+  const [plan, resolvedSettings] = await Promise.all([
+    getTenantPlan(tenantId, supabase).catch(() => null),
+    settings !== undefined
+      ? Promise.resolve(settings)
+      : supabase.from('tenant_settings').select(CAPABILITY_SETTINGS_COLUMNS).eq('tenant_id', tenantId).maybeSingle().then(r => (r.data ?? null) as ServiceSettings | null),
+  ])
+  return resolveTenantCapabilities(plan?.features ?? null, resolvedSettings)
+}
+
+// ---------------------------------------------------------------------------
+// Plan ↔ settings reconciliation
+//
+// A plan only sets the ceiling; the restaurant's own switches live in
+// tenant_settings. When the ceiling drops (downgrade, cancellation, dunning)
+// the switches that sit above it must go off with it, otherwise the admin
+// panel keeps showing a mode as "on" that no route will honour. Data that
+// belongs to a higher plan (stripe_connections, restaurant_tables) is never
+// touched, so a re-upgrade picks up where the restaurant left off.
+// The pure parts (what to switch off, what a new tenant starts with) live in
+// plan-settings.ts so they can be unit-tested without a database.
+// ---------------------------------------------------------------------------
+
+export { settingsPatchForPlan, initialSettingsForPlan, liveFeatures, PAYMENTS_ONLY_SETTINGS, ORDERS_ONLY_SETTINGS }
+
+/**
+ * Switches off whatever in tenant_settings exceeds `features` (pass the LIVE
+ * features: [] for a cancelled or past-due subscription). Service-role client
+ * expected — callers are webhooks and superadmin routes. Never throws; the
+ * caller decides whether a failure should fail its request.
+ */
+export async function reconcileSettingsWithPlan(
+  tenantId: string,
+  features: readonly string[] | null | undefined,
+  client?: SupabaseClient,
+): Promise<{ ok: boolean; patch: Record<string, false>; error?: string }> {
+  const patch = settingsPatchForPlan(features)
+  if (Object.keys(patch).length === 0) return { ok: true, patch }
+  const supabase = client ?? createServiceClient()
+  const { error } = await supabase.from('tenant_settings').update(patch).eq('tenant_id', tenantId)
+  if (error) return { ok: false, patch, error: error.message }
+  return { ok: true, patch }
+}
+
+/**
+ * Reads the tenant's current subscription (plan + status, with the same
+ * live-only rule as getTenantPlan) and reconciles its settings with it.
+ * Call after any write to tenant_subscriptions that can change the plan or status.
+ */
+export async function reconcileTenantSettings(
+  tenantId: string,
+  client?: SupabaseClient,
+): Promise<{ ok: boolean; patch: Record<string, false>; error?: string }> {
+  const supabase = client ?? createServiceClient()
+  // Read the row directly (not getTenantPlan): a failed read must NOT look like
+  // "no plan" and switch a paying restaurant's features off.
+  const { data, error } = await supabase
+    .from('tenant_subscriptions')
+    .select('status, plans(features)')
+    .eq('tenant_id', tenantId)
+    .maybeSingle()
+  if (error) return { ok: false, patch: {}, error: error.message }
+  // No subscription at all counts as menu only, like everywhere else.
+  const planRaw = (data as { plans?: { features: string[] } | { features: string[] }[] | null } | null)?.plans
+  const plan = Array.isArray(planRaw) ? planRaw[0] : planRaw
+  return reconcileSettingsWithPlan(tenantId, liveFeatures(data?.status, plan?.features), supabase)
 }

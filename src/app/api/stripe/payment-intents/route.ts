@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getOrCreatePaymentIntent, isStripeEnabled } from '@/lib/stripe'
-import { getTenantPlan } from '@/lib/tenant-plan'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
@@ -46,9 +46,11 @@ async function handlePOST(request: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // 4. Verify order status is pending
-    if (order.status !== 'pending') {
-      return NextResponse.json({ error: 'Order is not in pending status' }, { status: 400 })
+    // 4. Only an unpaid order can be paid. Guest orders that need online
+    // payment are created as awaiting_payment; 'pending' covers orders placed
+    // before Stripe was connected.
+    if (order.status !== 'awaiting_payment' && order.status !== 'pending') {
+      return NextResponse.json({ error: 'Order is not awaiting payment' }, { status: 400 })
     }
 
     // 4b. P1-02 fix: if the order already has a payment_intent_id, only
@@ -71,9 +73,10 @@ async function handlePOST(request: NextRequest) {
       }
     }
 
-    // 5. Check tenant plan includes payments feature
-    const plan = await getTenantPlan(order.tenant_id)
-    if (!plan || !plan.features.includes('payments')) {
+    // 5. Check the plan includes guest payments and Stripe Connect (only the
+    // plan matters here).
+    const capabilities = await getTenantCapabilities(order.tenant_id, null)
+    if (!capabilities.plan.payments || !capabilities.plan.stripe) {
       return NextResponse.json({ error: 'Payments not available on current plan' }, { status: 403 })
     }
 

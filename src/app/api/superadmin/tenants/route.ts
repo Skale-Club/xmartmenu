@@ -6,6 +6,7 @@ import { validateTenantSlug } from '@/lib/admin/tenant-management'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { initialSettingsForPlan } from '@/lib/plan-settings'
 
 async function handleGET() {
   const supabase = await assertSuperadmin()
@@ -35,8 +36,8 @@ async function handlePOST(request: Request) {
 
   const service = await createServiceClient()
   const { data: selectedPlan, error: planError } = requestedPlanId
-    ? await service.from('plans').select('id, name, slug').eq('id', requestedPlanId).eq('is_active', true).maybeSingle()
-    : await service.from('plans').select('id, name, slug').eq('slug', 'menu').eq('is_active', true).maybeSingle()
+    ? await service.from('plans').select('id, name, slug, features').eq('id', requestedPlanId).eq('is_active', true).maybeSingle()
+    : await service.from('plans').select('id, name, slug, features').eq('slug', 'menu').eq('is_active', true).maybeSingle()
 
   if (planError || !selectedPlan) {
     return NextResponse.json({ error: 'Select an active subscription plan.' }, { status: 400 })
@@ -69,7 +70,11 @@ async function handlePOST(request: Request) {
     await service.from('tenants').delete().eq('id', tenant.id)
   }
 
-  const { error: settingsError } = await service.from('tenant_settings').insert({ tenant_id: tenant.id })
+  // A paid tenant starts in the mode it paid for: orders on, guest ordering and
+  // dine-in on the payments plan, the waiter app's tables on any ordering plan.
+  const { error: settingsError } = await service
+    .from('tenant_settings')
+    .insert({ tenant_id: tenant.id, ...initialSettingsForPlan(selectedPlan.features as string[] | null) })
   if (settingsError) {
     log.error('POST /api/superadmin/tenants create settings', { err: settingsError })
     await cleanup()

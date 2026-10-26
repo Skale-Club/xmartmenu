@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { Check, CheckCircle2, Copy, LayoutTemplate, Loader2, Play, Rows3, Save, Smartphone } from 'lucide-react'
 import type { AnalyticsExperienceSettings } from '../../analytics/AnalyticsSettingsPanel'
+import PlanHintCard from '@/components/admin/PlanHintCard'
+import { lockedGroup } from '@/components/admin/plan-hint'
 
 type View = 'list' | 'feed'
 
@@ -23,10 +25,13 @@ const VIEW_CHOICES: Array<{ view: View; title: string; description: string; icon
 
 export default function MenuDisplayClient({
   initialSettings,
+  upsellAvailable,
   menuUrl,
   feedUrl,
 }: {
   initialSettings: AnalyticsExperienceSettings
+  /** The plan includes guest ordering (Menu + Payments), which "Complete your order" needs. */
+  upsellAvailable: boolean
   menuUrl: string
   feedUrl: string
 }) {
@@ -54,7 +59,9 @@ export default function MenuDisplayClient({
       const response = await fetch('/api/admin/analytics/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        // The suggestions switch is only sent when the plan includes it: the
+        // route refuses to switch it on for a plan that doesn't.
+        body: JSON.stringify(upsellAvailable ? settings : { ...settings, upsell_enabled: undefined }),
       })
       const payload = await response.json().catch(() => ({}))
       if (!response.ok) throw new Error(payload.error || 'Could not save settings')
@@ -161,6 +168,7 @@ export default function MenuDisplayClient({
       </section>
 
       {/* Complete your order */}
+      {upsellAvailable ? (
       <section className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-black text-zinc-950">“Complete your order” suggestions</p>
@@ -175,6 +183,9 @@ export default function MenuDisplayClient({
           label="Complete your order suggestions"
         />
       </section>
+      ) : (
+        <PlanHintCard groups={[lockedGroup('payments', '“Complete your order” suggestions')]} />
+      )}
 
       {/* Links */}
       <section className="space-y-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-5">

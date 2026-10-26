@@ -8,14 +8,15 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
-import { getTenantPlan } from '@/lib/tenant-plan'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { signOAuthState } from '@/lib/stripe-oauth-state'
+import { withApi } from '@/lib/observability/with-api'
 
 function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 }
 
-export async function GET() {
+async function handleGET() {
   // 1. Authenticate and get tenant
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -27,10 +28,14 @@ export async function GET() {
   if (!effective) {
     return NextResponse.json({ error: 'Unauthorized - no tenant context' }, { status: 401 })
   }
+  // Connecting a payout account is the owner's call, never staff's.
+  if (effective.role !== 'store-admin' && effective.role !== 'superadmin') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
 
-  // 2. Verify tenant has stripe-connect feature
-  const plan = await getTenantPlan(effective.tenantId)
-  if (!plan || !plan.features.includes('stripe-connect')) {
+  // 2. Verify the plan includes Stripe Connect (only the plan matters here).
+  const capabilities = await getTenantCapabilities(effective.tenantId, null)
+  if (!capabilities.plan.stripe) {
     return NextResponse.redirect(new URL(`${getBaseUrl()}/settings/store?stripe=feature_not_available`))
   }
 
@@ -73,3 +78,5 @@ export async function GET() {
 
   return NextResponse.redirect(new URL(stripeOAuthUrl))
 }
+
+export const GET = withApi('GET /api/stripe/connect/oauth', handleGET)

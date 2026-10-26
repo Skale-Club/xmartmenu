@@ -12,6 +12,8 @@
 // The same catalog ships in the Xkedule and Websites super-admins; keep the
 // keys aligned so the three panels speak the same language.
 
+import type { PlanCeiling } from '@/lib/service-modes'
+
 export const LAUNCH_CHECKLIST_CATEGORIES = [
   'indexing',
   'analytics',
@@ -37,11 +39,25 @@ export const LAUNCH_CHECKLIST_CATEGORY_LABELS: Record<LaunchChecklistCategory, s
 export const LAUNCH_CHECKLIST_STATUSES = ['pending', 'done', 'na'] as const
 export type LaunchChecklistStatus = (typeof LAUNCH_CHECKLIST_STATUSES)[number]
 
+/**
+ * What a plan must sell for an item to make sense (service-modes.ts planCeiling):
+ *   orders    the restaurant takes orders (waiter app and/or guest ordering)
+ *   payments  guests order from the menu
+ *   stripe    online payment through Stripe Connect
+ * An item without `requires` applies to every restaurant.
+ */
+export type LaunchChecklistRequirement = 'orders' | 'payments' | 'stripe'
+
+/** The slice of a plan's ceiling the checklist cares about. */
+export type LaunchChecklistPlanAccess = Pick<PlanCeiling, LaunchChecklistRequirement>
+
 export interface LaunchChecklistItemDef {
   key: string
   category: LaunchChecklistCategory
   label: string
   description: string
+  /** Only applies to restaurants whose plan has this capability. */
+  requires?: LaunchChecklistRequirement
   /**
    * Optional "open this tool" link. `{url}` is replaced by the site's public
    * origin (https://domain) and `{domain}` by the bare hostname; a template
@@ -133,6 +149,7 @@ export const LAUNCH_CHECKLIST_ITEMS: readonly LaunchChecklistItemDef[] = [
   {
     key: 'conversions',
     category: 'analytics',
+    requires: 'orders',
     label: 'Conversion events',
     description: 'Key actions tracked as conversions: WhatsApp click, order, call click.',
   },
@@ -278,16 +295,41 @@ export const LAUNCH_CHECKLIST_ITEMS: readonly LaunchChecklistItemDef[] = [
   {
     key: 'forms_tested',
     category: 'legal',
+    requires: 'orders',
     label: 'Ordering tested end to end',
     description: 'A real test order went through end to end: menu → cart → checkout/WhatsApp → kitchen.',
   },
   {
     key: 'notifications',
     category: 'legal',
+    requires: 'orders',
     label: 'Order notifications',
     description: 'The restaurant is notified of every new order (dashboard, WhatsApp, kitchen display).',
   },
+  {
+    key: 'stripe_connected',
+    category: 'legal',
+    requires: 'stripe',
+    label: 'Stripe account connected',
+    description: 'The restaurant connected its Stripe account (Settings > Store) so guests can pay online and payouts reach the restaurant.',
+  },
 ]
+
+/** True when the plan sells what the item needs. `null`/`undefined` = no plan = Digital Menu only. */
+export function isLaunchChecklistItemApplicable(
+  item: Pick<LaunchChecklistItemDef, 'requires'>,
+  access: LaunchChecklistPlanAccess | null | undefined,
+): boolean {
+  return !item.requires || access?.[item.requires] === true
+}
+
+/** The checklist for one restaurant: the catalog minus items its plan cannot use. */
+export function launchChecklistItemsFor(
+  access: LaunchChecklistPlanAccess | null | undefined,
+  items: readonly LaunchChecklistItemDef[] = LAUNCH_CHECKLIST_ITEMS,
+): LaunchChecklistItemDef[] {
+  return items.filter((item) => isLaunchChecklistItemApplicable(item, access))
+}
 
 export const LAUNCH_CHECKLIST_KEYS: ReadonlySet<string> = new Set(LAUNCH_CHECKLIST_ITEMS.map((i) => i.key))
 
@@ -336,6 +378,7 @@ export const LAUNCH_CHECKLIST_REASON_LABELS = {
   noLocalSeo: 'no city/coordinates for local SEO',
   noPhone: 'no phone',
   noAddress: 'no address',
+  noStripe: 'no Stripe account connected',
 } as const
 export const LAUNCH_CHECKLIST_SIGNAL_REASONS = Object.keys(LAUNCH_CHECKLIST_REASON_LABELS) as (keyof typeof LAUNCH_CHECKLIST_REASON_LABELS)[]
 export type LaunchChecklistSignalReason = keyof typeof LAUNCH_CHECKLIST_REASON_LABELS
@@ -350,6 +393,8 @@ export interface LaunchChecklistTenant {
   siteUrl: string
   entries: Record<string, LaunchChecklistEntry>
   signals: Record<string, LaunchChecklistSignal>
+  /** What the restaurant's live plan sells; items needing more are left out of its checklist. */
+  plan: LaunchChecklistPlanAccess
 }
 
 export interface LaunchChecklistResponse {
@@ -381,15 +426,24 @@ export interface LaunchChecklistProgress {
   percent: number
 }
 
-export function summarizeLaunchChecklist(entries: Record<string, LaunchChecklistEntry>): LaunchChecklistProgress {
+/**
+ * Progress over the items that apply. Pass the restaurant's plan access to
+ * leave out items its plan cannot use; omit it (undefined) to count the whole
+ * catalog; pass null to count a restaurant with no plan (Digital Menu only).
+ */
+export function summarizeLaunchChecklist(
+  entries: Record<string, LaunchChecklistEntry>,
+  access?: LaunchChecklistPlanAccess | null,
+): LaunchChecklistProgress {
   let done = 0
   let na = 0
-  for (const item of LAUNCH_CHECKLIST_ITEMS) {
+  const items = access === undefined ? LAUNCH_CHECKLIST_ITEMS : launchChecklistItemsFor(access)
+  for (const item of items) {
     const status = entries[item.key]?.status
     if (status === 'done') done += 1
     else if (status === 'na') na += 1
   }
-  const total = LAUNCH_CHECKLIST_ITEMS.length
+  const total = items.length
   const pending = total - done - na
   return { done, na, pending, total, percent: total === 0 ? 100 : Math.round(((done + na) / total) * 100) }
 }

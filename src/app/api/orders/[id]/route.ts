@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { NextResponse } from 'next/server'
 import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
 import { withApi } from '@/lib/observability/with-api'
@@ -37,6 +38,11 @@ async function handlePATCH(
     }
 
     const service = await createServiceClient()
+
+    const capabilities = await getTenantCapabilities(effective.tenantId, undefined, service)
+    if (!capabilities.kds) {
+      return NextResponse.json({ error: 'The kitchen display is part of the Menu + Orders plan' }, { status: 403 })
+    }
 
     // Verify the order belongs to the effective tenant before mutating
     const { data: existing, error: existingError } = await service

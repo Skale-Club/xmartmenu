@@ -8,6 +8,8 @@
 
 import { createServiceClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { formatPrice } from '@/lib/utils'
+import { embeddedCurrency } from '@/components/menu/menu-utils'
 import { CheckCircle, XCircle, ArrowLeft, Loader2 } from 'lucide-react'
 
 interface ConfirmationPageProps {
@@ -35,7 +37,7 @@ export default async function ConfirmationPage({
       // Fetch the order to show details
       const { data: order } = await supabase
         .from('orders')
-        .select('*, tenants(slug, name)')
+        .select('*, tenants(slug, name, tenant_settings(currency))')
         .eq('id', orderId)
         .single()
 
@@ -55,7 +57,7 @@ export default async function ConfirmationPage({
                 <p className="text-sm text-gray-500 mb-2">Order Details</p>
                 <p className="font-semibold text-gray-900">{order.tenants?.name}</p>
                 <p className="text-sm text-gray-600">
-                  Total: R$ {Number(order.total).toFixed(2).replace('.', ',')}
+                  Total: {formatPrice(Number(order.total ?? 0), embeddedCurrency(order.tenants))}
                 </p>
                 <p className="text-xs text-gray-400 mt-2">Order ID: {order.id.slice(0, 8)}...</p>
               </div>
@@ -112,7 +114,7 @@ export default async function ConfirmationPage({
   // (webhook should have updated it)
   const { data: order } = await supabase
     .from('orders')
-    .select('*, tenants(slug, name)')
+    .select('*, tenants(slug, name, tenant_settings(currency))')
     .eq('id', orderId)
     .single()
 
@@ -164,7 +166,7 @@ export default async function ConfirmationPage({
           <p className="text-sm text-gray-500 mb-2">Order Details</p>
           <p className="font-semibold text-gray-900">{order.tenants?.name}</p>
           <p className="text-sm text-gray-600">
-            Total: R$ {Number(order.total ?? 0).toFixed(2).replace('.', ',')}
+            Total: {formatPrice(Number(order.total ?? 0), embeddedCurrency(order.tenants))}
           </p>
           <p className="text-xs text-gray-400 mt-2">
             Status: {order.status}

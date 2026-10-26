@@ -5,6 +5,11 @@ import { revalidatePath } from 'next/cache'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { reconcileTenantSettings } from '@/lib/tenant-plan'
+import { getLiveStripeSubscription, PlanChangeError, swapStripeSubscriptionPlan } from '@/lib/plan-billing'
+
+const SUBSCRIPTION_STATUSES = ['active', 'trial', 'past_due', 'cancelled'] as const
+type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number]
 
 interface RouteParams {
   params: Promise<{ id: string }>
@@ -62,6 +67,7 @@ async function handlePUT(request: Request, { params }: RouteParams) {
   let body: {
     plan_id?: string
     billing_cycle?: 'monthly' | 'annual'
+    status?: SubscriptionStatus
     override_monthly_price?: number | null
     override_annual_price?: number | null
     override_transaction_fee_pct?: number | null
@@ -74,9 +80,16 @@ async function handlePUT(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { plan_id, billing_cycle, override_monthly_price, override_annual_price, override_transaction_fee_pct, override_notes } = body
+  const { plan_id, billing_cycle, status, override_monthly_price, override_annual_price, override_transaction_fee_pct, override_notes } = body
 
   // Validation
+  if (status !== undefined && !SUBSCRIPTION_STATUSES.includes(status)) {
+    return NextResponse.json({ error: 'Status must be active, trial, past_due or cancelled' }, { status: 400 })
+  }
+  if (billing_cycle !== undefined && billing_cycle !== 'monthly' && billing_cycle !== 'annual') {
+    return NextResponse.json({ error: 'Billing cycle must be monthly or annual' }, { status: 400 })
+  }
+
   if (override_monthly_price !== null && override_monthly_price !== undefined && override_monthly_price < 0) {
     return NextResponse.json({ error: 'Override monthly price must be non-negative' }, { status: 400 })
   }
@@ -92,15 +105,63 @@ async function handlePUT(request: Request, { params }: RouteParams) {
   // Check if subscription exists
   const { data: existing } = await service
     .from('tenant_subscriptions')
-    .select('id, plan_id')
+    .select('id, plan_id, billing_cycle, status, stripe_subscription_id')
     .eq('tenant_id', tenantId)
     .maybeSingle()
 
   const { data: selectedPlan } = plan_id
-    ? await service.from('plans').select('id, slug').eq('id', plan_id).eq('is_active', true).maybeSingle()
+    ? await service
+        .from('plans')
+        .select('id, slug, stripe_price_monthly_id, stripe_price_annual_id')
+        .eq('id', plan_id)
+        .eq('is_active', true)
+        .maybeSingle()
     : { data: null }
   if (plan_id && !selectedPlan) {
     return NextResponse.json({ error: 'Selected plan was not found or is inactive' }, { status: 400 })
+  }
+
+  const warnings: string[] = []
+
+  // A restaurant billed through Stripe: the plan and cycle it pays for live on
+  // the Stripe subscription, so a change made here swaps the Stripe price too
+  // (prorated). Otherwise the next Stripe webhook would put the old plan back.
+  const planChanged = Boolean(existing && plan_id !== undefined && plan_id !== existing.plan_id)
+  const cycleChanged = Boolean(existing && billing_cycle !== undefined && billing_cycle !== existing.billing_cycle)
+  if (existing?.stripe_subscription_id) {
+    let liveSubscription
+    try {
+      liveSubscription = await getLiveStripeSubscription(existing.stripe_subscription_id)
+    } catch (error) {
+      log.error('Failed to read Stripe subscription', { err: error, tenant_id: tenantId })
+      return NextResponse.json({ error: 'Could not reach Stripe. Nothing was changed.' }, { status: 502 })
+    }
+
+    if (liveSubscription && (planChanged || cycleChanged)) {
+      const targetPlan = selectedPlan ?? (await service
+        .from('plans')
+        .select('id, slug, stripe_price_monthly_id, stripe_price_annual_id')
+        .eq('id', existing.plan_id)
+        .maybeSingle()).data
+      if (!targetPlan) return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
+      try {
+        await swapStripeSubscriptionPlan({
+          subscription: liveSubscription,
+          tenantId,
+          plan: targetPlan,
+          cycle: billing_cycle ?? existing.billing_cycle,
+        })
+      } catch (error) {
+        if (error instanceof PlanChangeError) {
+          return NextResponse.json({ error: `${error.message} Nothing was changed.` }, { status: error.status })
+        }
+        throw error
+      }
+    }
+
+    if (liveSubscription && status !== undefined && status !== existing.status) {
+      warnings.push('This restaurant is still billed through Stripe: the status set here is overwritten by the next Stripe event. Cancel or pause the subscription in Stripe to make it stick.')
+    }
   }
 
   const updateData: Record<string, unknown> = {}
@@ -111,6 +172,10 @@ async function handlePUT(request: Request, { params }: RouteParams) {
 
   if (billing_cycle !== undefined) {
     updateData.billing_cycle = billing_cycle
+  }
+
+  if (status !== undefined) {
+    updateData.status = status
   }
 
   if (override_monthly_price !== undefined) {
@@ -158,7 +223,7 @@ async function handlePUT(request: Request, { params }: RouteParams) {
         tenant_id: tenantId,
         plan_id,
         billing_cycle: billing_cycle ?? 'monthly',
-        status: 'active',
+        status: status ?? 'active',
         override_monthly_price: override_monthly_price ?? null,
         override_annual_price: override_annual_price ?? null,
         override_transaction_fee_pct: override_transaction_fee_pct ?? null,
@@ -175,13 +240,21 @@ async function handlePUT(request: Request, { params }: RouteParams) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 
+  // The plan or status may have just dropped: switch off what the new
+  // ceiling no longer allows (stripe_connections and tables stay untouched).
+  const reconciled = await reconcileTenantSettings(tenantId, service)
+  if (!reconciled.ok) {
+    log.error('Failed to reconcile settings with plan', { err: reconciled.error, tenant_id: tenantId })
+    warnings.push('The plan was saved, but the restaurant switches could not be adjusted to it. Review them in Service switches.')
+  }
+
   // tenants.plan follows plan_id through the mirror_tenant_plan trigger.
   const { data: tenant } = await service.from('tenants').select('slug').eq('id', tenantId).maybeSingle()
   revalidatePath('/tenants')
   if (tenant?.slug) revalidatePath(`/${tenant.slug}`, 'layout')
   await enqueueXphereSync(tenantId, existing ? 'plan_changed' : 'plan_activated')
 
-  return NextResponse.json(data)
+  return NextResponse.json(warnings.length ? { ...data, warning: warnings.join(' ') } : data)
 }
 
 export const GET = withApi('GET /api/superadmin/tenants/[id]/subscription', handleGET)

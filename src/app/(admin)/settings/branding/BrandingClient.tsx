@@ -1,22 +1,19 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 import { compressImageForUpload } from '@/lib/media/client-compress'
 import Image from 'next/image'
 import { getInitials } from '@/lib/utils'
 import type { TenantSettings } from '@/types/database'
-import { Palette, ExternalLink, Camera, Image as ImageIcon, Share2, MessageCircle, ShoppingBag, CheckCircle2, AlertCircle, Save, Info, Type } from 'lucide-react'
+import Link from 'next/link'
+import { Palette, ExternalLink, Camera, Image as ImageIcon, Share2, MessageCircle, CheckCircle2, Save, Type } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { PLAN_FOR_MODE, SERVICE_MODE_LABELS, type ServiceMode } from '@/lib/service-modes'
 
 interface Props {
   settings: TenantSettings | null
   tenantId: string
   tenantSlug: string
   tenantName: string
-  /** The restaurant's plan and the richest ordering mode it allows (service-modes.ts). */
-  planName?: string | null
-  planMode?: ServiceMode
 }
 
 const CUISINE_PRESETS = [
@@ -28,16 +25,11 @@ const CUISINE_PRESETS = [
   { name: 'Default',   primary: '#F52323', accent: '#09090b' },
 ]
 
-export default function BrandingClient({ settings, tenantSlug, tenantName, planName = null, planMode = 'menu' }: Props) {
-  const selfOrderAllowed = planMode === 'self_service'
+export default function BrandingClient({ settings, tenantSlug, tenantName }: Props) {
   const [form, setForm] = useState({
     primary_color: settings?.primary_color ?? '#000000',
     accent_color: settings?.accent_color ?? '#FF5722',
     instagram: settings?.instagram ?? '',
-    whatsapp: settings?.whatsapp ?? '',
-    whatsapp_orders_enabled: settings?.whatsapp_orders_enabled ?? false,
-    orders_enabled: settings?.orders_enabled ?? true,
-    direct_orders_enabled: settings?.direct_orders_enabled ?? false,
     tagline: settings?.tagline ?? '',
   })
   const [logoUrl, setLogoUrl] = useState(settings?.logo_url ?? '')
@@ -304,7 +296,7 @@ export default function BrandingClient({ settings, tenantSlug, tenantName, planN
         </div>
 
         <div className="space-y-10">
-          {/* Social & Ordering */}
+          {/* Social */}
           <div className="bg-white border border-zinc-100 rounded-lg p-10 shadow-sm">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
@@ -312,91 +304,29 @@ export default function BrandingClient({ settings, tenantSlug, tenantName, planN
               </div>
               <h2 className="text-xl font-black text-zinc-950 tracking-tight">Connections</h2>
             </div>
-            <div className="space-y-8">
-              <div className="space-y-4">
+            <div className="space-y-6">
+              <div className="relative">
+                <label className={labelClassName}>Instagram Handle</label>
+                <div className="absolute left-5 top-11 text-zinc-400">
+                  <Camera className="w-5 h-5" />
+                </div>
                 <div className="relative">
-                  <label className={labelClassName}>WhatsApp Integration</label>
-                  <div className="absolute left-5 top-11 text-zinc-400">
-                    <MessageCircle className="w-5 h-5" />
-                  </div>
-                  <input 
-                    value={form.whatsapp}
-                    onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
-                    placeholder="e.g. 15550000000"
-                    className={cn(inputClassName, "pl-14")} 
+                  <span className="absolute left-11 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">@</span>
+                  <input
+                    value={form.instagram}
+                    onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))}
+                    placeholder="username"
+                    className={cn(inputClassName, "pl-14")}
                   />
-                  <p className="text-[9px] font-medium text-zinc-400 mt-2 ml-1 flex items-center gap-1.5">
-                    <Info className="w-3 h-3" />
-                    Format: Country Code + Area Code + Number
-                  </p>
-                </div>
-
-                <div className="relative">
-                  <label className={labelClassName}>Instagram Handle</label>
-                  <div className="absolute left-5 top-11 text-zinc-400">
-                    <Camera className="w-5 h-5" />
-                  </div>
-                  <div className="relative">
-                    <span className="absolute left-11 top-1/2 -translate-y-1/2 text-zinc-400 font-bold">@</span>
-                    <input 
-                      value={form.instagram}
-                      onChange={e => setForm(f => ({ ...f, instagram: e.target.value }))}
-                      placeholder="username"
-                      className={cn(inputClassName, "pl-14")} 
-                    />
-                  </div>
                 </div>
               </div>
-
-              <div className="pt-8 border-t border-zinc-50 space-y-6">
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                    <ShoppingBag className="w-4 h-4 text-primary" />
-                  </div>
-                  <h2 className="text-xl font-black text-zinc-950 tracking-tight">Ordering System</h2>
-                </div>
-
-                <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
-                  <span className="font-bold text-zinc-900">{planName ?? 'No plan'}</span> · {SERVICE_MODE_LABELS[planMode]}.
-                  {planMode !== 'self_service' && (
-                    <> Guest ordering from the menu needs the <span className="font-bold">{PLAN_FOR_MODE.self_service}</span> plan.</>
-                  )}
-                </div>
-
-                {[
-                  { key: 'orders_enabled', label: 'Master Order Control', desc: 'Global switch to enable/disable all order features' },
-                  { key: 'whatsapp_orders_enabled', label: 'Direct WhatsApp Checkout', desc: 'Let customers send their cart details via WhatsApp message' },
-                  { key: 'direct_orders_enabled', label: 'Guest ordering & payment', desc: 'Guests order from the menu and pay online when Stripe is connected' },
-                ].map(field => {
-                  // The plan is the ceiling: locked switches show off and can't be turned on.
-                  const locked = field.key === 'direct_orders_enabled' && !selfOrderAllowed
-                  const on = !locked && (form as any)[field.key]
-                  return (
-                  <div key={field.key} className={cn("flex items-center justify-between group p-4 rounded-lg transition-all", locked ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50 cursor-pointer")} onClick={() => { if (!locked) setForm(f => ({ ...f, [field.key]: !(f as any)[field.key] })) }}>
-                    <div className="max-w-[70%]">
-                      <p className="text-sm font-black text-zinc-950 uppercase tracking-tight">{(field as any).label}</p>
-                      <p className="text-[10px] text-zinc-500 font-medium leading-relaxed mt-0.5">
-                        {locked ? `Available on the ${PLAN_FOR_MODE.self_service} plan` : (field as any).desc}
-                      </p>
-                    </div>
-                    <button 
-                      type="button" 
-                      disabled={locked}
-                      aria-pressed={on}
-                      className={cn(
-                        "relative inline-flex h-7 w-12 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-300 focus:outline-none",
-                        on ? "bg-primary" : "bg-zinc-200"
-                      )}
-                    >
-                      <span className={cn(
-                        "inline-block h-6 w-6 transform rounded-full bg-white shadow-lg transition-transform duration-300",
-                        on ? "translate-x-5" : "translate-x-0"
-                      )} />
-                    </button>
-                  </div>
-                  )
-                })}
-              </div>
+              <p className="flex items-center gap-2 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
+                <MessageCircle className="w-4 h-4 shrink-0 text-zinc-400" />
+                <span>
+                  Your WhatsApp number and how guests order now live in{' '}
+                  <Link href="/settings/store" className="font-bold text-primary hover:underline">Store settings</Link>.
+                </span>
+              </p>
             </div>
           </div>
 

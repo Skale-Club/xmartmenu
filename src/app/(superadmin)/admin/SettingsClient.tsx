@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
+import { MAX_HERO_UPLOAD_BYTES, describeVideoSavings, heroVideoPathFromUrl } from '@/lib/media/hero-video'
 import {
   Settings,
   Globe,
@@ -108,28 +109,56 @@ function IconPicker({ value, onChange }: { value: string; onChange: (name: strin
 interface HeroAssetUploaderProps {
   type: 'image' | 'video'
   url: string
-  onUpload: (url: string) => void
+  /** `posterUrl` comes with a video: the frame cut by the encoder, for the image fallback. */
+  onUpload: (url: string, extra?: { posterUrl?: string | null }) => void
   dest?: string
 }
 
 function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps) {
   const [uploading, setUploading] = useState(false)
+  const [encoding, setEncoding] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [encodeNote, setEncodeNote] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const busy = uploading || encoding
+
+  // The landing video has its own encoding profile (src/lib/media/video.ts
+  // `hero`): a brand piece, not a dish clip. Raw exports never get published.
+  async function encodeHeroVideo(path: string) {
+    setEncoding(true)
+    setEncodeNote(null)
+    try {
+      const res = await fetch('/api/superadmin/platform/hero-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      })
+      const data = await res.json()
+      if (!res.ok) { setUploadError(data.error ?? 'Could not optimize the video'); return }
+      setEncodeNote(`Optimized: ${describeVideoSavings(data.original_bytes, data.bytes)}`)
+      onUpload(data.url, { posterUrl: data.poster_url ?? null })
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Could not optimize the video')
+    } finally {
+      setEncoding(false)
+    }
+  }
 
   async function handleFile(file: File) {
-    const maxBytes = type === 'image' ? 5 * 1024 * 1024 : 50 * 1024 * 1024
+    const maxBytes = type === 'image' ? 5 * 1024 * 1024 : MAX_HERO_UPLOAD_BYTES
     if (file.size > maxBytes) {
-      setUploadError(`File too large. Max ${type === 'image' ? '5 MB' : '50 MB'}.`)
+      setUploadError(`File too large. Max ${type === 'image' ? '5 MB' : `${MAX_HERO_UPLOAD_BYTES / 1024 / 1024} MB`}.`)
       return
     }
     setUploading(true)
     setUploadError(null)
+    setEncodeNote(null)
 
     try {
       if (type === 'video') {
-        // Get a signed URL and upload directly to Supabase — bypasses Next.js body size limits
-        const urlRes = await fetch('/api/superadmin/platform/video-upload-url')
+        // Signed PUT straight to storage (no body-size limit), into a staging
+        // key; the server then encodes it with the hero profile and publishes.
+        const urlRes = await fetch(`/api/superadmin/platform/video-upload-url?type=${encodeURIComponent(file.type)}`)
         const urlData = await urlRes.json()
         if (!urlRes.ok) { setUploadError(urlData.error ?? 'Failed to get upload URL'); setUploading(false); return }
 
@@ -140,7 +169,9 @@ function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps
         })
         if (!uploadRes.ok) { setUploadError('Video upload failed'); setUploading(false); return }
 
-        onUpload(`${urlData.publicUrl}?v=${Date.now()}`)
+        setUploading(false)
+        await encodeHeroVideo(urlData.path)
+        return
       } else {
         const form = new FormData()
         form.append('file', file)
@@ -184,12 +215,24 @@ function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
-              disabled={uploading}
+              disabled={busy}
               className="flex items-center gap-2 bg-white text-zinc-900 px-4 py-2 rounded-xl text-xs font-bold hover:bg-zinc-100 transition-colors"
             >
-              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-              {uploading ? 'Uploading...' : `Replace ${type}`}
+              {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+              {uploading ? 'Uploading...' : encoding ? 'Optimizing...' : `Replace ${type}`}
             </button>
+            {type === 'video' && heroVideoPathFromUrl(url) && (
+              <button
+                type="button"
+                onClick={() => encodeHeroVideo(heroVideoPathFromUrl(url)!)}
+                disabled={busy}
+                title="Re-encode the published video with the landing profile (up to 1080p, bitrate ceiling, muted)"
+                className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60"
+              >
+                {encoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                {encoding ? 'Optimizing...' : 'Optimize video'}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onUpload('')}
@@ -204,13 +247,13 @@ function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          disabled={uploading}
+          disabled={busy}
           className="w-full border-2 border-dashed border-zinc-200 rounded-2xl p-8 flex flex-col items-center gap-3 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group"
         >
-          {uploading ? (
+          {busy ? (
             <>
               <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
-              <p className="text-sm font-medium text-zinc-500">Uploading...</p>
+              <p className="text-sm font-medium text-zinc-500">{encoding ? 'Optimizing video...' : 'Uploading...'}</p>
             </>
           ) : (
             <>
@@ -223,7 +266,7 @@ function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps
                   Click to upload {type === 'image' ? 'image' : 'video'}
                 </p>
                 <p className="text-xs text-zinc-400 mt-1">
-                  {type === 'image' ? 'PNG, JPG, WebP · max 5MB' : 'MP4, WebM · max 50MB'}
+                  {type === 'image' ? 'PNG, JPG, WebP · max 5MB' : 'MP4, MOV, WebM · optimized on upload (1080p, muted)'}
                 </p>
               </div>
               <div className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold">
@@ -234,6 +277,9 @@ function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps
         </button>
       )}
 
+      {encodeNote && !uploadError && (
+        <p className="text-xs text-emerald-700 font-medium">{encodeNote}</p>
+      )}
       {uploadError && (
         <p className="text-xs text-red-600 font-medium flex items-center gap-1">
           <XCircle className="w-3.5 h-3.5" /> {uploadError}
@@ -538,7 +584,13 @@ export default function SettingsClient({ settings }: Props) {
                 <HeroAssetUploader
                   type="video"
                   url={hero.bg_video_url ?? ''}
-                  onUpload={url => setHero({ ...hero, bg_video_url: url })}
+                  onUpload={(url, extra) => setHero({
+                    ...hero,
+                    bg_video_url: url,
+                    // The encoder's first frame doubles as the fallback (and
+                    // the poster phones see) unless an image was chosen.
+                    bg_image_url: hero.bg_image_url || extra?.posterUrl || hero.bg_image_url,
+                  })}
                 />
                 <div className="space-y-2">
                   <label className={label}>

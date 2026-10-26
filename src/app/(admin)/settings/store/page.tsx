@@ -2,9 +2,9 @@ export const dynamic = 'force-dynamic'
 
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
-import { getTenantPlan } from '@/lib/tenant-plan'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
+import type { ServiceSettings } from '@/lib/service-modes'
 import StoreClient from './StoreClient'
-import { planServiceMode } from '@/lib/service-modes'
 
 export default async function StorePage() {
   const supabase = await createClient()
@@ -15,15 +15,13 @@ export default async function StorePage() {
     { data: settings },
     { data: stripeConnection },
     { data: tenant },
-    plan,
   ] = await Promise.all([
     supabase.from('tenant_settings').select('*').eq('tenant_id', tenantId).single(),
     supabase.from('stripe_connections').select('*').eq('tenant_id', tenantId).eq('is_active', true).single(),
     supabase.from('tenants').select('custom_domain, custom_domain_verified').eq('id', tenantId).single(),
-    getTenantPlan(tenantId),
   ])
 
-  const isPaymentsPlan = plan?.features.includes('payments') ?? false
+  const capabilities = await getTenantCapabilities(tenantId, (settings ?? null) as ServiceSettings | null)
 
   return (
     <StoreClient
@@ -32,8 +30,7 @@ export default async function StorePage() {
       tenantSlug={slug}
       stripeConnection={stripeConnection}
       tenant={tenant}
-      isPaymentsPlan={isPaymentsPlan}
-      planMode={planServiceMode(plan?.features)}
+      capabilities={capabilities}
     />
   )
 }

@@ -1,8 +1,8 @@
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { isStripeEnabled } from '@/lib/stripe'
-import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
-import { parseTableParam } from '@/lib/service-modes'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
+import { parseTableParam, type ServiceSettings, type TenantCapabilities } from '@/lib/service-modes'
 import { NextResponse } from 'next/server'
 import type { IngredientModifications } from '@/types/database'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
@@ -57,6 +57,38 @@ interface CreateOrderRequest {
 const ORDERS_WINDOW_MS = 2 * 24 * 60 * 60 * 1000 // 48h
 const ORDERS_MAX_ROWS = 500
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+const VALID_ORDER_TYPES = ['dine_in', 'pickup', 'delivery'] as const
+type OrderType = typeof VALID_ORDER_TYPES[number]
+
+const ORDER_TYPE_DISABLED: Record<OrderType, string> = {
+  dine_in: 'Dine-in orders are not enabled for this restaurant',
+  pickup: 'Pickup orders are not enabled for this restaurant',
+  delivery: 'Delivery orders are not enabled for this restaurant',
+}
+
+/** The order types a guest may pick, in checkout order. */
+function allowedGuestOrderTypes(caps: TenantCapabilities): OrderType[] {
+  const allowed: OrderType[] = []
+  if (caps.dineIn) allowed.push('dine_in')
+  if (caps.pickup) allowed.push('pickup')
+  if (caps.delivery) allowed.push('delivery')
+  return allowed
+}
+
+/**
+ * The caller has a phone-verified Supabase session: the same condition the
+ * public menu page uses to render a private menu.
+ */
+async function hasPhoneVerifiedSession(): Promise<boolean> {
+  try {
+    const cookieClient = await createClient()
+    const { data: { user } } = await cookieClient.auth.getUser()
+    return !!user?.phone
+  } catch {
+    return false
+  }
+}
 
 function sanitizeNote(raw: string | undefined | null): string | null {
   if (!raw) return null
@@ -126,26 +158,16 @@ async function handlePOST(request: Request) {
       }
     }
 
-    const VALID_ORDER_TYPES = ['dine_in', 'pickup', 'delivery'] as const
-    type OrderType = typeof VALID_ORDER_TYPES[number]
-    const orderType: OrderType = (rawOrderType && VALID_ORDER_TYPES.includes(rawOrderType as OrderType))
-      ? rawOrderType as OrderType
-      : 'dine_in'
-
-    const deliveryStreet = rawDeliveryStreet?.trim() || null
-    const deliveryAddress = deliveryStreet
-      ? [rawDeliveryStreet?.trim(), rawDeliveryZipcode?.trim(), rawDeliveryCity?.trim()].filter(Boolean).join(', ')
-      : (rawDeliveryAddress?.trim() || null)
-
-    if (orderType === 'delivery' && !deliveryStreet && !deliveryAddress) {
-      return NextResponse.json({ error: 'Delivery address is required for delivery orders' }, { status: 400 })
+    if (rawOrderType != null && rawOrderType !== '' && (typeof rawOrderType !== 'string' || !VALID_ORDER_TYPES.includes(rawOrderType as OrderType))) {
+      return NextResponse.json({ error: 'Invalid order type' }, { status: 400 })
     }
 
     const service = await createServiceClient()
 
     const { data: tenantSettings, error: tenantError } = await service
       .from('tenants')
-      .select('id, is_active, tenant_settings(orders_enabled, direct_orders_enabled, table_management_enabled, delivery_fee_cents)')
+      // The capability switches (resolveTenantCapabilities) plus the delivery fee.
+      .select('id, is_active, tenant_settings(orders_enabled, direct_orders_enabled, table_management_enabled, whatsapp_orders_enabled, whatsapp, tips_enabled, item_notes_enabled, ingredient_customization_enabled, dine_in_enabled, pickup_enabled, delivery_enabled, upsell_enabled, delivery_fee_cents)')
       .eq('id', tenant_id)
       .eq('is_active', true)
       .single()
@@ -153,7 +175,8 @@ async function handlePOST(request: Request) {
     if (tenantError || !tenantSettings) {
       return NextResponse.json({ error: 'Invalid tenant' }, { status: 400 })
     }
-    const settings = (tenantSettings.tenant_settings as any)
+    const rawSettings = tenantSettings.tenant_settings as unknown
+    const settings = (Array.isArray(rawSettings) ? rawSettings[0] : rawSettings) as (ServiceSettings & { delivery_fee_cents?: number | null }) | null | undefined
     if (!settings?.orders_enabled) {
       return NextResponse.json({ error: 'Orders not enabled for this tenant' }, { status: 403 })
     }
@@ -194,7 +217,7 @@ async function handlePOST(request: Request) {
     // waiter mode, guest orders the self-service mode — each also switched on
     // by the restaurant. Checked here so a stale page or a script can't order
     // around a menu-only plan.
-    const capabilities = await getTenantServiceCapabilities(tenant_id, settings, service)
+    const capabilities = await getTenantCapabilities(tenant_id, settings, service)
     if (isStaffOrder && !capabilities.waiterOrdering) {
       return NextResponse.json({ error: 'Waiter ordering is not enabled for this restaurant' }, { status: 403 })
     }
@@ -202,12 +225,59 @@ async function handlePOST(request: Request) {
       return NextResponse.json({ error: 'This restaurant does not take orders from the menu' }, { status: 403 })
     }
 
+    // Order type: guests may only use the types the restaurant switched on.
+    // Staff orders are taken at a table, so a table link always means dine-in;
+    // the guest checkout switches don't apply to them.
+    const requestedTableId = parseTableParam(rawTableId)
+    let orderType: OrderType
+    if (isStaffOrder) {
+      orderType = requestedTableId ? 'dine_in' : ((rawOrderType || 'dine_in') as OrderType)
+    } else {
+      const allowed = allowedGuestOrderTypes(capabilities)
+      if (rawOrderType) {
+        if (!allowed.includes(rawOrderType as OrderType)) {
+          return NextResponse.json({ error: ORDER_TYPE_DISABLED[rawOrderType as OrderType] }, { status: 400 })
+        }
+        orderType = rawOrderType as OrderType
+      } else if (allowed.length > 0) {
+        orderType = allowed[0]
+      } else {
+        return NextResponse.json({ error: 'This restaurant has no order type switched on' }, { status: 400 })
+      }
+    }
+
+    const deliveryStreet = rawDeliveryStreet?.trim() || null
+    const deliveryAddress = deliveryStreet
+      ? [rawDeliveryStreet?.trim(), rawDeliveryZipcode?.trim(), rawDeliveryCity?.trim()].filter(Boolean).join(', ')
+      : (rawDeliveryAddress?.trim() || null)
+
+    if (orderType === 'delivery' && !deliveryStreet && !deliveryAddress) {
+      return NextResponse.json({ error: 'Delivery address is required for delivery orders' }, { status: 400 })
+    }
+
+    // Guard tip against NaN/Infinity (garbage input would poison orderTotal into
+    // NaN → an opaque 500 on insert) and cap it to a sane ceiling. A tip is only
+    // accepted when the restaurant switched tips on.
+    const rawTip = Math.floor(Number(rawTipCents ?? 0))
+    const tipCents = Number.isFinite(rawTip) ? Math.min(Math.max(0, rawTip), 1_000_000) : 0
+    if (tipCents > 0 && !capabilities.tips) {
+      return NextResponse.json({ error: 'Tips are not enabled for this restaurant' }, { status: 400 })
+    }
+
+    // Item notes and ingredient changes only exist when switched on; anything a
+    // stale page sends otherwise is dropped (ingredient changes before pricing,
+    // so a dropped extra is never charged).
+    const acceptedItems: OrderItem[] = items.map((item) => ({
+      ...item,
+      notes: capabilities.itemNotes ? item.notes : undefined,
+      ingredient_modifications: capabilities.ingredientCustomization ? item.ingredient_modifications : null,
+    }))
+
     // Table: only a real, active table of this restaurant, and only for orders
     // eaten there. Its name comes from the database, never from the client;
     // staff may still type a free-text table when no id is sent.
     let tableId: string | null = null
     let tableName: string | null = isStaffOrder ? (rawTableName?.trim().slice(0, 80) || null) : null
-    const requestedTableId = parseTableParam(rawTableId)
     if (requestedTableId && orderType === 'dine_in') {
       const { data: table } = await service
         .from('restaurant_tables')
@@ -284,9 +354,11 @@ async function handlePOST(request: Request) {
 
     // SEED-019: apply price multiplier from private/in-store menu.
     // The multiplier is only honored when the referenced menu is active AND the
-    // caller is actually entitled to it: a private (in-store/staff) menu's
-    // multiplier must never be applied to an anonymous QR order, otherwise a
-    // customer who guesses a discounted menu's id buys everything at that price.
+    // caller is entitled to it. A private menu is shown (with multiplied
+    // prices) only to a phone-verified session — see the public menu page — so
+    // a guest order on it must come from such a session and pays the same
+    // prices the guest saw. Without one the order is refused instead of being
+    // priced differently from the page. Staff orders may always use it.
     let priceMultiplier = 1
     if (rawMenuId) {
       const { data: menuRow } = await service
@@ -294,14 +366,18 @@ async function handlePOST(request: Request) {
         .select('price_multiplier, is_active, is_private')
         .eq('id', rawMenuId)
         .eq('tenant_id', tenant_id)
-        .single()
-      const menuUsable = menuRow?.is_active !== false && (menuRow?.is_private !== true || isStaffOrder)
-      if (menuUsable && menuRow?.price_multiplier && menuRow.price_multiplier > 0) {
-        priceMultiplier = Number(menuRow.price_multiplier)
+        .maybeSingle()
+      if (menuRow && menuRow.is_active !== false) {
+        if (menuRow.is_private === true && !isStaffOrder && !(await hasPhoneVerifiedSession())) {
+          return NextResponse.json({ error: 'This menu requires signing in' }, { status: 403 })
+        }
+        if (menuRow.price_multiplier && Number(menuRow.price_multiplier) > 0) {
+          priceMultiplier = Number(menuRow.price_multiplier)
+        }
       }
     }
 
-    const trustedItems = items.map((item) => {
+    const trustedItems = acceptedItems.map((item) => {
       const basePrice = Number(priceById.get(item.product_id) ?? 0)
       const groups = groupsByProduct.get(item.product_id) ?? []
       const ingPrices = ingredientPricesByProduct.get(item.product_id) ?? new Map<string, { extra: number; add: number }>()
@@ -316,7 +392,7 @@ async function handlePOST(request: Request) {
     const total = trustedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
 
     let deliveryFeeCents = orderType === 'delivery'
-      ? Number((settings as any)?.delivery_fee_cents ?? 0)
+      ? Number(settings?.delivery_fee_cents ?? 0)
       : 0
     let resolvedZoneId: string | null = null
 
@@ -338,10 +414,6 @@ async function handlePOST(request: Request) {
       }
     }
 
-    // Guard tip against NaN/Infinity (garbage input would poison orderTotal into
-    // NaN → an opaque 500 on insert) and cap it to a sane ceiling.
-    const rawTip = Math.floor(Number(rawTipCents ?? 0))
-    const tipCents = Number.isFinite(rawTip) ? Math.min(Math.max(0, rawTip), 1_000_000) : 0
     const orderTotal = Number((total + deliveryFeeCents / 100 + tipCents / 100).toFixed(2))
 
     const locationId = rawLocationId ?? null
@@ -420,12 +492,17 @@ async function handleGET() {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const service = await createServiceClient()
+    const capabilities = await getTenantCapabilities(effective.tenantId, undefined, service)
+    if (!capabilities.kds) {
+      return NextResponse.json({ error: 'The kitchen display is part of the Menu + Orders plan' }, { status: 403 })
+    }
+
     // Bound the result: without a window + limit this returns the tenant's ENTIRE
     // order history (with items) on every 15s KDS poll, and PostgREST silently
     // truncates at 1000 rows — so past ~1000 orders the KDS would show an
     // arbitrary subset. A KDS is an operational board, so scope it to a recent
     // window plus a hard cap (most-recent first).
-    const service = await createServiceClient()
     const cutoff = new Date(Date.now() - ORDERS_WINDOW_MS).toISOString()
     const { data: orders, error: ordersError } = await service
       .from('orders')

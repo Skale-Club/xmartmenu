@@ -6,6 +6,7 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { parseCallStatus } from '@/lib/waiter-calls'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { withApi } from '@/lib/observability/with-api'
 
 export const dynamic = 'force-dynamic'
@@ -13,6 +14,11 @@ export const dynamic = 'force-dynamic'
 async function handlePATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const service = createServiceClient()
+  const capabilities = await getTenantCapabilities(effective.tenantId, undefined, service)
+  if (!capabilities.waiterCalls && !capabilities.kds) {
+    return NextResponse.json({ error: 'Waiter calls are part of the Menu + Orders plan' }, { status: 403 })
+  }
   const { id } = await params
   const body = (await request.json().catch(() => null)) as { status?: unknown } | null
   const status = parseCallStatus(body?.status)
@@ -23,7 +29,7 @@ async function handlePATCH(request: Request, { params }: { params: Promise<{ id:
   const patch = status === 'done'
     ? { status, done_at: now }
     : { status, acknowledged_at: now, acknowledged_by: user?.id ?? null }
-  const { data, error } = await createServiceClient()
+  const { data, error } = await service
     .from('waiter_calls')
     .update(patch)
     .eq('id', id)

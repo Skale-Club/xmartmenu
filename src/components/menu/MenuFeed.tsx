@@ -32,6 +32,8 @@ interface FeedProps {
   initialIndex?: number
   /** Reports the dish on screen, so the page can restore it. */
   onIndexChange?: (index: number) => void
+  /** The price as shown on the dish ("From $15.00" for a dish with sizes); defaults to its own price. */
+  priceLabel?: (product: Product) => string
 }
 
 export default function MenuFeed({
@@ -56,6 +58,7 @@ export default function MenuFeed({
   onMediaEvent,
   initialIndex = 0,
   onIndexChange,
+  priceLabel,
 }: FeedProps) {
   const copy = getMenuCopy(lang)
   const feedScrollerRef = useRef<HTMLDivElement | null>(null)
@@ -157,20 +160,23 @@ export default function MenuFeed({
 
                 <div className="flex items-end justify-between gap-5">
                   <h2 className="max-w-[72%] text-[clamp(1.75rem,8vw,2.65rem)] font-black leading-[0.95] tracking-[-0.045em] text-white drop-shadow-lg">{product.name}</h2>
-                  <p className="shrink-0 text-xl font-black tracking-tight text-white drop-shadow-lg">{formatMoney(product.price, currency, lang)}</p>
+                  <p className="shrink-0 text-xl font-black tracking-tight text-white drop-shadow-lg">{priceLabel ? priceLabel(product) : formatMoney(product.price, currency, lang)}</p>
                 </div>
 
                 {product.description ? <p className="mt-3 line-clamp-2 max-w-[90%] text-sm font-medium leading-relaxed text-white/75 drop-shadow">{product.description}</p> : null}
 
                 <div className="pointer-events-auto mt-5 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => onOpen(product)}
-                    aria-label={`View details for ${product.name}`}
-                    className="flex size-12 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-xl transition active:scale-90"
-                  >
-                    <Eye className="size-4" />
-                  </button>
+                  {/* View-only menu: "View dish" below is the one action. */}
+                  {directOrdersEnabled ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpen(product)}
+                      aria-label={`${copy.viewDish}: ${product.name}`}
+                      className="flex size-12 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-xl transition active:scale-90"
+                    >
+                      <Eye className="size-4" />
+                    </button>
+                  ) : null}
 
                   {directOrdersEnabled && quantity === 0 ? (
                     <button

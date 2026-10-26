@@ -1,6 +1,5 @@
 export const revalidate = 60
 
-import { cache } from 'react'
 import { notFound } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { sanitizeTenantForClient } from '@/lib/tenant-public'
@@ -8,12 +7,11 @@ import MenuPage from '@/components/menu/MenuPage'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import PrivateMenuWrapper from '@/components/menu/PrivateMenuWrapper'
 import type { Metadata } from 'next'
-import { hasAnyChannel, resolveChatChannels } from '@/lib/chat-channels'
-import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
+import { getTenantBySlug, loadPublicMenuData } from '@/lib/menu/public-menu-data'
 import { parseTableParam } from '@/lib/service-modes'
-import { canCallWaiter } from '@/lib/waiter-calls'
+import { effectiveMultiplier, scaleOptionGroups, scaleProductIngredients, scaleProducts } from '@/components/menu/price-multiplier'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
+import type { ProductIngredientWithIngredient } from '@/types/database'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import JsonLdScript from '@/components/seo/JsonLdScript'
 import {
@@ -34,17 +32,6 @@ interface Props {
   params: Promise<{ slug: string; menuSlug: string }>
   searchParams: Promise<{ lang?: string; view?: string; table?: string }>
 }
-
-const getTenantBySlug = cache(async (slug: string) => {
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from('tenants')
-    .select('*, tenant_settings(*)')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
-  return data
-})
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug, menuSlug } = await params
@@ -94,139 +81,37 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function PublicMenuSlugPage({ params, searchParams }: Props) {
   const { slug, menuSlug } = await params
   const { lang, view, table: tableParam } = await searchParams
-  const supabase = createServiceClient()
 
-  const tenant = await getTenantBySlug(slug)
-  if (!tenant) notFound()
+  // All queries in four parallel stages (src/lib/menu/public-menu-data.ts).
+  // LOC-03: the second segment is a location slug first, else a menu slug.
+  const data = await loadPublicMenuData({
+    slug,
+    menuSlug,
+    // The table this link belongs to (QR code / NFC tag: ?table=<id>): guests
+    // order to it, or call a waiter / ask for the bill from it.
+    tableId: parseTableParam(tableParam),
+    // Private menus gate on a phone-verified session (see below). Checked in
+    // parallel with the menu queries, only when the menu is private.
+    checkPrivateAccess: async () => {
+      const cookieClient = await createClient()
+      const { data: { user } } = await cookieClient.auth.getUser()
+      return !!user?.phone
+    },
+  })
+  if (data.kind !== 'menu') notFound()
 
-  // Phase 44: fetch platform footer brand
-  const { data: platformRow } = await supabase.from('platform_settings').select('menu_footer_brand').single()
-  const footerBrand = platformRow?.menu_footer_brand ?? 'XmartMenu'
+  const { tenant, menu, location, categories, products, capabilities, table } = data
 
-  // LOC-03: check if the second segment is a location slug first
-  const [{ data: locationCandidate }, { data: menuCandidate }] = await Promise.all([
-    supabase.from('locations').select('*').eq('tenant_id', tenant.id).eq('slug', menuSlug).eq('is_active', true).maybeSingle(),
-    supabase.from('menus').select('*').eq('tenant_id', tenant.id).eq('slug', menuSlug).eq('is_active', true).maybeSingle(),
-  ])
-
-  // Resolve which branch/menu to use
-  const location = locationCandidate ?? null
-  let menu: typeof menuCandidate = null
-
-  if (location) {
-    // It's a location slug — resolve its menu (custom or shared default)
-    if (location.menu_id) {
-      const { data: customMenu } = await supabase
-        .from('menus').select('*').eq('id', location.menu_id).eq('tenant_id', tenant.id).eq('is_active', true).maybeSingle()
-      menu = customMenu ?? null
-    }
-    if (!menu) {
-      const { data: defaultMenu } = await supabase
-        .from('menus').select('*').eq('tenant_id', tenant.id).eq('is_active', true).eq('is_default', true).maybeSingle()
-      menu = defaultMenu ?? null
-    }
-    if (!menu) {
-      const { data: fallbackMenu } = await supabase
-        .from('menus').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('position').limit(1).maybeSingle()
-      menu = fallbackMenu ?? null
-    }
-  } else if (menuCandidate) {
-    menu = menuCandidate
-  } else {
-    notFound()
-  }
-
-  const [{ data: categories }, { data: products }] = await Promise.all([
-    menu
-      ? supabase.from('categories').select('*').eq('menu_id', menu.id).eq('is_active', true).order('position')
-      : Promise.resolve({ data: [] }),
-    menu
-      ? supabase.from('products').select('*').eq('menu_id', menu.id).eq('is_available', true).order('position')
-      : Promise.resolve({ data: [] }),
-  ])
-
-  const productIds = (products ?? []).map(p => p.id)
-
-  // Option groups (sizes, flavours…) are part of the dish: shown even on a
-  // browse-only menu, and required before a dish with them can be ordered.
+  // SEED-019: a private/in-store menu scales every price on it the same way.
+  const priceMultiplier = effectiveMultiplier((menu as any)?.price_multiplier)
   const optionGroupsByProductId: Record<string, GroupWithOptions[]> = {}
-  if (productIds.length > 0) {
-    const { data: rawGroups } = await supabase
-      .from('product_option_groups')
-      .select('*, options:product_options(*)')
-      .in('product_id', productIds)
-      .order('position')
-      .order('position', { referencedTable: 'product_options' })
-
-    for (const group of rawGroups ?? []) {
-      const filtered: GroupWithOptions = {
-        ...group,
-        options: (group.options as GroupWithOptions['options']).filter(o => o.is_available),
-      }
-      if (!optionGroupsByProductId[group.product_id]) {
-        optionGroupsByProductId[group.product_id] = []
-      }
-      optionGroupsByProductId[group.product_id].push(filtered)
-    }
+  for (const [productId, groups] of Object.entries(data.optionGroupsByProductId)) {
+    optionGroupsByProductId[productId] = scaleOptionGroups(groups, priceMultiplier)
   }
-
-  const ingredientCustomizationEnabled =
-    tenant.tenant_settings?.ingredient_customization_enabled ?? false
-
   const productIngredientsByProductId: Record<string, ProductIngredientWithIngredient[]> = {}
-  if (ingredientCustomizationEnabled && productIds.length > 0) {
-    const { data: rawPIs } = await supabase
-      .from('product_ingredients')
-      .select('*, ingredient:ingredients(*)')
-      .in('product_id', productIds)
-      .order('position')
-
-    for (const pi of rawPIs ?? []) {
-      if (!productIngredientsByProductId[pi.product_id]) {
-        productIngredientsByProductId[pi.product_id] = []
-      }
-      productIngredientsByProductId[pi.product_id].push(pi as ProductIngredientWithIngredient)
-    }
+  for (const [productId, items] of Object.entries(data.productIngredientsByProductId)) {
+    productIngredientsByProductId[productId] = scaleProductIngredients(items, priceMultiplier)
   }
-
-  // SEED-024: chat addon status for the widget
-  const { getChatAddonStatus } = await import('@/lib/chat-addon')
-  const chatStatus = await getChatAddonStatus(tenant.id)
-  const { data: chatSettings } = chatStatus.enabled
-    ? await supabase.from('chat_addon_settings').select('audio_enabled, text_enabled').eq('tenant_id', tenant.id).maybeSingle()
-    : { data: null }
-  // Typed messages and voice notes are switched per restaurant; none = no chat box.
-  const chatChannels = resolveChatChannels(chatSettings)
-
-  // What the plan and the restaurant allow (service-modes.ts), and the table
-  // this link belongs to (QR code / NFC tag: ?table=<id>) when guests can order.
-  const serviceCapabilities = await getTenantServiceCapabilities(tenant.id, tenant.tenant_settings as any, supabase)
-  const tableId = parseTableParam(tableParam)
-  // A table link also lets guests call a waiter or ask for the bill (waiter-calls.ts).
-  const waiterCalls = canCallWaiter(serviceCapabilities)
-  const { data: table } = tableId && (serviceCapabilities.guestOrdering || waiterCalls)
-    ? await supabase.from('restaurant_tables').select('id, name').eq('id', tableId).eq('tenant_id', tenant.id).eq('is_active', true).maybeSingle()
-    : { data: null }
-
-  // SEED-021: fetch product media for all products on this menu
-  const productMediaByProductId: Record<string, ProductMedia[]> = {}
-  if (productIds.length > 0) {
-    const { data: rawMedia } = await supabase
-      .from('product_media')
-      .select('*')
-      .in('product_id', productIds)
-      .order('display_order')
-    for (const m of rawMedia ?? []) {
-      if (!productMediaByProductId[m.product_id]) productMediaByProductId[m.product_id] = []
-      productMediaByProductId[m.product_id].push(m as ProductMedia)
-    }
-  }
-
-  // Fetch active delivery zones for zone-based checkout pricing
-  const deliveryEnabled = (tenant.tenant_settings as any)?.delivery_enabled ?? false
-  const { data: deliveryZones } = deliveryEnabled
-    ? await supabase.from('delivery_zones').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
-    : { data: [] }
 
   // P0-08 round 2: scan recording moved client-side via <ScanRecorder /> —
   // this page is ISR-cached so a server insert here only fires per cache miss.
@@ -238,11 +123,8 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
   const currency = (tenant.tenant_settings as any)?.currency ?? 'USD'
 
-  // SEED-019: apply price multiplier from private/in-store menu
-  const priceMultiplier = (menu as any)?.price_multiplier ?? 1
-  const displayProducts = priceMultiplier !== 1 && priceMultiplier > 0
-    ? (products ?? []).map(p => ({ ...p, price: Math.round(p.price * priceMultiplier * 100) / 100 }))
-    : (products ?? [])
+  // SEED-019: dish prices on a private/in-store menu (options and ingredients scaled above).
+  const displayProducts = scaleProducts(products ?? [], priceMultiplier)
 
   const isPrivate = (menu as any)?.is_private ?? false
 
@@ -275,12 +157,8 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   // hiding it with a client overlay leaks the full "exclusive" menu + in-store
   // pricing to anyone who reads the response. When the caller is not
   // authenticated we render ONLY the lock screen and never build the menu.
-  let privateAuthed = false
-  if (isPrivate) {
-    const cookieClient = await createClient()
-    const { data: { user } } = await cookieClient.auth.getUser()
-    privateAuthed = !!user?.phone
-  }
+  // The session check ran in loadPublicMenuData (checkPrivateAccess).
+  const privateAuthed = isPrivate && data.privateAccess
 
   const menuPageEl = (
     <MenuPage
@@ -291,18 +169,17 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       location={location ? { id: location.id, name: location.name } : null}
       initialLanguage={lang}
       initialView={view === 'feed' || view === 'list' ? view : undefined}
-      footerBrand={footerBrand}
+      footerBrand={data.footerBrand}
       optionGroupsByProductId={optionGroupsByProductId}
-      ingredientCustomizationEnabled={ingredientCustomizationEnabled}
       productIngredientsByProductId={productIngredientsByProductId}
-      deliveryZones={(deliveryZones ?? []) as any}
-      productMediaByProductId={productMediaByProductId}
-      chatAddonEnabled={chatStatus.enabled && hasAnyChannel(chatChannels)}
-      chatAddonAudioEnabled={chatChannels.voice}
-      chatAddonTextEnabled={chatChannels.text}
-      guestOrderingEnabled={serviceCapabilities.guestOrdering}
-      table={serviceCapabilities.guestOrdering ? table ?? null : null}
-      waiterCallTable={waiterCalls ? table ?? null : null}
+      deliveryZones={data.deliveryZones}
+      productMediaByProductId={data.productMediaByProductId}
+      chatAddonEnabled={data.chatAddonEnabled}
+      chatAddonAudioEnabled={data.chatAddonAudioEnabled}
+      chatAddonTextEnabled={data.chatAddonTextEnabled}
+      capabilities={capabilities}
+      table={capabilities.guestOrdering ? table : null}
+      waiterCallTable={capabilities.waiterCalls ? table : null}
     />
   )
 

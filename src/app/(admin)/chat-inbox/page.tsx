@@ -11,7 +11,7 @@ export default async function ChatInboxPage() {
   if (effective.role === 'store-staff') redirect('/dashboard')
 
   const status = await getChatAddonStatus(effective.tenantId)
-  if (!status.available) redirect('/settings/chat')
+  if (!status.available) redirect('/dashboard')
 
   return <ChatInboxClient />
 }

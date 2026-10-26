@@ -37,6 +37,14 @@ export interface GuestCopy {
   waiterCalled: string
   billRequested: string
   callFailed: string
+  /** "From $15.00": the lowest price of a dish with sizes. */
+  fromPrice: string
+  contactTitle: string
+  callRestaurant: string
+  whatsappAsk: string
+  todayHours: string
+  closedNextHours: string
+  welcomeVoiceBrowse: string
 }
 
 const en: GuestCopy = {
@@ -52,6 +60,8 @@ const en: GuestCopy = {
   typeOrRecord: 'Type or record your order…', askMenu: 'Ask about our menu…', recordVoice: 'Record a voice message (up to {s} seconds)', send: 'Send',
   callWaiter: 'Call waiter', askBill: 'Ask for the bill', waiterCalled: 'A waiter is on the way', billRequested: 'The bill is on the way',
   callFailed: "Couldn't reach the staff. Please try again.",
+  fromPrice: "From {price}", contactTitle: "Questions? Contact the restaurant", callRestaurant: "Call", whatsappAsk: "Hi! I'd like to know more about {item}", todayHours: "Today: {text}", closedNextHours: "Closed · {day}: {text}",
+  welcomeVoiceBrowse: "Hi! I'm the {name} menu assistant. Tap the microphone and ask me anything about our dishes.",
 }
 
 const pt: GuestCopy = {
@@ -67,6 +77,8 @@ const pt: GuestCopy = {
   typeOrRecord: 'Digite ou grave seu pedido…', askMenu: 'Pergunte sobre o cardápio…', recordVoice: 'Gravar áudio (até {s} segundos)', send: 'Enviar',
   callWaiter: 'Chamar garçom', askBill: 'Pedir a conta', waiterCalled: 'Um garçom está a caminho', billRequested: 'A conta está a caminho',
   callFailed: 'Não conseguimos avisar a equipe. Tente de novo.',
+  fromPrice: "A partir de {price}", contactTitle: "Dúvidas? Fale com o restaurante", callRestaurant: "Ligar", whatsappAsk: "Olá! Gostaria de saber mais sobre {item}", todayHours: "Hoje: {text}", closedNextHours: "Fechado · {day}: {text}",
+  welcomeVoiceBrowse: "Oi! Sou o assistente do cardápio do {name}. Toque no microfone e pergunte o que quiser sobre os pratos.",
 }
 
 const es: GuestCopy = {
@@ -82,6 +94,8 @@ const es: GuestCopy = {
   typeOrRecord: 'Escribe o graba tu pedido…', askMenu: 'Pregunta por el menú…', recordVoice: 'Grabar audio (hasta {s} segundos)', send: 'Enviar',
   callWaiter: 'Llamar al camarero', askBill: 'Pedir la cuenta', waiterCalled: 'Un camarero va en camino', billRequested: 'La cuenta va en camino',
   callFailed: 'No pudimos avisar al personal. Inténtalo de nuevo.',
+  fromPrice: "Desde {price}", contactTitle: "¿Dudas? Contacta con el restaurante", callRestaurant: "Llamar", whatsappAsk: "¡Hola! Me gustaría saber más sobre {item}", todayHours: "Hoy: {text}", closedNextHours: "Cerrado · {day}: {text}",
+  welcomeVoiceBrowse: "¡Hola! Soy el asistente del menú de {name}. Toca el micrófono y pregúntame lo que quieras sobre los platos.",
 }
 
 const fr: GuestCopy = {
@@ -97,6 +111,8 @@ const fr: GuestCopy = {
   typeOrRecord: 'Écrivez ou dictez votre commande…', askMenu: 'Une question sur le menu…', recordVoice: "Enregistrer un message vocal (jusqu'à {s} secondes)", send: 'Envoyer',
   callWaiter: 'Appeler un serveur', askBill: "Demander l'addition", waiterCalled: 'Un serveur arrive', billRequested: "L'addition arrive",
   callFailed: "Impossible de prévenir l'équipe. Réessayez.",
+  fromPrice: "À partir de {price}", contactTitle: "Une question ? Contactez le restaurant", callRestaurant: "Appeler", whatsappAsk: "Bonjour ! J'aimerais en savoir plus sur {item}", todayHours: "Aujourd'hui : {text}", closedNextHours: "Fermé · {day} : {text}",
+  welcomeVoiceBrowse: "Bonjour ! Je suis l'assistant du menu de {name}. Touchez le micro et posez-moi vos questions sur nos plats.",
 }
 
 const de: GuestCopy = {
@@ -112,6 +128,8 @@ const de: GuestCopy = {
   typeOrRecord: 'Bestellung tippen oder aufnehmen…', askMenu: 'Frag etwas zum Menü…', recordVoice: 'Sprachnachricht aufnehmen (bis {s} Sekunden)', send: 'Senden',
   callWaiter: 'Kellner rufen', askBill: 'Rechnung bitte', waiterCalled: 'Ein Kellner ist unterwegs', billRequested: 'Die Rechnung kommt',
   callFailed: 'Das Personal konnte nicht benachrichtigt werden. Bitte erneut versuchen.',
+  fromPrice: "Ab {price}", contactTitle: "Fragen? Kontaktiere das Restaurant", callRestaurant: "Anrufen", whatsappAsk: "Hallo! Ich hätte gern mehr Infos zu {item}", todayHours: "Heute: {text}", closedNextHours: "Geschlossen · {day}: {text}",
+  welcomeVoiceBrowse: "Hallo! Ich bin der Menü-Assistent von {name}. Tippe auf das Mikrofon und frag mich alles über unsere Gerichte.",
 }
 
 const it: GuestCopy = {
@@ -127,6 +145,8 @@ const it: GuestCopy = {
   typeOrRecord: "Scrivi o registra l'ordine…", askMenu: 'Chiedi del menù…', recordVoice: 'Registra un vocale (fino a {s} secondi)', send: 'Invia',
   callWaiter: 'Chiama il cameriere', askBill: 'Chiedi il conto', waiterCalled: 'Un cameriere sta arrivando', billRequested: 'Il conto sta arrivando',
   callFailed: 'Non siamo riusciti ad avvisare il personale. Riprova.',
+  fromPrice: "Da {price}", contactTitle: "Domande? Contatta il ristorante", callRestaurant: "Chiama", whatsappAsk: "Ciao! Vorrei sapere di più su {item}", todayHours: "Oggi: {text}", closedNextHours: "Chiuso · {day}: {text}",
+  welcomeVoiceBrowse: "Ciao! Sono l'assistente del menu di {name}. Tocca il microfono e chiedimi qualsiasi cosa sui nostri piatti.",
 }
 
 const nl: GuestCopy = {
@@ -142,6 +162,8 @@ const nl: GuestCopy = {
   typeOrRecord: 'Typ of spreek je bestelling in…', askMenu: 'Vraag iets over het menu…', recordVoice: 'Spraakbericht opnemen (tot {s} seconden)', send: 'Versturen',
   callWaiter: 'Ober roepen', askBill: 'Om de rekening vragen', waiterCalled: 'Er komt een ober aan', billRequested: 'De rekening komt eraan',
   callFailed: 'We konden het personeel niet bereiken. Probeer het opnieuw.',
+  fromPrice: "Vanaf {price}", contactTitle: "Vragen? Neem contact op met het restaurant", callRestaurant: "Bellen", whatsappAsk: "Hallo! Ik wil graag meer weten over {item}", todayHours: "Vandaag: {text}", closedNextHours: "Gesloten · {day}: {text}",
+  welcomeVoiceBrowse: "Hallo! Ik ben de menu-assistent van {name}. Tik op de microfoon en vraag me alles over onze gerechten.",
 }
 
 const pl: GuestCopy = {
@@ -157,6 +179,8 @@ const pl: GuestCopy = {
   typeOrRecord: 'Wpisz lub nagraj zamówienie…', askMenu: 'Zapytaj o menu…', recordVoice: 'Nagraj wiadomość głosową (do {s} sekund)', send: 'Wyślij',
   callWaiter: 'Zawołaj kelnera', askBill: 'Poproś o rachunek', waiterCalled: 'Kelner już idzie', billRequested: 'Rachunek jest w drodze',
   callFailed: 'Nie udało się powiadomić obsługi. Spróbuj ponownie.',
+  fromPrice: "Od {price}", contactTitle: "Pytania? Skontaktuj się z restauracją", callRestaurant: "Zadzwoń", whatsappAsk: "Dzień dobry! Chcę dowiedzieć się więcej o: {item}", todayHours: "Dziś: {text}", closedNextHours: "Zamknięte · {day}: {text}",
+  welcomeVoiceBrowse: "Cześć! Jestem asystentem menu {name}. Dotknij mikrofonu i zapytaj o nasze dania.",
 }
 
 const tr: GuestCopy = {
@@ -172,6 +196,8 @@ const tr: GuestCopy = {
   typeOrRecord: 'Siparişinizi yazın veya kaydedin…', askMenu: 'Menü hakkında sorun…', recordVoice: 'Sesli mesaj kaydet (en fazla {s} saniye)', send: 'Gönder',
   callWaiter: 'Garson çağır', askBill: 'Hesabı iste', waiterCalled: 'Garson geliyor', billRequested: 'Hesap geliyor',
   callFailed: 'Personele ulaşılamadı. Lütfen tekrar deneyin.',
+  fromPrice: "{price} itibarıyla", contactTitle: "Sorunuz mu var? Restoranla iletişime geçin", callRestaurant: "Ara", whatsappAsk: "Merhaba! {item} hakkında bilgi almak istiyorum", todayHours: "Bugün: {text}", closedNextHours: "Kapalı · {day}: {text}",
+  welcomeVoiceBrowse: "Merhaba! {name} menü asistanıyım. Mikrofona dokunun ve yemeklerimiz hakkında istediğinizi sorun.",
 }
 
 const ru: GuestCopy = {
@@ -187,6 +213,8 @@ const ru: GuestCopy = {
   typeOrRecord: 'Напишите или продиктуйте заказ…', askMenu: 'Спросите о меню…', recordVoice: 'Записать голосовое (до {s} секунд)', send: 'Отправить',
   callWaiter: 'Позвать официанта', askBill: 'Попросить счёт', waiterCalled: 'Официант уже идёт', billRequested: 'Счёт скоро принесут',
   callFailed: 'Не удалось связаться с персоналом. Попробуйте ещё раз.',
+  fromPrice: "От {price}", contactTitle: "Есть вопросы? Свяжитесь с рестораном", callRestaurant: "Позвонить", whatsappAsk: "Здравствуйте! Хочу узнать подробнее: {item}", todayHours: "Сегодня: {text}", closedNextHours: "Закрыто · {day}: {text}",
+  welcomeVoiceBrowse: "Здравствуйте! Я помощник по меню {name}. Нажмите на микрофон и спросите что угодно о наших блюдах.",
 }
 
 const hi: GuestCopy = {
@@ -202,6 +230,8 @@ const hi: GuestCopy = {
   typeOrRecord: 'अपना ऑर्डर लिखें या बोलें…', askMenu: 'मेन्यू के बारे में पूछें…', recordVoice: 'वॉइस संदेश रिकॉर्ड करें ({s} सेकंड तक)', send: 'भेजें',
   callWaiter: 'वेटर को बुलाएँ', askBill: 'बिल माँगें', waiterCalled: 'वेटर आ रहा है', billRequested: 'बिल आ रहा है',
   callFailed: 'स्टाफ़ तक संदेश नहीं पहुँचा। फिर से कोशिश करें।',
+  fromPrice: "{price} से शुरू", contactTitle: "कोई सवाल? रेस्टोरेंट से संपर्क करें", callRestaurant: "कॉल करें", whatsappAsk: "नमस्ते! मैं {item} के बारे में और जानना चाहता हूँ", todayHours: "आज: {text}", closedNextHours: "बंद · {day}: {text}",
+  welcomeVoiceBrowse: "नमस्ते! मैं {name} का मेन्यू सहायक हूँ। माइक्रोफ़ोन टैप करें और हमारे व्यंजनों के बारे में कुछ भी पूछें।",
 }
 
 const ja: GuestCopy = {
@@ -217,6 +247,8 @@ const ja: GuestCopy = {
   typeOrRecord: 'ご注文を入力または録音…', askMenu: 'メニューについて質問…', recordVoice: 'ボイスメッセージを録音（最大{s}秒）', send: '送信',
   callWaiter: 'スタッフを呼ぶ', askBill: 'お会計をお願いする', waiterCalled: 'スタッフが向かっています', billRequested: 'お会計をお持ちします',
   callFailed: 'スタッフに通知できませんでした。もう一度お試しください。',
+  fromPrice: "{price}〜", contactTitle: "ご質問はお店へどうぞ", callRestaurant: "電話", whatsappAsk: "こんにちは！{item}について詳しく知りたいです", todayHours: "本日：{text}", closedNextHours: "営業時間外 · {day}：{text}",
+  welcomeVoiceBrowse: "こんにちは！{name}のメニューアシスタントです。マイクをタップして、料理について何でも聞いてください。",
 }
 
 const ko: GuestCopy = {
@@ -232,6 +264,8 @@ const ko: GuestCopy = {
   typeOrRecord: '주문을 입력하거나 녹음하세요…', askMenu: '메뉴에 대해 물어보세요…', recordVoice: '음성 메시지 녹음 (최대 {s}초)', send: '보내기',
   callWaiter: '직원 호출', askBill: '계산서 요청', waiterCalled: '직원이 가고 있어요', billRequested: '계산서를 가져다 드릴게요',
   callFailed: '직원에게 알리지 못했어요. 다시 시도해 주세요.',
+  fromPrice: "{price}부터", contactTitle: "궁금한 점은 매장에 문의하세요", callRestaurant: "전화", whatsappAsk: "안녕하세요! {item}에 대해 더 알고 싶어요", todayHours: "오늘: {text}", closedNextHours: "영업 종료 · {day}: {text}",
+  welcomeVoiceBrowse: "안녕하세요! {name} 메뉴 도우미입니다. 마이크를 누르고 메뉴에 대해 무엇이든 물어보세요.",
 }
 
 const zh: GuestCopy = {
@@ -247,6 +281,8 @@ const zh: GuestCopy = {
   typeOrRecord: '输入或录制您的订单…', askMenu: '咨询菜单…', recordVoice: '录制语音消息（最长 {s} 秒）', send: '发送',
   callWaiter: '呼叫服务员', askBill: '结账', waiterCalled: '服务员马上就到', billRequested: '账单马上送到',
   callFailed: '未能通知工作人员，请重试。',
+  fromPrice: "{price}起", contactTitle: "有疑问？联系餐厅", callRestaurant: "致电", whatsappAsk: "你好！我想了解一下{item}", todayHours: "今天：{text}", closedNextHours: "已打烊 · {day}：{text}",
+  welcomeVoiceBrowse: "你好！我是{name}的菜单助手。点按麦克风，关于菜品的任何问题都可以问我。",
 }
 
 const zhTW: GuestCopy = {
@@ -262,6 +298,8 @@ const zhTW: GuestCopy = {
   typeOrRecord: '輸入或錄製您的訂單…', askMenu: '詢問菜單…', recordVoice: '錄製語音訊息（最長 {s} 秒）', send: '傳送',
   callWaiter: '呼叫服務生', askBill: '結帳', waiterCalled: '服務生馬上就到', billRequested: '帳單馬上送到',
   callFailed: '未能通知工作人員，請再試一次。',
+  fromPrice: "{price}起", contactTitle: "有疑問？聯絡餐廳", callRestaurant: "撥打電話", whatsappAsk: "您好！我想了解一下{item}", todayHours: "今天：{text}", closedNextHours: "已打烊 · {day}：{text}",
+  welcomeVoiceBrowse: "您好！我是{name}的菜單助理。點按麥克風，關於菜色的任何問題都可以問我。",
 }
 
 const COPY: Record<string, GuestCopy> = { en, pt, es, fr, de, it, nl, pl, tr, ru, hi, ja, ko, zh, 'zh-TW': zhTW }

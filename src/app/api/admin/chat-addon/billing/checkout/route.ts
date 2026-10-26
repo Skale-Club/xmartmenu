@@ -13,12 +13,19 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getChatAddonStatus } from '@/lib/chat-addon'
 import { withApi } from '@/lib/observability/with-api'
 
 async function createSession() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  // Only plans that offer the add-on may buy it.
+  const addon = await getChatAddonStatus(effective.tenantId)
+  if (!addon.available) {
+    return NextResponse.json({ error: 'The AI chat add-on is not available on your plan' }, { status: 403 })
+  }
 
   const priceId = process.env.STRIPE_CHAT_ADDON_PRICE_ID
   if (!priceId) {

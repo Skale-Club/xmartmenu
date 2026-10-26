@@ -3,6 +3,9 @@ import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { getTenantPlan } from '@/lib/tenant-plan'
+import { PAYMENTS_ONLY_SETTINGS, ORDERS_ONLY_SETTINGS } from '@/lib/plan-settings'
+import { planCeiling, PLAN_FOR_MODE } from '@/lib/service-modes'
 
 async function handleGET(
   _req: Request,
@@ -37,7 +40,7 @@ async function handlePATCH(
     'red_threshold_minutes', 'business_type', 'tagline', 'about', 'dine_in_enabled',
     'pickup_enabled', 'delivery_enabled', 'pickup_eta_minutes', 'delivery_fee_cents',
     'tips_enabled', 'tip_percentage_1', 'tip_percentage_2', 'tip_percentage_3',
-    'table_management_enabled',
+    'table_management_enabled', 'upsell_enabled',
   ] as const
   const update: Record<string, unknown> = {}
   for (const key of ALLOWED_FIELDS) {
@@ -53,6 +56,22 @@ async function handlePATCH(
   }
 
   const service = await createServiceClient()
+
+  // A switch above the plan's ceiling cannot be turned on (it can always be
+  // turned off): guest ordering extras need the payments plan, tables the orders plan.
+  const wantsOn = (key: string) => update[key] === true
+  const needsPayments = PAYMENTS_ONLY_SETTINGS.filter(wantsOn)
+  const needsOrders = ORDERS_ONLY_SETTINGS.filter(wantsOn)
+  if (needsPayments.length > 0 || needsOrders.length > 0) {
+    const plan = await getTenantPlan(id, service).catch(() => null)
+    const ceiling = planCeiling(plan?.features ?? null)
+    if (needsPayments.length > 0 && !ceiling.payments) {
+      return NextResponse.json({ error: `${needsPayments.join(', ')} need the ${PLAN_FOR_MODE.self_service} plan (or an active subscription).` }, { status: 403 })
+    }
+    if (needsOrders.length > 0 && !ceiling.orders) {
+      return NextResponse.json({ error: `${needsOrders.join(', ')} need the ${PLAN_FOR_MODE.waiter} plan or higher (or an active subscription).` }, { status: 403 })
+    }
+  }
 
   const { data, error } = await service
     .from('tenant_settings')

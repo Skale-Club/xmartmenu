@@ -19,7 +19,7 @@
 import { NextResponse } from 'next/server'
 import { openRouterModel } from '@/lib/ai/openrouter'
 import { resolveAiAccess, runAi } from '@/lib/ai/access'
-import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { hasAnyChannel, resolveChatChannels, verifyVoiceTranscript } from '@/lib/chat-channels'
 import { createServiceClient } from '@/lib/supabase/server'
 import { voiceTokenSecret } from '@/lib/crypto'
@@ -51,6 +51,8 @@ interface ChatRequestBody {
   // What the customer is looking at; both are re-checked against the tenant.
   menu_id?: string | null
   location_id?: string | null
+  /** restaurant_tables.id when the guest opened a table link (?table=). */
+  table_id?: string | null
   // Older widget builds still post the whole transcript; only its last user
   // turn is read.
   messages?: Array<{ role: string; content: string }>
@@ -161,10 +163,13 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
   const rawSettings = (tenant.tenant_settings as any) ?? {}
   // Same rule as the menu page and checkout: the cart only exists when the plan
   // allows guest orders and the restaurant switched them on (service-modes.ts).
-  const serviceCapabilities = await getTenantServiceCapabilities(tenant.id, rawSettings, supabase)
-  const settingsRow = { ...rawSettings, direct_orders_enabled: serviceCapabilities.guestOrdering }
+  const capabilities = await getTenantCapabilities(tenant.id, rawSettings, supabase)
+  const settingsRow = { ...rawSettings, direct_orders_enabled: capabilities.guestOrdering }
   // Same gate as the menu page (cart visible) and checkout (orders accepted).
-  const canAddToCart = resolveOrderingMode(settingsRow) === 'cart'
+  const canAddToCart = resolveOrderingMode(settingsRow, capabilities) === 'cart'
+  // The guest opened the menu from a table link: the assistant may point them
+  // to "Call waiter" instead of a cart that does not exist on this plan.
+  const atTable = typeof body?.table_id === 'string' && body.table_id.length > 0
   const menuId = typeof body?.menu_id === 'string' ? body.menu_id : null
   const locationId = typeof body?.location_id === 'string' ? body.location_id : null
 
@@ -182,7 +187,7 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
       .eq('tenant_id', tenant.id)
       .eq('is_active', true)
       .order('name'),
-    settingsRow.delivery_enabled
+    capabilities.delivery
       ? supabase.from('delivery_zones').select('name, fee_cents').eq('tenant_id', tenant.id).eq('is_active', true).order('name')
       : Promise.resolve({ data: [] as Array<{ name: string; fee_cents: number }> }),
     canAddToCart ? isStripeEnabled(tenant.id, supabase).catch(() => false) : Promise.resolve(false),
@@ -224,7 +229,7 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
     name: tenant.name,
     profile,
     menuContext: formatMenuContext(catalog),
-    ordering: describeOrdering(settingsRow, { onlinePayment, deliveryZones: zones ?? [] }),
+    ordering: describeOrdering(settingsRow, { onlinePayment, deliveryZones: zones ?? [], capabilities, atTable }),
     canAddToCart,
     cart: body?.cart === undefined ? null : parseCartSnapshot(body.cart),
     guestLanguage: typeof body?.language === 'string' && (MENU_LANGUAGE_CODES as readonly string[]).includes(body.language)
