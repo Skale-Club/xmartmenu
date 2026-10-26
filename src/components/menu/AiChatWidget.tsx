@@ -29,6 +29,10 @@ interface Props {
   language?: string
   /** What is in the cart now, so the assistant does not re-add it and can suggest the rest. */
   cart?: CartSnapshotItem[] | null
+  /** Guests can order on this menu; off (showcase) the box only answers questions about the menu. */
+  canOrder?: boolean
+  /** restaurant_tables.id when the guest opened a table link. */
+  tableId?: string | null
 }
 
 // Server-side cap (MAX_USER_MESSAGE_CHARS in chat-agent.ts).
@@ -53,7 +57,7 @@ interface Message {
 
 const SESSION_KEY_PREFIX = 'aiChat:'
 
-export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false, language = 'en', cart = null }: Props) {
+export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false, language = 'en', cart = null, canOrder = true, tableId = null }: Props) {
   const copy = getGuestCopy(language)
   const [open, setOpen] = useState(false)
   const [phone, setPhone] = useState('')
@@ -129,7 +133,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
     setMessages([{
       id: 'welcome',
       role: 'assistant',
-      content: fill(textEnabled ? copy.welcomeText : copy.welcomeVoice, { name: tenantName }),
+      content: fill(textEnabled ? copy.welcomeText : canOrder ? copy.welcomeVoice : copy.welcomeVoiceBrowse, { name: tenantName }),
     }])
   }
 
@@ -147,7 +151,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Only the new message: the server rebuilds the history from what it stored.
-      body: JSON.stringify({ conversation_id: conversationId, message: text.trim(), menu_id: menuId, location_id: locationId, voice_token: voiceToken, language, ...(cart ? { cart } : {}) }),
+      body: JSON.stringify({ conversation_id: conversationId, message: text.trim(), menu_id: menuId, location_id: locationId, table_id: tableId, voice_token: voiceToken, language, ...(cart ? { cart } : {}) }),
     })
 
     if (!res.ok) {
@@ -162,7 +166,8 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
     // price were resolved by the server from the menu, exactly as the product
     // modal would build them.
     const addedItems: Array<{ name: string; quantity: number }> = []
-    for (const item of data.cart_items ?? []) {
+    // A view-only menu has no cart: nothing the server returns is added.
+    for (const item of canOrder ? data.cart_items ?? [] : []) {
       const product = products.find((p) => p.id === item.product_id)
       if (product) {
         for (let i = 0; i < item.quantity; i++) {
@@ -428,7 +433,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                     }}
                     rows={1}
                     maxLength={MAX_MESSAGE_CHARS}
-                    placeholder={transcribing ? copy.transcribing : audioEnabled ? copy.typeOrRecord : copy.askMenu}
+                    placeholder={transcribing ? copy.transcribing : audioEnabled && canOrder ? copy.typeOrRecord : copy.askMenu}
                     disabled={sending || transcribing}
                     className="flex-1 px-3 py-2 border border-zinc-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:bg-zinc-50 max-h-24"
                   />

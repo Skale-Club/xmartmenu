@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 
@@ -37,6 +38,17 @@ async function handlePATCH(request: Request) {
   }
 
   const service = createServiceClient()
+  if (parsed.data.upsell_enabled === true) {
+    // Only the plan matters here (settings don't change the ceiling).
+    const capabilities = await getTenantCapabilities(effective.tenantId, null, service)
+    if (!capabilities.plan.payments) {
+      return NextResponse.json(
+        { error: 'Order suggestions are part of the Menu + Payments plan', locked: ['upsell_enabled'] },
+        { status: 403 },
+      )
+    }
+  }
+
   const { data, error } = await service
     .from('tenant_settings')
     .upsert({

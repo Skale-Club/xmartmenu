@@ -9,6 +9,7 @@ import Stripe from 'stripe'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getTenantPlan } from '@/lib/tenant-plan'
+import { planCeiling } from '@/lib/service-modes'
 
 let stripeClient: Stripe | null = null
 
@@ -98,7 +99,7 @@ export async function isStripeEnabled(tenantId: string, client?: SupabaseClient)
   const plan = await getTenantPlan(tenantId, supabase)
 
   if (!plan) return false
-  if (!plan.features.includes('stripe-connect')) return false
+  if (!planCeiling(plan.features).stripe) return false
 
   // Check for active Stripe connection
   const { data } = await supabase
@@ -139,7 +140,7 @@ export async function getStripeConnection(tenantId: string, client?: SupabaseCli
 export async function hasStripeConnectFeature(tenantId: string, client?: SupabaseClient): Promise<boolean> {
   const plan = await getTenantPlan(tenantId, client ?? createServiceClient())
   if (!plan) return false
-  return plan.features.includes('stripe-connect')
+  return planCeiling(plan.features).stripe
 }
 
 // Types for PaymentIntent operations
@@ -181,7 +182,7 @@ export async function createPaymentIntent(params: {
 
   // 2. Get transaction fee from plan
   const plan = await getTenantPlan(params.tenantId, supabase)
-  if (!plan || !plan.features.includes('payments')) {
+  if (!plan || !planCeiling(plan.features).payments) {
     throw new Error('Payments not available on current plan')
   }
 

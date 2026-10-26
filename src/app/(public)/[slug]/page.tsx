@@ -10,9 +10,8 @@ import ScanRecorder from '@/components/menu/ScanRecorder'
 import JsonLdScript from '@/components/seo/JsonLdScript'
 import type { Metadata } from 'next'
 import { hasAnyChannel, resolveChatChannels } from '@/lib/chat-channels'
-import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { parseTableParam } from '@/lib/service-modes'
-import { canCallWaiter } from '@/lib/waiter-calls'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
@@ -163,8 +162,11 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     products = response[1].data ?? []
   }
 
-  const ingredientCustomizationEnabled =
-    (tenant.tenant_settings as any)?.ingredient_customization_enabled ?? false
+  // What the plan and the restaurant allow (service-modes.ts), computed once:
+  // every switch below (ingredients, delivery, table link…) reads it.
+  const capabilities = await getTenantCapabilities(tenant.id, tenant.tenant_settings as any, supabase)
+  // Ingredient add/remove only exists while ordering (guest checkout or waiter app).
+  const ingredientCustomizationEnabled = capabilities.ingredientCustomization
   const productIds = products.map((p: any) => p.id)
 
   // Option groups (sizes, flavours…) are part of the dish: shown even on a
@@ -215,14 +217,10 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   // Typed messages and voice notes are switched per restaurant; none = no chat box.
   const chatChannels = resolveChatChannels(chatSettings)
 
-  // What the plan and the restaurant allow (service-modes.ts), and the table
-  // this link belongs to (QR code / NFC tag: ?table=<id>) when guests can order.
-  const serviceCapabilities = await getTenantServiceCapabilities(tenant.id, tenant.tenant_settings as any, supabase)
+  // The table this link belongs to (QR code / NFC tag: ?table=<id>): guests
+  // order to it, or call a waiter / ask for the bill from it.
   const tableId = parseTableParam(tableParam)
-  // A table link also lets guests call a waiter or ask for the bill whenever
-  // the restaurant serves at the table (waiter-calls.ts).
-  const waiterCalls = canCallWaiter(serviceCapabilities)
-  const { data: table } = tableId && (serviceCapabilities.guestOrdering || waiterCalls)
+  const { data: table } = tableId && (capabilities.guestOrdering || capabilities.waiterCalls)
     ? await supabase.from('restaurant_tables').select('id, name').eq('id', tableId).eq('tenant_id', tenant.id).eq('is_active', true).maybeSingle()
     : { data: null }
 
@@ -240,9 +238,8 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     }
   }
 
-  // Fetch active delivery zones for zone-based checkout pricing
-  const deliveryEnabled = (tenant.tenant_settings as any)?.delivery_enabled ?? false
-  const { data: deliveryZones } = deliveryEnabled
+  // Active delivery zones for zone-based checkout pricing — only when guests can order delivery.
+  const { data: deliveryZones } = capabilities.delivery
     ? await supabase.from('delivery_zones').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
     : { data: [] }
 
@@ -276,16 +273,15 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
         initialView={view === 'feed' || view === 'list' ? view : undefined}
         footerBrand={footerBrand}
         optionGroupsByProductId={optionGroupsByProductId}
-        ingredientCustomizationEnabled={ingredientCustomizationEnabled}
         productIngredientsByProductId={productIngredientsByProductId}
         deliveryZones={(deliveryZones ?? []) as any}
         productMediaByProductId={productMediaByProductId}
         chatAddonEnabled={chatStatus.enabled && hasAnyChannel(chatChannels)}
         chatAddonAudioEnabled={chatChannels.voice}
         chatAddonTextEnabled={chatChannels.text}
-        guestOrderingEnabled={serviceCapabilities.guestOrdering}
-        table={serviceCapabilities.guestOrdering ? table ?? null : null}
-        waiterCallTable={waiterCalls ? table ?? null : null}
+        capabilities={capabilities}
+        table={capabilities.guestOrdering ? table ?? null : null}
+        waiterCallTable={capabilities.waiterCalls ? table ?? null : null}
       />
     </>
   )

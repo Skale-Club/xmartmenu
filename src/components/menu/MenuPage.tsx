@@ -12,20 +12,26 @@ import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { type CartItem, type CartAddedVia, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed, summarizeOptions } from './menu-utils'
 import { getGuestCopy } from './guest-copy'
 import WaiterCallButtons from './WaiterCallButtons'
-import { fill, formatClock, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, menuLanguage, translateTag, type MenuCopy } from './menu-i18n'
-import { computeOpenState, resolveTimeZone, type OpenState } from '@/lib/chat-context'
+import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, menuLanguage, translateTag } from './menu-i18n'
+import { computeOpenState, resolveTimeZone } from '@/lib/chat-context'
+import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
+import { contactLinks, displayPrice, whatsappUrl } from './showcase'
+import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
   CART_TTL_MS,
   browserStorage,
   cartStorageKey,
+  checkoutFields,
+  defaultOrderTypeFor,
   isDraftEmpty,
   normalizeScreenState,
   readStored,
   removeStored,
   resolveInitialView,
   restoreCart,
+  sanitizeScreenState,
   serializeCart,
   sessionStorageKey,
   urlWithView,
@@ -93,7 +99,6 @@ interface Props {
   initialView?: 'list' | 'feed'
   footerBrand?: string
   optionGroupsByProductId?: Record<string, GroupWithOptions[]>
-  ingredientCustomizationEnabled?: boolean
   productIngredientsByProductId?: Record<string, ProductIngredientWithIngredient[]>
   deliveryZones?: DeliveryZone[]
   productMediaByProductId?: Record<string, ProductMedia[]>
@@ -101,8 +106,12 @@ interface Props {
   chatAddonAudioEnabled?: boolean
   /** Typed messages in the AI chat (the restaurant can allow voice notes only). */
   chatAddonTextEnabled?: boolean
-  /** Guests may order from this menu: the plan allows it and the restaurant turned it on (service-modes.ts). */
-  guestOrderingEnabled?: boolean
+  /**
+   * What the plan and the restaurant allow right now (service-modes.ts
+   * TenantCapabilities): guest ordering, order types, tips, notes, ingredients,
+   * WhatsApp orders. Without it the menu is a showcase.
+   */
+  capabilities?: TenantCapabilities
   /** The table this link belongs to (QR code / NFC tag ?table=), when guests can order. */
   table?: { id: string; name: string } | null
   /** The table this link belongs to, when the restaurant serves at the table: guests can call a waiter or ask for the bill. */
@@ -120,7 +129,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, ingredientCustomizationEnabled = false, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true, guestOrderingEnabled = false, table = null, waiterCallTable = null }: Props) {
+export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true, capabilities = NO_CAPABILITIES, table = null, waiterCallTable = null }: Props) {
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
   const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
@@ -145,10 +154,13 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
     getServerMobileViewportSnapshot,
   )
   const activeMenuView = isMobileViewport ? menuView : 'list'
+  // Decided on the server from the plan and the restaurant's switches.
+  const directOrdersEnabled = capabilities.guestOrdering
+  const ingredientCustomizationEnabled = capabilities.ingredientCustomization
+  const orderingTable = directOrdersEnabled ? table : null
+  const atTable = !!orderingTable
   // A table link means the guest is eating here: the order goes to that table.
-  const defaultOrderType = table || (tenant.tenant_settings?.dine_in_enabled ?? true) ? 'dine_in'
-    : (tenant.tenant_settings?.pickup_enabled ?? false) ? 'pickup'
-    : 'delivery'
+  const defaultOrderType: string = defaultOrderTypeFor(capabilities, atTable)
   const [search, setSearch] = useState('')
   // Tabs scroll to a section instead of filtering; the list is never narrowed to one category.
   const activeCategory: string | null = null
@@ -184,7 +196,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const [orderError, setOrderError] = useState<string | null>(null)
   const [orderId, setOrderId] = useState<string | null>(null)
   const [confirmedCart, setConfirmedCart] = useState<CartItem[]>([])
-  const [orderType, setOrderType] = useState(defaultOrderType)
+  const [orderType, setOrderType] = useState<string>(defaultOrderType)
   const [deliveryStreet, setDeliveryStreet] = useState('')
   const [deliveryComplement, setDeliveryComplement] = useState('')
   const [deliveryZipcode, setDeliveryZipcode] = useState('')
@@ -201,17 +213,14 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const settings = tenant.tenant_settings
   const primaryColor = settings?.primary_color ?? '#F52323'
   const accentColor = settings?.accent_color ?? '#09090b'
-  const ordersEnabled = settings?.orders_enabled ?? true
-  const whatsapp = (ordersEnabled && settings?.whatsapp_orders_enabled) ? settings?.whatsapp : null
+  // "Order on WhatsApp" on each dish (any plan, needs a number).
+  const whatsapp = capabilities.whatsappOrders ? settings?.whatsapp ?? null : null
   const currency = settings?.currency ?? 'USD'
-  const dineInEnabled = settings?.dine_in_enabled ?? true
-  const pickupEnabled = settings?.pickup_enabled ?? false
-  const deliveryEnabled = settings?.delivery_enabled ?? false
   const deliveryFeeCents = settings?.delivery_fee_cents ?? 0
-  const orderTypeConfig = table
+  const orderTypeConfig = atTable
     ? { dineIn: true, pickup: false, delivery: false, deliveryFeeCents }
-    : { dineIn: dineInEnabled, pickup: pickupEnabled, delivery: deliveryEnabled, deliveryFeeCents }
-  const tipsEnabled = settings?.tips_enabled ?? false
+    : { dineIn: capabilities.dineIn, pickup: capabilities.pickup, delivery: capabilities.delivery, deliveryFeeCents }
+  const tipsEnabled = capabilities.tips
   const analyticsEnabled = settings?.analytics_enabled ?? true
   const feedAutoplayVideos = settings?.feed_autoplay_videos ?? true
   const tipPercentages: [number, number, number] = [
@@ -222,6 +231,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const featured = products.filter(p => p.is_featured)
   const supportedLanguages = menu?.supported_languages?.length ? menu.supported_languages : [menu?.language ?? 'en']
   const copy = getMenuCopy(selectedLanguage)
+  const guestCopy = getGuestCopy(selectedLanguage)
   const menuTitle = getTranslatedMenuField(menu, selectedLanguage, 'name', menu?.name ?? tenant.name)
 
   // The guest's language: ?lang= (also written on change, so a reload keeps
@@ -293,23 +303,26 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   // Flat list in display order — used for prev/next navigation inside the product modal.
   const orderedProducts = [...groupedByCategory.flatMap(g => g.items), ...uncategorized]
 
-  function openWhatsApp(product: Product) {
-    if (!whatsapp) return
-    const msg = encodeURIComponent(fill(copy.whatsappMessage, { item: `${baseName(product)} · ${formatMoney(product.price, currency, selectedLanguage)}` }))
-    window.open(`https://wa.me/${whatsapp}?text=${msg}`, '_blank')
+  /** `item` names the dish with the choices made (ProductModal). */
+  function openWhatsApp(item: string) {
+    const url = whatsappUrl(whatsapp, fill(copy.whatsappMessage, { item }))
+    if (url) window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  // Decided on the server from the plan and the restaurant's switches.
-  const directOrdersEnabled = guestOrderingEnabled
-  const orderingTable = directOrdersEnabled ? table : null
-  // At a table the order is always eaten there, whatever an older draft said.
-  const checkoutOrderType = orderingTable ? 'dine_in' : orderType
+  // The order type, delivery fields and tip actually sent: dine_in at a table,
+  // and only what the plan and the restaurant allow (menu-session.ts).
+  const orderFields = checkoutFields(
+    { orderType, deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, tipCents },
+    capabilities,
+    atTable,
+  )
+  const checkoutOrderType = orderFields.order_type
 
   // ── "Complete your order" (see upsell.ts) ─────────────────────────────────
   // After a dish goes into the cart, offer what usually comes next. `choosing`
   // = a suggestion with required choices is open in the product modal; adding
   // it (or closing it) brings the guest back to the same step.
-  const upsellEnabled = directOrdersEnabled && (settings?.upsell_enabled ?? true)
+  const upsellEnabled = capabilities.upsell
   const [upsell, setUpsell] = useState<{
     triggerId: string
     steps: UpsellStep[]
@@ -452,6 +465,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   }
 
   async function submitOrder() {
+    if (!directOrdersEnabled) return
     if (!customerName.trim() || !customerPhone.trim()) {
       setOrderError(copy.errNamePhone)
       return
@@ -476,18 +490,9 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           tenant_id: tenant.id,
           customer_name: customerName.trim(),
           customer_phone: customerPhone.trim(),
-          order_type: checkoutOrderType,
-          delivery_street: orderType === 'delivery' ? deliveryStreet.trim() || undefined : undefined,
-          delivery_complement: orderType === 'delivery' && deliveryComplement.trim() ? deliveryComplement.trim() : undefined,
-          delivery_zipcode: orderType === 'delivery' && deliveryZipcode.trim() ? deliveryZipcode.trim() : undefined,
-          delivery_city: orderType === 'delivery' && deliveryCity.trim() ? deliveryCity.trim() : undefined,
-          delivery_notes: orderType === 'delivery' && deliveryNotes.trim() ? deliveryNotes.trim() : undefined,
-          delivery_address: orderType === 'delivery'
-            ? [deliveryStreet, deliveryZipcode, deliveryCity].filter(Boolean).join(', ')
-            : undefined,
+          ...orderFields,
           location_id: location?.id ?? null,
           table_id: orderingTable ? orderingTable.id : undefined,
-          tip_cents: tipCents,
           menu_id: menu?.id ?? null,
           analytics_session_id: analyticsTracker?.sessionId ?? null,
           items: cart.map(item => ({
@@ -549,7 +554,9 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const email = (settings && 'email' in settings)
     ? (settings as { email?: string | null }).email ?? null
     : null
-  const hasContact = settings?.phone || settings?.instagram || settings?.whatsapp || settings?.address || email
+  // Contact links normalized: "(555) 123-4567" → wa.me/5551234567, "@handle" or a URL → one Instagram link.
+  const contacts = contactLinks(settings)
+  const hasContact = !!(contacts.phone || contacts.instagram || contacts.whatsapp || settings?.address || email)
 
   useEffect(() => {
     if (!menu?.id || !analyticsEnabled) return
@@ -794,7 +801,9 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   // Restore once, after hydration (storage doesn't exist on the server).
   useEffect(() => {
     const now = Date.now()
-    const screen = normalizeScreenState(readStored(browserStorage('session'), screenKey, now))
+    // Cut down to what this menu allows now: no checkout when guests can't
+    // order, dine-in only at a table, no tip when tips are off.
+    const screen = sanitizeScreenState(normalizeScreenState(readStored(browserStorage('session'), screenKey, now)), capabilities, atTable)
     const savedCart = directOrdersEnabled
       ? restoreCart(readStored<StoredCartItem[]>(browserStorage('local'), cartKey, now, CART_TTL_MS), products)
       : []
@@ -816,7 +825,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
     if (screen.draft) {
       setCustomerName(screen.draft.customerName)
       setCustomerPhone(screen.draft.customerPhone)
-      if (screen.draft.orderType) setOrderType(screen.draft.orderType as typeof orderType)
+      if (screen.draft.orderType) setOrderType(screen.draft.orderType)
       setDeliveryStreet(screen.draft.deliveryStreet)
       setDeliveryComplement(screen.draft.deliveryComplement)
       setDeliveryZipcode(screen.draft.deliveryZipcode)
@@ -886,14 +895,22 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   // ── Presentation ───────────────────────────────────────────────────────────
   const onPrimary = computePrimaryForeground(primaryColor)
   const money = (value: number) => formatMoney(value, currency, selectedLanguage)
+  // "From $15.00" for a dish whose sizes set the price (showcase.ts).
+  const priceOf = (product: Product) => {
+    const shown = displayPrice(product.price, optionGroupsByProductId[product.id])
+    return { text: shown.from ? fill(guestCopy.fromPrice, { price: money(shown.amount) }) : money(shown.amount), from: shown.from }
+  }
   const hasCustomization = (productId: string) =>
     (optionGroupsByProductId[productId]?.length ?? 0) > 0
     || (ingredientCustomizationEnabled && (productIngredientsByProductId[productId]?.length ?? 0) > 0)
 
   // Open/closed is computed on the client only (it depends on "now").
-  const [openInfo, setOpenInfo] = useState<{ state: OpenState; todayIndex: number | null } | null>(null)
+  const [openInfo, setOpenInfo] = useState<{ state: ReturnType<typeof computeOpenState>['state']; todayIndex: number | null } | null>(null)
   useEffect(() => {
-    const timeZone = resolveTimeZone({ country: settings?.country, region: settings?.region, currency })
+    // The restaurant's zone from its profile, else the guest's own.
+    let deviceZone: string | null = null
+    try { deviceZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? null } catch { deviceZone = null }
+    const timeZone = menuTimeZone(resolveTimeZone({ country: settings?.country, region: settings?.region, currency }), deviceZone)
     const update = () => {
       const result = computeOpenState(hours as Record<string, string | null | undefined> | null | undefined, new Date(), timeZone)
       setOpenInfo({ state: result.state, todayIndex: result.todayIndex })
@@ -902,7 +919,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
     const timer = window.setInterval(update, 60_000)
     return () => window.clearInterval(timer)
   }, [hours, settings?.country, settings?.region, currency])
-  const openLabel = openInfo ? describeOpenState(openInfo.state, copy, selectedLanguage) : null
+  const openLabel: OpenLabel | null = openInfo ? describeOpenState(openInfo.state, copy, guestCopy, selectedLanguage) : null
 
   const contextParts = [menuTitle !== tenant.name ? menuTitle : null, settings?.business_type, settings?.price_range]
     .filter((part): part is string => !!part && !!part.trim())
@@ -984,9 +1001,9 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                     type="button"
                     onClick={() => setShowHoursModal(true)}
                     disabled={!hasHours}
-                    className={`inline-flex items-center gap-1.5 font-medium ${openLabel?.open ? 'text-emerald-700' : 'text-zinc-600'} enabled:hover:underline`}
+                    className={`inline-flex min-w-0 items-center gap-1.5 text-left font-medium ${openLabel?.tone === 'open' ? 'text-emerald-700' : 'text-zinc-600'} enabled:hover:underline`}
                   >
-                    {openLabel && <span aria-hidden="true" className={`size-[7px] rounded-full ${openLabel.open ? 'bg-emerald-500' : 'bg-zinc-400'}`} />}
+                    {openLabel && openLabel.tone !== 'info' && <span aria-hidden="true" className={`size-[7px] shrink-0 rounded-full ${openLabel.tone === 'open' ? 'bg-emerald-500' : 'bg-zinc-400'}`} />}
                     {openLabel ? openLabel.text : copy.hoursTitle}
                   </button>
                 </>
@@ -1086,7 +1103,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                       : <DishPlaceholder />}
                   </div>
                   <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-zinc-900 sm:text-[15px]">{p.name}</p>
-                  <p className="mt-0.5 text-[14px] font-medium tabular-nums text-zinc-600">{money(p.price)}</p>
+                  <p className="mt-0.5 text-[14px] font-medium tabular-nums text-zinc-600">{priceOf(p).text}</p>
                 </button>
               )
             })}
@@ -1141,6 +1158,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
               const quantity = cart.find(item => item.cartKey === key)?.quantity ?? 0
               updateCartQuantity(key, quantity - 1)
             }}
+            priceLabel={product => priceOf(product).text}
             onMediaEvent={(eventName, product, mediaType, mediaIndex) => analyticsTracker?.track({
               event_name: eventName,
               product_id: product.id,
@@ -1190,6 +1208,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                         lang={selectedLanguage}
                         currency={currency}
                         primaryColor={primaryColor}
+                        price={priceOf(p)}
                         onOpen={() => openProduct(p, 'grid')}
                         {...(directOrdersEnabled ? {
                           cartQuantity: customizable ? 0 : qty,
@@ -1220,19 +1239,19 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                     <MapPin className="size-3.5" /> <span className="max-w-[240px] truncate">{settings.address}</span>
                   </a>
                 )}
-                {settings?.phone && (
-                  <a href={`tel:${settings.phone}`} className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <Phone className="size-3.5" /> {settings.phone}
+                {contacts.phone && (
+                  <a href={contacts.phone.url} className="flex items-center gap-1.5 hover:text-zinc-900">
+                    <Phone className="size-3.5" /> {contacts.phone.label}
                   </a>
                 )}
-                {settings?.whatsapp && (
-                  <a href={`https://wa.me/${settings.whatsapp}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
+                {contacts.whatsapp && (
+                  <a href={contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
                     <MessageCircle className="size-3.5" /> WhatsApp
                   </a>
                 )}
-                {settings?.instagram && (
-                  <a href={`https://instagram.com/${settings.instagram}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <Camera className="size-3.5" /> @{settings.instagram}
+                {contacts.instagram && (
+                  <a href={contacts.instagram.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
+                    <Camera className="size-3.5" /> {contacts.instagram.handle}
                   </a>
                 )}
                 {email && (
@@ -1289,18 +1308,20 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             // Back to the "Complete your order" step it was opened from.
             if (upsell?.choosing) setUpsell({ ...upsell, choosing: false })
           }}
-          onWhatsApp={() => openWhatsApp(selectedProduct)}
+          onWhatsApp={openWhatsApp}
+          showcase={!directOrdersEnabled}
+          contact={settings}
           optionGroups={optionGroupsByProductId[selectedProduct.id] ?? []}
-          itemNotesEnabled={settings?.item_notes_enabled ?? false}
+          itemNotesEnabled={capabilities.itemNotes}
           ingredientCustomizationEnabled={ingredientCustomizationEnabled}
           productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
           initialEditorState={editingItem?.editorState ?? null}
-          onCustomizationStarted={() => analyticsTracker?.track({
+          onCustomizationStarted={directOrdersEnabled ? () => analyticsTracker?.track({
             event_name: 'product_customization_started',
             product_id: selectedProduct.id,
             source: selectedProductSource === 'feed' ? 'feed' : 'detail',
-          })}
+          }) : undefined}
           onAddToCart={directOrdersEnabled
             ? (selectedOptions, unitPrice, note, ingredientModifications, editorState, quantity) => {
                 if (editingCartKey) {
@@ -1346,7 +1367,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           audioEnabled={chatAddonAudioEnabled}
           textEnabled={chatAddonTextEnabled}
           products={baseProducts}
-          onAddToCart={(product, options, unitPrice, note, mods, editorState) => addToCart(product, options, unitPrice, note, mods, editorState, undefined, 1, 'chat')}
+          onAddToCart={(product, options, unitPrice, note, mods, editorState) => { if (directOrdersEnabled) addToCart(product, options, unitPrice, note, mods, editorState, undefined, 1, 'chat') }}
           menuId={menu?.id ?? null}
           locationId={location?.id ?? null}
           cartOpen={cartPanelVisible}
@@ -1354,6 +1375,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           onOpenCart={directOrdersEnabled ? () => setCartOpen(true) : undefined}
           language={selectedLanguage}
           cart={directOrdersEnabled ? cart.map(i => ({ name: i.product.name, quantity: i.quantity, options: summarizeOptions(i.selectedOptions) || undefined })) : null}
+          canOrder={directOrdersEnabled}
+          tableId={waiterCallTable?.id ?? orderingTable?.id ?? null}
         />
       )}
 
@@ -1381,8 +1404,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                 </button>
               </div>
               {openLabel && (
-                <p className={`mx-5 mb-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium ${openLabel.open ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600'}`}>
-                  <span aria-hidden="true" className={`size-[7px] rounded-full ${openLabel.open ? 'bg-emerald-500' : 'bg-zinc-400'}`} />
+                <p className={`mx-5 mb-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium ${openLabel.tone === 'open' ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                  {openLabel.tone !== 'info' && <span aria-hidden="true" className={`size-[7px] rounded-full ${openLabel.tone === 'open' ? 'bg-emerald-500' : 'bg-zinc-400'}`} />}
                   {openLabel.text}
                 </p>
               )}
@@ -1418,7 +1441,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
         />
       )}
 
-      {checkoutOpen && (
+      {directOrdersEnabled && checkoutOpen && (
         <CheckoutModal
           cart={cart}
           confirmedCart={confirmedCart}
@@ -1478,18 +1501,6 @@ const WEEK_KEYS = [
   { key: 'fri', index: 5 }, { key: 'sat', index: 6 }, { key: 'sun', index: 0 },
 ]
 
-function describeOpenState(state: OpenState, copy: MenuCopy, lang: string): { text: string; open: boolean } | null {
-  if (state.kind === 'open') return { text: fill(copy.openUntil, { time: formatClock(state.closesAt, lang) }), open: true }
-  if (state.kind === 'closed') {
-    if (!state.opens) return { text: copy.closed, open: false }
-    const time = formatClock(state.opens.minutes, lang)
-    if (state.opens.inDays === 0) return { text: fill(copy.closedOpensToday, { time }), open: false }
-    if (state.opens.inDays === 1) return { text: fill(copy.closedOpensTomorrow, { time }), open: false }
-    return { text: fill(copy.closedOpensOn, { day: formatWeekday(state.opens.dayIndex, lang), time }), open: false }
-  }
-  return null
-}
-
 function DishPlaceholder() {
   return (
     <div className="flex size-full items-center justify-center bg-gradient-to-br from-zinc-100 to-zinc-200/70">
@@ -1502,14 +1513,16 @@ function DishPlaceholder() {
  * One dish. Phones: a row — text left, photo right with the add button on it.
  * Larger screens: a card with the photo on top. The whole card opens the dish.
  */
-function ProductCard({ product, lang, currency, primaryColor, onOpen, cartQuantity, onAdd, onIncrement, onDecrement }: {
+function ProductCard({ product, lang, currency, primaryColor, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement }: {
   product: Product; lang: string; currency: string; primaryColor: string; onOpen: () => void
+  /** The price as shown ("From $15.00" for a dish with sizes). */
+  price: { text: string; from: boolean }
   cartQuantity?: number; onAdd?: () => void; onIncrement?: () => void; onDecrement?: () => void
 }) {
   const copy = getMenuCopy(lang)
   const image = getProductImages(product)[0]
   const quantity = cartQuantity ?? 0
-  const promo = product.original_price && product.original_price > product.price ? product.original_price : null
+  const promo = !price.from && product.original_price && product.original_price > product.price ? product.original_price : null
   return (
     <article
       data-analytics-product-id={product.id}
@@ -1535,7 +1548,7 @@ function ProductCard({ product, lang, currency, primaryColor, onOpen, cartQuanti
           </div>
         )}
         <div className="mt-auto flex items-baseline gap-2 pt-2">
-          <span className="text-[15px] font-semibold tabular-nums text-zinc-900">{formatMoney(product.price, currency, lang)}</span>
+          <span className="text-[15px] font-semibold tabular-nums text-zinc-900">{price.text}</span>
           {promo && <span className="text-[13px] tabular-nums text-zinc-400 line-through">{formatMoney(promo, currency, lang)}</span>}
         </div>
       </div>

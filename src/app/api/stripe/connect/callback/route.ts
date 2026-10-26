@@ -10,12 +10,14 @@ import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
 import { verifyOAuthState } from '@/lib/stripe-oauth-state'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
+import { withApi } from '@/lib/observability/with-api'
 
 function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 }
 
-export async function GET(request: Request) {
+async function handleGET(request: Request) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const error = searchParams.get('error')
@@ -45,6 +47,15 @@ export async function GET(request: Request) {
   }
   const tenantId = verified.tenantId
 
+  // 3b. Re-check the plan: it may have changed since the flow started (the
+  // signed state is valid for a while), and a connection must never be saved
+  // for a plan without Stripe Connect.
+  const supabase = createServiceClient()
+  const capabilities = await getTenantCapabilities(tenantId, null, supabase)
+  if (!capabilities.plan.stripe) {
+    return NextResponse.redirect(new URL(`${redirectUrl}?stripe=feature_not_available`))
+  }
+
   // 4. Exchange code for Stripe account
   let stripeAccountId: string
   try {
@@ -66,7 +77,6 @@ export async function GET(request: Request) {
   // 5. Upsert Stripe connection using the service client. The user's cookie
   // session is irrelevant here — we already validated the tenantId via
   // signed state.
-  const supabase = await createServiceClient()
   const { error: upsertError } = await supabase
     .from('stripe_connections')
     .upsert({
@@ -92,3 +102,5 @@ export async function GET(request: Request) {
   // 6. Success — redirect to settings
   return NextResponse.redirect(new URL(`${redirectUrl}?stripe=connected`))
 }
+
+export const GET = withApi('GET /api/stripe/connect/callback', handleGET)

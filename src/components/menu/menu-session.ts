@@ -242,3 +242,96 @@ export function isDraftEmpty(d: CheckoutDraft, defaultOrderType: string): boolea
     && !d.deliveryZipcode && !d.deliveryCity && !d.deliveryNotes && !d.tipCents
     && (!d.orderType || d.orderType === defaultOrderType)
 }
+
+// ── What the plan allows (TenantCapabilities) ─────────────────────────────
+
+export type OrderType = 'dine_in' | 'pickup' | 'delivery'
+
+/** The capability flags the guest checkout depends on (TenantCapabilities satisfies it). */
+export interface GuestOrderingRules {
+  guestOrdering: boolean
+  tips: boolean
+  dineIn: boolean
+  pickup: boolean
+  delivery: boolean
+}
+
+/** Order types a guest may pick. At a table the order is always eaten there. */
+export function allowedOrderTypes(rules: GuestOrderingRules, atTable: boolean): OrderType[] {
+  if (!rules.guestOrdering) return []
+  if (atTable) return ['dine_in']
+  const types: OrderType[] = []
+  if (rules.dineIn) types.push('dine_in')
+  if (rules.pickup) types.push('pickup')
+  if (rules.delivery) types.push('delivery')
+  return types
+}
+
+export function defaultOrderTypeFor(rules: GuestOrderingRules, atTable: boolean): OrderType {
+  return allowedOrderTypes(rules, atTable)[0] ?? 'dine_in'
+}
+
+/**
+ * A restored screen state, cut down to what this menu allows now: an older
+ * tab (or a plan / settings change since) must not reopen checkout when guests
+ * can't order, bring back a delivery address on a table link, or a tip when
+ * tips are off.
+ */
+export function sanitizeScreenState(state: MenuScreenState, rules: GuestOrderingRules, atTable: boolean): MenuScreenState {
+  if (!rules.guestOrdering) {
+    return { ...state, cartOpen: false, checkoutOpen: false, draft: null, placedOrder: null }
+  }
+  if (!state.draft) return state
+  const allowed = allowedOrderTypes(rules, atTable)
+  const orderType = (allowed as string[]).includes(state.draft.orderType) ? state.draft.orderType : defaultOrderTypeFor(rules, atTable)
+  const keepDelivery = orderType === 'delivery'
+  return {
+    ...state,
+    draft: {
+      ...state.draft,
+      orderType,
+      deliveryStreet: keepDelivery ? state.draft.deliveryStreet : '',
+      deliveryComplement: keepDelivery ? state.draft.deliveryComplement : '',
+      deliveryZipcode: keepDelivery ? state.draft.deliveryZipcode : '',
+      deliveryCity: keepDelivery ? state.draft.deliveryCity : '',
+      deliveryNotes: keepDelivery ? state.draft.deliveryNotes : '',
+      tipCents: rules.tips ? state.draft.tipCents : 0,
+    },
+  }
+}
+
+export interface CheckoutFields {
+  order_type: OrderType
+  delivery_street?: string
+  delivery_complement?: string
+  delivery_zipcode?: string
+  delivery_city?: string
+  delivery_notes?: string
+  delivery_address?: string
+  tip_cents?: number
+}
+
+/**
+ * The order-type part of POST /api/orders: dine_in at a table, delivery
+ * fields only for an allowed delivery, the tip only when tips are on.
+ */
+export function checkoutFields(
+  draft: Pick<CheckoutDraft, 'orderType' | 'deliveryStreet' | 'deliveryComplement' | 'deliveryZipcode' | 'deliveryCity' | 'deliveryNotes' | 'tipCents'>,
+  rules: GuestOrderingRules,
+  atTable: boolean,
+): CheckoutFields {
+  const allowed = allowedOrderTypes(rules, atTable)
+  const orderType: OrderType = (allowed as string[]).includes(draft.orderType) ? draft.orderType as OrderType : defaultOrderTypeFor(rules, atTable)
+  const fields: CheckoutFields = { order_type: orderType }
+  if (orderType === 'delivery') {
+    const t = (v: string) => v.trim() || undefined
+    fields.delivery_street = t(draft.deliveryStreet)
+    fields.delivery_complement = t(draft.deliveryComplement)
+    fields.delivery_zipcode = t(draft.deliveryZipcode)
+    fields.delivery_city = t(draft.deliveryCity)
+    fields.delivery_notes = t(draft.deliveryNotes)
+    fields.delivery_address = [draft.deliveryStreet, draft.deliveryZipcode, draft.deliveryCity].map(v => v.trim()).filter(Boolean).join(', ')
+  }
+  if (rules.tips && draft.tipCents > 0) fields.tip_cents = Math.floor(draft.tipCents)
+  return fields
+}

@@ -81,3 +81,17 @@ export function summarizeIngredientMods(
   for (const a of mods.added ?? []) out.push(say(labels.addedNamed, a.name, a.qty))
   return out
 }
+
+/**
+ * The restaurant's currency from a row embedding tenant_settings (supabase-js
+ * returns a one-to-one embed as an object, some setups as an array).
+ */
+export function embeddedCurrency(
+  tenant: { tenant_settings?: { currency?: string | null } | Array<{ currency?: string | null }> | null } | null | undefined,
+  fallback = 'USD',
+): string {
+  const raw = tenant?.tenant_settings
+  const settings = Array.isArray(raw) ? raw[0] : raw
+  const code = settings?.currency?.trim().toUpperCase()
+  return code && /^[A-Z]{3}$/.test(code) ? code : fallback
+}

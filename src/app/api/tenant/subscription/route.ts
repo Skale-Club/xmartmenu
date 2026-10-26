@@ -3,14 +3,15 @@
  * 
  * Phase 34: Tenant Subscription UI
  * GET: Returns subscription, plan, features, Stripe status
- * PATCH: Updates billing_cycle (monthly/annual)
+ * PATCH: Updates billing_cycle (monthly/annual), owner only
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getTenantPlan } from '@/lib/tenant-plan'
 import { isStripeEnabled } from '@/lib/stripe'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { getLiveStripeSubscription, PlanChangeError, swapStripeSubscriptionPlan } from '@/lib/plan-billing'
 import { z } from 'zod'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
@@ -89,7 +90,13 @@ async function handleGET() {
 
 /**
  * PATCH /api/tenant/subscription
- * Updates billing_cycle preference
+ * Changes the billing cycle. Owner / superadmin only.
+ *
+ * tenant_subscriptions has SELECT policies only, so the write goes through the
+ * service client (after the role check). A tenant billed through Stripe changes
+ * cycle on the Stripe subscription (prorated price swap) and the
+ * customer.subscription.updated webhook mirrors billing_cycle into the row
+ * (answer: pending: true); a tenant without Stripe billing is updated directly.
  */
 async function handlePATCH(request: NextRequest) {
   try {
@@ -97,11 +104,14 @@ async function handlePATCH(request: NextRequest) {
     if (!effective) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
+    if (effective.role !== 'store-admin' && effective.role !== 'superadmin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
 
     const { tenantId } = effective
 
     // Parse and validate request body
-    const body = await request.json()
+    const body = await request.json().catch(() => null)
     const result = BillingCycleSchema.safeParse(body)
 
     if (!result.success) {
@@ -112,14 +122,62 @@ async function handlePATCH(request: NextRequest) {
     }
 
     const { billing_cycle } = result.data
-    const supabase = await createClient()
+    const service = createServiceClient()
 
-    // Update billing cycle
-    const { data: subscription, error: updateError } = await supabase
+    const { data: current, error: currentError } = await service
+      .from('tenant_subscriptions')
+      .select('plan_id, billing_cycle, stripe_subscription_id')
+      .eq('tenant_id', tenantId)
+      .maybeSingle()
+
+    if (currentError) {
+      log.error('Failed to read subscription for billing cycle change', { err: currentError })
+      return NextResponse.json({ error: 'Failed to update billing cycle' }, { status: 500 })
+    }
+    if (!current) {
+      return NextResponse.json({ error: 'No subscription to update' }, { status: 404 })
+    }
+
+    // Billed through Stripe: swap the price on the live subscription.
+    if (current.stripe_subscription_id) {
+      let liveSubscription
+      try {
+        liveSubscription = await getLiveStripeSubscription(current.stripe_subscription_id)
+      } catch (error) {
+        log.error('Failed to read Stripe subscription for billing cycle change', { err: error })
+        return NextResponse.json({ error: 'Could not reach Stripe. Try again in a moment.' }, { status: 502 })
+      }
+
+      if (liveSubscription) {
+        const { data: plan } = await service
+          .from('plans')
+          .select('id, stripe_price_monthly_id, stripe_price_annual_id')
+          .eq('id', current.plan_id)
+          .maybeSingle()
+        if (!plan) return NextResponse.json({ error: 'Plan not found' }, { status: 404 })
+
+        try {
+          await swapStripeSubscriptionPlan({ subscription: liveSubscription, tenantId, plan, cycle: billing_cycle })
+        } catch (error) {
+          if (error instanceof PlanChangeError) {
+            return NextResponse.json({ error: error.message, portal: error.status === 409 }, { status: error.status })
+          }
+          throw error
+        }
+        return NextResponse.json({
+          success: true,
+          pending: true,
+          subscription: { billing_cycle },
+        })
+      }
+      // Ended Stripe subscription: nothing bills, so the preference is just a row value.
+    }
+
+    const { data: subscription, error: updateError } = await service
       .from('tenant_subscriptions')
       .update({ billing_cycle })
       .eq('tenant_id', tenantId)
-      .select()
+      .select('billing_cycle')
       .single()
 
     if (updateError) {

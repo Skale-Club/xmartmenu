@@ -1,8 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+
+const DELIVERY_ZONES_LOCKED = 'Delivery zones are part of the Menu + Payments plan'
 
 async function handleGET() {
   const effective = await getEffectiveTenant()
@@ -26,6 +29,11 @@ async function handlePOST(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  // Only the plan matters here (settings don't change the ceiling).
+  const capabilities = await getTenantCapabilities(effective.tenantId, null)
+  if (!capabilities.plan.payments) {
+    return NextResponse.json({ error: DELIVERY_ZONES_LOCKED }, { status: 403 })
+  }
 
   const body = await request.json()
   const { name, fee_cents, zipcode_prefixes } = body

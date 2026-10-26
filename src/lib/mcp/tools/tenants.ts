@@ -5,6 +5,7 @@ import { generatePassword } from '@/lib/auth/password-gen'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
 import {
   checkDestructiveAllowed,
+  checkSettingsAllowedByPlan,
   errorResult,
   isUuid,
   jsonResult,
@@ -251,6 +252,9 @@ export function registerTenantWriteTools(server: McpServer): void {
         }
       }
       if (Object.keys(update).length === 0) return errorResult('Nada para atualizar.')
+
+      const locked = await checkSettingsAllowedByPlan(service, tenantId, update)
+      if (locked) return locked
 
       const { data, error } = await service
         .from('tenant_settings')

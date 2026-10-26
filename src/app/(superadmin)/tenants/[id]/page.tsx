@@ -28,7 +28,7 @@ export default async function TenantDetailPage({ params }: Props) {
 
   const { data: settings } = await service
     .from('tenant_settings')
-    .select('logo_url, business_type')
+    .select('logo_url, business_type, orders_enabled, direct_orders_enabled, table_management_enabled, tips_enabled, delivery_enabled, upsell_enabled')
     .eq('tenant_id', id)
     .single()
 
@@ -73,6 +73,14 @@ export default async function TenantDetailPage({ params }: Props) {
       businessType={settings?.business_type ?? null}
       initialSubscription={subscription ?? null}
       availablePlans={availablePlans ?? []}
+      initialSwitches={{
+        orders_enabled: settings?.orders_enabled ?? null,
+        direct_orders_enabled: settings?.direct_orders_enabled ?? null,
+        table_management_enabled: settings?.table_management_enabled ?? null,
+        tips_enabled: settings?.tips_enabled ?? null,
+        delivery_enabled: settings?.delivery_enabled ?? null,
+        upsell_enabled: settings?.upsell_enabled ?? null,
+      }}
       canUseAiTools={profile?.role === 'superadmin'}
     />
   )

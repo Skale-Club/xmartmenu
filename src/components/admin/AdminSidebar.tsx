@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import type { Menu, UserRole } from '@/types/database'
+import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
 import {
   LayoutDashboard,
   ClipboardList,
@@ -42,8 +43,6 @@ const mainItems = [
   { href: '/menus', label: 'Menus', icon: ClipboardList },
   { href: '/menu/categories', label: 'Categories', icon: FolderOpen },
   { href: '/menu/products', label: 'Products', icon: UtensilsCrossed },
-  { href: '/orders', label: 'Orders', icon: Package },
-  { href: '/chat-inbox', label: 'Chat Inbox', icon: Inbox },
 ]
 
 const adminPanelItems = [
@@ -71,9 +70,8 @@ export default function AdminSidebar({
   logoUrl,
   menus = [],
   activeMenuId = null,
-  ingredientCustomizationEnabled = false,
-  blogEnabled = false,
-  waiterAppEnabled = false,
+  capabilities = NO_CAPABILITIES,
+  chatAvailable = false,
 }: {
   tenantName: string
   tenantSlug?: string
@@ -82,12 +80,11 @@ export default function AdminSidebar({
   logoUrl?: string | null
   menus?: SidebarMenu[]
   activeMenuId?: string | null
-  ingredientCustomizationEnabled?: boolean
-  /** Plan capability `blog` (autoblog-parity XM-14). Off for every plan that
-   *  does not sell it, which today is all of them until someone adds the key. */
-  blogEnabled?: boolean
-  /** Waiter ordering: in the plan and switched on (service-modes.ts). */
-  waiterAppEnabled?: boolean
+  /** What this restaurant can do right now (getTenantCapabilities). Decides
+   *  Orders, Waiter app, Ingredients and Blog. */
+  capabilities?: TenantCapabilities
+  /** The AI chat add-on is available on the plan: Chat Inbox and Settings > AI Chat. */
+  chatAvailable?: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -98,18 +95,23 @@ export default function AdminSidebar({
   const [menuLoading, setMenuLoading] = useState(false)
   const isStaff = role === 'store-staff'
 
+  const ordersItem = { href: '/orders', label: 'Orders', icon: Package }
+  const chatInboxItem = { href: '/chat-inbox', label: 'Chat Inbox', icon: Inbox }
   const ingredientItem = { href: '/menu/ingredients', label: 'Ingredients', icon: Salad }
   const blogItem = { href: '/posts', label: 'Blog', icon: Newspaper }
   const waiterItem = tenantSlug ? { href: `/${tenantSlug}/waiter`, label: 'Waiter app', icon: ConciergeBell } : null
   const visibleMainItems = [
     ...mainItems,
-    ...(waiterAppEnabled && waiterItem ? [waiterItem] : []),
-    ...(ingredientCustomizationEnabled ? [ingredientItem] : []),
-    ...(blogEnabled ? [blogItem] : []),
+    ...(capabilities.kds ? [ordersItem] : []),
+    ...(chatAvailable ? [chatInboxItem] : []),
+    ...(capabilities.waiterOrdering && waiterItem ? [waiterItem] : []),
+    ...(capabilities.ingredientCustomization ? [ingredientItem] : []),
+    ...(capabilities.plan.blog ? [blogItem] : []),
   ].filter(item => isStaff ? item.href !== '/menus' : true)
-  const visibleAdminPanelItems = isStaff
+  const visibleAdminPanelItems = (isStaff
     ? adminPanelItems.filter((item) => item.href === '/settings/qrcode' || item.href === '/settings/password')
     : adminPanelItems
+  ).filter(item => item.href !== '/settings/chat' || chatAvailable)
 
   useEffect(() => {
     setSelectedMenuId(activeMenuId)

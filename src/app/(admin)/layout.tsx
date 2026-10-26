@@ -5,12 +5,24 @@ import { cookies } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import AdminSidebar from '@/components/admin/AdminSidebar'
 import DashboardShell from '@/components/admin/DashboardShell'
-import { getTenantPlan } from '@/lib/tenant-plan'
-import { resolveServiceCapabilities } from '@/lib/service-modes'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
+import { getChatAddonStatus } from '@/lib/chat-addon'
 import DemoBanner from '@/components/demo/DemoBanner'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
+import type { ServiceSettings } from '@/lib/service-modes'
 import { ArrowLeft } from 'lucide-react'
+
+type PanelSettings = ServiceSettings & { primary_color?: string | null; accent_color?: string | null }
+
+// Everything the sidebar and the plan-aware screens need from tenant_settings:
+// the colors plus every switch resolveTenantCapabilities reads.
+const LAYOUT_SETTINGS_COLUMNS = [
+  'primary_color', 'accent_color', 'orders_enabled', 'direct_orders_enabled',
+  'table_management_enabled', 'whatsapp_orders_enabled', 'whatsapp', 'tips_enabled',
+  'item_notes_enabled', 'ingredient_customization_enabled', 'dine_in_enabled',
+  'pickup_enabled', 'delivery_enabled', 'upsell_enabled',
+].join(', ')
 
 export default async function AdminLayout({
   children,
@@ -63,20 +75,23 @@ export default async function AdminLayout({
       getActiveMenuForTenant(tenant.id),
       supabase
         .from('tenant_settings')
-        .select('ingredient_customization_enabled, primary_color, accent_color, orders_enabled, table_management_enabled')
+        .select(LAYOUT_SETTINGS_COLUMNS)
         .eq('tenant_id', tenant.id)
-        .single(),
+        .maybeSingle(),
     ])
 
-    // autoblog-parity XM-14: the blog is a paid capability, gated the same way
-    // payments and stripe-connect already are. A plan lookup that fails hides
-    // the item rather than showing a link to a page that will 403.
-    const previewPlan = await getTenantPlan(tenant.id).catch(() => null)
-    const blogEnabled = previewPlan?.features.includes('blog') ?? false
-    const waiterAppEnabled = resolveServiceCapabilities(previewPlan?.features, tenantSettings as any).waiterOrdering
+    // One object decides what the sidebar (and every plan-aware screen) shows.
+    // A plan lookup that fails resolves to menu only, which hides the links
+    // rather than pointing at pages that will 403. The service client reads
+    // the plan so it never depends on tenant_subscriptions RLS.
+    const previewSettings = (tenantSettings ?? null) as unknown as PanelSettings | null
+    const [capabilities, chatStatus] = await Promise.all([
+      getTenantCapabilities(tenant.id, previewSettings, service),
+      getChatAddonStatus(tenant.id).catch(() => null),
+    ])
 
-    const previewPrimary = (tenantSettings as any)?.primary_color ?? '#F52323'
-    const previewAccent = (tenantSettings as any)?.accent_color ?? '#09090b'
+    const previewPrimary = previewSettings?.primary_color ?? '#F52323'
+    const previewAccent = previewSettings?.accent_color ?? '#09090b'
     const previewPrimaryFg = computePrimaryForeground(previewPrimary)
     const exitPreviewHref = `/api/admin/exit-preview?next=${encodeURIComponent(`/tenants/${tenant.id}`)}`
 
@@ -113,9 +128,8 @@ export default async function AdminLayout({
               logoUrl={logoUrl}
               menus={menus ?? []}
               activeMenuId={activeMenu?.id ?? null}
-              ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
-              blogEnabled={blogEnabled}
-              waiterAppEnabled={waiterAppEnabled}
+              capabilities={capabilities}
+              chatAvailable={chatStatus?.available ?? false}
             />
           </div>
          </div>
@@ -137,18 +151,19 @@ export default async function AdminLayout({
     getActiveMenuForTenant(tenantId),
     supabase
       .from('tenant_settings')
-      .select('ingredient_customization_enabled, primary_color, accent_color, orders_enabled, table_management_enabled')
+      .select(LAYOUT_SETTINGS_COLUMNS)
       .eq('tenant_id', tenantId)
-      .single(),
+      .maybeSingle(),
   ])
 
-  const plan = await getTenantPlan(tenantId).catch(() => null)
-  const blogEnabled = plan?.features.includes('blog') ?? false
-  // Waiter app link: the plan includes it and the restaurant turned it on.
-  const waiterAppEnabled = resolveServiceCapabilities(plan?.features, tenantSettings as any).waiterOrdering
+  const settingsRow = (tenantSettings ?? null) as unknown as PanelSettings | null
+  const [capabilities, chatStatus] = await Promise.all([
+    getTenantCapabilities(tenantId, settingsRow, service),
+    getChatAddonStatus(tenantId).catch(() => null),
+  ])
 
-  const adminPrimary = (tenantSettings as any)?.primary_color ?? '#F52323'
-  const adminAccent = (tenantSettings as any)?.accent_color ?? '#09090b'
+  const adminPrimary = settingsRow?.primary_color ?? '#F52323'
+  const adminAccent = settingsRow?.accent_color ?? '#09090b'
   const adminPrimaryFg = computePrimaryForeground(adminPrimary)
 
   return (
@@ -165,9 +180,8 @@ export default async function AdminLayout({
         appName={appName}
         menus={menus ?? []}
         activeMenuId={activeMenu?.id ?? null}
-        ingredientCustomizationEnabled={tenantSettings?.ingredient_customization_enabled ?? false}
-        blogEnabled={blogEnabled}
-        waiterAppEnabled={waiterAppEnabled}
+        capabilities={capabilities}
+        chatAvailable={chatStatus?.available ?? false}
       />}
     >
       {children}

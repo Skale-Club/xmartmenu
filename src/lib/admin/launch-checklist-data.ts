@@ -1,11 +1,15 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getCanonicalUrl } from '@/lib/seo'
 import {
+  isLaunchChecklistItemApplicable,
   isLaunchChecklistKey,
+  LAUNCH_CHECKLIST_ITEMS,
   type LaunchChecklistEntry,
   type LaunchChecklistResponse,
   type LaunchChecklistStatus,
 } from '@/lib/launch-checklist'
+import { liveFeatures } from '@/lib/plan-settings'
+import { planCeiling } from '@/lib/service-modes'
 import { deriveLaunchChecklistSignals } from '@/lib/admin/launch-checklist-signals'
 import { scanLaunchChecklistSite, type LaunchChecklistScan } from '@/lib/admin/launch-checklist-scan'
 
@@ -39,6 +43,12 @@ interface SettingsRow {
   latitude: number | null
 }
 
+interface SubscriptionRow {
+  tenant_id: string
+  status: string
+  plans: { features: string[] | null } | { features: string[] | null }[] | null
+}
+
 interface TickRow {
   tenant_id: string
   item_key: string
@@ -54,17 +64,29 @@ interface TickRow {
 
 /** Every restaurant with its launch-checklist ticks and detected signals. Service role only. */
 export async function loadLaunchChecklist(service: SupabaseClient): Promise<LaunchChecklistResponse> {
-  const [tenantsRes, settingsRes, ticksRes] = await Promise.all([
+  const [tenantsRes, settingsRes, ticksRes, subscriptionsRes, stripeRes] = await Promise.all([
     service.from('tenants').select('id, name, slug, is_active, custom_domain, custom_domain_verified').order('name'),
     service.from('tenant_settings').select('tenant_id, seo_title, seo_description, seo_og_image_url, seo_noindex, logo_url, phone, address, city, latitude'),
     service.from('launch_checklist_items').select('tenant_id, item_key, status, note, updated_by, updated_at'),
+    service.from('tenant_subscriptions').select('tenant_id, status, plans(features)'),
+    service.from('stripe_connections').select('tenant_id').eq('is_active', true),
   ])
   if (tenantsRes.error) throw tenantsRes.error
   if (settingsRes.error) throw settingsRes.error
+  if (subscriptionsRes.error) throw subscriptionsRes.error
+  if (stripeRes.error) throw stripeRes.error
   const setupRequired = isMissingLaunchChecklistTable(ticksRes.error)
   if (ticksRes.error && !setupRequired) throw ticksRes.error
 
   const settingsByTenant = new Map(((settingsRes.data ?? []) as SettingsRow[]).map((s) => [s.tenant_id, s]))
+  // What each plan sells right now: only a live (active/trial) subscription
+  // grants its features, like getTenantPlan. No subscription = Digital Menu only.
+  const accessByTenant = new Map<string, ReturnType<typeof planCeiling>>()
+  for (const row of (subscriptionsRes.data ?? []) as unknown as SubscriptionRow[]) {
+    const plan = Array.isArray(row.plans) ? row.plans[0] : row.plans
+    accessByTenant.set(row.tenant_id, planCeiling(liveFeatures(row.status, plan?.features)))
+  }
+  const stripeTenants = new Set(((stripeRes.data ?? []) as { tenant_id: string }[]).map((r) => r.tenant_id))
   const entriesByTenant = new Map<string, Record<string, LaunchChecklistEntry>>()
   for (const row of (ticksRes.data ?? []) as TickRow[]) {
     if (!isLaunchChecklistKey(row.item_key)) continue
@@ -86,11 +108,13 @@ export async function loadLaunchChecklist(service: SupabaseClient): Promise<Laun
         primaryDomain: verifiedDomain,
         siteUrl: getCanonicalUrl(t),
         entries: entriesByTenant.get(t.id) ?? {},
+        plan: accessByTenant.get(t.id) ?? planCeiling(null),
         signals: deriveLaunchChecklistSignals({
           isActive: t.is_active,
           customDomain: t.custom_domain,
           customDomainVerified: t.custom_domain_verified,
           settings,
+          stripeConnected: stripeTenants.has(t.id),
         }),
       }
     }),
@@ -170,6 +194,8 @@ export async function runLaunchChecklistScan(
     const day = scan.scannedAt.slice(0, 10)
     for (const [itemKey, finding] of Object.entries(scan.findings)) {
       if (!finding.ok || !isLaunchChecklistKey(itemKey)) continue
+      const def = LAUNCH_CHECKLIST_ITEMS.find((i) => i.key === itemKey)
+      if (def && !isLaunchChecklistItemApplicable(def, tenant.plan)) continue
       const current = tenant.entries[itemKey]
       if ((current?.status ?? 'pending') !== 'pending') continue
       await setLaunchChecklistItem(service, {

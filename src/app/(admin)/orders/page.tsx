@@ -1,11 +1,17 @@
 export const dynamic = 'force-dynamic'
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import OrdersClient from './OrdersClient'
 
 export default async function OrdersPage() {
   const supabase = await createClient()
   const { tenantId } = (await getEffectiveTenant())!
+
+  // The sidebar already hides Orders on a plan without them; this covers a typed URL.
+  const capabilities = await getTenantCapabilities(tenantId)
+  if (!capabilities.kds) redirect('/dashboard')
 
   // Bound the KDS initial load to a recent window + hard cap (matches
   // /api/orders): the full history is unbounded and PostgREST truncates at 1000.

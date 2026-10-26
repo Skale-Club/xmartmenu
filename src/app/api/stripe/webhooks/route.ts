@@ -27,6 +27,7 @@ import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 import { billAiUsage, subscriptionIdFromInvoice } from '@/lib/ai/billing'
+import { reconcileTenantSettings } from '@/lib/tenant-plan'
 
 type UpdateResult = { success: boolean; error?: string }
 
@@ -326,6 +327,15 @@ async function handlePOST(request: NextRequest) {
           if (error) {
             log.error('Failed to sync plan subscription', { err: error })
             updateResult = { success: false, error: error.message }
+          } else {
+            // The plan or status may have just dropped (downgrade, cancel,
+            // dunning): switch off whatever the new ceiling no longer allows.
+            // Failing the event makes Stripe retry it; every step is idempotent.
+            const reconciled = await reconcileTenantSettings(tenantId, supabase)
+            if (!reconciled.ok) {
+              log.error('Failed to reconcile settings with plan', { err: reconciled.error, tenant_id: tenantId })
+              updateResult = { success: false, error: reconciled.error }
+            }
           }
           // #5 (LIF-05) churn — deleted path only.
           if (!error && deleted) {
@@ -438,6 +448,13 @@ async function handlePOST(request: NextRequest) {
               .maybeSingle()
             if (subRow?.tenant_id) {
               pendingSync = { tenantId: subRow.tenant_id, reason: 'past_due' }
+              // past_due revokes the plan's features (getTenantPlan): switch off
+              // what no longer has a plan behind it.
+              const reconciled = await reconcileTenantSettings(subRow.tenant_id, supabase)
+              if (!reconciled.ok) {
+                log.error('Failed to reconcile settings after payment failure', { err: reconciled.error, tenant_id: subRow.tenant_id })
+                updateResult = { success: false, error: reconciled.error }
+              }
             }
           }
         }

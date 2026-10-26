@@ -15,6 +15,10 @@ import {
 } from 'lucide-react'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
+import { analyticsView } from '@/components/admin/plan-views'
+import PlanHintCard from '@/components/admin/PlanHintCard'
+import { lockedGroup } from '@/components/admin/plan-hint'
 import { formatPrice } from '@/lib/utils'
 import {
   buildRecommendations,
@@ -28,7 +32,7 @@ import {
 } from '@/lib/analytics/dashboard'
 import AnalyticsSettingsPanel, { type AnalyticsExperienceSettings } from './AnalyticsSettingsPanel'
 import EngagementSection from './EngagementSection'
-import { normalizeEngagement } from '@/lib/analytics/engagement'
+import { formatDuration, normalizeEngagement } from '@/lib/analytics/engagement'
 import { resolveTimeZone } from '@/lib/chat-context'
 import { normalizeOrderAttribution, normalizeUpsellAnalytics, revenueShare, upsellTakeRate } from '@/lib/analytics/upsell'
 
@@ -72,6 +76,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
     settingsResult,
     upsellResult,
     attributionResult,
+    capabilities,
   ] = await Promise.all([
     service.rpc('get_menu_analytics_overview', rpcParams),
     service.rpc('get_menu_analytics_overview', previousRpcParams),
@@ -81,7 +86,10 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
     service.from('tenant_settings').select('currency, country, region, analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos').eq('tenant_id', effective.tenantId).maybeSingle(),
     service.rpc('get_menu_upsell_analytics', rpcParams),
     service.rpc('get_order_attribution', { p_tenant_id: rpcParams.p_tenant_id, p_started_at: rpcParams.p_started_at, p_ended_at: rpcParams.p_ended_at, p_location_id: rpcParams.p_location_id }),
+    getTenantCapabilities(effective.tenantId),
   ])
+  // What this plan can show: no orders, no order metrics; no guest carts, no cart stages.
+  const view = analyticsView(capabilities)
 
   const overview = normalizeOverview(overviewResult.data?.[0] ?? EMPTY_ANALYTICS_OVERVIEW)
   const previous = normalizeOverview(previousOverviewResult.data?.[0] ?? EMPTY_ANALYTICS_OVERVIEW)
@@ -106,25 +114,39 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
   const engagementResult = await service.rpc('get_menu_engagement', { ...rpcParams, p_time_zone: timeZone })
   const engagement = normalizeEngagement(engagementResult.data)
 
-  const kpis = [
+  const engagementKpis: Kpi[] = [
     { label: 'Menu sessions', value: compact(overview.sessions), previous: previous.sessions, current: overview.sessions, icon: Users, help: 'Anonymous menu visits started in this period.' },
+  ]
+  const orderKpis: Kpi[] = [
     { label: 'Completed orders', value: compact(overview.completed_orders), previous: previous.completed_orders, current: overview.completed_orders, icon: ReceiptText, help: 'Trusted completed-order events attributed to a menu session.' },
     { label: 'Conversion', value: formatPercent(safeRate(overview.completed_orders, overview.sessions)), previous: safeRate(previous.completed_orders, previous.sessions), current: safeRate(overview.completed_orders, overview.sessions), icon: MousePointerClick, help: 'Completed orders divided by menu sessions.' },
     { label: 'Revenue', value: formatPrice(overview.revenue, currency), previous: previous.revenue, current: overview.revenue, icon: WalletCards, help: 'Revenue from attributed completed orders.' },
     { label: 'Average order', value: formatPrice(overview.avg_order_value, currency), previous: previous.avg_order_value, current: overview.avg_order_value, icon: ShoppingBag, help: 'Attributed revenue divided by completed orders.' },
     { label: 'Revenue / session', value: formatPrice(overview.revenue_per_session, currency), previous: previous.revenue_per_session, current: overview.revenue_per_session, icon: BarChart3, help: 'Attributed revenue divided by menu sessions.' },
-    { label: 'Cart abandonment', value: formatPercent(abandonment(overview.cart_sessions, overview.completed_orders)), previous: abandonment(previous.cart_sessions, previous.completed_orders), current: abandonment(overview.cart_sessions, overview.completed_orders), icon: ArrowDownRight, help: 'Sessions that added to cart without a completed order.' },
-    { label: 'Checkout abandonment', value: formatPercent(abandonment(overview.checkout_sessions, overview.completed_orders)), previous: abandonment(previous.checkout_sessions, previous.completed_orders), current: abandonment(overview.checkout_sessions, overview.completed_orders), icon: ArrowDownRight, help: 'Sessions that started checkout without a completed order.' },
+    ...(view.guestCart ? [
+      { label: 'Cart abandonment', value: formatPercent(abandonment(overview.cart_sessions, overview.completed_orders)), previous: abandonment(previous.cart_sessions, previous.completed_orders), current: abandonment(overview.cart_sessions, overview.completed_orders), icon: ArrowDownRight, help: 'Sessions that added to cart without a completed order.' },
+      { label: 'Checkout abandonment', value: formatPercent(abandonment(overview.checkout_sessions, overview.completed_orders)), previous: abandonment(previous.checkout_sessions, previous.completed_orders), current: abandonment(overview.checkout_sessions, overview.completed_orders), icon: ArrowDownRight, help: 'Sessions that started checkout without a completed order.' },
+    ] : []),
     { label: 'Time to order', value: duration(overview.median_time_to_order_seconds), previous: previous.median_time_to_order_seconds, current: overview.median_time_to_order_seconds, icon: Clock3, help: 'Median time from session start to the first completed order.' },
   ]
+  // Without orders the page is about attention: what the overview already counts.
+  const attentionKpis: Kpi[] = [
+    { label: 'Engaged sessions', value: compact(overview.engaged_sessions), previous: previous.engaged_sessions, current: overview.engaged_sessions, icon: MousePointerClick, help: 'Sessions where the guest interacted with the menu beyond opening it.' },
+    { label: 'Dish opens', value: compact(overview.detail_sessions), previous: previous.detail_sessions, current: overview.detail_sessions, icon: Eye, help: 'Sessions that opened at least one dish.' },
+    { label: 'Engagement rate', value: formatPercent(safeRate(overview.engaged_sessions, overview.sessions)), previous: safeRate(previous.engaged_sessions, previous.sessions), current: safeRate(overview.engaged_sessions, overview.sessions), icon: Sparkles, help: 'Engaged sessions divided by menu sessions.' },
+    { label: 'Median screen time', value: engagement.sessions > 0 ? formatDuration(engagement.median_seconds) : '—', icon: Clock3, help: 'Half of the visits last longer than this.' },
+  ]
+  const kpis = [...engagementKpis, ...(view.orderMetrics ? orderKpis : attentionKpis)]
 
   const funnel = [
     { label: 'Menu sessions', value: overview.sessions },
     { label: 'Engaged', value: overview.engaged_sessions },
-    { label: 'Details / customization', value: overview.detail_sessions },
-    { label: 'Added to cart', value: overview.cart_sessions },
-    { label: 'Checkout started', value: overview.checkout_sessions },
-    { label: 'Order completed', value: overview.completed_orders },
+    { label: view.orderMetrics ? 'Details / customization' : 'Opened a dish', value: overview.detail_sessions },
+    ...(view.guestCart ? [
+      { label: 'Added to cart', value: overview.cart_sessions },
+      { label: 'Checkout started', value: overview.checkout_sessions },
+    ] : []),
+    ...(view.orderMetrics ? [{ label: 'Order completed', value: overview.completed_orders }] : []),
   ]
 
   return (
@@ -158,7 +180,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           <article key={kpi.label} className="group rounded-2xl border border-zinc-100 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-5 flex items-start justify-between gap-3">
               <div className="flex size-9 items-center justify-center rounded-xl bg-zinc-950 text-white"><kpi.icon className="size-4" /></div>
-              <Delta current={kpi.current} previous={kpi.previous} inverse={kpi.label.includes('abandonment') || kpi.label === 'Time to order'} />
+              {kpi.previous !== undefined && <Delta current={kpi.current ?? 0} previous={kpi.previous} inverse={kpi.label.includes('abandonment') || kpi.label === 'Time to order'} />}
             </div>
             <p className="text-2xl font-black tracking-tight text-zinc-950 sm:text-3xl">{kpi.value}</p>
             <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-zinc-400">{kpi.label}</p>
@@ -167,11 +189,13 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
         ))}
       </section>
 
+      {!view.orderMetrics && <PlanHintCard groups={[lockedGroup('orders', 'Order, revenue and conversion analytics')]} />}
+
       <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <section className="rounded-2xl border border-zinc-100 bg-zinc-950 p-5 text-white sm:p-7">
           <div className="mb-7 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Conversion path</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">{view.orderMetrics ? 'Conversion path' : 'Attention path'}</p>
               <h2 className="mt-1 text-xl font-black">Session funnel</h2>
             </div>
             <span className="rounded-full border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">{days} days</span>
@@ -219,6 +243,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
 
       <EngagementSection data={engagement} timeZone={timeZone} />
 
+      {view.upsell && (
       <section className="rounded-2xl border border-zinc-100 bg-white p-5 sm:p-7">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div><p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Complete your order</p><h2 className="mt-1 text-xl font-black text-zinc-950">Sides, drinks and desserts after a dish</h2></div>
@@ -279,16 +304,17 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
           </div>
         )}
       </section>
+      )}
 
       <section className="overflow-hidden rounded-2xl border border-zinc-100 bg-white">
         <div className="flex flex-col gap-2 border-b border-zinc-100 p-5 sm:flex-row sm:items-end sm:justify-between sm:p-7">
-          <div><p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Product performance</p><h2 className="mt-1 text-xl font-black text-zinc-950">From impression to revenue</h2></div>
+          <div><p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary">Product performance</p><h2 className="mt-1 text-xl font-black text-zinc-950">{view.orderMetrics ? 'From impression to revenue' : 'From impression to dish opens'}</h2></div>
           <p className="text-[11px] font-medium text-zinc-500">Rates use unique sessions. “Low data” means fewer than 20 impressions.</p>
         </div>
         {products.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[940px] text-left">
-              <thead><tr className="border-b border-zinc-100 bg-zinc-50 text-[10px] font-black uppercase tracking-widest text-zinc-400"><th className="px-6 py-4">Product</th><th className="px-4 py-4">Impressions</th><th className="px-4 py-4">Attention</th><th className="px-4 py-4">Detail rate</th><th className="px-4 py-4">Add rate</th><th className="px-4 py-4">Remove rate</th><th className="px-4 py-4">Orders</th><th className="px-4 py-4">Conversion</th><th className="px-6 py-4 text-right">Revenue</th></tr></thead>
+            <table className={`w-full text-left ${view.orderMetrics ? 'min-w-[940px]' : 'min-w-[560px]'}`}>
+              <thead><tr className="border-b border-zinc-100 bg-zinc-50 text-[10px] font-black uppercase tracking-widest text-zinc-400"><th className="px-6 py-4">Product</th><th className="px-4 py-4">Impressions</th><th className="px-4 py-4">Attention</th><th className="px-4 py-4">Detail rate</th>{view.guestCart && <><th className="px-4 py-4">Add rate</th><th className="px-4 py-4">Remove rate</th></>}{view.orderMetrics && <><th className="px-4 py-4">Orders</th><th className="px-4 py-4">Conversion</th><th className="px-6 py-4 text-right">Revenue</th></>}</tr></thead>
               <tbody>
                 {products.map(product => (
                   <tr key={product.product_id} className="border-b border-zinc-100 text-sm last:border-0 hover:bg-zinc-50/70">
@@ -296,11 +322,11 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
                     <Metric value={compact(product.impression_sessions)} />
                     <Metric value={`${product.avg_attention_seconds.toFixed(1)}s`} />
                     <Metric value={formatPercent(product.detail_rate)} />
-                    <Metric value={formatPercent(product.add_rate)} />
-                    <Metric value={formatPercent(product.remove_rate)} />
-                    <Metric value={compact(product.purchased_quantity)} />
-                    <Metric value={formatPercent(product.purchase_rate)} />
-                    <td className="px-6 py-4 text-right font-black tabular-nums text-zinc-950">{formatPrice(product.revenue, currency)}</td>
+                    {view.guestCart && <Metric value={formatPercent(product.add_rate)} />}
+                    {view.guestCart && <Metric value={formatPercent(product.remove_rate)} />}
+                    {view.orderMetrics && <Metric value={compact(product.purchased_quantity)} />}
+                    {view.orderMetrics && <Metric value={formatPercent(product.purchase_rate)} />}
+                    {view.orderMetrics && <td className="px-6 py-4 text-right font-black tabular-nums text-zinc-950">{formatPrice(product.revenue, currency)}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -312,6 +338,16 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
       </section>
     </div>
   )
+}
+
+interface Kpi {
+  label: string
+  value: string
+  /** Same metric in the previous period; omit when there is no comparison. */
+  previous?: number
+  current?: number
+  icon: typeof Users
+  help: string
 }
 
 function Select({ name, label, defaultValue, options }: { name: string; label: string; defaultValue: string; options: [string, string][] }) {

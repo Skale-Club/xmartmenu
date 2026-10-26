@@ -9,9 +9,9 @@ import ScanRecorder from '@/components/menu/ScanRecorder'
 import PrivateMenuWrapper from '@/components/menu/PrivateMenuWrapper'
 import type { Metadata } from 'next'
 import { hasAnyChannel, resolveChatChannels } from '@/lib/chat-channels'
-import { getTenantServiceCapabilities } from '@/lib/tenant-plan'
+import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { parseTableParam } from '@/lib/service-modes'
-import { canCallWaiter } from '@/lib/waiter-calls'
+import { effectiveMultiplier, scaleOptionGroups, scaleProductIngredients, scaleProducts } from '@/components/menu/price-multiplier'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import type { ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
@@ -147,6 +147,11 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
 
   const productIds = (products ?? []).map(p => p.id)
 
+  // What the plan and the restaurant allow (service-modes.ts), computed once.
+  const capabilities = await getTenantCapabilities(tenant.id, tenant.tenant_settings as any, supabase)
+  // SEED-019: a private/in-store menu scales every price on it the same way.
+  const priceMultiplier = effectiveMultiplier((menu as any)?.price_multiplier)
+
   // Option groups (sizes, flavours…) are part of the dish: shown even on a
   // browse-only menu, and required before a dish with them can be ordered.
   const optionGroupsByProductId: Record<string, GroupWithOptions[]> = {}
@@ -168,10 +173,13 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       }
       optionGroupsByProductId[group.product_id].push(filtered)
     }
+    for (const [productId, groups] of Object.entries(optionGroupsByProductId)) {
+      optionGroupsByProductId[productId] = scaleOptionGroups(groups, priceMultiplier)
+    }
   }
 
-  const ingredientCustomizationEnabled =
-    tenant.tenant_settings?.ingredient_customization_enabled ?? false
+  // Ingredient add/remove only exists while ordering (guest checkout or waiter app).
+  const ingredientCustomizationEnabled = capabilities.ingredientCustomization
 
   const productIngredientsByProductId: Record<string, ProductIngredientWithIngredient[]> = {}
   if (ingredientCustomizationEnabled && productIds.length > 0) {
@@ -187,6 +195,9 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       }
       productIngredientsByProductId[pi.product_id].push(pi as ProductIngredientWithIngredient)
     }
+    for (const [productId, items] of Object.entries(productIngredientsByProductId)) {
+      productIngredientsByProductId[productId] = scaleProductIngredients(items, priceMultiplier)
+    }
   }
 
   // SEED-024: chat addon status for the widget
@@ -198,13 +209,10 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   // Typed messages and voice notes are switched per restaurant; none = no chat box.
   const chatChannels = resolveChatChannels(chatSettings)
 
-  // What the plan and the restaurant allow (service-modes.ts), and the table
-  // this link belongs to (QR code / NFC tag: ?table=<id>) when guests can order.
-  const serviceCapabilities = await getTenantServiceCapabilities(tenant.id, tenant.tenant_settings as any, supabase)
+  // The table this link belongs to (QR code / NFC tag: ?table=<id>): guests
+  // order to it, or call a waiter / ask for the bill from it.
   const tableId = parseTableParam(tableParam)
-  // A table link also lets guests call a waiter or ask for the bill (waiter-calls.ts).
-  const waiterCalls = canCallWaiter(serviceCapabilities)
-  const { data: table } = tableId && (serviceCapabilities.guestOrdering || waiterCalls)
+  const { data: table } = tableId && (capabilities.guestOrdering || capabilities.waiterCalls)
     ? await supabase.from('restaurant_tables').select('id, name').eq('id', tableId).eq('tenant_id', tenant.id).eq('is_active', true).maybeSingle()
     : { data: null }
 
@@ -222,9 +230,8 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
     }
   }
 
-  // Fetch active delivery zones for zone-based checkout pricing
-  const deliveryEnabled = (tenant.tenant_settings as any)?.delivery_enabled ?? false
-  const { data: deliveryZones } = deliveryEnabled
+  // Active delivery zones for zone-based checkout pricing — only when guests can order delivery.
+  const { data: deliveryZones } = capabilities.delivery
     ? await supabase.from('delivery_zones').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
     : { data: [] }
 
@@ -238,11 +245,8 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
   const currency = (tenant.tenant_settings as any)?.currency ?? 'USD'
 
-  // SEED-019: apply price multiplier from private/in-store menu
-  const priceMultiplier = (menu as any)?.price_multiplier ?? 1
-  const displayProducts = priceMultiplier !== 1 && priceMultiplier > 0
-    ? (products ?? []).map(p => ({ ...p, price: Math.round(p.price * priceMultiplier * 100) / 100 }))
-    : (products ?? [])
+  // SEED-019: dish prices on a private/in-store menu (options and ingredients scaled above).
+  const displayProducts = scaleProducts(products ?? [], priceMultiplier)
 
   const isPrivate = (menu as any)?.is_private ?? false
 
@@ -293,16 +297,15 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       initialView={view === 'feed' || view === 'list' ? view : undefined}
       footerBrand={footerBrand}
       optionGroupsByProductId={optionGroupsByProductId}
-      ingredientCustomizationEnabled={ingredientCustomizationEnabled}
       productIngredientsByProductId={productIngredientsByProductId}
       deliveryZones={(deliveryZones ?? []) as any}
       productMediaByProductId={productMediaByProductId}
       chatAddonEnabled={chatStatus.enabled && hasAnyChannel(chatChannels)}
       chatAddonAudioEnabled={chatChannels.voice}
       chatAddonTextEnabled={chatChannels.text}
-      guestOrderingEnabled={serviceCapabilities.guestOrdering}
-      table={serviceCapabilities.guestOrdering ? table ?? null : null}
-      waiterCallTable={waiterCalls ? table ?? null : null}
+      capabilities={capabilities}
+      table={capabilities.guestOrdering ? table ?? null : null}
+      waiterCallTable={capabilities.waiterCalls ? table ?? null : null}
     />
   )
 

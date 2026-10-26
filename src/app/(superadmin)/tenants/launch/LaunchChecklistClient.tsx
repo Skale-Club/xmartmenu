@@ -9,6 +9,8 @@ import {
   LAUNCH_CHECKLIST_CATEGORY_LABELS,
   LAUNCH_CHECKLIST_ITEMS,
   LAUNCH_CHECKLIST_REASON_LABELS,
+  isLaunchChecklistItemApplicable,
+  launchChecklistItemsFor,
   resolveLaunchChecklistLink,
   summarizeLaunchChecklist,
   type LaunchChecklistEntry,
@@ -21,10 +23,13 @@ import {
 type ProgressFilter = 'all' | 'incomplete' | 'complete'
 type SaveFn = (tenantId: string, itemKey: string, status: LaunchChecklistStatus, note?: string) => Promise<boolean>
 
-const ITEMS_BY_CATEGORY = LAUNCH_CHECKLIST_CATEGORIES.map((category) => ({
-  category,
-  items: LAUNCH_CHECKLIST_ITEMS.filter((i) => i.category === category),
-}))
+/** The checklist of one restaurant, by category: items its plan cannot use are left out. */
+function itemsByCategory(tenant: LaunchChecklistTenant) {
+  const items = launchChecklistItemsFor(tenant.plan)
+  return LAUNCH_CHECKLIST_CATEGORIES
+    .map((category) => ({ category, items: items.filter((i) => i.category === category) }))
+    .filter((group) => group.items.length > 0)
+}
 
 const inputClass = 'min-h-10 w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 text-sm text-zinc-900 outline-none transition-[border-color,box-shadow,background-color] placeholder:text-zinc-400 hover:bg-white focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-100'
 
@@ -67,7 +72,7 @@ export default function LaunchChecklistClient({ initial, initialOpenTenantId }: 
   }
 
   const stats = useMemo(() => {
-    const summaries = tenants.map((t) => summarizeLaunchChecklist(t.entries))
+    const summaries = tenants.map((t) => summarizeLaunchChecklist(t.entries, t.plan))
     return {
       sites: tenants.length,
       launched: summaries.filter((s) => s.pending === 0).length,
@@ -80,10 +85,15 @@ export default function LaunchChecklistClient({ initial, initialOpenTenantId }: 
     const q = search.trim().toLowerCase()
     return tenants.filter((t) => {
       if (q && ![t.name, t.slug, t.primaryDomain ?? ''].some((v) => v.toLowerCase().includes(q))) return false
-      const summary = summarizeLaunchChecklist(t.entries)
+      const summary = summarizeLaunchChecklist(t.entries, t.plan)
       if (progressFilter === 'complete' && summary.pending > 0) return false
       if (progressFilter === 'incomplete' && summary.pending === 0) return false
-      if (missingItem !== 'any' && statusOf(t, missingItem) !== 'pending') return false
+      if (missingItem !== 'any') {
+        // An item the restaurant's plan cannot use is never "missing" for it.
+        const def = LAUNCH_CHECKLIST_ITEMS.find((i) => i.key === missingItem)
+        if (def && !isLaunchChecklistItemApplicable(def, t.plan)) return false
+        if (statusOf(t, missingItem) !== 'pending') return false
+      }
       return true
     })
   }, [tenants, search, progressFilter, missingItem])
@@ -183,7 +193,8 @@ function TenantCard({ tenant, open, onToggle, save, disabled }: {
   save: SaveFn
   disabled: boolean
 }) {
-  const summary = summarizeLaunchChecklist(tenant.entries)
+  const summary = summarizeLaunchChecklist(tenant.entries, tenant.plan)
+  const groups = itemsByCategory(tenant)
   return (
     <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full flex-col gap-3 p-4 text-left transition-colors hover:bg-zinc-50 lg:flex-row lg:items-center">
@@ -195,7 +206,7 @@ function TenantCard({ tenant, open, onToggle, save, disabled }: {
           <p className="truncate text-xs text-zinc-500">{tenant.primaryDomain ?? tenant.siteUrl.replace(/^https?:\/\//, '')}</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {ITEMS_BY_CATEGORY.map(({ category, items }) => {
+          {groups.map(({ category, items }) => {
             const finished = items.filter((i) => statusOf(tenant, i.key) !== 'pending').length
             return (
               <span
@@ -219,7 +230,7 @@ function TenantCard({ tenant, open, onToggle, save, disabled }: {
             <p className="text-xs text-zinc-500">{summary.done} done · {summary.na} N/A · {summary.pending} pending · {summary.total} items</p>
             <Link href={`/tenants/${tenant.id}`} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">Open restaurant</Link>
           </div>
-          {ITEMS_BY_CATEGORY.map(({ category, items }) => (
+          {groups.map(({ category, items }) => (
             <div key={category}>
               <h3 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">{LAUNCH_CHECKLIST_CATEGORY_LABELS[category]}</h3>
               <ul className="divide-y divide-zinc-100 rounded-xl border border-zinc-200">

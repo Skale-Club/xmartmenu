@@ -5,7 +5,10 @@ import Image from 'next/image'
 import Link from 'next/link'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import TenantAiCard from './TenantAiCard'
+import ServiceSwitchesCard, { type ServiceSwitchValues } from './ServiceSwitchesCard'
 import { planBadgeClass } from '@/lib/plan-badge'
+import { liveFeatures } from '@/lib/plan-settings'
+import { planCeiling } from '@/lib/service-modes'
 import {
   ArrowLeft,
   Rocket,
@@ -66,6 +69,33 @@ interface Plan {
   monthly_price: number
   annual_price: number
   transaction_fee_pct: number
+  features?: string[] | null
+}
+
+const SUBSCRIPTION_STATUSES = ['active', 'trial', 'past_due', 'cancelled'] as const
+type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number]
+
+const STATUS_LABELS: Record<SubscriptionStatus, string> = {
+  active: 'Active',
+  trial: 'Trial',
+  past_due: 'Past due',
+  cancelled: 'Cancelled',
+}
+
+const STATUS_BADGES: Record<SubscriptionStatus, string> = {
+  active: 'bg-emerald-50 text-emerald-700',
+  trial: 'bg-sky-50 text-sky-700',
+  past_due: 'bg-amber-50 text-amber-700',
+  cancelled: 'bg-red-50 text-red-700',
+}
+
+function isSubscriptionStatus(value: string | null | undefined): value is SubscriptionStatus {
+  return (SUBSCRIPTION_STATUSES as readonly string[]).includes(value ?? '')
+}
+
+function StatusBadge({ status }: { status: string | null | undefined }) {
+  if (!isSubscriptionStatus(status)) return null
+  return <span className={`inline-flex min-h-7 items-center rounded-full px-2.5 text-[11px] font-bold uppercase ${STATUS_BADGES[status]}`}>{STATUS_LABELS[status]}</span>
 }
 
 interface Subscription {
@@ -74,6 +104,8 @@ interface Subscription {
   plan_id: string
   billing_cycle: 'monthly' | 'annual'
   status: string
+  stripe_subscription_id?: string | null
+  current_period_end?: string | null
   override_monthly_price: number | null
   override_annual_price: number | null
   override_transaction_fee_pct: number | null
@@ -90,6 +122,7 @@ export default function TenantDetailClient({
   businessType,
   initialSubscription,
   availablePlans,
+  initialSwitches,
   canUseAiTools,
 }: {
   tenant: Tenant
@@ -98,6 +131,7 @@ export default function TenantDetailClient({
   businessType: string | null
   initialSubscription: Subscription | null
   availablePlans: Array<{ id: string; name: string; slug: string }>
+  initialSwitches: ServiceSwitchValues
   canUseAiTools: boolean
 }) {
   const [tab, setTab] = useState<'staff' | 'menus' | 'subscription'>('staff')
@@ -436,7 +470,13 @@ export default function TenantDetailClient({
   const [overrideAnnualPrice, setOverrideAnnualPrice] = useState(initialSubscription?.override_annual_price?.toString() ?? '')
   const [overrideTransactionFee, setOverrideTransactionFee] = useState(initialSubscription?.override_transaction_fee_pct?.toString() ?? '')
   const [overrideNotes, setOverrideNotes] = useState(initialSubscription?.override_notes ?? '')
+  const [selectedStatus, setSelectedStatus] = useState<SubscriptionStatus>(isSubscriptionStatus(initialSubscription?.status) ? initialSubscription.status : 'active')
   const [subscriptionLoading, setSubscriptionLoading] = useState(false)
+  const [subscriptionNotice, setSubscriptionNotice] = useState<string | null>(null)
+
+  // What the plan sells right now (a cancelled or past-due plan sells nothing):
+  // the service switches below lock against it.
+  const planAccess = planCeiling(liveFeatures(subscription?.status, subscription?.plan?.features))
 
   const input = 'min-h-11 w-full rounded-xl border border-zinc-200 bg-white px-3 text-sm text-zinc-900 outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-zinc-400 focus:border-indigo-300 focus:ring-4 focus:ring-indigo-50'
   const planBadge = planBadgeClass(subscription?.plan?.slug ?? tenant.plan)
@@ -478,6 +518,7 @@ export default function TenantDetailClient({
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <h1 className="truncate text-xl font-bold text-zinc-950 text-balance sm:text-2xl">{tenant.name}</h1>
                 <span className={`inline-flex min-h-7 items-center rounded-full px-2.5 text-[11px] font-bold uppercase ${planBadge}`}>{subscription?.plan?.name ?? tenant.plan ?? 'No plan'}</span>
+                {subscription && subscription.status !== 'active' && <StatusBadge status={subscription.status} />}
                 <span className={`inline-flex min-h-7 items-center gap-1.5 rounded-full px-2.5 text-[11px] font-semibold ${tenant.is_active ? 'bg-green-50 text-green-700' : 'bg-zinc-100 text-zinc-500'}`}>
                   {tenant.is_active && <CheckCircle2 className="size-3.5" />}
                   {tenant.is_active ? 'Active' : 'Inactive'}
@@ -658,6 +699,7 @@ export default function TenantDetailClient({
 
       {/* Subscription tab */}
       {tab === 'subscription' && (
+        <>
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
           {!subscription?.plan ? (
             <div className="mx-auto max-w-md py-6 text-center">
@@ -687,6 +729,7 @@ export default function TenantDetailClient({
                       const data = await res.json().catch(() => null)
                       if (!res.ok) throw new Error(data?.error ?? 'Failed to assign plan')
                       setSubscription(data)
+                      if (isSubscriptionStatus(data?.status)) setSelectedStatus(data.status)
                     } catch (cause) {
                       setError(cause instanceof Error ? cause.message : 'Failed to assign plan')
                     } finally {
@@ -701,10 +744,70 @@ export default function TenantDetailClient({
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Current Plan */}
+              {/* Current plan and status: both can be changed here */}
               <div className="rounded-xl bg-zinc-50 p-4">
                 <p className="text-xs text-zinc-400 uppercase tracking-wider mb-2">Current Plan</p>
-                <p className="text-lg font-semibold text-zinc-900">{subscription.plan.name}</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-lg font-semibold text-zinc-900">{subscription.plan.name}</p>
+                  <StatusBadge status={subscription.status} />
+                  {subscription.stripe_subscription_id && (
+                    <span className="inline-flex min-h-7 items-center rounded-full bg-indigo-50 px-2.5 text-[11px] font-bold uppercase text-indigo-700">Billed via Stripe</span>
+                  )}
+                </div>
+                {subscription.status !== 'active' && subscription.status !== 'trial' && (
+                  <p className="mt-2 text-xs font-medium text-amber-700">Paid features are off for this restaurant while the subscription is {STATUS_LABELS[isSubscriptionStatus(subscription.status) ? subscription.status : 'cancelled'].toLowerCase()}.</p>
+                )}
+
+                <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                  <label className="block text-xs font-medium text-zinc-600">Plan
+                    <select value={selectedPlanId} onChange={event => setSelectedPlanId(event.target.value)} className={`${input} mt-1`}>
+                      {availablePlans.map(plan => <option key={plan.id} value={plan.id}>{plan.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-medium text-zinc-600">Status
+                    <select value={selectedStatus} onChange={event => setSelectedStatus(event.target.value as SubscriptionStatus)} className={`${input} mt-1`}>
+                      {SUBSCRIPTION_STATUSES.map(value => <option key={value} value={value}>{STATUS_LABELS[value]}</option>)}
+                    </select>
+                  </label>
+                  <button
+                    disabled={!selectedPlanId || subscriptionLoading || (selectedPlanId === subscription.plan_id && selectedStatus === subscription.status)}
+                    onClick={async () => {
+                      setSubscriptionLoading(true)
+                      setError(null)
+                      setSubscriptionNotice(null)
+                      try {
+                        const res = await fetch(`/api/superadmin/tenants/${tenant.id}/subscription`, {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ plan_id: selectedPlanId, status: selectedStatus }),
+                        })
+                        const data = await res.json().catch(() => null)
+                        if (!res.ok) throw new Error(data?.error ?? 'Failed to change plan')
+                        const { warning, ...saved } = data as Subscription & { warning?: string }
+                        setSubscription(saved)
+                        setSelectedPlanId(saved.plan_id)
+                        if (isSubscriptionStatus(saved.status)) setSelectedStatus(saved.status)
+                        if (warning) setSubscriptionNotice(warning)
+                      } catch (cause) {
+                        setError(cause instanceof Error ? cause.message : 'Failed to change plan')
+                      } finally {
+                        setSubscriptionLoading(false)
+                      }
+                    }}
+                    className="min-h-11 rounded-xl bg-zinc-900 px-4 text-sm font-bold text-white transition-[background-color,scale] duration-150 hover:bg-zinc-800 active:scale-96 disabled:opacity-50"
+                  >
+                    {subscriptionLoading ? 'Saving...' : 'Save plan'}
+                  </button>
+                </div>
+
+                {subscription.stripe_subscription_id && (
+                  <p className="mt-3 text-xs leading-relaxed text-zinc-500">
+                    This restaurant pays through Stripe. Changing the plan here swaps the price on its Stripe subscription (prorated). A status set here is overwritten by the next Stripe event: cancel or pause the subscription in Stripe to make it stick.
+                  </p>
+                )}
+                {subscriptionNotice && (
+                  <p role="status" className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">{subscriptionNotice}</p>
+                )}
               </div>
 
               {/* Effective Pricing */}
@@ -865,6 +968,8 @@ export default function TenantDetailClient({
             </div>
           )}
         </section>
+        <ServiceSwitchesCard tenantId={tenant.id} initial={initialSwitches} access={planAccess} onError={setError} />
+        </>
       )}
 
       {/* AI Tools section | D-02: placed below Tabs, always visible */}

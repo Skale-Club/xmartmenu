@@ -36,13 +36,20 @@ interface Props {
   baseLanguage?: string
   supportedLanguages?: string[]
   upsellCandidates?: UpsellCandidate[]
+  /** The plan sells only the menu: option groups are plain sizes & prices (no required / min / max),
+   *  and there is no ingredient tab. */
+  showcase?: boolean
+  /** The plan includes guest ordering, the only place "Complete your order" works. */
+  upsellAvailable?: boolean
 }
 
 function OptionGroupForm({
   initial,
+  showcase = false,
   onSave,
   onDiscard,
 }: {
+  showcase?: boolean
   initial?: { name: string; type: OptionGroupType; required: boolean; min_selections: number; max_selections: number | null }
   onSave: (data: { name: string; type: OptionGroupType; required: boolean; min_selections: number; max_selections: number | null }) => Promise<void>
   onDiscard: () => void
@@ -50,7 +57,7 @@ function OptionGroupForm({
   const [name, setName] = useState(initial?.name ?? '')
   const [type, setType] = useState<OptionGroupType>(initial?.type ?? 'single')
   const [required, setRequired] = useState(initial?.required ?? false)
-  const [minSelections, setMinSelections] = useState(initial?.min_selections ?? 1)
+  const [minSelections, setMinSelections] = useState(initial?.min_selections ?? (showcase ? 0 : 1))
   const [maxSelections, setMaxSelections] = useState<string>(
     initial?.max_selections != null ? String(initial.max_selections) : ''
   )
@@ -64,7 +71,8 @@ function OptionGroupForm({
     await onSave({
       name,
       type,
-      required,
+      // A price list has nothing to enforce: sizes are never required.
+      required: showcase ? false : required,
       min_selections: minSelections,
       max_selections: maxSelections ? parseInt(maxSelections, 10) : null,
     }).catch((err: Error) => setError(err.message))
@@ -80,7 +88,7 @@ function OptionGroupForm({
             required
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="e.g. Size, Toppings, Flavor"
+            placeholder={showcase ? 'e.g. Size, Portion' : 'e.g. Size, Toppings, Flavor'}
             className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
           />
         </div>
@@ -96,7 +104,7 @@ function OptionGroupForm({
             <option value="half_and_half">Half &amp; Half</option>
           </select>
         </div>
-        <div className="flex items-end pb-2">
+        {!showcase && <div className="flex items-end pb-2">
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
@@ -106,8 +114,8 @@ function OptionGroupForm({
             />
             <span className="text-sm text-zinc-700">Required</span>
           </label>
-        </div>
-        <div>
+        </div>}
+        {!showcase && <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Min selections</label>
           <input
             type="number"
@@ -116,8 +124,8 @@ function OptionGroupForm({
             onChange={e => setMinSelections(parseInt(e.target.value, 10) || 0)}
             className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
           />
-        </div>
-        <div>
+        </div>}
+        {!showcase && <div>
           <label className="block text-sm font-medium text-zinc-700 mb-1">Max selections</label>
           <input
             type="number"
@@ -127,7 +135,7 @@ function OptionGroupForm({
             placeholder="No limit"
             className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
           />
-        </div>
+        </div>}
       </div>
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
@@ -280,6 +288,8 @@ export default function ProductDetailClient({
   baseLanguage = 'en',
   supportedLanguages = [],
   upsellCandidates = [],
+  showcase = false,
+  upsellAvailable = true,
 }: Props) {
   // Product fields form state
   const [productForm, setProductForm] = useState({
@@ -623,9 +633,9 @@ export default function ProductDetailClient({
               : 'text-zinc-500 hover:text-zinc-900'
           }`}
         >
-          Options
+          {showcase ? 'Sizes & prices' : 'Options'}
         </button>
-        {ingredientCustomizationEnabled && (
+        {ingredientCustomizationEnabled && !showcase && (
           <button
             onClick={() => setActiveTab('ingredients')}
             className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
@@ -758,7 +768,7 @@ export default function ProductDetailClient({
       </div>
       )}
 
-      {activeTab === 'details' && (
+      {activeTab === 'details' && upsellAvailable && (
         <ProductUpsellCard
           productId={product.id}
           initialIds={product.upsell_product_ids ?? []}
@@ -771,7 +781,7 @@ export default function ProductDetailClient({
       {activeTab === 'options' && (
       <div className="bg-white border border-zinc-200 rounded-lg shadow-sm p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-zinc-900">Option Groups</h2>
+          <h2 className="text-base font-semibold text-zinc-900">{showcase ? 'Sizes & prices' : 'Option Groups'}</h2>
           {canManage && (
             <button
               disabled={expandedGroup !== null}
@@ -786,8 +796,8 @@ export default function ProductDetailClient({
         {/* Empty state when no groups */}
         {groups.length === 0 && expandedGroup !== 'new' && (
           <div className="text-center py-12 text-zinc-400">
-            <p className="font-medium text-zinc-500">No option groups yet</p>
-            <p className="text-sm mt-1">Add a group to offer sizes, toppings, or half-and-half options for this product.</p>
+            <p className="font-medium text-zinc-500">{showcase ? 'No sizes yet' : 'No option groups yet'}</p>
+            <p className="text-sm mt-1">{showcase ? 'Add a group to list sizes or portions, each with its own price.' : 'Add a group to offer sizes, toppings, or half-and-half options for this product.'}</p>
           </div>
         )}
 
@@ -795,6 +805,7 @@ export default function ProductDetailClient({
         {expandedGroup === 'new' && (
           <div className="border border-zinc-200 rounded-lg p-4 mb-3 bg-zinc-50">
             <OptionGroupForm
+              showcase={showcase}
               onSave={async (data) => {
                 await handleSaveGroup(data, null, () => setExpandedGroup(null), (msg) => { throw new Error(msg) })
               }}
@@ -811,6 +822,7 @@ export default function ProductDetailClient({
               {expandedGroup === group.id ? (
                 <div className="p-4 bg-zinc-50">
                   <OptionGroupForm
+                    showcase={showcase}
                     initial={{ name: group.name, type: group.type, required: group.required, min_selections: group.min_selections, max_selections: group.max_selections }}
                     onSave={async (data) => {
                       await handleSaveGroup(data, group.id, () => setExpandedGroup(null), (msg) => { throw new Error(msg) })
@@ -845,7 +857,7 @@ export default function ProductDetailClient({
                   <div className="flex-1 flex items-center gap-2 flex-wrap">
                     <span className="text-sm font-semibold text-zinc-900">{group.name}</span>
                     <span className={TYPE_BADGE[group.type]}>{TYPE_LABEL[group.type]}</span>
-                    {group.required && (
+                    {group.required && !showcase && (
                       <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full">Required</span>
                     )}
                     <span className="text-xs text-zinc-400">
@@ -1006,7 +1018,7 @@ export default function ProductDetailClient({
       )}
 
       {/* Ingredients tab shown only when flag is on and tab is active */}
-      {activeTab === 'ingredients' && ingredientCustomizationEnabled && (
+      {activeTab === 'ingredients' && ingredientCustomizationEnabled && !showcase && (
         <div className="bg-white border border-zinc-200 rounded-lg shadow-sm p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-semibold text-zinc-900">Ingredients</h2>

@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { normalizeWhatsapp } from '@/lib/service-settings'
 
 const HEX = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 
@@ -10,7 +11,9 @@ const HEX = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
  * PATCH /api/admin/branding
  * Server-side save for tenant branding/settings (S02/S04 hardening). Replaces the
  * previous direct client-side tenant_settings write: validates colors (hex),
- * caps text fields, coerces booleans, and scopes to the caller's own tenant.
+ * caps text fields, and scopes to the caller's own tenant. The service switches
+ * (orders_enabled, direct_orders_enabled, whatsapp_orders_enabled) are saved by
+ * /api/admin/service-settings, which checks the plan; they are ignored here.
  */
 async function handlePATCH(request: Request) {
   const effective = await getEffectiveTenant()
@@ -27,11 +30,17 @@ async function handlePATCH(request: Request) {
   const update: Record<string, unknown> = {
     tenant_id: effective.tenantId,
     instagram: str(body.instagram, 64),
-    whatsapp: str(body.whatsapp, 32),
     tagline: str(body.tagline, 120),
-    whatsapp_orders_enabled: body.whatsapp_orders_enabled === true,
-    orders_enabled: body.orders_enabled === true,
-    direct_orders_enabled: body.direct_orders_enabled === true,
+  }
+
+  // Only written when sent, so a form without it never clears the number the
+  // service settings saved.
+  if ('whatsapp' in body) {
+    const whatsapp = normalizeWhatsapp(body.whatsapp)
+    if (whatsapp === undefined) {
+      return NextResponse.json({ error: 'Invalid whatsapp' }, { status: 400 })
+    }
+    update.whatsapp = whatsapp
   }
 
   // Colors are interpolated into <style> downstream — must be strict hex.

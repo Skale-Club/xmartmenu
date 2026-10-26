@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { createServiceClient } from '@/lib/supabase/server'
 import {
   checkDestructiveAllowed,
+  checkPlanIncludes,
   errorResult,
   jsonResult,
   logMcpMutation,
@@ -196,6 +197,8 @@ export function registerLocationWriteTools(server: McpServer): void {
       const service = createServiceClient()
       const tenantId = await resolveTenantId(service, tenant)
       if (!tenantId) return errorResult(`Tenant não encontrado: ${tenant}`)
+      const locked = await checkPlanIncludes(service, tenantId, 'payments', 'delivery zones')
+      if (locked) return locked
       const { data, error } = await service
         .from('delivery_zones')
         .insert({
@@ -234,6 +237,8 @@ export function registerLocationWriteTools(server: McpServer): void {
       const update: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(fields)) if (v !== undefined) update[k] = v
       if (Object.keys(update).length === 0) return errorResult('Nada para atualizar.')
+      const locked = await checkPlanIncludes(service, tenantId, 'payments', 'delivery zones')
+      if (locked) return locked
 
       const { data, error } = await service
         .from('delivery_zones')
