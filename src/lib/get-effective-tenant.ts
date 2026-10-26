@@ -38,12 +38,12 @@ export async function getEffectiveTenant(): Promise<EffectiveTenant | null> {
 
     if (!tenant) return null
     // Logs, Sentry and the audit trail attribute this request to the superadmin.
-    setRequestContext({ actorId: user.id, tenantId: tenant.id, role: 'superadmin' })
+    setRequestContext({ actorId: user.id, tenantId: tenant.id, tenantSlug: tenant.slug, role: 'superadmin' })
     return { tenantId: tenant.id, slug: tenant.slug, name: tenant.name, role: 'superadmin' }
   }
 
   const t = profile.tenants as any
-  setRequestContext({ actorId: user.id, tenantId: profile.tenant_id, role: normalizedRole ?? profile.role })
+  setRequestContext({ actorId: user.id, tenantId: profile.tenant_id, tenantSlug: t?.slug ?? undefined, role: normalizedRole ?? profile.role })
   return {
     tenantId: profile.tenant_id,
     slug: t?.slug ?? '',

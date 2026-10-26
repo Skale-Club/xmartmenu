@@ -13,9 +13,14 @@
  *
  * The menu is picked in memory from the tenant's active menus (one query),
  * with the same rules the pages used to apply with one query per candidate.
+ *
+ * Everything that does not depend on the visitor is cached for a short while
+ * per restaurant and section (src/lib/menu/public-menu-cache.ts); the
+ * ?table= row is picked from the cached table list, and a private menu's
+ * phone-session check runs on every request.
  */
 import { cache } from 'react'
-import type { SupabaseClient } from '@supabase/supabase-js'
+import { unstable_cache } from 'next/cache'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { getChatAddonStatus } from '@/lib/chat-addon'
@@ -23,18 +28,7 @@ import { hasAnyChannel, resolveChatChannels } from '@/lib/chat-channels'
 import type { TenantCapabilities } from '@/lib/service-modes'
 import type { DeliveryZone, ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-
-/** Active tenant by slug, with its settings. Cached per request (shared with generateMetadata). */
-export const getTenantBySlug = cache(async (slug: string) => {
-  const supabase = createServiceClient()
-  const { data } = await supabase
-    .from('tenants')
-    .select('*, tenant_settings(*)')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
-  return data
-})
+import { menuCacheKey, menuCacheTags, publicMenuCacheSeconds } from '@/lib/menu/public-menu-cache'
 
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-tested in tests/unit/menu/public-menu-data.test.ts)
@@ -113,10 +107,10 @@ export interface LoadPublicMenuOptions {
   menuSlug?: string
   /** Parsed ?table= id (parseTableParam), or null. */
   tableId: string | null
-  supabase?: SupabaseClient
   /**
    * Private menus only: whether the caller may see it (phone-verified session).
-   * Runs alongside stage 3; when it says no, the menu's options/media are not loaded.
+   * Runs on every request, outside the cache; when it says no, the menu's
+   * options, ingredients and media are left out of the result.
    */
   checkPrivateAccess?: () => Promise<boolean>
 }
@@ -149,16 +143,23 @@ export type PublicMenuResult =
   | { kind: 'branches'; tenant: any; footerBrand: string; locations: any[] }
   | ({ kind: 'menu' } & PublicMenuData)
 
-export async function loadPublicMenuData({
-  slug,
-  menuSlug,
-  tableId,
-  supabase = createServiceClient(),
-  checkPrivateAccess,
-}: LoadPublicMenuOptions): Promise<PublicMenuResult> {
+/** What the cache holds: the visitor-independent part of PublicMenuResult, plus the tables to pick from. */
+export type CachedPublicMenu =
+  | { kind: 'not_found' }
+  | { kind: 'branches'; tenant: any; footerBrand: string; locations: any[] }
+  | ({ kind: 'menu' } & Omit<PublicMenuData, 'table' | 'privateAccess'> & { tables: Array<{ id: string; name: string }> })
+
+/**
+ * The four query stages, with nothing visitor-specific: safe to cache per
+ * (slug, menuSlug). Reads with the service client it creates itself (a cache
+ * key must be serialisable, so no client is passed in).
+ */
+export async function loadPublicMenuBase(slug: string, menuSlug: string | undefined): Promise<CachedPublicMenu> {
+  const supabase = createServiceClient()
+
   // Stage 1 — needs the slug.
-  const [tenant, { data: platformRow }] = await Promise.all([
-    getTenantBySlug(slug),
+  const [{ data: tenant }, { data: platformRow }] = await Promise.all([
+    supabase.from('tenants').select('*, tenant_settings(*)').eq('slug', slug).eq('is_active', true).single(),
     supabase.from('platform_settings').select('menu_footer_brand').single(),
   ])
   if (!tenant) return { kind: 'not_found' }
@@ -172,7 +173,7 @@ export async function loadPublicMenuData({
     capabilities,
     chatStatus,
     { data: chatSettings },
-    { data: tableRow },
+    { data: tableRows },
     { data: zones },
   ] = await Promise.all([
     supabase.from('menus').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('position'),
@@ -187,10 +188,8 @@ export async function loadPublicMenuData({
     getChatAddonStatus(tenant.id),
     // One tiny row; fetched up front and dropped below when the addon is off.
     supabase.from('chat_addon_settings').select('audio_enabled, text_enabled').eq('tenant_id', tenant.id).maybeSingle(),
-    // The table this link belongs to (QR code / NFC tag: ?table=<id>).
-    tableId
-      ? supabase.from('restaurant_tables').select('id, name').eq('id', tableId).eq('tenant_id', tenant.id).eq('is_active', true).maybeSingle()
-      : Promise.resolve({ data: null }),
+    // Every active table: the ?table= of a link is picked from this list per request.
+    supabase.from('restaurant_tables').select('id, name').eq('tenant_id', tenant.id).eq('is_active', true),
     // Delivery zones for zone-based checkout pricing; kept below only when guests can order delivery.
     settings?.delivery_enabled === true
       ? supabase.from('delivery_zones').select('*').eq('tenant_id', tenant.id).eq('is_active', true).order('created_at')
@@ -212,19 +211,17 @@ export async function loadPublicMenuData({
 
   // Typed messages and voice notes are switched per restaurant; none = no chat box.
   const chatChannels = resolveChatChannels(chatStatus.enabled ? chatSettings : null)
-  const table = tableRow && (capabilities.guestOrdering || capabilities.waiterCalls) ? (tableRow as { id: string; name: string }) : null
   const deliveryZones = (capabilities.delivery ? zones ?? [] : []) as DeliveryZone[]
+  const tables = (tableRows ?? []) as Array<{ id: string; name: string }>
 
-  // Stage 3 — needs menu.id (and, for a private menu, the caller's session).
-  const isPrivate = menu?.is_private === true
-  const [{ data: categoryRows }, { data: productRows }, privateAccess] = await Promise.all([
+  // Stage 3 — needs menu.id.
+  const [{ data: categoryRows }, { data: productRows }] = await Promise.all([
     menu?.id
       ? supabase.from('categories').select('*').eq('menu_id', menu.id).eq('is_active', true).order('position')
       : Promise.resolve({ data: [] }),
     menu?.id
       ? supabase.from('products').select('*').eq('menu_id', menu.id).eq('is_available', true).order('position')
       : Promise.resolve({ data: [] }),
-    isPrivate && checkPrivateAccess ? checkPrivateAccess() : Promise.resolve(false),
   ])
   const categories: any[] = categoryRows ?? []
   const products: any[] = productRows ?? []
@@ -232,9 +229,10 @@ export async function loadPublicMenuData({
 
   // Stage 4 — needs the product ids. Option groups (sizes, flavours…) are part
   // of the dish: shown even on a browse-only menu. Ingredient add/remove only
-  // exists while ordering. Skipped for a private menu the caller cannot see.
+  // exists while ordering. For a private menu they are loaded here and dropped
+  // per request for a caller who may not see it (withoutDetails).
   const productIds = products.map(p => p.id)
-  const loadDetails = productIds.length > 0 && (!isPrivate || privateAccess)
+  const loadDetails = productIds.length > 0
   const [{ data: rawGroups }, { data: rawIngredients }, { data: rawMedia }] = await Promise.all([
     loadDetails
       ? supabase
@@ -269,7 +267,67 @@ export async function loadPublicMenuData({
     chatAddonEnabled: chatStatus.enabled && hasAnyChannel(chatChannels),
     chatAddonAudioEnabled: chatChannels.voice,
     chatAddonTextEnabled: chatChannels.text,
-    table,
+    tables,
+  }
+}
+
+/**
+ * The cached base for a (slug, menuSlug): one entry per restaurant and
+ * section, tagged for revalidation (public-menu-cache.ts), deduplicated per
+ * request so generateMetadata and the page share one read.
+ */
+export const getPublicMenuBase = cache(async (slug: string, menuSlug: string | undefined): Promise<CachedPublicMenu> => {
+  const seconds = publicMenuCacheSeconds()
+  if (seconds <= 0) return loadPublicMenuBase(slug, menuSlug)
+  const cached = unstable_cache(
+    () => loadPublicMenuBase(slug, menuSlug),
+    menuCacheKey(slug, menuSlug),
+    { revalidate: seconds, tags: menuCacheTags(slug) },
+  )
+  return cached()
+})
+
+/** The active tenant (+ settings) for a slug, from the cached base. */
+export async function getTenantBySlug(slug: string) {
+  const base = await getPublicMenuBase(slug, undefined)
+  return base.kind === 'not_found' ? null : base.tenant
+}
+
+// ---------------------------------------------------------------------------
+// Per-request part (pure helpers, unit-tested)
+// ---------------------------------------------------------------------------
+
+/** The ?table= row of a link, when the restaurant serves at the table (orders or waiter calls). */
+export function pickTable(
+  tables: readonly { id: string; name: string }[],
+  tableId: string | null,
+  capabilities: Pick<TenantCapabilities, 'guestOrdering' | 'waiterCalls'>,
+): { id: string; name: string } | null {
+  if (!tableId || !(capabilities.guestOrdering || capabilities.waiterCalls)) return null
+  return tables.find(t => t.id === tableId) ?? null
+}
+
+/** A private menu for a caller who may not see it: the dishes without their options, ingredients and media. */
+export function withoutDetails<T extends Pick<PublicMenuData, 'optionGroupsByProductId' | 'productIngredientsByProductId' | 'productMediaByProductId'>>(data: T): T {
+  return { ...data, optionGroupsByProductId: {}, productIngredientsByProductId: {}, productMediaByProductId: {} }
+}
+
+export async function loadPublicMenuData({
+  slug,
+  menuSlug,
+  tableId,
+  checkPrivateAccess,
+}: LoadPublicMenuOptions): Promise<PublicMenuResult> {
+  const base = await getPublicMenuBase(slug, menuSlug)
+  if (base.kind !== 'menu') return base
+
+  const { tables, ...data } = base
+  const isPrivate = data.menu?.is_private === true
+  const privateAccess = isPrivate && checkPrivateAccess ? await checkPrivateAccess() : false
+  const visible = isPrivate && !privateAccess ? withoutDetails(data) : data
+  return {
+    ...visible,
+    table: pickTable(tables, tableId, data.capabilities),
     privateAccess,
   }
 }

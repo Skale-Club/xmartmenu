@@ -67,6 +67,27 @@ export async function findOrderByCustomer(tenantId: string, customerName: string
 export async function updateSettings(tenantId: string, patch: Record<string, unknown>) {
   const { error } = await db().from('tenant_settings').update(patch).eq('tenant_id', tenantId)
   if (error) throw error
+  // The public menu is cached per restaurant; a write that went around the
+  // app must drop it, or the next page load still shows the old switches.
+  const { data: tenant } = await db().from('tenants').select('slug').eq('id', tenantId).single()
+  if (tenant?.slug) await revalidateMenu(tenant.slug)
+}
+
+/**
+ * Drop the cached public menu of a restaurant through the internal route
+ * (src/app/api/internal/revalidate-menu/route.ts), the way seed scripts do.
+ * The app under test runs with MENU_REVALIDATE_SECRET set (ci.yml, e2e-local.mjs).
+ */
+export async function revalidateMenu(slug: string) {
+  const baseUrl = process.env.E2E_BASE_URL ?? `http://localhost:${process.env.E2E_PORT ?? process.env.PORT ?? 3100}`
+  const secret = process.env.MENU_REVALIDATE_SECRET
+  if (!secret) throw new Error('MENU_REVALIDATE_SECRET is not set for the e2e run')
+  const response = await fetch(`${baseUrl}/api/internal/revalidate-menu`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-revalidate-secret': secret },
+    body: JSON.stringify({ slug }),
+  })
+  if (!response.ok) throw new Error(`revalidate-menu failed: ${response.status}`)
 }
 
 /** A name unique to this run, so tests can find the order they placed. */

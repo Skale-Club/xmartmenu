@@ -3,6 +3,7 @@ import type { RequestHandlerExtra } from '@modelcontextprotocol/sdk/shared/proto
 import type { ServerRequest, ServerNotification } from '@modelcontextprotocol/sdk/types.js'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { captureSecurityEvent } from '@/lib/observability'
+import { revalidateAllPublicMenus } from '@/lib/menu/public-menu-cache'
 import { getTenantCapabilities, getTenantPlan } from '@/lib/tenant-plan'
 import { lockedServiceKeys, planRequirementFor } from '@/lib/service-settings'
 
@@ -131,6 +132,9 @@ export function callerFromExtra(extra: ToolExtra): { userId?: string; email?: st
 /**
  * Audit a mutating tool call. Reuses the existing security-event sink so MCP
  * writes land in Sentry alongside the rest of the platform's authz events.
+ * Also drops every cached public menu: an MCP write may touch any restaurant
+ * (or the plans and platform settings they all read), and the cache is cheap
+ * to rebuild (src/lib/menu/public-menu-cache.ts).
  */
 export function logMcpMutation(tool: string, extra: ToolExtra, args: unknown): void {
   captureSecurityEvent(`MCP mutation: ${tool}`, {
@@ -139,6 +143,7 @@ export function logMcpMutation(tool: string, extra: ToolExtra, args: unknown): v
     caller: callerFromExtra(extra),
     args,
   })
+  revalidateAllPublicMenus()
 }
 
 /**

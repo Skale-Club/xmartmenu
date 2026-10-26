@@ -11,6 +11,7 @@ import { type GroupWithOptions } from './page'
 import ProductMediaTab from './ProductMediaTab'
 import ProductTranslationsTab from './ProductTranslationsTab'
 import ProductUpsellCard, { type UpsellCandidate } from './ProductUpsellCard'
+import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
 
 const TYPE_BADGE: Record<OptionGroupType, string> = {
   single:        'bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full',
@@ -355,11 +356,13 @@ export default function ProductDetailClient({
       })
       .eq('id', product.id)
     if (error) setProductError(error.message)
+    else notifyPublicMenuChanged()
     setProductSaving(false)
   }
 
   async function toggleOptionAvailability(groupId: string, optionId: string, current: boolean) {
-    await supabase.from('product_options').update({ is_available: !current }).eq('id', optionId)
+    const { error } = await supabase.from('product_options').update({ is_available: !current }).eq('id', optionId)
+    if (!error) notifyPublicMenuChanged()
     updateGroupOptions(groupId, opts =>
       opts.map(o => o.id === optionId ? { ...o, is_available: !current } : o)
     )
@@ -367,14 +370,16 @@ export default function ProductDetailClient({
 
   async function confirmDeleteGroup() {
     if (!confirmGroupId) return
-    await supabase.from('product_option_groups').delete().eq('id', confirmGroupId)
+    const { error } = await supabase.from('product_option_groups').delete().eq('id', confirmGroupId)
+    if (!error) notifyPublicMenuChanged()
     setGroups(prev => prev.filter(g => g.id !== confirmGroupId))
     setConfirmGroupId(null)
   }
 
   async function confirmDeleteOption() {
     if (!confirmOptionId) return
-    await supabase.from('product_options').delete().eq('id', confirmOptionId.optionId)
+    const { error } = await supabase.from('product_options').delete().eq('id', confirmOptionId.optionId)
+    if (!error) notifyPublicMenuChanged()
     updateGroupOptions(confirmOptionId.groupId, opts =>
       opts.filter(o => o.id !== confirmOptionId!.optionId)
     )
@@ -399,6 +404,7 @@ export default function ProductDetailClient({
         .update({ name: data.name, type: data.type, required: data.required, min_selections: data.min_selections, max_selections: data.max_selections })
         .eq('id', editingId)
       if (error) { onError(error.message); return }
+      notifyPublicMenuChanged()
       setGroups(prev => prev.map(g =>
         g.id === editingId ? { ...g, ...data } : g
       ))
@@ -419,6 +425,7 @@ export default function ProductDetailClient({
         .select()
         .single()
       if (error) { onError(error.message); return }
+      notifyPublicMenuChanged()
       if (inserted) setGroups(prev => [...prev, { ...inserted, options: [] }])
     }
     onSuccess()
@@ -445,10 +452,11 @@ export default function ProductDetailClient({
     setReorderInFlight(true)
 
     try {
-      await Promise.all([
+      const results = await Promise.all([
         supabase.from('product_option_groups').update({ position: swap.position }).eq('id', current.id),
         supabase.from('product_option_groups').update({ position: current.position }).eq('id', swap.id),
       ])
+      if (results.every(r => !r.error)) notifyPublicMenuChanged()
     } catch {
       // Silent restore on error
       setGroups(prevGroups)
@@ -475,6 +483,7 @@ export default function ProductDetailClient({
         .update({ name: data.name, base_price: data.base_price, price_modifier: data.price_modifier, is_available: data.is_available })
         .eq('id', editingId)
       if (error) { onError(error.message); return }
+      notifyPublicMenuChanged()
       updateGroupOptions(groupId, opts =>
         opts.map(o => o.id === editingId ? { ...o, ...data } : o)
       )
@@ -494,6 +503,7 @@ export default function ProductDetailClient({
         .select()
         .single()
       if (error) { onError(error.message); return }
+      notifyPublicMenuChanged()
       if (inserted) updateGroupOptions(groupId, opts => [...opts, inserted])
     }
     onSuccess()
@@ -523,10 +533,11 @@ export default function ProductDetailClient({
     setReorderInFlight(true)
 
     try {
-      await Promise.all([
+      const results = await Promise.all([
         supabase.from('product_options').update({ position: swap.position }).eq('id', current.id),
         supabase.from('product_options').update({ position: current.position }).eq('id', swap.id),
       ])
+      if (results.every(r => !r.error)) notifyPublicMenuChanged()
     } catch {
       // Silent restore on error
       setGroups(prevGroups)
@@ -550,7 +561,10 @@ export default function ProductDetailClient({
       })
       .select()
       .single()
-    if (!error && data) setProductIngredients(prev => [...prev, data as ProductIngredient])
+    if (!error && data) {
+      notifyPublicMenuChanged()
+      setProductIngredients(prev => [...prev, data as ProductIngredient])
+    }
     setIngLoading(null)
   }
 
@@ -561,7 +575,10 @@ export default function ProductDetailClient({
       .delete()
       .eq('product_id', product.id)
       .eq('ingredient_id', ingredientId)
-    if (!error) setProductIngredients(prev => prev.filter(pi => pi.ingredient_id !== ingredientId))
+    if (!error) {
+      notifyPublicMenuChanged()
+      setProductIngredients(prev => prev.filter(pi => pi.ingredient_id !== ingredientId))
+    }
     setIngLoading(null)
   }
 
@@ -575,6 +592,7 @@ export default function ProductDetailClient({
       .eq('product_id', product.id)
       .eq('ingredient_id', ingredientId)
     if (!error) {
+      notifyPublicMenuChanged()
       setProductIngredients(prev =>
         prev.map(pi => pi.ingredient_id === ingredientId ? { ...pi, ...patch } : pi)
       )

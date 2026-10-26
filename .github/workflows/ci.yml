@@ -80,6 +80,8 @@ jobs:
       # AI calls go to the fake OpenRouter Playwright starts (tests/e2e/mock-openrouter.mjs).
       OPENROUTER_BASE_URL: http://localhost:3199/api/v1
       OPENROUTER_API_KEY: ''
+      # Lets the e2e fixtures drop the cached public menu after direct DB writes.
+      MENU_REVALIDATE_SECRET: e2e-revalidate-secret
       E2E_SERVER_COMMAND: node .next/standalone/server.js
     steps:
       - uses: actions/checkout@v4
