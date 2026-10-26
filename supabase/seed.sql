@@ -141,3 +141,10 @@ INSERT INTO public.restaurant_tables (id, tenant_id, name, position, is_active) 
   ('a1000000-0000-4000-8000-000000000035', 'b0000000-0000-4000-8000-000000000003', 'Mesa 5', 1, true),
   ('a1000000-0000-4000-8000-000000000039', 'b0000000-0000-4000-8000-000000000003', 'Old Patio', 2, false),
   ('a1000000-0000-4000-8000-000000000049', 'b0000000-0000-4000-8000-000000000004', 'Mesa 9', 0, true);
+
+-- Storage buckets the app uploads to (production uses Cloudflare R2; local and
+-- CI use Supabase Storage). Dish photos and videos go to product-images.
+INSERT INTO storage.buckets (id, name, public) VALUES
+  ('product-images', 'product-images', true),
+  ('tenant-assets', 'tenant-assets', true)
+ON CONFLICT (id) DO NOTHING;

@@ -118,6 +118,10 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      # Dish videos are re-encoded with ffmpeg (src/lib/media/video.ts).
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
       - name: Playwright (API + flows)
         run: npx playwright test
 
