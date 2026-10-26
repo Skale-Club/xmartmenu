@@ -4,6 +4,9 @@ import { getStorageClient } from '@/lib/storage'
 import { validateAndConvertToWebP } from '@/lib/upload'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { transcodeVideo } from '@/lib/media/video'
+import { HERO_POSTER_PATH, HERO_VIDEO_PATH } from '@/lib/media/hero-video'
+import { convertBufferToWebP } from '@/lib/upload'
 
 const MAX_VIDEO_SIZE = 50 * 1024 * 1024 // 50MB
 const ALLOWED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime']
@@ -55,15 +58,22 @@ async function handlePOST(request: Request) {
       return NextResponse.json({ error: 'Unsupported video format. Use MP4, WebM or MOV.' }, { status: 400 })
     }
 
-    const ext = file.type === 'video/webm' ? 'webm' : 'mp4'
-    const path = `_platform/hero-bg-video.${ext}`
-    const bytes = await file.arrayBuffer()
-
-    const publicUrl = await storage.upload(bucket, path, Buffer.from(bytes), {
-      contentType: file.type,
-      upsert: true,
+    // Same encoding as the signed-upload flow (hero profile: up to 1080p,
+    // bitrate ceiling, muted, fast-start) — never publish a raw export.
+    const result = await transcodeVideo(Buffer.from(await file.arrayBuffer()), file.type, { profile: 'hero' })
+    const path = result.transcoded ? HERO_VIDEO_PATH : `_platform/hero-bg-video.${result.contentType === 'video/webm' ? 'webm' : 'mp4'}`
+    const publicUrl = await storage.upload(bucket, path, result.video, { contentType: result.contentType, upsert: true })
+    const posterUrl = result.poster
+      ? await storage.upload(bucket, HERO_POSTER_PATH, await convertBufferToWebP(result.poster), { contentType: 'image/webp', upsert: true })
+      : null
+    const version = Date.now()
+    return NextResponse.json({
+      url: `${publicUrl}?v=${version}`,
+      poster_url: posterUrl ? `${posterUrl}?v=${version}` : null,
+      bytes: result.video.length,
+      original_bytes: file.size,
+      transcoded: result.transcoded,
     })
-    return NextResponse.json({ url: `${publicUrl}?v=${Date.now()}` })
   }
 
   return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
