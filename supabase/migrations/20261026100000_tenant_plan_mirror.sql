@@ -33,12 +33,12 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-DECLARE slug TEXT;
+DECLARE v_slug TEXT;
 BEGIN
   IF NEW.plan_id IS NULL THEN RETURN NEW; END IF;
-  SELECT p.slug INTO slug FROM public.plans p WHERE p.id = NEW.plan_id;
-  IF slug IS NOT NULL THEN
-    UPDATE public.tenants SET plan = slug WHERE id = NEW.tenant_id AND plan IS DISTINCT FROM slug;
+  SELECT p.slug INTO v_slug FROM public.plans p WHERE p.id = NEW.plan_id;
+  IF v_slug IS NOT NULL THEN
+    UPDATE public.tenants SET plan = v_slug WHERE id = NEW.tenant_id AND plan IS DISTINCT FROM v_slug;
   END IF;
   RETURN NEW;
 END $$;
