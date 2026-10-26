@@ -4,7 +4,6 @@ import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { motion } from 'framer-motion'
 import { getInitials } from '@/lib/utils'
 import { MenuAnalyticsTracker } from '@/lib/analytics/client'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia } from '@/types/database'
@@ -1272,20 +1271,18 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
 
       {/* Order bar: floating, in the restaurant's colour */}
       {showOrderBar && (
-        <motion.button
+        <button
           type="button"
-          initial={{ y: 24, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
           onClick={() => setCartOpen(true)}
           style={{ backgroundColor: primaryColor, color: onPrimary }}
-          className="fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex h-14 items-center justify-between rounded-2xl px-4 shadow-float transition-[scale] active:scale-[0.98] sm:inset-x-auto sm:right-6 sm:bottom-6 sm:min-w-[320px]"
+          className="menu-order-bar-in fixed inset-x-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 flex h-14 items-center justify-between rounded-2xl px-4 shadow-float transition-[scale] active:scale-[0.98] sm:inset-x-auto sm:right-6 sm:bottom-6 sm:min-w-[320px]"
         >
           <span className="flex items-center gap-3">
             <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-black/15 px-1.5 text-[13px] font-bold tabular-nums">{cartCount}</span>
             <span className="text-[15px] font-semibold">{copy.viewOrder}</span>
           </span>
           <span className="text-[15px] font-semibold tabular-nums">{money(cartTotal)}</span>
-        </motion.button>
+        </button>
       )}
 
       {/* Modals */}

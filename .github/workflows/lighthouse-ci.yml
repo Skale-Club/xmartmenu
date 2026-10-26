@@ -1,17 +1,14 @@
-# Lighthouse CI — Performance regression gate
+# Lighthouse — production health (informational)
 #
-# Blocks merge when Lighthouse mobile Performance score drops below 0.88.
+# Audits the site that is LIVE (xmartmenu.skale.club), so it reports the state
+# of production, not of the pull request: a PR cannot turn it green and should
+# not be blocked by it. The merge gate is the Lighthouse step inside the e2e
+# job of ci.yml, which audits the PR's own build against the local database.
 #
-# Threshold rationale:
-#   Phase 14 baseline:  / = 100 mobile,  /restaurante-teste = 94 mobile
-#   Phase 16 target:    both routes >= 90 mobile
-#   Phase 17 threshold: 0.88 (2-point buffer below target for variance tolerance)
-#
-# Audits production URLs — no local server needed.
-# If production is down during CI, this job will fail (intended behavior:
-# a down production site IS a regression that should block merge).
+# Threshold history: Phase 14 baseline / = 100, /restaurante-teste = 94;
+# Phase 17 gate 0.88. Kept here as the production target.
 
-name: Lighthouse CI
+name: Lighthouse (production, informational)
 
 on:
   pull_request:
@@ -22,6 +19,8 @@ jobs:
   lighthouse:
     name: Lighthouse Performance Audit
     runs-on: ubuntu-latest
+    # Production state, not the PR: never block the merge on it.
+    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4

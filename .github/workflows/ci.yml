@@ -129,6 +129,30 @@ jobs:
         if: always()
         run: node scripts/ci-summary.mjs e2e test-results/e2e-junit.xml >> "$GITHUB_STEP_SUMMARY"
 
+      # Lighthouse on THIS build (not production): the landing and the public
+      # menu of the seeded restaurants, served by the standalone server against
+      # the local database. The production audit in lighthouse-ci.yml is only
+      # informational; this one gates the merge.
+      - name: Start the built app for Lighthouse
+        run: |
+          node .next/standalone/server.js > /tmp/lighthouse-server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS "http://localhost:${PORT}/api/health" > /dev/null && break
+            sleep 1
+          done
+          curl -fsS "http://localhost:${PORT}/api/health"
+
+      - name: Lighthouse (mobile performance on this build)
+        uses: treosh/lighthouse-ci-action@v12
+        with:
+          configPath: .lighthouserc.ci.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: App log on Lighthouse failure
+        if: failure()
+        run: tail -100 /tmp/lighthouse-server.log || true
+
       - name: Upload Playwright report (traces, videos, screenshots)
         if: always()
         uses: actions/upload-artifact@v4
