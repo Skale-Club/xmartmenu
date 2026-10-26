@@ -19,13 +19,14 @@ jobs:
   lighthouse:
     name: Lighthouse Performance Audit
     runs-on: ubuntu-latest
-    # Production state, not the PR: never block the merge on it.
-    continue-on-error: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Run Lighthouse CI
+        # Production state, not the PR: the report is kept, the check stays
+        # green (a job-level continue-on-error still shows the check as failed).
+        continue-on-error: true
         uses: treosh/lighthouse-ci-action@v12
         with:
           configPath: .lighthouserc.json
