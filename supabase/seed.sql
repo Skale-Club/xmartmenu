@@ -148,3 +148,32 @@ INSERT INTO storage.buckets (id, name, public) VALUES
   ('product-images', 'product-images', true),
   ('tenant-assets', 'tenant-assets', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- ── Private menu (EX-06) ─────────────────────────────────────────────────────
+-- test-private: digital menu plan, its only (default) menu is private. Nothing
+-- of it may reach a visitor without a phone-verified session: not the page,
+-- the JSON API, the JSON-LD nor a direct read with the anon key.
+INSERT INTO public.tenants (id, slug, name, is_active) VALUES
+  ('b0000000-0000-4000-8000-000000000005', 'test-private', 'Test Private Club', true);
+
+INSERT INTO public.tenant_settings (tenant_id, currency, language, menu_default_view)
+VALUES ('b0000000-0000-4000-8000-000000000005', 'BRL', 'en', 'list');
+
+INSERT INTO public.tenant_subscriptions (tenant_id, plan_id, billing_cycle, status) VALUES
+  ('b0000000-0000-4000-8000-000000000005', '11111111-1111-1111-1111-111111111111', 'monthly', 'active');
+
+INSERT INTO public.menus (id, tenant_id, name, slug, language, supported_languages, is_active, is_default, is_private) VALUES
+  ('c0000000-0000-4000-8000-000000000005', 'b0000000-0000-4000-8000-000000000005', 'Members Menu', 'members', 'en', ARRAY['en'], true, true, true);
+
+INSERT INTO public.categories (id, tenant_id, menu_id, name, position, is_active) VALUES
+  ('d0000000-0000-4000-8000-000000000051', 'b0000000-0000-4000-8000-000000000005', 'c0000000-0000-4000-8000-000000000005', 'Members Only Section', 0, true);
+
+INSERT INTO public.products (id, tenant_id, menu_id, category_id, name, description, price, position, is_available, is_featured) VALUES
+  ('e0000000-0000-4000-8000-000000000051', 'b0000000-0000-4000-8000-000000000005', 'c0000000-0000-4000-8000-000000000005',
+   'd0000000-0000-4000-8000-000000000051', 'Secret Wagyu', 'Members only', 199.00, 0, true, false);
+
+INSERT INTO public.product_option_groups (id, product_id, tenant_id, name, type, required, min_selections, max_selections, price_rule, position) VALUES
+  ('f0000000-0000-4000-8000-000000000051', 'e0000000-0000-4000-8000-000000000051', 'b0000000-0000-4000-8000-000000000005', 'Secret Doneness', 'single', true, 1, 1, 'sum', 0);
+
+INSERT INTO public.product_options (id, group_id, tenant_id, name, price_modifier, position, is_available) VALUES
+  ('f1000000-0000-4000-8000-000000000051', 'f0000000-0000-4000-8000-000000000051', 'b0000000-0000-4000-8000-000000000005', 'Secret Rare', 0.00, 0, true);
