@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { idempotencyKeyFor, type IdempotencySlot } from '@/lib/orders/idempotency-client'
 import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import { formatPrice } from '@/lib/utils'
@@ -73,6 +74,7 @@ const STATUS_STYLES = {
 export default function WaiterPage({ tenantId, tenantName, tables, categories, products, optionGroupsByProductId, productIngredientsByProductId = {}, capabilities, activeOrders, currency, primaryColor }: Props) {
   const [selectedTable, setSelectedTable] = useState<Table | null>(null)
   const [cart, setCart] = useState<WaiterLine[]>([])
+  const orderAttemptRef = useRef<IdempotencySlot | null>(null)
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -118,11 +120,14 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
       table_id: selectedTable.id,
       items: waiterOrderItems(cart),
     }
+    // A retry of this same round reuses the key (no duplicate in the kitchen);
+    // after it is sent the key is dropped, so an identical next round is new.
+    orderAttemptRef.current = idempotencyKeyFor(orderAttemptRef.current, body)
 
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': orderAttemptRef.current.key },
         body: JSON.stringify(body),
       })
       const data = await res.json().catch(() => ({}))
@@ -130,6 +135,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
         setSubmitError(typeof data?.error === 'string' && data.error ? `Order not sent: ${data.error}` : 'Order not sent. Check the connection and try again.')
         return
       }
+      orderAttemptRef.current = null
       setLiveOrders(prev => [...prev, { id: data.id, table_name: selectedTable.name, status: 'pending' }])
       setCart([])
       setSubmitted(true)

@@ -1,17 +1,13 @@
 export const revalidate = 60
 
 import { notFound } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
 import { sanitizeTenantForClient } from '@/lib/tenant-public'
 import MenuPage from '@/components/menu/MenuPage'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import PrivateMenuWrapper from '@/components/menu/PrivateMenuWrapper'
 import type { Metadata } from 'next'
-import { getPublicMenuBase, loadPublicMenuData } from '@/lib/menu/public-menu-data'
+import { getPublicMenuBase, loadPublicMenuData, withMenuPrices } from '@/lib/menu/public-menu-data'
 import { parseTableParam } from '@/lib/service-modes'
-import { effectiveMultiplier, scaleOptionGroups, scaleProductIngredients, scaleProducts } from '@/components/menu/price-multiplier'
-import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import type { ProductIngredientWithIngredient } from '@/types/database'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import JsonLdScript from '@/components/seo/JsonLdScript'
 import {
@@ -48,8 +44,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const canonicalPath = `/${menuSlug}`
   const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
   const ogOverride = resolveOgImageOverride(settings)
-  const isCustomDomain = !!(tenant.custom_domain && tenant.custom_domain_verified)
-  const noindex = isCustomDomain || isTenantNoindex(settings)
+  // Indexing follows the restaurant's own preference. A verified custom domain
+  // is the canonical URL (getCanonicalUrl), and the platform-slug copy points
+  // to it; noindex-ing every page of a tenant with a custom domain de-indexed
+  // the canonical site itself.
+  const noindex = isTenantNoindex(settings)
 
   return {
     title,
@@ -87,28 +86,14 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
     // The table this link belongs to (QR code / NFC tag: ?table=<id>): guests
     // order to it, or call a waiter / ask for the bill from it.
     tableId: parseTableParam(tableParam),
-    // Private menus gate on a phone-verified session (see below). Checked in
-    // parallel with the menu queries, only when the menu is private.
-    checkPrivateAccess: async () => {
-      const cookieClient = await createClient()
-      const { data: { user } } = await cookieClient.auth.getUser()
-      return !!user?.phone
-    },
+    // Private menus gate on a phone-verified session; the loader checks it on
+    // every request and returns no content without it (see below).
   })
   if (data.kind !== 'menu') notFound()
 
-  const { tenant, menu, location, categories, products, capabilities, table } = data
-
   // SEED-019: a private/in-store menu scales every price on it the same way.
-  const priceMultiplier = effectiveMultiplier((menu as any)?.price_multiplier)
-  const optionGroupsByProductId: Record<string, GroupWithOptions[]> = {}
-  for (const [productId, groups] of Object.entries(data.optionGroupsByProductId)) {
-    optionGroupsByProductId[productId] = scaleOptionGroups(groups, priceMultiplier)
-  }
-  const productIngredientsByProductId: Record<string, ProductIngredientWithIngredient[]> = {}
-  for (const [productId, items] of Object.entries(data.productIngredientsByProductId)) {
-    productIngredientsByProductId[productId] = scaleProductIngredients(items, priceMultiplier)
-  }
+  const priced = withMenuPrices(data)
+  const { tenant, menu, location, categories, capabilities, table, optionGroupsByProductId, productIngredientsByProductId } = priced
 
   // P0-08 round 2: scan recording moved client-side via <ScanRecorder /> —
   // this page is ISR-cached so a server insert here only fires per cache miss.
@@ -120,8 +105,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
   const canonicalUrl = getCanonicalUrl(tenant, canonicalPath)
   const currency = (tenant.tenant_settings as any)?.currency ?? 'USD'
 
-  // SEED-019: dish prices on a private/in-store menu (options and ingredients scaled above).
-  const displayProducts = scaleProducts(products ?? [], priceMultiplier)
+  const displayProducts = priced.products ?? []
 
   const isPrivate = (menu as any)?.is_private ?? false
 

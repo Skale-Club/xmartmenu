@@ -19,11 +19,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { stripe, toStripeAmount } from '@/lib/stripe'
+import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
 import { captureSecurityEvent } from '@/lib/observability'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
-import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
+import { applyPaymentSignal, type IntentFacts } from '@/lib/orders/payment-sync'
+import type { PaymentSignal } from '@/lib/orders/status-machine'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 import { billAiUsage, subscriptionIdFromInvoice } from '@/lib/ai/billing'
@@ -93,102 +94,19 @@ async function handlePOST(request: NextRequest) {
       | null = null
 
     switch (event.type) {
-      case 'payment_intent.succeeded': {
-        const paymentIntent = event.data.object as {
-          id: string
-          amount: number
-          currency: string
-          metadata: { order_id?: string; tenant_id?: string }
-        }
-        const orderId = paymentIntent.metadata?.order_id
-
-        if (orderId) {
-          const { data: order, error: fetchErr } = await supabase
-            .from('orders')
-            .select('id, total, status')
-            .eq('id', orderId)
-            .single()
-
-          if (fetchErr || !order) {
-            log.error('payment_intent.succeeded for unknown order', { order_id: orderId, err: fetchErr })
-            // Nothing to update; treat as processed so Stripe stops retrying.
-            break
-          }
-
-          // Defense in depth: never mark an order paid for less than its total.
-          // We always create the PaymentIntent with the exact order amount, so a
-          // shortfall means tampering or a stale intent — block and alert.
-          // Compare in the SAME currency the intent was charged in.
-          const expectedCents = toStripeAmount(Number(order.total), paymentIntent.currency)
-          if (typeof paymentIntent.amount === 'number' && paymentIntent.amount < expectedCents) {
-            captureSecurityEvent('Stripe webhook: payment amount below order total', {
-              orderId,
-              expectedCents,
-              receivedCents: paymentIntent.amount,
-              paymentIntentId: paymentIntent.id,
-            })
-            // Do NOT mark paid. Retrying won't fix a wrong amount, so record the
-            // event (return 200 below) and leave the order for manual review.
-            break
-          }
-
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({ status: 'paid', payment_intent_id: paymentIntent.id })
-            .eq('id', orderId)
-            .in('status', ['awaiting_payment', 'pending'])
-
-          if (updateError) {
-            log.error('Failed to update order to paid', { err: updateError })
-            updateResult = { success: false, error: updateError.message }
-          } else {
-            await recordTrustedOrderAnalyticsEvent(orderId, 'order_completed')
-          }
-        }
-        break
-      }
-
-      case 'payment_intent.payment_failed': {
-        const paymentIntent = event.data.object as {
-          id: string
-          metadata: { order_id?: string }
-        }
-        const orderId = paymentIntent.metadata?.order_id
-
-        if (orderId) {
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({ status: 'payment_failed', payment_intent_id: paymentIntent.id })
-            .eq('id', orderId)
-            .in('status', ['awaiting_payment', 'pending'])
-
-          if (updateError) {
-            log.error('Failed to update order to payment_failed', { err: updateError })
-            updateResult = { success: false, error: updateError.message }
-          }
-        }
-        break
-      }
-
+      // Order payments: one transition matrix and one set of checks
+      // (src/lib/orders/payment-sync.ts) for success, failure and cancellation.
+      case 'payment_intent.succeeded':
+      case 'payment_intent.payment_failed':
       case 'payment_intent.canceled': {
-        // Abandoned/expired customer checkout — release the awaiting_payment order.
-        const paymentIntent = event.data.object as {
-          id: string
-          metadata: { order_id?: string }
-        }
-        const orderId = paymentIntent.metadata?.order_id
-        if (orderId) {
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({ status: 'cancelled' })
-            .eq('id', orderId)
-            .eq('status', 'awaiting_payment')
-          if (updateError) {
-            log.error('Failed to cancel awaiting_payment order', { err: updateError })
-            updateResult = { success: false, error: updateError.message }
-          } else {
-            await recordTrustedOrderAnalyticsEvent(orderId, 'order_cancelled')
-          }
+        const paymentIntent = event.data.object as IntentFacts
+        const signal: PaymentSignal = event.type === 'payment_intent.succeeded'
+          ? 'succeeded'
+          : event.type === 'payment_intent.payment_failed' ? 'failed' : 'canceled'
+        const result = await applyPaymentSignal(supabase, paymentIntent, signal)
+        if (!result.ok) {
+          log.error('payments.apply_error', { err: result.error, event_type: event.type })
+          updateResult = { success: false, error: result.error }
         }
         break
       }

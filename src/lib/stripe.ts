@@ -251,14 +251,25 @@ export async function getOrCreatePaymentIntent(params: {
 
   const existingId: string | null = order?.payment_intent_id ?? null
   if (existingId) {
-    // Reuse the existing PaymentIntent unless it was cancelled (then fall
-    // through and mint a fresh one to replace it).
+    // Reuse the existing PaymentIntent while it still charges exactly this
+    // order (same amount and currency) and can be paid. A failed attempt
+    // leaves it in requires_payment_method: reusable, so the guest can retry.
+    // A cancelled or mismatched one is replaced below.
     const paymentIntent = await stripe.paymentIntents.retrieve(existingId)
-    if (paymentIntent.status !== 'canceled') {
+    const currency = (params.currency ?? await getTenantCurrency(params.tenantId, supabase)).toLowerCase()
+    const matches = paymentIntent.currency === currency && paymentIntent.amount === toStripeAmount(params.amountDollars, currency)
+    if (paymentIntent.status !== 'canceled' && matches) {
       return {
         clientSecret: paymentIntent.client_secret!,
         paymentIntentId: paymentIntent.id,
       }
+    }
+    if (paymentIntent.status === 'succeeded' || paymentIntent.status === 'processing') {
+      // Money already moved on it: never mint a second charge for the order.
+      throw new Error('This order already has a payment in progress')
+    }
+    if (paymentIntent.status !== 'canceled') {
+      try { await stripe.paymentIntents.cancel(existingId) } catch { /* replaced below either way */ }
     }
   }
 
@@ -288,8 +299,11 @@ export async function getOrCreatePaymentIntent(params: {
       .single()
     if (winner?.payment_intent_id && winner.payment_intent_id !== result.paymentIntentId) {
       const pi = await stripe.paymentIntents.retrieve(winner.payment_intent_id)
-      return { clientSecret: pi.client_secret!, paymentIntentId: pi.id }
+      if (pi.status !== 'canceled') return { clientSecret: pi.client_secret!, paymentIntentId: pi.id }
     }
+    // Ours was just cancelled and there is no usable winner: never hand out a
+    // secret for an intent that is cancelled or not linked to the order.
+    throw new Error('Could not attach a payment to this order, please try again')
   }
   return result
 }

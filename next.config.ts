@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import withBundleAnalyzer from "@next/bundle-analyzer";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 // Security response headers applied to every route. (S05 — Security Headers)
 // The CSP here is intentionally conservative: it hardens clickjacking
@@ -25,6 +25,19 @@ const nextConfig: NextConfig = {
   // sharp ships a native binary — keep it external so it isn't traced/bundled
   // into the standalone output (next/image optimization loads it at runtime).
   serverExternalPackages: ['sharp'],
+  // The ffmpeg spawn in src/lib/media/video.ts makes the tracer give up and
+  // trace the whole project ("whole project was traced unintentionally"), which
+  // copied src/, tests/, docs/, supabase/ and coverage/ into .next/standalone
+  // and the image. Nothing reads those at runtime (the server runs the compiled
+  // .next/server), so they never belong in the runtime output.
+  outputFileTracingExcludes: {
+    '*': [
+      './src/**', './tests/**', './docs/**', './supabase/**', './scripts/**',
+      './coverage/**', './playwright-report/**', './test-results/**', './.claude/**',
+      './.planning/**', './*.md', './Dockerfile', './docker-compose.yaml',
+      './*.config.{ts,mjs,js}', './tsconfig*.json', './.env*',
+    ],
+  },
   images: {
     formats: ['image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
@@ -75,5 +88,5 @@ export default withSentryConfig(config, {
   sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
   // Same release as the runtime SDKs (Docker GIT_SHA -> NEXT_PUBLIC_RELEASE).
   release: process.env.NEXT_PUBLIC_RELEASE ? { name: process.env.NEXT_PUBLIC_RELEASE } : undefined,
-  disableLogger: true,
+  // disableLogger is deprecated and has no effect with Turbopack builds.
 });

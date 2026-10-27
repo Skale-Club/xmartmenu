@@ -94,3 +94,25 @@ test.describe('self-service plan', () => {
     await expect(page.getByText('Your table')).toHaveCount(0)
   })
 })
+
+test.describe('dish sheet keyboard access (EX-11)', () => {
+  test('focus moves into the sheet, stays there on Tab, and returns on Escape', async ({ page }) => {
+    await page.goto(`/${TENANTS.self.slug}?view=list`)
+    const opener = page.getByRole('button', { name: 'Add Ribeye Steak' })
+    await opener.click()
+    const dish = page.getByRole('dialog', { name: 'Ribeye Steak' })
+    await expect(dish).toBeVisible()
+
+    const focusInside = () => dish.evaluate((el) => el.contains(document.activeElement))
+    await expect.poll(focusInside).toBe(true)
+
+    for (let i = 0; i < 25; i++) await page.keyboard.press('Tab')
+    expect(await focusInside()).toBe(true)
+    for (let i = 0; i < 5; i++) await page.keyboard.press('Shift+Tab')
+    expect(await focusInside()).toBe(true)
+
+    await page.keyboard.press('Escape')
+    await expect(dish).toHaveCount(0)
+    await expect(opener).toBeFocused()
+  })
+})

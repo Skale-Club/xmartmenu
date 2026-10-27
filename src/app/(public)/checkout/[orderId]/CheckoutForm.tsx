@@ -31,8 +31,10 @@ export function CheckoutForm({ orderId, returnUrl }: CheckoutFormProps) {
     setProcessing(true)
     setError(null)
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || ''
-    const fullReturnUrl = `${baseUrl}${returnUrl}`
+    // Come back to the host the guest paid on: the restaurant's custom domain
+    // serves /checkout too (src/lib/custom-domain-routing.ts), so a payment
+    // started there no longer ends on the platform address.
+    const fullReturnUrl = `${window.location.origin}${returnUrl}`
 
     const { error: stripeError } = await stripe.confirmPayment({
       elements,

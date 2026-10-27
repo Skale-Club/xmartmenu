@@ -10,7 +10,7 @@ import { generateText, stepCountIs, tool, type LanguageModel, type ModelMessage 
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { CartEditorState } from '@/components/menu/menu-utils'
-import { computeOptionUnit } from '@/lib/menu/option-pricing'
+import { OptionSelectionError, resolveOptionSelection } from '@/lib/menu/option-pricing'
 
 // ── Catalog ────────────────────────────────────────────────────────────────
 
@@ -99,7 +99,10 @@ export async function loadMenuCatalog(
     .order('is_default', { ascending: false })
     .order('position')
 
-  const menu = (menuId && menus?.find((m) => m.id === menuId)) || menus?.[0]
+  // The chat is anonymous: a private menu (phone-verified guests only) is
+  // never its catalog, whether it is the default or the menu_id asked for.
+  const publicMenus = (menus ?? []).filter((m) => m.is_private !== true)
+  const menu = (menuId && publicMenus.find((m) => m.id === menuId)) || publicMenus[0]
   if (!menu) return null
 
   const [{ data: categories }, { data: products }] = await Promise.all([
@@ -463,7 +466,15 @@ function resolveOne(catalog: MenuCatalog, req: CartRequest): ResolvedCartItem | 
     addedIngredients: [],
     note: note ?? '',
   }
-  const unit = computeOptionUnit(product.price, editorState, product.groups)
+  // Same strict resolver as checkout: what the chat puts in the cart is what
+  // /api/orders will accept and charge.
+  let unit: number
+  try {
+    unit = resolveOptionSelection(product.price, editorState, product.groups).unit
+  } catch (e) {
+    if (!(e instanceof OptionSelectionError)) throw e
+    return { product_id: product.id, name: product.name, problems: [e.message], missing_groups: [] }
+  }
   return {
     product_id: product.id,
     name: product.name,

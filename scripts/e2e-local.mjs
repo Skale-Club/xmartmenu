@@ -37,6 +37,8 @@ const env = {
   CHAT_ADDON_ENCRYPTION_KEY: process.env.CHAT_ADDON_ENCRYPTION_KEY ?? '0'.repeat(64),
   // Lets the fixtures drop the cached public menu after direct DB writes.
   MENU_REVALIDATE_SECRET: process.env.MENU_REVALIDATE_SECRET ?? 'e2e-revalidate-secret',
+  // The suite places dozens of orders a minute from one IP (src/lib/rate-limit.ts).
+  RATE_LIMIT_MODE: 'off',
   NEXT_PUBLIC_APP_URL: 'http://localhost:3100',
   OPENROUTER_API_KEY: '',
   // AI calls go to the fake OpenRouter Playwright starts (tests/e2e/mock-openrouter.mjs).

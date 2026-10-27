@@ -100,7 +100,34 @@ export interface TranscodedVideo {
   transcoded: boolean
 }
 
+/**
+ * ffmpeg runs one encode at a time per process by default (EX-11): each encode
+ * takes a full CPU for seconds to minutes, and the app shares one container
+ * with every restaurant's menu. Extra uploads wait their turn instead of
+ * starving page rendering. VIDEO_TRANSCODE_CONCURRENCY raises it.
+ */
+const MAX_CONCURRENT_ENCODES = Math.max(1, Number(process.env.VIDEO_TRANSCODE_CONCURRENCY ?? 1) || 1)
+let activeEncodes = 0
+const waiting: Array<() => void> = []
+
+export async function withEncodeSlot<T>(task: () => Promise<T>): Promise<T> {
+  if (activeEncodes >= MAX_CONCURRENT_ENCODES) {
+    await new Promise<void>((resolve) => waiting.push(resolve))
+  }
+  activeEncodes++
+  try {
+    return await task()
+  } finally {
+    activeEncodes--
+    waiting.shift()?.()
+  }
+}
+
 export async function transcodeVideo(input: Buffer, mimeType: string, opts: { profile?: VideoProfile } = {}): Promise<TranscodedVideo> {
+  return withEncodeSlot(() => transcodeNow(input, mimeType, opts))
+}
+
+async function transcodeNow(input: Buffer, mimeType: string, opts: { profile?: VideoProfile }): Promise<TranscodedVideo> {
   const profile = opts.profile ?? 'dish'
   const spec = VIDEO_PROFILES[profile]
   const dir = await mkdtemp(join(tmpdir(), 'xm-video-'))
