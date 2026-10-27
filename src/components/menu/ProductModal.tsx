@@ -798,7 +798,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                 >
                   {canAddToCart ? (
                     <>
-                      <span className="truncate">{isEditing ? copy.updateItem : copy.addToOrder}</span>
+                      <span className="truncate">{isEditing ? copy.updateItem : copy.orderNow}</span>
                       <span aria-hidden="true" className="opacity-70">·</span>
                       <span className="tabular-nums">{money(finalUnitPrice * (isEditing ? 1 : quantity))}</span>
                     </>

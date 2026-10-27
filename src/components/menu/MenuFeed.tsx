@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
 import type { Product, ProductMedia } from '@/types/database'
+import FeedSizeSheet from './FeedSizeSheet'
+import type { FeedSize } from './feed-sizes'
 import { getFeedSlideDuration, getProductImages, orderFeedMedia } from './menu-utils'
 
 interface FeedProps {
@@ -20,11 +22,13 @@ interface FeedProps {
   cartCount: number
   exitLabel: string
   hasCustomization: (productId: string) => boolean
+  /** Sizes to pick from before adding; [] when the dish has none to pick on the feed. */
+  sizesFor: (product: Product) => FeedSize[]
   quantityFor: (productId: string) => number
   onExit: () => void
   onOpenCart: () => void
   onOpen: (product: Product) => void
-  onAdd: (product: Product) => void
+  onAdd: (product: Product, size?: FeedSize) => void
   onIncrement: (product: Product) => void
   onDecrement: (product: Product) => void
   onMediaEvent: (event: 'media_started' | 'media_completed' | 'media_swiped', product: Product, mediaType: 'image' | 'video', mediaIndex: number) => void
@@ -48,6 +52,7 @@ export default function MenuFeed({
   cartCount,
   exitLabel,
   hasCustomization,
+  sizesFor,
   quantityFor,
   onExit,
   onOpenCart,
@@ -63,6 +68,7 @@ export default function MenuFeed({
   const copy = getMenuCopy(lang)
   const feedScrollerRef = useRef<HTMLDivElement | null>(null)
   const lastIndexRef = useRef(initialIndex)
+  const [sizePick, setSizePick] = useState<{ product: Product; sizes: FeedSize[] } | null>(null)
 
   // Land on the restored dish without animating through the ones before it.
   useEffect(() => {
@@ -181,11 +187,16 @@ export default function MenuFeed({
                   {directOrdersEnabled && quantity === 0 ? (
                     <button
                       type="button"
-                      onClick={() => customizable ? onOpen(product) : onAdd(product)}
+                      onClick={() => {
+                        const sizes = sizesFor(product)
+                        if (sizes.length > 0) setSizePick({ product, sizes })
+                        else if (customizable) onOpen(product)
+                        else onAdd(product)
+                      }}
                       className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-full px-5 text-xs font-black uppercase tracking-widest text-white shadow-2xl transition active:scale-[0.98]"
                       style={{ backgroundColor: primaryColor, boxShadow: `0 18px 45px ${primaryColor}45` }}
                     >
-                      <ShoppingBag className="size-4" /> {customizable ? copy.customize : copy.orderNow}
+                      <ShoppingBag className="size-4" /> {copy.orderNow}
                     </button>
                   ) : null}
 
@@ -213,6 +224,21 @@ export default function MenuFeed({
           )
         })}
       </div>
+
+      {sizePick ? (
+        <FeedSizeSheet
+          productName={sizePick.product.name}
+          sizes={sizePick.sizes}
+          currency={currency}
+          lang={lang}
+          primaryColor={primaryColor}
+          onClose={() => setSizePick(null)}
+          onConfirm={size => {
+            onAdd(sizePick.product, size)
+            setSizePick(null)
+          }}
+        />
+      ) : null}
     </section>
   )
 }

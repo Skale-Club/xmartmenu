@@ -65,6 +65,8 @@ export default function CartPanel({
   // shrinks (or closes when already at sheet height).
   function onGripPointerDown(e: PointerEvent) {
     if (!isMobile()) return
+    // Pointer capture would retarget the click away from the close button.
+    if ((e.target as HTMLElement).closest('[data-close-cart]')) return
     dragStartY.current = e.clientY
     dragged.current = false
     // Keep receiving the release even when the finger/mouse ends outside the grip.
