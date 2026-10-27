@@ -173,8 +173,8 @@ async function main(): Promise<void> {
     )
     assert.match(
       src,
-      /export\s+async\s+function\s+POST/,
-      'resync route exports an async POST handler',
+      /export\s+(async\s+function\s+POST|const\s+POST\s*=\s*withApi\()/,
+      'resync route exports a POST handler (plain or wrapped in withApi)',
     )
   }
 
