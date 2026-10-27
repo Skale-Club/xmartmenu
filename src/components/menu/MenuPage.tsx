@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { idempotencyKeyFor, type IdempotencySlot } from '@/lib/orders/idempotency-client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { getInitials } from '@/lib/utils'
@@ -205,6 +206,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const [analyticsTracker, setAnalyticsTracker] = useState<MenuAnalyticsTracker | null>(null)
   const [analyticsDebug, setAnalyticsDebug] = useState(false)
   const categoryRefs = useRef<Record<string, HTMLElement | null>>({})
+  const orderAttemptRef = useRef<IdempotencySlot | null>(null)
   const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   const categoryFilterRef = useRef<HTMLDivElement | null>(null)
   const autoOpenedRef = useRef(false)
@@ -481,31 +483,36 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
     setSubmittingOrder(true)
     setOrderError(null)
 
+    // Same cart again (double tap, retry after a lost response) → same key,
+    // so the server returns the order it already created.
+    const orderPayload = {
+      tenant_id: tenant.id,
+      customer_name: customerName.trim(),
+      customer_phone: customerPhone.trim(),
+      ...orderFields,
+      location_id: location?.id ?? null,
+      table_id: orderingTable ? orderingTable.id : undefined,
+      menu_id: menu?.id ?? null,
+      analytics_session_id: analyticsTracker?.sessionId ?? null,
+      items: cart.map(item => ({
+        product_id: item.product.id,
+        product_name: baseName(item.product),
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        selected_options: item.selectedOptions,
+        notes: item.note || undefined,
+        ingredient_modifications: item.ingredientModifications || null,
+        editor_state: item.editorState || null,
+        added_via: item.addedVia,
+      })),
+    }
+    orderAttemptRef.current = idempotencyKeyFor(orderAttemptRef.current, orderPayload)
+
     try {
       const response = await fetch('/api/orders', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenant_id: tenant.id,
-          customer_name: customerName.trim(),
-          customer_phone: customerPhone.trim(),
-          ...orderFields,
-          location_id: location?.id ?? null,
-          table_id: orderingTable ? orderingTable.id : undefined,
-          menu_id: menu?.id ?? null,
-          analytics_session_id: analyticsTracker?.sessionId ?? null,
-          items: cart.map(item => ({
-            product_id: item.product.id,
-            product_name: baseName(item.product),
-            quantity: item.quantity,
-            unit_price: item.unitPrice,
-            selected_options: item.selectedOptions,
-            notes: item.note || undefined,
-            ingredient_modifications: item.ingredientModifications || null,
-            editor_state: item.editorState || null,
-            added_via: item.addedVia,
-          })),
-        }),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': orderAttemptRef.current.key },
+        body: JSON.stringify(orderPayload),
       })
 
       const data = await response.json()
@@ -513,6 +520,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
       if (!response.ok) {
         throw new Error(copy.errSubmit)
       }
+      // Placed: an identical cart later is a new order.
+      orderAttemptRef.current = null
 
       // Customer (QR / public-menu) orders that require online payment skip the
       // "order placed" screen and go straight to the Stripe checkout. The order
