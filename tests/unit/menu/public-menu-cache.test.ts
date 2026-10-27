@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PUBLIC_MENU_CACHE_SECONDS, menuCacheKey, menuCacheTags, menuSlugTag, PLATFORM_MENU_TAG, publicMenuCacheSeconds } from '@/lib/menu/public-menu-cache'
 import { menuCacheActionFor } from '@/lib/menu/menu-cache-hooks'
-import { pickTable, withoutDetails } from '@/lib/menu/public-menu-data'
+import { pickTable, withoutPrivateContent } from '@/lib/menu/public-menu-data'
 
 describe('public menu cache keys and tags', () => {
   it('keys one entry per restaurant and section, case-insensitively', () => {
@@ -67,16 +67,20 @@ describe('per-request part of the public menu', () => {
     expect(pickTable(tables, null, { guestOrdering: true, waiterCalls: true })).toBeNull()
   })
 
-  it('strips a private menu down to its dishes for a caller who may not see it', () => {
+  it('leaves nothing of a private menu for a caller who may not see it', () => {
     const data = {
+      menu: { id: 'm', is_private: true },
+      categories: [{ id: 'c' }],
       products: [{ id: 'p' }],
       optionGroupsByProductId: { p: [{ id: 'g' }] },
       productIngredientsByProductId: { p: [{ id: 'i' }] },
       productMediaByProductId: { p: [{ id: 'm' }] },
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stripped = withoutDetails(data as any)
-    expect(stripped.products).toEqual([{ id: 'p' }])
+    const stripped = withoutPrivateContent(data as any)
+    expect(stripped.menu).toEqual({ id: 'm', is_private: true })
+    expect(stripped.categories).toEqual([])
+    expect(stripped.products).toEqual([])
     expect(stripped.optionGroupsByProductId).toEqual({})
     expect(stripped.productIngredientsByProductId).toEqual({})
     expect(stripped.productMediaByProductId).toEqual({})

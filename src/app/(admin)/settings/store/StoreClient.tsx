@@ -13,6 +13,7 @@ import PlanHintCard from '@/components/admin/PlanHintCard'
 import { lockedGroups, type PlanHintItem } from '@/components/admin/plan-hint'
 import type { TenantCapabilities } from '@/lib/service-modes'
 import type { ServiceNumberKey, ServiceSettingsPatch } from '@/lib/service-settings'
+import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
 
 interface Props {
   settings: TenantSettings | null
@@ -392,7 +393,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
       }, { onConflict: 'tenant_id' })
 
     if (err) setError(err.message)
-    else { setSaved(true); setTimeout(() => setSaved(false), 2500) }
+    else { setSaved(true); notifyPublicMenuChanged(); setTimeout(() => setSaved(false), 2500) }
     setLoading(false)
   }
 

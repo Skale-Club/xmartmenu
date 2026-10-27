@@ -1,53 +1,38 @@
-import { createServiceClient } from '@/lib/supabase/server'
 import { sanitizeTenantForClient } from '@/lib/tenant-public'
+import { loadPublicMenuData, withMenuPrices } from '@/lib/menu/public-menu-data'
 import { NextResponse } from 'next/server'
 
+/**
+ * GET — the restaurant's default menu as JSON. Same loader as the public
+ * pages, so the same rules apply: inactive restaurants are not found, a
+ * private menu has no content without a phone-verified session, and prices
+ * carry the menu's multiplier.
+ */
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   const { slug } = await params
-  const supabase = createServiceClient()
 
-  const { data: tenant, error } = await supabase
-    .from('tenants')
-    .select('*, tenant_settings(*)')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
-
-  if (error || !tenant) {
+  const data = await loadPublicMenuData({ slug, tableId: null })
+  if (data.kind === 'not_found') {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
-
-  const { data: menu } = await supabase
-    .from('menus')
-    .select('*')
-    .eq('tenant_id', tenant.id)
-    .eq('is_active', true)
-    .eq('is_default', true)
-    .maybeSingle()
-
-  const resolvedMenu = menu ?? (await supabase
-    .from('menus')
-    .select('*')
-    .eq('tenant_id', tenant.id)
-    .eq('is_active', true)
-    .order('position')
-    .limit(1)
-    .maybeSingle()).data
-
-  let categories: unknown[] = []
-  let products: unknown[] = []
-
-  if (resolvedMenu?.id) {
-    const response = await Promise.all([
-      supabase.from('categories').select('*').eq('menu_id', resolvedMenu.id).eq('is_active', true).order('position'),
-      supabase.from('products').select('*').eq('menu_id', resolvedMenu.id).eq('is_available', true).order('position'),
-    ])
-    categories = response[0].data ?? []
-    products = response[1].data ?? []
+  if (data.kind === 'branches') {
+    return NextResponse.json({
+      tenant: sanitizeTenantForClient(data.tenant),
+      menu: null,
+      categories: [],
+      products: [],
+      locations: data.locations,
+    })
   }
 
-  return NextResponse.json({ tenant: sanitizeTenantForClient(tenant), menu: resolvedMenu, categories, products })
+  const priced = withMenuPrices(data)
+  return NextResponse.json({
+    tenant: sanitizeTenantForClient(priced.tenant),
+    menu: priced.menu,
+    categories: priced.categories,
+    products: priced.products,
+  })
 }
