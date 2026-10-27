@@ -1,9 +1,14 @@
 name: CI
 
-# Two jobs in parallel:
-#   checks  lint, route guard, unit tests (+ coverage), production build
+# Two jobs in parallel, then the deploy:
+#   checks  lint, route guard, unit tests (+ coverage), legacy tsx suites,
+#           Xphere contract checks
 #   e2e     local Supabase (all migrations + supabase/seed.sql) → production
 #           build of the app → Playwright: API integration + guest + staff flows
+#           → Lighthouse on that build
+#   deploy  only on main, only when both pass: build-deploy.yml builds the
+#           image for this exact SHA and has Coolify run it
+# No job here uses production credentials.
 # Reports are attached to every run (Actions → run → Artifacts) and summarised
 # on the run page. A failing Playwright test keeps its trace, video and
 # screenshot: download "playwright-report" and open index.html, or run
@@ -19,7 +24,8 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Superseded PR runs are cancelled; a main run is never cut off mid-deploy.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   checks:
@@ -29,7 +35,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install dependencies
@@ -58,17 +64,18 @@ jobs:
             test-results/unit-junit.xml
           retention-days: 14
 
-      - name: Build (includes TypeScript check)
-        run: npm run build
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      - name: Legacy tsx suites
+        run: npm run test:legacy
+
+      - name: Xphere contract checks
+        run: npm run xphere:check:all
+
+      # The production build (TypeScript included) runs in the e2e job, against
+      # the local database: no production key is needed to validate a commit.
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       CI: 'true'
       E2E_PORT: '3100'
@@ -90,7 +97,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - uses: supabase/setup-cli@v1
@@ -119,12 +126,22 @@ jobs:
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
 
-      - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
-      # Dish videos are re-encoded with ffmpeg (src/lib/media/video.ts).
-      - name: Install ffmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      # One apt pass for the browser's system libraries and ffmpeg (dish videos
+      # are re-encoded with it, src/lib/media/video.ts). A slow apt mirror once
+      # took 28 minutes here; the step timeout makes that a clear failure.
+      - name: Install Playwright browser and ffmpeg
+        timeout-minutes: 12
+        run: |
+          npx playwright install chromium
+          sudo apt-get -o Acquire::Retries=3 update -qq
+          npx playwright install-deps chromium
+          sudo apt-get -o Acquire::Retries=3 install -y -qq --no-install-recommends ffmpeg
 
       - name: Playwright (API + flows)
         run: npx playwright test
@@ -170,3 +187,14 @@ jobs:
       - name: Database logs on failure
         if: failure()
         run: docker logs $(docker ps -qf "name=supabase_db") 2>&1 | tail -200 || true
+
+  deploy:
+    needs: [checks, e2e]
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/build-deploy.yml
+    with:
+      sha: ${{ github.sha }}
+    secrets: inherit
