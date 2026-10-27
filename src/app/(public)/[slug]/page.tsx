@@ -7,7 +7,8 @@ import BranchPicker from '@/components/menu/BranchPicker'
 import ScanRecorder from '@/components/menu/ScanRecorder'
 import JsonLdScript from '@/components/seo/JsonLdScript'
 import type { Metadata } from 'next'
-import { getTenantBySlug, loadPublicMenuData } from '@/lib/menu/public-menu-data'
+import { getTenantBySlug, loadPublicMenuData, withMenuPrices } from '@/lib/menu/public-menu-data'
+import PrivateMenuWrapper from '@/components/menu/PrivateMenuWrapper'
 import { parseTableParam } from '@/lib/service-modes'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import {
@@ -104,7 +105,11 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
     )
   }
 
-  const { menu: resolvedMenu, categories, products, capabilities, table } = data
+  // Same prices and the same private-menu rule as /[slug]/[menuSlug]: the
+  // default menu can be private or carry an in-store multiplier too.
+  const priced = withMenuPrices(data)
+  const { menu: resolvedMenu, categories, products, capabilities, table } = priced
+  const isPrivate = resolvedMenu?.is_private === true
 
   // P0-08 round 2: this page is `revalidate=60` ISR. A server-side insert
   // here would fire at most once per cache window. Scan recording is done
@@ -117,9 +122,31 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   const currency = (tenant.tenant_settings as any)?.currency ?? 'USD'
 
   const localBusinessLd = buildLocalBusinessJsonLd(tenant, tenant.tenant_settings as any, canonicalUrl)
-  const menuLd = resolvedMenu
+  const menuLd = resolvedMenu && !isPrivate
     ? buildMenuJsonLd(resolvedMenu.name, canonicalUrl, categories, products, currency)
     : null
+
+  const menuPageEl = (
+    <MenuPage
+      tenant={sanitizeTenantForClient(tenant)}
+      categories={categories}
+      products={products}
+      menu={resolvedMenu ?? null}
+      initialLanguage={lang}
+      initialView={view === 'feed' || view === 'list' ? view : undefined}
+      footerBrand={data.footerBrand}
+      optionGroupsByProductId={priced.optionGroupsByProductId}
+      productIngredientsByProductId={priced.productIngredientsByProductId}
+      deliveryZones={data.deliveryZones}
+      productMediaByProductId={data.productMediaByProductId}
+      chatAddonEnabled={data.chatAddonEnabled}
+      chatAddonAudioEnabled={data.chatAddonAudioEnabled}
+      chatAddonTextEnabled={data.chatAddonTextEnabled}
+      capabilities={capabilities}
+      table={capabilities.guestOrdering ? table : null}
+      waiterCallTable={capabilities.waiterCalls ? table : null}
+    />
+  )
 
   return (
     <>
@@ -127,25 +154,11 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
       <JsonLdScript data={localBusinessLd} />
       {menuLd && <JsonLdScript data={menuLd} />}
       <ScanRecorder tenantId={tenant.id} />
-      <MenuPage
-        tenant={sanitizeTenantForClient(tenant)}
-        categories={categories}
-        products={products}
-        menu={resolvedMenu ?? null}
-        initialLanguage={lang}
-        initialView={view === 'feed' || view === 'list' ? view : undefined}
-        footerBrand={data.footerBrand}
-        optionGroupsByProductId={data.optionGroupsByProductId}
-        productIngredientsByProductId={data.productIngredientsByProductId}
-        deliveryZones={data.deliveryZones}
-        productMediaByProductId={data.productMediaByProductId}
-        chatAddonEnabled={data.chatAddonEnabled}
-        chatAddonAudioEnabled={data.chatAddonAudioEnabled}
-        chatAddonTextEnabled={data.chatAddonTextEnabled}
-        capabilities={capabilities}
-        table={capabilities.guestOrdering ? table : null}
-        waiterCallTable={capabilities.waiterCalls ? table : null}
-      />
+      {isPrivate ? (
+        <PrivateMenuWrapper slug={slug} menuSlug={resolvedMenu.slug ?? ""} primaryColor={primaryColor} serverAuthed={data.privateAccess}>
+          {data.privateAccess ? menuPageEl : null}
+        </PrivateMenuWrapper>
+      ) : menuPageEl}
     </>
   )
 }
