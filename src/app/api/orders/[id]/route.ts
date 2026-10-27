@@ -6,9 +6,7 @@ import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 
-const VALID_STATUSES = [
-  'pending', 'paid', 'payment_failed', 'preparing', 'ready', 'done', 'cancelled',
-] as const
+import { canKitchenMove, isOrderStatus } from '@/lib/orders/status-machine'
 
 async function handlePATCH(
   request: Request,
@@ -33,7 +31,7 @@ async function handlePATCH(
     const body = await request.json()
     const { status } = body
 
-    if (!VALID_STATUSES.includes(status)) {
+    if (!isOrderStatus(status)) {
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
@@ -47,7 +45,7 @@ async function handlePATCH(
     // Verify the order belongs to the effective tenant before mutating
     const { data: existing, error: existingError } = await service
       .from('orders')
-      .select('id, tenant_id')
+      .select('id, tenant_id, status, order_type')
       .eq('id', orderId)
       .single()
 
@@ -58,16 +56,31 @@ async function handlePATCH(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    // Staff move orders through the kitchen; payment states (paid,
+    // payment_failed, awaiting_payment) only come from the payment provider.
+    if (existing.status === status) {
+      return NextResponse.json({ id: existing.id, status: existing.status })
+    }
+    if (!canKitchenMove(existing.status, status, existing.order_type)) {
+      return NextResponse.json({ error: `An order cannot go from ${existing.status} to ${status}` }, { status: 409 })
+    }
+
+    // Compare-and-set on the status we checked: a payment webhook or another
+    // device that moved the order meanwhile is not overwritten.
     const { data: order, error } = await service
       .from('orders')
       .update({ status, updated_at: new Date().toISOString() })
       .eq('id', orderId)
+      .eq('status', existing.status)
       .select()
-      .single()
+      .maybeSingle()
 
-    if (error || !order) {
+    if (error) {
       log.error('orders.update_error', { err: error })
       return NextResponse.json({ error: 'Failed to update order' }, { status: 500 })
+    }
+    if (!order) {
+      return NextResponse.json({ error: 'The order changed meanwhile, refresh and try again' }, { status: 409 })
     }
 
     if (status === 'done') {

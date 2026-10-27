@@ -53,10 +53,9 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
 
   // Check order status - only unpaid orders can be paid. Customer orders are
   // created as 'awaiting_payment'; 'pending' is kept for backward compatibility.
-  if (order.status !== 'pending' && order.status !== 'awaiting_payment') {
+  if (order.status !== 'pending' && order.status !== 'awaiting_payment' && order.status !== 'payment_failed') {
     const statusMessages: Record<string, string> = {
       paid: 'This order has already been paid.',
-      payment_failed: 'Payment for this order failed. Please try again.',
       cancelled: 'This order has been cancelled.',
       preparing: 'This order is being prepared.',
       ready: 'This order is ready for pickup.',
@@ -117,6 +116,8 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
       orderId: order.id,
       amountDollars: Number(order.total),
       tipCents: Number(order.tip_cents ?? 0),
+      // Charge in the currency the order was priced in (snapshot, EX-03).
+      currency: (order as { currency?: string | null }).currency ?? undefined,
     })
     clientSecret = result.clientSecret
   } catch (err) {
