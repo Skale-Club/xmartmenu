@@ -82,6 +82,8 @@ jobs:
       OPENROUTER_API_KEY: ''
       # Lets the e2e fixtures drop the cached public menu after direct DB writes.
       MENU_REVALIDATE_SECRET: e2e-revalidate-secret
+      # One IP places dozens of orders a minute in this suite (src/lib/rate-limit.ts).
+      RATE_LIMIT_MODE: 'off'
       E2E_SERVER_COMMAND: node .next/standalone/server.js
     steps:
       - uses: actions/checkout@v4

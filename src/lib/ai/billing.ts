@@ -60,54 +60,95 @@ export async function billAiUsage(opts: { tenantId: string; invoiceId?: string; 
   const empty: BillResult = { billed: false, events: 0, costUsd: 0, chargeUsd: 0, amountMinor: 0, currency }
   if (!subscription?.stripe_customer_id) return { ...empty, reason: 'no_stripe_customer' }
 
-  const { data: rows, error } = await service
+  // Claim before charging (EX-09): finish a batch an earlier run claimed but
+  // could not mark invoiced, with the same Stripe idempotency key; otherwise
+  // claim the pending events into a new batch. Concurrent runs claim disjoint
+  // rows (the update only takes rows without a batch).
+  const { data: pending, error: pendingError } = await service
     .from('ai_usage_events')
-    .select('id, cost_usd, charge_usd')
+    .select('id, cost_usd, charge_usd, billing_batch')
     .eq('tenant_id', opts.tenantId)
     .eq('billable', true)
     .is('invoiced_at', null)
-    .lte('occurred_at', now.toISOString())
+    .not('billing_batch', 'is', null)
     .order('id')
     .limit(50_000)
-  if (error) throw error
-  if (!rows?.length) return { ...empty, reason: 'nothing_to_bill' }
+  if (pendingError) throw pendingError
 
-  const maxId = rows[rows.length - 1].id as number
+  let batch: string
+  let rows: Array<{ id: number; cost_usd: number | string; charge_usd: number | string }>
+  if (pending?.length) {
+    batch = pending[0].billing_batch as string
+    rows = pending.filter((r) => r.billing_batch === batch)
+  } else {
+    batch = crypto.randomUUID()
+    const { data: claimed, error: claimError } = await service
+      .from('ai_usage_events')
+      .update({ billing_batch: batch })
+      .eq('tenant_id', opts.tenantId)
+      .eq('billable', true)
+      .is('invoiced_at', null)
+      .is('billing_batch', null)
+      .lte('occurred_at', now.toISOString())
+      .select('id, cost_usd, charge_usd')
+    if (claimError) throw claimError
+    rows = claimed ?? []
+  }
+  if (!rows.length) return { ...empty, reason: 'nothing_to_bill' }
+
+  const release = async () => {
+    // Not billed this time: give the events back to the next run.
+    const { error: releaseError } = await service.from('ai_usage_events').update({ billing_batch: null }).eq('billing_batch', batch).is('invoiced_at', null)
+    if (releaseError) log.error('ai.billing_release_failed', { err: releaseError, tenant_id: opts.tenantId })
+  }
+
+  const maxId = Math.max(...rows.map((r) => Number(r.id)))
   const costUsd = rows.reduce((sum, r) => sum + Number(r.cost_usd), 0)
   const chargeUsd = rows.reduce((sum, r) => sum + Number(r.charge_usd), 0)
   const { usdToBrl } = await loadPlatformAiSettings()
   const amountMinor = invoiceAmountMinor(chargeUsd, currency, usdToBrl)
   // Under one cent: keep accumulating until it is worth a line.
-  if (amountMinor < 1) return { ...empty, events: rows.length, costUsd, chargeUsd, reason: 'below_minimum' }
+  if (amountMinor < 1) {
+    await release()
+    return { ...empty, events: rows.length, costUsd, chargeUsd, reason: 'below_minimum' }
+  }
 
-  const item = await stripe.invoiceItems.create(
-    {
-      customer: subscription.stripe_customer_id,
-      ...(opts.invoiceId ? { invoice: opts.invoiceId } : {}),
-      amount: amountMinor,
-      currency,
-      description: usageLineDescription({ events: rows.length, costUsd, chargeUsd, amountMinor, currency, until: now }),
-      metadata: {
-        kind: 'ai_usage',
-        tenant_id: opts.tenantId,
-        events: String(rows.length),
-        cost_usd: costUsd.toFixed(8),
-        charge_usd: chargeUsd.toFixed(8),
-        usd_to_brl: String(usdToBrl),
-        last_event_id: String(maxId),
+  let item
+  try {
+    item = await stripe.invoiceItems.create(
+      {
+        customer: subscription.stripe_customer_id,
+        ...(opts.invoiceId ? { invoice: opts.invoiceId } : {}),
+        amount: amountMinor,
+        currency,
+        description: usageLineDescription({ events: rows.length, costUsd, chargeUsd, amountMinor, currency, until: now }),
+        metadata: {
+          kind: 'ai_usage',
+          tenant_id: opts.tenantId,
+          events: String(rows.length),
+          cost_usd: costUsd.toFixed(8),
+          charge_usd: chargeUsd.toFixed(8),
+          usd_to_brl: String(usdToBrl),
+          last_event_id: String(maxId),
+          billing_batch: batch,
+        },
       },
-    },
-    { idempotencyKey: `ai-usage-${opts.tenantId}-${maxId}` },
-  )
+      { idempotencyKey: `ai-usage-batch-${batch}` },
+    )
+  } catch (err) {
+    // Nothing was charged: the batch keeps its claim and is retried with the
+    // same key, which is safe whether or not Stripe saw the request.
+    log.error('ai.billing_charge_failed', { err, tenant_id: opts.tenantId, batch })
+    throw err
+  }
 
   const { error: markError } = await service
     .from('ai_usage_events')
     .update({ invoiced_at: now.toISOString(), stripe_invoice_item_id: item.id })
-    .eq('tenant_id', opts.tenantId)
-    .eq('billable', true)
+    .eq('billing_batch', batch)
     .is('invoiced_at', null)
-    .lte('id', maxId)
-  if (markError) log.error('ai.billing_mark_failed', { err: markError, tenant_id: opts.tenantId, invoice_item: item.id })
+  // Left claimed: the next run finishes this batch with the same key (no second charge).
+  if (markError) log.error('ai.billing_mark_failed', { err: markError, tenant_id: opts.tenantId, invoice_item: item.id, batch })
 
   log.info('ai.billed', { tenant_id: opts.tenantId, events: rows.length, cost_usd: costUsd, charge_usd: chargeUsd, amount_minor: amountMinor, currency, invoice: opts.invoiceId ?? 'next' })
   return { billed: true, events: rows.length, costUsd, chargeUsd, amountMinor, currency, invoiceItemId: item.id }
