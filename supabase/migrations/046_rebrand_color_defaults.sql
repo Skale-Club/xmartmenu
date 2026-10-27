@@ -9,4 +9,4 @@ ALTER TABLE platform_settings
 -- 2. Update the existing singleton row if it still has the old yellow default
 UPDATE platform_settings
 SET cta_color = '#F52323'
-WHERE cta_color = '#EEFF00' OR cta_color = '#CBFF00';
+WHERE cta_color = '#F52323' OR cta_color = '#F52323';
