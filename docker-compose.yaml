@@ -13,10 +13,12 @@
 # expects are pinned.
 services:
   app:
-    image: ghcr.io/skale-club/xmartmenu:latest
-    # Force a fresh pull of :latest on every deploy. Without this, `docker compose
-    # up` reuses the host's cached :latest layer and silently runs stale code even
-    # after a new image is pushed to GHCR (Coolify does not pull by default here).
+    # IMAGE_TAG is the commit SHA, set by scripts/coolify-deploy.sh right before
+    # each deploy, so production runs exactly the build that passed CI.
+    image: ghcr.io/skale-club/xmartmenu:${IMAGE_TAG:-latest}
+    # Force a fresh pull on every deploy. Without this, `docker compose up`
+    # reuses the host's cached layer and can silently run stale code (Coolify
+    # does not pull by default here).
     pull_policy: always
     restart: unless-stopped
     environment:
