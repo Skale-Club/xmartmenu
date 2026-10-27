@@ -117,12 +117,24 @@ jobs:
           cp -r .next/static .next/standalone/.next/static
           cp -r public .next/standalone/public
 
+      # Both installs hit external mirrors: a slow one once ate the whole
+      # 30-minute job. Bounded and retried so a bad mirror fails fast instead.
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 8
+        run: |
+          for attempt in 1 2 3; do
+            npx playwright install --with-deps chromium && exit 0
+            echo "playwright install failed (attempt $attempt), retrying…"
+            sleep 10
+          done
+          exit 1
 
       # Dish videos are re-encoded with ffmpeg (src/lib/media/video.ts).
       - name: Install ffmpeg
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+        timeout-minutes: 6
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3 -o Acquire::http::Timeout=30
+          sudo apt-get install -y -qq --no-install-recommends -o Acquire::Retries=3 -o Acquire::http::Timeout=30 ffmpeg
 
       - name: Playwright (API + flows)
         run: npx playwright test
