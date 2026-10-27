@@ -100,9 +100,11 @@ jobs:
           node-version: '24'
           cache: 'npm'
 
+      # Pinned: "latest" asks the GitHub API for the newest release on every run
+      # and failed twice on 2026-10-27 with "rate limit exceeded".
       - uses: supabase/setup-cli@v1
         with:
-          version: latest
+          version: 2.122.0
 
       - name: Start local Supabase (migrations + seed)
         run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
