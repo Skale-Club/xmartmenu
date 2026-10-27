@@ -12,7 +12,21 @@ import { createPortal } from 'react-dom'
  * Also: Escape closes only the topmost overlay (a confirm dialog over a form
  * closes alone), and the page behind stops scrolling while any overlay is
  * open (reference-counted, so stacked overlays don't fight over it).
+ *
+ * Focus (EX-11): opening moves focus into the overlay (an [autofocus] element,
+ * else the first focusable one, else the dialog itself), Tab and Shift+Tab
+ * cycle inside the topmost overlay instead of wandering into the page behind
+ * it, and closing returns focus to whatever opened it.
  */
+
+const FOCUSABLE = [
+  'a[href]', 'button:not([disabled])', 'input:not([disabled]):not([type="hidden"])',
+  'select:not([disabled])', 'textarea:not([disabled])', '[tabindex]:not([tabindex="-1"])',
+].join(',')
+
+function focusables(root: HTMLElement): HTMLElement[] {
+  return Array.from(root.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.getClientRects().length > 0)
+}
 
 const escapeStack: string[] = []
 let scrollLocks = 0
@@ -49,6 +63,7 @@ export default function ModalPortal({
 }) {
   const id = useId()
   const isClient = useSyncExternalStore(subscribeNothing, () => true, () => false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   const closeOnEscapeRef = useRef(closeOnEscape)
   useEffect(() => {
@@ -59,7 +74,28 @@ export default function ModalPortal({
   useEffect(() => {
     escapeStack.push(id)
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || escapeStack[escapeStack.length - 1] !== id) return
+      if (escapeStack[escapeStack.length - 1] !== id) return
+      if (e.key === 'Tab') {
+        const root = containerRef.current
+        if (!root) return
+        const items = focusables(root)
+        if (items.length === 0) {
+          e.preventDefault()
+          return
+        }
+        const first = items[0]
+        const last = items[items.length - 1]
+        const active = document.activeElement
+        if (e.shiftKey && (active === first || !root.contains(active))) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && (active === last || !root.contains(active))) {
+          e.preventDefault()
+          first.focus()
+        }
+        return
+      }
+      if (e.key !== 'Escape') return
       if (closeOnEscapeRef.current && onCloseRef.current) {
         e.stopPropagation()
         onCloseRef.current()
@@ -75,6 +111,24 @@ export default function ModalPortal({
 
   useEffect(() => (lockScroll ? lockBodyScroll() : undefined), [lockScroll])
 
+  // Move focus in on open, give it back on close.
+  useEffect(() => {
+    if (!isClient) return
+    const opener = document.activeElement as HTMLElement | null
+    const root = containerRef.current
+    if (root && !root.contains(document.activeElement)) {
+      const target = root.querySelector<HTMLElement>('[autofocus]')
+        ?? focusables(root)[0]
+        ?? root.querySelector<HTMLElement>('[role="dialog"]')
+      if (target && !target.hasAttribute('tabindex') && target.getAttribute('role') === 'dialog') target.setAttribute('tabindex', '-1')
+      target?.focus({ preventScroll: true })
+    }
+    return () => {
+      if (opener && document.contains(opener)) opener.focus({ preventScroll: true })
+    }
+  }, [isClient])
+
   if (!isClient) return null
-  return createPortal(children, document.body)
+  // display: contents keeps the overlay's own layout; the wrapper only scopes focus.
+  return createPortal(<div ref={containerRef} style={{ display: 'contents' }}>{children}</div>, document.body)
 }
