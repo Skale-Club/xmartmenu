@@ -9,7 +9,10 @@ export async function updateSession(request: NextRequest, rewriteUrl?: URL) {
   const makeResponse = () =>
     rewriteUrl ? NextResponse.rewrite(rewriteUrl, { request }) : NextResponse.next({ request })
 
-  const pathname = request.nextUrl.pathname
+  // On a custom domain the route checks below look at the path that is
+  // actually served (/<slug>/…): "/" there is the restaurant's menu, not the
+  // marketing home, and a menu called "menu-lunch" is not the /menu admin.
+  const pathname = (rewriteUrl ?? request.nextUrl).pathname
   const MARKETING_PATHS = ['/', '/sitemap.xml', '/robots.txt']
   const isMarketing = MARKETING_PATHS.includes(pathname) || pathname.startsWith('/opengraph-image')
   if (isMarketing) return makeResponse()

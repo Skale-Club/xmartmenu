@@ -10,7 +10,10 @@ export async function GET(request: Request) {
   // internal bind address (0.0.0.0:3000) when running behind Coolify/Docker.
   const origin = getRequestOrigin(request)
   const code = searchParams.get('code')
-  const next = searchParams.get('next') ?? '/'
+  // Only a same-site path: "@evil.com" or "//evil.com" appended to the origin
+  // would send the freshly signed-in user to another host.
+  const rawNext = searchParams.get('next') ?? '/'
+  const next = rawNext.startsWith('/') && !rawNext.startsWith('//') && !rawNext.startsWith('/\\') ? rawNext : '/'
 
   if (code) {
     const supabase = await createClient()
