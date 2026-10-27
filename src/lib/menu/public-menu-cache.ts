@@ -43,11 +43,19 @@ export function publicMenuCacheSeconds(env: Record<string, string | undefined> =
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : DEFAULT_PUBLIC_MENU_CACHE_SECONDS
 }
 
+/**
+ * Expire at once, not stale-while-revalidate ('max'): with 'max' the next
+ * visitor still got the old entry while it refreshed in the background, so a
+ * menu switched to private, a hidden product or a deactivated restaurant kept
+ * being served after the change.
+ */
+const EXPIRE_NOW = { expire: 0 }
+
 /** Drop the cached menu of one restaurant (after anything that changes what guests see). */
 export function revalidatePublicMenu(slug: string | null | undefined): void {
   if (!slug) return
   try {
-    revalidateTag(menuSlugTag(slug), 'max')
+    revalidateTag(menuSlugTag(slug), EXPIRE_NOW)
   } catch {
     // Outside a request scope (scripts, tests) there is no cache to drop.
   }
@@ -56,7 +64,7 @@ export function revalidatePublicMenu(slug: string | null | undefined): void {
 /** Drop every restaurant's cached menu (platform settings, plan features). */
 export function revalidateAllPublicMenus(): void {
   try {
-    revalidateTag(PLATFORM_MENU_TAG, 'max')
+    revalidateTag(PLATFORM_MENU_TAG, EXPIRE_NOW)
   } catch {
     // Outside a request scope there is no cache to drop.
   }
