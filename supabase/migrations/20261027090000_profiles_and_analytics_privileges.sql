@@ -26,7 +26,19 @@ REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.profiles 
 GRANT UPDATE (full_name, phone, must_change_password, password_changed_at)
   ON public.profiles TO authenticated;
 
-DROP POLICY IF EXISTS "profiles_update_self" ON public.profiles;
+-- Any other write policy on profiles, whatever its name (production was edited
+-- by hand), would add up with this one: drop them all first.
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT policyname FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'profiles' AND cmd IN ('INSERT', 'UPDATE', 'DELETE', 'ALL')
+  LOOP
+    EXECUTE format('DROP POLICY %I ON public.profiles', r.policyname);
+  END LOOP;
+END $$;
+
 CREATE POLICY "profiles_update_self" ON public.profiles
   FOR UPDATE TO authenticated
   USING (id = auth.uid())
