@@ -27,18 +27,10 @@ ARG NEXT_PUBLIC_APP_URL
 ARG NEXT_PUBLIC_BASE_URL
 ARG NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
 ARG NEXT_PUBLIC_SENTRY_DSN
-# The commit being built: Sentry release, /api/health/ready "release", and the
-# source maps uploaded when SENTRY_AUTH_TOKEN is present (optional).
+# The commit being built: Sentry release and /api/health/ready "release".
 ARG GIT_SHA=dev
-ARG SENTRY_AUTH_TOKEN
 ARG SENTRY_ORG
 ARG SENTRY_PROJECT
-# Needed at BUILD time too: the root layout reads platform_settings via the
-# service client in generateMetadata/generateViewport, which runs while
-# prerendering static pages (e.g. /_not-found). The CI image build therefore
-# supplies it explicitly. Declared ONLY in this builder stage, so it is NOT
-# present in the final `runner` image (kept clean of the service-role key).
-ARG SUPABASE_SERVICE_ROLE_KEY
 ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY \
     NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL \
@@ -46,13 +38,18 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY \
     NEXT_PUBLIC_SENTRY_DSN=$NEXT_PUBLIC_SENTRY_DSN \
     NEXT_PUBLIC_RELEASE=$GIT_SHA \
-    SENTRY_AUTH_TOKEN=$SENTRY_AUTH_TOKEN \
     SENTRY_ORG=$SENTRY_ORG \
-    SENTRY_PROJECT=$SENTRY_PROJECT \
-    SUPABASE_SERVICE_ROLE_KEY=$SUPABASE_SERVICE_ROLE_KEY
+    SENTRY_PROJECT=$SENTRY_PROJECT
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build
+# Secrets arrive as BuildKit secret mounts, present only while this RUN runs:
+# never in ARG/ENV, image history, layer metadata or the build cache.
+#   supabase_service_role_key  the root layout reads platform_settings through
+#                              the service client while prerendering
+#   sentry_auth_token          optional; uploads source maps when present
+RUN --mount=type=secret,id=supabase_service_role_key,env=SUPABASE_SERVICE_ROLE_KEY \
+    --mount=type=secret,id=sentry_auth_token,env=SENTRY_AUTH_TOKEN \
+    npm run build
 
 # ---- runner: minimal runtime image ----
 FROM base AS runner

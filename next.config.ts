@@ -25,6 +25,19 @@ const nextConfig: NextConfig = {
   // sharp ships a native binary — keep it external so it isn't traced/bundled
   // into the standalone output (next/image optimization loads it at runtime).
   serverExternalPackages: ['sharp'],
+  // The ffmpeg spawn in src/lib/media/video.ts makes the tracer give up and
+  // trace the whole project ("whole project was traced unintentionally"), which
+  // copied src/, tests/, docs/, supabase/ and coverage/ into .next/standalone
+  // and the image. Nothing reads those at runtime (the server runs the compiled
+  // .next/server), so they never belong in the runtime output.
+  outputFileTracingExcludes: {
+    '*': [
+      './src/**', './tests/**', './docs/**', './supabase/**', './scripts/**',
+      './coverage/**', './playwright-report/**', './test-results/**', './.claude/**',
+      './.planning/**', './*.md', './Dockerfile', './docker-compose.yaml',
+      './*.config.{ts,mjs,js}', './tsconfig*.json', './.env*',
+    ],
+  },
   images: {
     formats: ['image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
