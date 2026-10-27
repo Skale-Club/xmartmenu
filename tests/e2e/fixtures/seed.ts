@@ -12,6 +12,17 @@ export const TENANTS = {
   switch: { id: 'b0000000-0000-4000-8000-000000000004', slug: 'test-switch', name: 'Test Switches' },
 } as const
 
+/** Restaurant whose only (default) menu is private; not part of TENANTS so per-plan loops skip it. */
+export const PRIVATE_MENU = {
+  tenantId: 'b0000000-0000-4000-8000-000000000005',
+  slug: 'test-private',
+  menuId: 'c0000000-0000-4000-8000-000000000005',
+  menuSlug: 'members',
+  productId: 'e0000000-0000-4000-8000-000000000051',
+  /** Strings that must never reach a visitor without access. */
+  secrets: ['Secret Wagyu', 'Members Only Section', 'Secret Doneness', 'Secret Rare'],
+} as const
+
 export type TenantKey = keyof typeof TENANTS
 
 export const USERS = {

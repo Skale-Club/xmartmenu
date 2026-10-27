@@ -21,7 +21,7 @@
  */
 import { cache } from 'react'
 import { unstable_cache } from 'next/cache'
-import { createServiceClient } from '@/lib/supabase/server'
+import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { hasAnyChannel, resolveChatChannels } from '@/lib/chat-channels'
@@ -29,6 +29,7 @@ import type { TenantCapabilities } from '@/lib/service-modes'
 import type { DeliveryZone, ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { menuCacheKey, menuCacheTags, publicMenuCacheSeconds } from '@/lib/menu/public-menu-cache'
+import { effectiveMultiplier, scaleOptionGroups, scaleProductIngredients, scaleProducts } from '@/components/menu/price-multiplier'
 
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-tested in tests/unit/menu/public-menu-data.test.ts)
@@ -108,9 +109,9 @@ export interface LoadPublicMenuOptions {
   /** Parsed ?table= id (parseTableParam), or null. */
   tableId: string | null
   /**
-   * Private menus only: whether the caller may see it (phone-verified session).
-   * Runs on every request, outside the cache; when it says no, the menu's
-   * options, ingredients and media are left out of the result.
+   * Private menus only: whether the caller may see it. Defaults to a
+   * phone-verified session. Runs on every request, outside the cache; when it
+   * says no, none of the menu's content is in the result.
    */
   checkPrivateAccess?: () => Promise<boolean>
 }
@@ -307,24 +308,70 @@ export function pickTable(
   return tables.find(t => t.id === tableId) ?? null
 }
 
-/** A private menu for a caller who may not see it: the dishes without their options, ingredients and media. */
-export function withoutDetails<T extends Pick<PublicMenuData, 'optionGroupsByProductId' | 'productIngredientsByProductId' | 'productMediaByProductId'>>(data: T): T {
-  return { ...data, optionGroupsByProductId: {}, productIngredientsByProductId: {}, productMediaByProductId: {} }
+/**
+ * A private menu for a caller who may not see it: nothing of its content.
+ * Stripping only the details still sent every dish, category and price in the
+ * HTML/RSC payload, the JSON API and the JSON-LD, whatever the page showed.
+ */
+export function withoutPrivateContent<T extends Pick<PublicMenuData, 'categories' | 'products' | 'optionGroupsByProductId' | 'productIngredientsByProductId' | 'productMediaByProductId'>>(data: T): T {
+  return {
+    ...data,
+    categories: [],
+    products: [],
+    optionGroupsByProductId: {},
+    productIngredientsByProductId: {},
+    productMediaByProductId: {},
+  }
+}
+
+/**
+ * The prices guests see on this menu: a private / in-store menu's multiplier
+ * applied to every dish, option and ingredient (SEED-019). Every page that
+ * renders a menu uses this, so the root and /[menuSlug] cannot disagree.
+ */
+export function withMenuPrices<T extends Pick<PublicMenuData, 'menu' | 'products' | 'optionGroupsByProductId' | 'productIngredientsByProductId'>>(data: T): T {
+  const multiplier = effectiveMultiplier(data.menu?.price_multiplier)
+  if (multiplier === 1) return data
+  const optionGroupsByProductId: Record<string, GroupWithOptions[]> = {}
+  for (const [productId, groups] of Object.entries(data.optionGroupsByProductId)) {
+    optionGroupsByProductId[productId] = scaleOptionGroups(groups, multiplier)
+  }
+  const productIngredientsByProductId: Record<string, ProductIngredientWithIngredient[]> = {}
+  for (const [productId, items] of Object.entries(data.productIngredientsByProductId)) {
+    productIngredientsByProductId[productId] = scaleProductIngredients(items, multiplier)
+  }
+  return {
+    ...data,
+    products: scaleProducts(data.products, multiplier),
+    optionGroupsByProductId,
+    productIngredientsByProductId,
+  }
+}
+
+/**
+ * Default private-menu check: a phone-verified Supabase session. Runs per
+ * request, outside the shared cache, so a cache entry warmed by an authorised
+ * visitor never unlocks the menu for the next one.
+ */
+async function hasPhoneVerifiedSession(): Promise<boolean> {
+  const client = await createClient()
+  const { data: { user } } = await client.auth.getUser()
+  return !!user?.phone
 }
 
 export async function loadPublicMenuData({
   slug,
   menuSlug,
   tableId,
-  checkPrivateAccess,
+  checkPrivateAccess = hasPhoneVerifiedSession,
 }: LoadPublicMenuOptions): Promise<PublicMenuResult> {
   const base = await getPublicMenuBase(slug, menuSlug)
   if (base.kind !== 'menu') return base
 
   const { tables, ...data } = base
   const isPrivate = data.menu?.is_private === true
-  const privateAccess = isPrivate && checkPrivateAccess ? await checkPrivateAccess() : false
-  const visible = isPrivate && !privateAccess ? withoutDetails(data) : data
+  const privateAccess = isPrivate ? await checkPrivateAccess() : false
+  const visible = isPrivate && !privateAccess ? withoutPrivateContent(data) : data
   return {
     ...visible,
     table: pickTable(tables, tableId, data.capabilities),
