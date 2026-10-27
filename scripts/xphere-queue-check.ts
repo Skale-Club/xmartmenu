@@ -16,7 +16,7 @@
  *
  * It proves the three FND-03 invariants:
  *   1. Success path builds the THIN { tenantId, reason, eventId?, tags? } message
- *      with deduplicationId = `xphere:<tenantId>:<reason>` and retries = 5. The
+ *      with deduplicationId = `xphere:<tenantId>:<reason>[:<eventId>]` and retries = 5. The
  *      SDK carries deduplicationId/retries as the `Upstash-Deduplication-Id` /
  *      `Upstash-Retries` request HEADERS (the JSON body is exactly the thin
  *      payload), so we assert against where they actually land.
@@ -120,11 +120,13 @@ async function main(): Promise<void> {
     )
 
     // deduplicationId is carried by the SDK as the Upstash-Deduplication-Id
-    // request header — assert the EXACT value `xphere:<tenantId>:<reason>`.
+    // request header. With a Stripe event id it is
+    // `xphere:<tenantId>:<reason>:<eventId>`: the same event deduplicates, two
+    // different events with the same reason (upgrade then downgrade) do not.
     assert.equal(
       header(init, 'Upstash-Deduplication-Id'),
-      'xphere:tenant-uuid-1:plan_changed',
-      'deduplicationId header = xphere:tenant-uuid-1:plan_changed',
+      'xphere:tenant-uuid-1:plan_changed:evt_123',
+      'deduplicationId header = xphere:tenant-uuid-1:plan_changed:evt_123',
     )
 
     // retries = 5 lands in the Upstash-Retries header.
@@ -154,6 +156,12 @@ async function main(): Promise<void> {
       body,
       { tenantId: 'tenant-uuid-2', reason: 'onboarded' },
       'no opts -> body omits eventId/tags entirely',
+    )
+    // Without an event id the key stays `xphere:<tenantId>:<reason>`.
+    assert.equal(
+      header(calls[0]!.init, 'Upstash-Deduplication-Id'),
+      'xphere:tenant-uuid-2:onboarded',
+      'no eventId -> deduplicationId = xphere:<tenantId>:<reason>',
     )
 
     globalThis.fetch = originalFetch

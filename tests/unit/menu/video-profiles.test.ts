@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { posterArgs, VIDEO_PROFILES, videoTranscodeArgs } from '@/lib/media/video'
+import { posterArgs, VIDEO_PROFILES, videoTranscodeArgs, withEncodeSlot } from '@/lib/media/video'
 import { describeVideoSavings, heroSourcePath, heroVideoPathFromUrl, isEncodableHeroPath } from '@/lib/media/hero-video'
 
 describe('video profiles', () => {
@@ -59,5 +59,31 @@ describe('hero video storage keys', () => {
   it('describes the saving for the panel', () => {
     expect(describeVideoSavings(17.5 * 1024 * 1024, 5.2 * 1024 * 1024)).toBe('17.5 MB → 5.2 MB (−70%)')
     expect(describeVideoSavings(0, 5 * 1024 * 1024)).toBe('5.0 MB')
+  })
+})
+
+describe('withEncodeSlot', () => {
+  it('runs one encode at a time by default, in arrival order', async () => {
+    const order: string[] = []
+    let running = 0
+    let maxRunning = 0
+    const job = (name: string) => withEncodeSlot(async () => {
+      running++
+      maxRunning = Math.max(maxRunning, running)
+      order.push(`start ${name}`)
+      await new Promise((r) => setTimeout(r, 5))
+      order.push(`end ${name}`)
+      running--
+      return name
+    })
+    const results = await Promise.all([job('a'), job('b'), job('c')])
+    expect(results).toEqual(['a', 'b', 'c'])
+    expect(maxRunning).toBe(1)
+    expect(order).toEqual(['start a', 'end a', 'start b', 'end b', 'start c', 'end c'])
+  })
+
+  it('frees the slot when an encode fails', async () => {
+    await expect(withEncodeSlot(async () => { throw new Error('ffmpeg exited 1') })).rejects.toThrow('ffmpeg exited 1')
+    expect(await withEncodeSlot(async () => 'next')).toBe('next')
   })
 })

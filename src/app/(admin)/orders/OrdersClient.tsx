@@ -754,7 +754,18 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
                         </div>
                         <span className="text-sm font-black text-zinc-950 tracking-tight">{fmtMoney(item.unit_price * item.quantity)}</span>
                       </div>
-                      
+
+                      {/* Choices (size, flavours, add-ons) as the server priced them. */}
+                      {item.selected_options && typeof item.selected_options === 'object' && Object.keys(item.selected_options).length > 0 && (
+                        <ul className="mb-3 space-y-1">
+                          {Object.entries(item.selected_options as Record<string, unknown>).map(([group, choice]) => (
+                            <li key={group} className="text-[12px] font-bold text-zinc-700">
+                              <span className="text-zinc-400">{group}:</span> {String(choice)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
                       {item.notes && (
                         <div className="flex items-start gap-2 bg-white rounded-xl p-3 border border-zinc-100 mb-3">
                           <MessageSquare className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />

@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Other checkouts and generated output, not this tree's source.
+    ".claude/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
   ]),
   {
     rules: {

@@ -49,7 +49,8 @@ async function handlePOST(request: NextRequest) {
     // 4. Only an unpaid order can be paid. Guest orders that need online
     // payment are created as awaiting_payment; 'pending' covers orders placed
     // before Stripe was connected.
-    if (order.status !== 'awaiting_payment' && order.status !== 'pending') {
+    // A failed attempt can be retried with the same intent.
+    if (order.status !== 'awaiting_payment' && order.status !== 'pending' && order.status !== 'payment_failed') {
       return NextResponse.json({ error: 'Order is not awaiting payment' }, { status: 400 })
     }
 

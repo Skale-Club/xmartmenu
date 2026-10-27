@@ -12,6 +12,7 @@ import { baseName } from '@/lib/menu-translations'
 import { getGuestCopy } from './guest-copy'
 import { contactLinks, displayPrice, optionPriceList, orderedItemText, showcaseItemText } from './showcase'
 import ModalPortal from '@/components/ui/ModalPortal'
+import { halfAndHalfUnit } from '@/lib/menu/option-pricing'
 
 type MediaSlide = { type: 'image'; url: string } | { type: 'video'; url: string }
 
@@ -185,8 +186,8 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
         if (half?.half1 && half?.half2) {
           const opt1 = group.options.find(o => o.id === half.half1)
           const opt2 = group.options.find(o => o.id === half.half2)
-          // D-10: max of the two base_prices (not price_modifier)
-          price = Math.max(opt1?.base_price ?? 0, opt2?.base_price ?? 0)
+          // D-10: the dearer half; a half without its own price counts as the dish (same as checkout)
+          price = halfAndHalfUnit(product.price, opt1, opt2)
         }
       } else if (group.type === 'multiple') {
         const sel = multiSelections[group.id] ?? []
@@ -625,7 +626,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                       { key: 'half2', label: copy.secondHalf },
                     ]
                     const halfPrice = half.half1 && half.half2
-                      ? Math.max(group.options.find(o => o.id === half.half1)?.base_price ?? 0, group.options.find(o => o.id === half.half2)?.base_price ?? 0)
+                      ? halfAndHalfUnit(product.price, group.options.find(o => o.id === half.half1), group.options.find(o => o.id === half.half2))
                       : null
                     return (
                       <>

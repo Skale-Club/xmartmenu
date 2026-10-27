@@ -14,7 +14,7 @@ import {
   type MenuCatalog,
   type ResolvedCartItem,
 } from '@/lib/chat-agent'
-import { computeOptionUnit } from '@/lib/menu/option-pricing'
+import { resolveOptionSelection } from '@/lib/menu/option-pricing'
 
 const PIZZA = '11111111-1111-4111-8111-111111111111'
 const SODA = '22222222-2222-4222-8222-222222222222'
@@ -125,7 +125,7 @@ describe('resolveCartRequest', () => {
       ],
     }])
     const pizza = catalog().products[0]
-    expect(added[0].unit_price).toBe(computeOptionUnit(pizza.price, added[0].editor_state, pizza.groups))
+    expect(added[0].unit_price).toBe(resolveOptionSelection(pizza.price, added[0].editor_state, pizza.groups).unit)
     // half-and-half takes the higher base price, then the border is added
     expect(added[0].unit_price).toBe(60 + 9)
     expect(added[0].selected_options.Sabores).toBe('Calabresa / Quatro Queijos')

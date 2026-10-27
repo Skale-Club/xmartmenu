@@ -49,11 +49,6 @@ const supabase = createClient()
   const [adding, setAdding] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    load()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   async function load() {
     const { data } = await supabase
       .from('restaurant_tables')
@@ -63,6 +58,11 @@ const supabase = createClient()
     setTables((data ?? []) as RestaurantTable[])
     setLoading(false)
   }
+
+  useEffect(() => {
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleAdd() {
     if (!newName.trim()) return
