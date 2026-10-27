@@ -148,3 +148,25 @@ INSERT INTO storage.buckets (id, name, public) VALUES
   ('product-images', 'product-images', true),
   ('tenant-assets', 'tenant-assets', true)
 ON CONFLICT (id) DO NOTHING;
+
+-- ── Custom domain (EX-05) ────────────────────────────────────────────────────
+-- test-domain answers on menu.test-domain.test (sent as the Host header by the
+-- e2e tests): its pages at the root, platform routes (API, checkout) global.
+INSERT INTO public.tenants (id, slug, name, is_active, custom_domain, custom_domain_verified) VALUES
+  ('b0000000-0000-4000-8000-000000000006', 'test-domain', 'Test Custom Domain', true, 'menu.test-domain.test', true);
+
+INSERT INTO public.tenant_settings (tenant_id, currency, language, menu_default_view)
+VALUES ('b0000000-0000-4000-8000-000000000006', 'BRL', 'en', 'list');
+
+INSERT INTO public.tenant_subscriptions (tenant_id, plan_id, billing_cycle, status) VALUES
+  ('b0000000-0000-4000-8000-000000000006', '11111111-1111-1111-1111-111111111111', 'monthly', 'active');
+
+INSERT INTO public.menus (id, tenant_id, name, slug, language, supported_languages, is_active, is_default) VALUES
+  ('c0000000-0000-4000-8000-000000000006', 'b0000000-0000-4000-8000-000000000006', 'Domain Menu', 'main', 'en', ARRAY['en'], true, true);
+
+INSERT INTO public.categories (id, tenant_id, menu_id, name, position, is_active) VALUES
+  ('d0000000-0000-4000-8000-000000000061', 'b0000000-0000-4000-8000-000000000006', 'c0000000-0000-4000-8000-000000000006', 'Domain Specials', 0, true);
+
+INSERT INTO public.products (id, tenant_id, menu_id, category_id, name, description, price, position, is_available, is_featured) VALUES
+  ('e0000000-0000-4000-8000-000000000061', 'b0000000-0000-4000-8000-000000000006', 'c0000000-0000-4000-8000-000000000006',
+   'd0000000-0000-4000-8000-000000000061', 'Domain Burger', 'Served on its own domain', 30.00, 0, true, false);

@@ -4,6 +4,7 @@ import { updateSession } from './lib/supabase/middleware'
 // invariant (no entry may have a named route) and the regression history.
 import { BLOCKED_TENANT_SLUGS } from './lib/marketing/blocked-tenant-slugs'
 import { resolveFeedRewritePath } from './lib/feed-route'
+import { resolveCustomDomainRoute } from './lib/custom-domain-routing'
 import { REQUEST_ID_HEADER, resolveRequestId } from './lib/observability/request-id'
 
 // Cache BOTH hits and misses. Without caching misses, every request carrying an
@@ -98,14 +99,19 @@ async function route(request: NextRequest) {
       return await updateSession(request, url)
     }
 
-    if (tenantSlug && !pathname.startsWith(`/${tenantSlug}`)) {
-      const url = request.nextUrl.clone()
-      url.pathname = `/${tenantSlug}${pathname === '/' ? '' : pathname}`
-      // Rewrite AND refresh the session in one pass. Returning a bare
-      // NextResponse.rewrite() here (the old behavior) skipped updateSession, so
-      // Supabase auth cookies were never refreshed on custom-domain requests and
-      // customer sessions (e.g. /me) silently expired.
-      return await updateSession(request, url)
+    if (tenantSlug) {
+      // Restaurant pages move into /<slug>/…; platform routes (API, checkout,
+      // auth callbacks…) keep their path. See src/lib/custom-domain-routing.ts.
+      const route = resolveCustomDomainRoute(pathname, tenantSlug)
+      if (route.kind === 'rewrite') {
+        const url = request.nextUrl.clone()
+        url.pathname = route.pathname
+        // Rewrite AND refresh the session in one pass. Returning a bare
+        // NextResponse.rewrite() here (the old behavior) skipped updateSession, so
+        // Supabase auth cookies were never refreshed on custom-domain requests and
+        // customer sessions (e.g. /me) silently expired.
+        return await updateSession(request, url)
+      }
     }
   }
 

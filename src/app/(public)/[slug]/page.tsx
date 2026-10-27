@@ -38,10 +38,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const keywords = resolveSeoKeywords(settings)
   const canonicalUrl = getCanonicalUrl(tenant, '/')
   const ogOverride = resolveOgImageOverride(settings)
-  const isCustomDomain = !!(tenant.custom_domain && tenant.custom_domain_verified)
   // On the platform-slug URL we suppress indexing when a custom domain is the
   // canonical home; a tenant can also opt out of indexing entirely.
-  const noindex = isCustomDomain || isTenantNoindex(settings)
+  // Indexing follows the restaurant's own preference. A verified custom domain
+  // is the canonical URL (getCanonicalUrl), and the platform-slug copy points
+  // to it; noindex-ing every page of a tenant with a custom domain de-indexed
+  // the canonical site itself.
+  const noindex = isTenantNoindex(settings)
 
   return {
     title,
