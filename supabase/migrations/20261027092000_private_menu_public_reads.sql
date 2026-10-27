@@ -51,6 +51,25 @@ REVOKE EXECUTE ON FUNCTION public.product_is_public(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.menu_is_public(UUID) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.product_is_public(UUID) TO anon, authenticated, service_role;
 
+-- Policy names differ between production and a database built from these
+-- migrations (production was edited by hand: products_select there,
+-- products_public / products_tenant_read here). Permissive policies add up,
+-- so any leftover read policy would keep the leak open. Drop every SELECT
+-- policy on these tables, whatever its name, then create the one below.
+-- (ALL policies are write policies of members/managers and stay.)
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN
+    SELECT tablename, policyname FROM pg_policies
+    WHERE schemaname = 'public'
+      AND cmd = 'SELECT'
+      AND tablename IN ('categories', 'products', 'product_option_groups', 'product_options', 'product_ingredients', 'product_media')
+  LOOP
+    EXECUTE format('DROP POLICY %I ON public.%I', r.policyname, r.tablename);
+  END LOOP;
+END $$;
+
 DROP POLICY IF EXISTS "categories_select" ON public.categories;
 CREATE POLICY "categories_select" ON public.categories FOR SELECT
   USING (
