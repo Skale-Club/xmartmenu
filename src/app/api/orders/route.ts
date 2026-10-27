@@ -8,49 +8,10 @@ import type { IngredientModifications } from '@/types/database'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { phoneMatchKey } from '@/lib/phone'
 import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
-import { computeOptionUnit, type ServerOptionGroup } from '@/lib/menu/option-pricing'
+import { OptionSelectionError, resolveOptionSelection, type ServerOptionGroup } from '@/lib/menu/option-pricing'
+import { createOrderSchema, describeInputError, orderFingerprint, parseIdempotencyKey, type OrderItemInput } from '@/lib/orders/order-input'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
-
-interface CartEditorState {
-  singleSelections?: Record<string, string>
-  halfSelections?: Record<string, { half1: string | null; half2: string | null }>
-  multiSelections?: Record<string, string[]>
-}
-
-interface OrderItem {
-  product_id: string
-  product_name: string
-  quantity: number
-  unit_price: number
-  notes?: string
-  selected_options?: Record<string, unknown>
-  ingredient_modifications?: IngredientModifications | null
-  editor_state?: CartEditorState | null
-  /** Where the guest got the line: "Complete your order" or the AI chat (analytics only). */
-  added_via?: unknown
-}
-
-interface CreateOrderRequest {
-  tenant_id: string
-  customer_name: string
-  customer_phone: string
-  items: OrderItem[]
-  order_type?: string
-  delivery_address?: string
-  delivery_street?: string
-  delivery_complement?: string
-  delivery_zipcode?: string
-  delivery_city?: string
-  delivery_notes?: string
-  location_id?: string | null
-  tip_cents?: number
-  menu_id?: string | null
-  table_name?: string | null
-  /** restaurant_tables.id from a table link (?table=) or the waiter app. */
-  table_id?: string | null
-  analytics_session_id?: string | null
-}
 
 // KDS query bounds (shared intent with orders/page.tsx). A kitchen board only
 // needs recent orders; older history lives elsewhere.
@@ -58,8 +19,7 @@ const ORDERS_WINDOW_MS = 2 * 24 * 60 * 60 * 1000 // 48h
 const ORDERS_MAX_ROWS = 500
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-const VALID_ORDER_TYPES = ['dine_in', 'pickup', 'delivery'] as const
-type OrderType = typeof VALID_ORDER_TYPES[number]
+type OrderType = 'dine_in' | 'pickup' | 'delivery'
 
 const ORDER_TYPE_DISABLED: Record<OrderType, string> = {
   dine_in: 'Dine-in orders are not enabled for this restaurant',
@@ -98,32 +58,51 @@ function sanitizeNote(raw: string | undefined | null): string | null {
   return trimmed.slice(0, 140)
 }
 
-// Ingredient delta recomputed from DB prices by ingredient_id (client unit_price
-// is ignored). Removed ingredients are free. Quantities are clamped to a
-// non-negative integer with a sane cap: a crafted negative/huge qty must never
-// be able to drive an item's recomputed price below 0 (→ free food) or overflow.
-const MAX_INGREDIENT_QTY = 99
-function safeIngredientQty(raw: unknown): number {
-  const n = Math.floor(Number(raw ?? 0))
-  if (!Number.isFinite(n) || n <= 0) return 0
-  return Math.min(n, MAX_INGREDIENT_QTY)
-}
-function computeIngredientDelta(
-  item: OrderItem,
-  prices: Map<string, { extra: number; add: number }>,
-): number {
-  const mods = item.ingredient_modifications
-  if (!mods) return 0
+/** Money in cents, so totals are added as integers, never as floats. */
+const toCents = (amount: number) => Math.round(Number(amount) * 100)
+const fromCents = (cents: number) => cents / 100
+
+type IngredientPrice = { name: string; extra: number; add: number }
+
+/**
+ * Ingredient changes against the product's own ingredients, priced from the
+ * database (client unit_price is ignored; removals are free). Unknown ids are
+ * dropped — never charged, never shown to the kitchen — names come from the
+ * catalog, and quantities were bounded by the input schema (0..99), so a
+ * crafted quantity cannot push a line below zero.
+ */
+function resolveIngredients(
+  mods: OrderItemInput['ingredient_modifications'],
+  prices: Map<string, IngredientPrice>,
+): { modifications: IngredientModifications | null; delta: number } {
+  if (!mods) return { modifications: null, delta: 0 }
   let delta = 0
-  for (const e of mods.extras ?? []) {
-    const p = prices.get(e.ingredient_id)
-    if (p) delta += safeIngredientQty(e.qty) * p.extra
+  const removed = mods.removed
+    .filter((r) => prices.has(r.ingredient_id))
+    .map((r) => ({ ingredient_id: r.ingredient_id, name: prices.get(r.ingredient_id)!.name }))
+  const extras = mods.extras
+    .filter((e) => prices.has(e.ingredient_id) && (e.qty ?? 0) > 0)
+    .map((e) => {
+      const p = prices.get(e.ingredient_id)!
+      delta += (e.qty ?? 0) * p.extra
+      return { ingredient_id: e.ingredient_id, name: p.name, qty: e.qty ?? 0, unit_price: p.extra }
+    })
+  const added = mods.added
+    .filter((a) => prices.has(a.ingredient_id) && (a.qty ?? 0) > 0)
+    .map((a) => {
+      const p = prices.get(a.ingredient_id)!
+      delta += (a.qty ?? 0) * p.add
+      return { ingredient_id: a.ingredient_id, name: p.name, qty: a.qty ?? 0, unit_price: p.add }
+    })
+  const empty = removed.length === 0 && extras.length === 0 && added.length === 0
+  return { modifications: empty ? null : { removed, extras, added }, delta }
+}
+
+/** A line the catalog does not allow (unknown option, missing required choice…). */
+class OrderRejected extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message)
   }
-  for (const a of mods.added ?? []) {
-    const p = prices.get(a.ingredient_id)
-    if (p) delta += safeIngredientQty(a.qty) * p.add
-  }
-  return delta
 }
 
 async function handlePOST(request: Request) {
@@ -131,43 +110,21 @@ async function handlePOST(request: Request) {
     const rl = await rateLimit('orders-create', getClientIp(request), 12, '1 m')
     if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
 
-    const body: CreateOrderRequest = await request.json()
-    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId, table_name: rawTableName, table_id: rawTableId, analytics_session_id: rawAnalyticsSessionId } = body
-
-    if (!tenant_id?.trim()) {
-      return NextResponse.json({ error: 'Tenant ID is required' }, { status: 400 })
+    // S04 / EX-03: one bounded contract for the whole payload (ids, sizes,
+    // quantities, selections) before anything touches pricing or the database.
+    const parsed = createOrderSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      return NextResponse.json({ error: describeInputError(parsed.error) }, { status: 400 })
     }
-    if (!customer_name?.trim()) {
-      return NextResponse.json({ error: 'Customer name is required' }, { status: 400 })
-    }
-    if (!customer_phone?.trim()) {
-      return NextResponse.json({ error: 'Customer phone is required' }, { status: 400 })
-    }
-    if (!items || items.length === 0) {
-      return NextResponse.json({ error: 'At least one item is required' }, { status: 400 })
-    }
-    // S04: validate per-item shape and quantity server-side (positive integer,
-    // sane cap) so a crafted payload cannot submit negative/huge/fractional
-    // quantities that corrupt the total.
-    for (const it of items) {
-      if (!it?.product_id || typeof it.product_id !== 'string') {
-        return NextResponse.json({ error: 'Invalid item' }, { status: 400 })
-      }
-      if (!Number.isInteger(it.quantity) || it.quantity < 1 || it.quantity > 99) {
-        return NextResponse.json({ error: 'Invalid item quantity' }, { status: 400 })
-      }
-    }
-
-    if (rawOrderType != null && rawOrderType !== '' && (typeof rawOrderType !== 'string' || !VALID_ORDER_TYPES.includes(rawOrderType as OrderType))) {
-      return NextResponse.json({ error: 'Invalid order type' }, { status: 400 })
-    }
+    const idempotencyKey = parseIdempotencyKey(request.headers.get('idempotency-key'))
+    const { tenant_id, customer_name, customer_phone, items, order_type: rawOrderType, delivery_address: rawDeliveryAddress, delivery_street: rawDeliveryStreet, delivery_complement: rawDeliveryComplement, delivery_zipcode: rawDeliveryZipcode, delivery_city: rawDeliveryCity, delivery_notes: rawDeliveryNotes, location_id: rawLocationId, tip_cents: rawTipCents, menu_id: rawMenuId, table_name: rawTableName, table_id: rawTableId, analytics_session_id: rawAnalyticsSessionId } = parsed.data
 
     const service = await createServiceClient()
 
     const { data: tenantSettings, error: tenantError } = await service
       .from('tenants')
       // The capability switches (resolveTenantCapabilities) plus the delivery fee.
-      .select('id, is_active, tenant_settings(orders_enabled, direct_orders_enabled, table_management_enabled, whatsapp_orders_enabled, whatsapp, tips_enabled, item_notes_enabled, ingredient_customization_enabled, dine_in_enabled, pickup_enabled, delivery_enabled, upsell_enabled, delivery_fee_cents)')
+      .select('id, is_active, tenant_settings(orders_enabled, direct_orders_enabled, table_management_enabled, whatsapp_orders_enabled, whatsapp, tips_enabled, item_notes_enabled, ingredient_customization_enabled, dine_in_enabled, pickup_enabled, delivery_enabled, upsell_enabled, delivery_fee_cents, currency)')
       .eq('id', tenant_id)
       .eq('is_active', true)
       .single()
@@ -176,7 +133,7 @@ async function handlePOST(request: Request) {
       return NextResponse.json({ error: 'Invalid tenant' }, { status: 400 })
     }
     const rawSettings = tenantSettings.tenant_settings as unknown
-    const settings = (Array.isArray(rawSettings) ? rawSettings[0] : rawSettings) as (ServiceSettings & { delivery_fee_cents?: number | null }) | null | undefined
+    const settings = (Array.isArray(rawSettings) ? rawSettings[0] : rawSettings) as (ServiceSettings & { delivery_fee_cents?: number | null; currency?: string | null }) | null | undefined
     if (!settings?.orders_enabled) {
       return NextResponse.json({ error: 'Orders not enabled for this tenant' }, { status: 403 })
     }
@@ -228,17 +185,17 @@ async function handlePOST(request: Request) {
     // Order type: guests may only use the types the restaurant switched on.
     // Staff orders are taken at a table, so a table link always means dine-in;
     // the guest checkout switches don't apply to them.
-    const requestedTableId = parseTableParam(rawTableId)
+    const requestedTableId = parseTableParam(rawTableId ?? undefined)
     let orderType: OrderType
     if (isStaffOrder) {
-      orderType = requestedTableId ? 'dine_in' : ((rawOrderType || 'dine_in') as OrderType)
+      orderType = requestedTableId ? 'dine_in' : (rawOrderType || 'dine_in')
     } else {
       const allowed = allowedGuestOrderTypes(capabilities)
       if (rawOrderType) {
-        if (!allowed.includes(rawOrderType as OrderType)) {
-          return NextResponse.json({ error: ORDER_TYPE_DISABLED[rawOrderType as OrderType] }, { status: 400 })
+        if (!allowed.includes(rawOrderType)) {
+          return NextResponse.json({ error: ORDER_TYPE_DISABLED[rawOrderType] }, { status: 400 })
         }
-        orderType = rawOrderType as OrderType
+        orderType = rawOrderType
       } else if (allowed.length > 0) {
         orderType = allowed[0]
       } else {
@@ -255,11 +212,9 @@ async function handlePOST(request: Request) {
       return NextResponse.json({ error: 'Delivery address is required for delivery orders' }, { status: 400 })
     }
 
-    // Guard tip against NaN/Infinity (garbage input would poison orderTotal into
-    // NaN → an opaque 500 on insert) and cap it to a sane ceiling. A tip is only
+    // The schema bounds the tip (integer, 0..1,000,000 cents). A tip is only
     // accepted when the restaurant switched tips on.
-    const rawTip = Math.floor(Number(rawTipCents ?? 0))
-    const tipCents = Number.isFinite(rawTip) ? Math.min(Math.max(0, rawTip), 1_000_000) : 0
+    const tipCents = rawTipCents ?? 0
     if (tipCents > 0 && !capabilities.tips) {
       return NextResponse.json({ error: 'Tips are not enabled for this restaurant' }, { status: 400 })
     }
@@ -267,11 +222,25 @@ async function handlePOST(request: Request) {
     // Item notes and ingredient changes only exist when switched on; anything a
     // stale page sends otherwise is dropped (ingredient changes before pricing,
     // so a dropped extra is never charged).
-    const acceptedItems: OrderItem[] = items.map((item) => ({
+    const acceptedItems = items.map((item) => ({
       ...item,
       notes: capabilities.itemNotes ? item.notes : undefined,
       ingredient_modifications: capabilities.ingredientCustomization ? item.ingredient_modifications : null,
     }))
+
+    // Branch: only an active location of this restaurant.
+    let locationId: string | null = null
+    if (rawLocationId) {
+      const { data: location } = await service
+        .from('locations')
+        .select('id')
+        .eq('id', rawLocationId)
+        .eq('tenant_id', tenant_id)
+        .eq('is_active', true)
+        .maybeSingle()
+      if (!location) return NextResponse.json({ error: 'Unknown location for this restaurant' }, { status: 400 })
+      locationId = location.id
+    }
 
     // Table: only a real, active table of this restaurant, and only for orders
     // eaten there. Its name comes from the database, never from the client;
@@ -296,100 +265,147 @@ async function handlePOST(request: Request) {
     const requiresPayment = !isStaffOrder && await isStripeEnabled(tenant_id, service)
     const initialStatus = requiresPayment ? 'awaiting_payment' : 'pending'
 
-    // P2-07 fix: resolve canonical product prices server-side and ignore
-    // client-supplied unit_price.
+    // ── Catalog, from the database only (P2-07 / EX-03) ───────────────────────
+    // Products of this restaurant with their menu: the menu decides whether the
+    // guest may order them (private menus) and which multiplier applies. Any
+    // failed read stops the order: an unreachable catalog must never be priced
+    // as an empty one.
     const productIds = Array.from(new Set(items.map((i) => i.product_id)))
     const { data: dbProducts, error: productsError } = await service
       .from('products')
-      .select('id, price, tenant_id, is_available')
+      .select('id, name, price, tenant_id, is_available, menu_id, menus(id, is_active, is_private, price_multiplier)')
       .in('id', productIds)
       .eq('tenant_id', tenant_id)
 
     if (productsError || !dbProducts) {
       log.error('orders.products_fetch_error', { err: productsError })
-      return NextResponse.json({ error: 'Failed to validate products' }, { status: 500 })
+      return NextResponse.json({ error: 'Failed to validate products' }, { status: 503 })
     }
     if (dbProducts.length !== productIds.length) {
       return NextResponse.json({ error: 'One or more products not found for this tenant' }, { status: 400 })
     }
-    // Re-validate availability at order time: ISR menus (revalidate=60) can show a
-    // sold-out item for up to a minute, and a replayed/crafted cart must not be
-    // able to order a product the kitchen has disabled.
+    // Re-validate availability at order time: cached menus can show a sold-out
+    // item for a moment, and a replayed/crafted cart must not be able to order
+    // a product the kitchen has disabled.
     if (dbProducts.some((p) => p.is_available === false)) {
       return NextResponse.json({ error: 'One or more items are no longer available' }, { status: 409 })
     }
-    const priceById = new Map(dbProducts.map((p) => [p.id, p.price]))
 
-    // S04 #5: load option groups + ingredient catalog so option/ingredient
-    // prices are recomputed from the DB (productIds are already tenant-verified).
-    const { data: groupRows } = await service
-      .from('product_option_groups')
-      .select('id, product_id, type, position, product_options(id, base_price, price_modifier)')
-      .in('product_id', productIds)
-      .order('position')
+    type MenuRow = { id: string; is_active: boolean | null; is_private: boolean | null; price_multiplier: number | null }
+    const menus = new Map<string, MenuRow>()
+    for (const p of dbProducts) {
+      const raw = (p as { menus?: MenuRow | MenuRow[] | null }).menus
+      const m = (Array.isArray(raw) ? raw[0] : raw) ?? null
+      if (!m || m.is_active === false) {
+        return NextResponse.json({ error: 'One or more items are no longer available' }, { status: 409 })
+      }
+      menus.set(m.id, m)
+    }
+    // One order, one menu: its multiplier prices every line, and the menu the
+    // page said it showed must be that menu.
+    if (menus.size !== 1) {
+      return NextResponse.json({ error: 'All items must come from the same menu' }, { status: 400 })
+    }
+    const [orderMenu] = menus.values()
+    if (rawMenuId && rawMenuId !== orderMenu.id) {
+      return NextResponse.json({ error: 'Items do not belong to this menu' }, { status: 400 })
+    }
+
+    // SEED-019: a private menu is shown (with multiplied prices) only to a
+    // phone-verified session, so a guest order on it must come from one. The
+    // check follows the products' own menu, so leaving menu_id out of the
+    // request cannot skip it. Staff orders may always use it.
+    if (orderMenu.is_private === true && !isStaffOrder && !(await hasPhoneVerifiedSession())) {
+      return NextResponse.json({ error: 'This menu requires signing in' }, { status: 403 })
+    }
+    const priceMultiplier = orderMenu.price_multiplier && Number(orderMenu.price_multiplier) > 0 ? Number(orderMenu.price_multiplier) : 1
+
+    const [groupsResult, ingredientsResult] = await Promise.all([
+      service
+        .from('product_option_groups')
+        .select('id, product_id, name, type, required, min_selections, max_selections, position, product_options(id, name, base_price, price_modifier, is_available)')
+        .in('product_id', productIds)
+        .order('position'),
+      service
+        .from('product_ingredients')
+        .select('product_id, ingredient_id, extra_price_override, add_price_override, ingredients(name, default_extra_price, default_add_price)')
+        .in('product_id', productIds),
+    ])
+    if (groupsResult.error || ingredientsResult.error) {
+      log.error('orders.catalog_fetch_error', { err: groupsResult.error ?? ingredientsResult.error })
+      return NextResponse.json({ error: 'Failed to validate the menu, please try again' }, { status: 503 })
+    }
+
     const groupsByProduct = new Map<string, ServerOptionGroup[]>()
-    for (const g of (groupRows ?? []) as Array<{ id: string; product_id: string; type: string; product_options?: Array<{ id: string; base_price: number | null; price_modifier: number }> }>) {
+    for (const g of (groupsResult.data ?? []) as Array<{ id: string; product_id: string; name: string; type: string; required: boolean | null; min_selections: number | null; max_selections: number | null; product_options?: Array<{ id: string; name: string; base_price: number | null; price_modifier: number; is_available: boolean | null }> }>) {
       const arr = groupsByProduct.get(g.product_id) ?? []
       arr.push({
         id: g.id,
+        name: g.name,
         type: g.type,
-        options: (g.product_options ?? []).map((o) => ({ id: o.id, base_price: o.base_price, price_modifier: Number(o.price_modifier ?? 0) })),
+        required: g.required,
+        min_selections: g.min_selections,
+        max_selections: g.max_selections,
+        options: (g.product_options ?? []).map((o) => ({ id: o.id, name: o.name, base_price: o.base_price, price_modifier: Number(o.price_modifier ?? 0), is_available: o.is_available })),
       })
       groupsByProduct.set(g.product_id, arr)
     }
 
-    const { data: piRows } = await service
-      .from('product_ingredients')
-      .select('product_id, ingredient_id, extra_price_override, add_price_override, ingredients(default_extra_price, default_add_price)')
-      .in('product_id', productIds)
-    const ingredientPricesByProduct = new Map<string, Map<string, { extra: number; add: number }>>()
-    for (const pi of (piRows ?? []) as Array<{ product_id: string; ingredient_id: string; extra_price_override: number | null; add_price_override: number | null; ingredients?: { default_extra_price?: number; default_add_price?: number } | null }>) {
-      const m = ingredientPricesByProduct.get(pi.product_id) ?? new Map<string, { extra: number; add: number }>()
+    const ingredientPricesByProduct = new Map<string, Map<string, IngredientPrice>>()
+    for (const pi of (ingredientsResult.data ?? []) as Array<{ product_id: string; ingredient_id: string; extra_price_override: number | null; add_price_override: number | null; ingredients?: { name?: string; default_extra_price?: number; default_add_price?: number } | null }>) {
+      const m = ingredientPricesByProduct.get(pi.product_id) ?? new Map<string, IngredientPrice>()
       m.set(pi.ingredient_id, {
+        name: pi.ingredients?.name ?? 'Ingredient',
         extra: Number(pi.extra_price_override ?? pi.ingredients?.default_extra_price ?? 0),
         add: Number(pi.add_price_override ?? pi.ingredients?.default_add_price ?? 0),
       })
       ingredientPricesByProduct.set(pi.product_id, m)
     }
 
-    // SEED-019: apply price multiplier from private/in-store menu.
-    // The multiplier is only honored when the referenced menu is active AND the
-    // caller is entitled to it. A private menu is shown (with multiplied
-    // prices) only to a phone-verified session — see the public menu page — so
-    // a guest order on it must come from such a session and pays the same
-    // prices the guest saw. Without one the order is refused instead of being
-    // priced differently from the page. Staff orders may always use it.
-    let priceMultiplier = 1
-    if (rawMenuId) {
-      const { data: menuRow } = await service
-        .from('menus')
-        .select('price_multiplier, is_active, is_private')
-        .eq('id', rawMenuId)
-        .eq('tenant_id', tenant_id)
-        .maybeSingle()
-      if (menuRow && menuRow.is_active !== false) {
-        if (menuRow.is_private === true && !isStaffOrder && !(await hasPhoneVerifiedSession())) {
-          return NextResponse.json({ error: 'This menu requires signing in' }, { status: 403 })
+    // ── Price every line from the catalog ──────────────────────────────────────
+    // Name, option labels and price all come from the database. The multiplier
+    // is applied exactly once, to the whole unit (dish, options, ingredients),
+    // rounded to cents: the rule the menu page displays.
+    const productById = new Map(dbProducts.map((p) => [p.id, p]))
+    let trustedItems: Array<{
+      product_id: string
+      product_name: string
+      quantity: number
+      unit_cents: number
+      notes: string | null
+      selected_options: Record<string, string> | null
+      ingredient_modifications: IngredientModifications | null
+      added_via: 'upsell' | 'chat' | null
+    }>
+    try {
+      trustedItems = acceptedItems.map((item) => {
+        const product = productById.get(item.product_id)!
+        let options
+        try {
+          options = resolveOptionSelection(Number(product.price), item.editor_state, groupsByProduct.get(item.product_id) ?? [])
+        } catch (e) {
+          if (e instanceof OptionSelectionError) throw new OrderRejected(400, `${product.name}: ${e.message}`)
+          throw e
         }
-        if (menuRow.price_multiplier && Number(menuRow.price_multiplier) > 0) {
-          priceMultiplier = Number(menuRow.price_multiplier)
+        const ingredients = resolveIngredients(item.ingredient_modifications, ingredientPricesByProduct.get(item.product_id) ?? new Map())
+        const baseCents = Math.max(0, toCents(options.unit + ingredients.delta))
+        return {
+          product_id: item.product_id,
+          product_name: product.name as string,
+          quantity: item.quantity,
+          unit_cents: priceMultiplier !== 1 ? Math.round(baseCents * priceMultiplier) : baseCents,
+          notes: sanitizeNote(item.notes),
+          selected_options: Object.keys(options.labels).length ? options.labels : null,
+          ingredient_modifications: ingredients.modifications,
+          added_via: item.added_via === 'upsell' || item.added_via === 'chat' ? item.added_via : null,
         }
-      }
+      })
+    } catch (e) {
+      if (e instanceof OrderRejected) return NextResponse.json({ error: e.message }, { status: e.status })
+      throw e
     }
 
-    const trustedItems = acceptedItems.map((item) => {
-      const basePrice = Number(priceById.get(item.product_id) ?? 0)
-      const groups = groupsByProduct.get(item.product_id) ?? []
-      const ingPrices = ingredientPricesByProduct.get(item.product_id) ?? new Map<string, { extra: number; add: number }>()
-      const recomputed = computeOptionUnit(basePrice, item.editor_state, groups) + computeIngredientDelta(item, ingPrices)
-      const baseUnit = Math.max(0, Number(recomputed.toFixed(2)))
-      const trustedUnit = priceMultiplier !== 1
-        ? Math.round(baseUnit * priceMultiplier * 100) / 100
-        : baseUnit
-      return { ...item, unit_price: trustedUnit }
-    })
-
-    const total = trustedItems.reduce((sum, item) => sum + item.unit_price * item.quantity, 0)
+    const subtotalCents = trustedItems.reduce((sum, item) => sum + item.unit_cents * item.quantity, 0)
 
     let deliveryFeeCents = orderType === 'delivery'
       ? Number(settings?.delivery_fee_cents ?? 0)
@@ -399,11 +415,15 @@ async function handlePOST(request: Request) {
     if (orderType === 'delivery' && rawDeliveryZipcode) {
       const cleanZip = rawDeliveryZipcode.trim().replace(/\D/g, '')
       if (cleanZip) {
-        const { data: activeZones } = await service
+        const { data: activeZones, error: zonesError } = await service
           .from('delivery_zones')
           .select('id, fee_cents, zipcode_prefixes')
           .eq('tenant_id', tenant_id)
           .eq('is_active', true)
+        if (zonesError) {
+          log.error('orders.zones_fetch_error', { err: zonesError })
+          return NextResponse.json({ error: 'Failed to validate the delivery area, please try again' }, { status: 503 })
+        }
         const matched = (activeZones ?? []).find(z =>
           (z.zipcode_prefixes as string[]).some(p => cleanZip.startsWith(p))
         )
@@ -414,66 +434,59 @@ async function handlePOST(request: Request) {
       }
     }
 
-    const orderTotal = Number((total + deliveryFeeCents / 100 + tipCents / 100).toFixed(2))
+    const totalCents = subtotalCents + deliveryFeeCents + tipCents
 
-    const locationId = rawLocationId ?? null
+    const orderRow = {
+      tenant_id,
+      customer_name: customer_name.trim(),
+      customer_phone: customer_phone.trim(),
+      customer_phone_key: phoneMatchKey(customer_phone),
+      status: initialStatus,
+      total: fromCents(totalCents),
+      // Snapshot of what was charged: items, delivery, currency at order time.
+      subtotal: fromCents(subtotalCents),
+      delivery_fee_cents: deliveryFeeCents,
+      currency: settings?.currency ?? null,
+      order_type: orderType,
+      delivery_address: deliveryAddress,
+      delivery_street: orderType === 'delivery' ? (deliveryStreet || null) : null,
+      delivery_complement: orderType === 'delivery' ? (rawDeliveryComplement?.trim() || null) : null,
+      delivery_zipcode: orderType === 'delivery' ? (rawDeliveryZipcode?.trim() || null) : null,
+      delivery_city: orderType === 'delivery' ? (rawDeliveryCity?.trim() || null) : null,
+      delivery_notes: orderType === 'delivery' ? (rawDeliveryNotes?.trim() || null) : null,
+      delivery_zone_id: resolvedZoneId,
+      location_id: locationId,
+      tip_cents: tipCents,
+      table_name: tableName,
+      table_id: tableId,
+      analytics_session_id: analyticsSessionId,
+    }
+    const itemRows = trustedItems.map(({ unit_cents, ...item }) => ({ ...item, unit_price: fromCents(unit_cents) }))
 
-    const { data: order, error: orderError } = await service
-      .from('orders')
-      .insert({
-        tenant_id,
-        customer_name: customer_name.trim(),
-        customer_phone: customer_phone.trim(),
-        customer_phone_key: phoneMatchKey(customer_phone),
-        status: initialStatus,
-        total: orderTotal,
-        order_type: orderType,
-        delivery_address: deliveryAddress,
-        delivery_street: orderType === 'delivery' ? (deliveryStreet || null) : null,
-        delivery_complement: orderType === 'delivery' ? (rawDeliveryComplement?.trim() || null) : null,
-        delivery_zipcode: orderType === 'delivery' ? (rawDeliveryZipcode?.trim() || null) : null,
-        delivery_city: orderType === 'delivery' ? (rawDeliveryCity?.trim() || null) : null,
-        delivery_notes: orderType === 'delivery' ? (rawDeliveryNotes?.trim() || null) : null,
-        delivery_zone_id: resolvedZoneId,
-        location_id: locationId,
-        tip_cents: tipCents,
-        table_name: tableName,
-        table_id: tableId,
-        analytics_session_id: analyticsSessionId,
-      })
-      .select()
-      .single()
+    // Order and items in one transaction (the kitchen never sees a header
+    // without its items); the same Idempotency-Key with the same order returns
+    // the first order instead of creating a second one.
+    const { data: created, error: createError } = await service.rpc('create_order_with_items', {
+      p_order: {
+        ...orderRow,
+        idempotency_key: idempotencyKey,
+        request_fingerprint: idempotencyKey ? orderFingerprint({ order: orderRow, items: itemRows }) : null,
+      },
+      p_items: itemRows,
+    })
 
-    if (orderError || !order) {
-      log.error('orders.create_error', { err: orderError })
+    if (createError || !created) {
+      if (createError?.code === 'P0409') {
+        return NextResponse.json({ error: 'This checkout was already used for a different order' }, { status: 409 })
+      }
+      log.error('orders.create_error', { err: createError })
       return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
     }
+    const order = created as { id: string; status: string; total: number | string; order_type: string; replayed: boolean }
 
-    const orderItems = trustedItems.map((item) => ({
-      order_id: order.id,
-      product_id: item.product_id,
-      product_name: item.product_name,
-      quantity: item.quantity,
-      unit_price: item.unit_price,
-      notes: sanitizeNote(item.notes),
-      selected_options: item.selected_options || null,
-      ingredient_modifications: item.ingredient_modifications || null,
-      added_via: item.added_via === 'upsell' || item.added_via === 'chat' ? item.added_via : null,
-    }))
+    if (analyticsSessionId && !order.replayed) await recordTrustedOrderAnalyticsEvent(order.id, 'order_created')
 
-    const { error: itemsError } = await service
-      .from('order_items')
-      .insert(orderItems)
-
-    if (itemsError) {
-      log.error('orders.items_create_error', { err: itemsError })
-      await service.from('orders').delete().eq('id', order.id)
-      return NextResponse.json({ error: 'Failed to create order items' }, { status: 500 })
-    }
-
-    if (analyticsSessionId) await recordTrustedOrderAnalyticsEvent(order.id, 'order_created')
-
-    return NextResponse.json({ id: order.id, status: order.status, total: order.total, order_type: order.order_type, requires_payment: requiresPayment })
+    return NextResponse.json({ id: order.id, status: order.status, total: Number(order.total), order_type: order.order_type, requires_payment: requiresPayment })
   } catch (error) {
     log.error('orders.error', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

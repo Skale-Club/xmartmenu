@@ -10,7 +10,7 @@ import { generateText, stepCountIs, tool, type LanguageModel, type ModelMessage 
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { CartEditorState } from '@/components/menu/menu-utils'
-import { computeOptionUnit } from '@/lib/menu/option-pricing'
+import { OptionSelectionError, resolveOptionSelection } from '@/lib/menu/option-pricing'
 
 // ── Catalog ────────────────────────────────────────────────────────────────
 
@@ -466,7 +466,15 @@ function resolveOne(catalog: MenuCatalog, req: CartRequest): ResolvedCartItem | 
     addedIngredients: [],
     note: note ?? '',
   }
-  const unit = computeOptionUnit(product.price, editorState, product.groups)
+  // Same strict resolver as checkout: what the chat puts in the cart is what
+  // /api/orders will accept and charge.
+  let unit: number
+  try {
+    unit = resolveOptionSelection(product.price, editorState, product.groups).unit
+  } catch (e) {
+    if (!(e instanceof OptionSelectionError)) throw e
+    return { product_id: product.id, name: product.name, problems: [e.message], missing_groups: [] }
+  }
   return {
     product_id: product.id,
     name: product.name,
