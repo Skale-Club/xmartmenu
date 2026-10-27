@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { phoneMatchKey } from '@/lib/phone'
+import { sessionPhoneE164 } from '@/lib/phone'
+import { log } from '@/lib/observability/log'
 import PanelClient from './PanelClient'
 import type { Order, OrderItem } from '@/types/database'
 
@@ -36,14 +37,26 @@ export default async function CustomerPanelPage({ params }: Props) {
 
   const settings = (tenant.tenant_settings as any) ?? {}
 
-  // Match on the last-8-digit key, not the raw string: customer_phone is the
-  // free-text value typed at checkout while user.phone is E.164, so an exact
-  // match found nothing. See src/lib/phone.ts.
+  // EX-07: orders belong to the verified account, never to a phone suffix.
+  // First attach this restaurant's anonymous orders whose full typed number
+  // (E.164) is exactly the phone this session just proved it owns; then list
+  // the account's orders. Different numbers sharing their last digits no
+  // longer see each other's history.
+  const phoneE164 = sessionPhoneE164(user.phone)
+  if (phoneE164) {
+    const { error: linkError } = await service.rpc('link_orders_to_verified_phone', {
+      p_tenant_id: tenant.id,
+      p_user_id: user.id,
+      p_phone_e164: phoneE164,
+    })
+    if (linkError) log.error('customer.link_orders_error', { err: linkError })
+  }
+
   const { data: orders } = await service
     .from('orders')
     .select('*, order_items(*)')
     .eq('tenant_id', tenant.id)
-    .eq('customer_phone_key', phoneMatchKey(user.phone))
+    .eq('customer_id', user.id)
     .order('created_at', { ascending: false })
     .limit(25)
 

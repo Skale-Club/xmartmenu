@@ -6,7 +6,7 @@ import { parseTableParam, type ServiceSettings, type TenantCapabilities } from '
 import { NextResponse } from 'next/server'
 import type { IngredientModifications } from '@/types/database'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
-import { phoneMatchKey } from '@/lib/phone'
+import { phoneMatchKey, sessionPhoneE164, toE164 } from '@/lib/phone'
 import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
 import { OptionSelectionError, resolveOptionSelection, type ServerOptionGroup } from '@/lib/menu/option-pricing'
 import { createOrderSchema, describeInputError, orderFingerprint, parseIdempotencyKey, type OrderItemInput } from '@/lib/orders/order-input'
@@ -37,16 +37,18 @@ function allowedGuestOrderTypes(caps: TenantCapabilities): OrderType[] {
 }
 
 /**
- * The caller has a phone-verified Supabase session: the same condition the
- * public menu page uses to render a private menu.
+ * The caller's phone-verified Supabase session, if any: the same condition the
+ * public menu page uses to render a private menu, and the identity an order
+ * placed from it belongs to (EX-07).
  */
-async function hasPhoneVerifiedSession(): Promise<boolean> {
+async function phoneVerifiedUser(): Promise<{ id: string; phoneE164: string } | null> {
   try {
     const cookieClient = await createClient()
     const { data: { user } } = await cookieClient.auth.getUser()
-    return !!user?.phone
+    const phoneE164 = sessionPhoneE164(user?.phone)
+    return user && phoneE164 ? { id: user.id, phoneE164 } : null
   } catch {
-    return false
+    return null
   }
 }
 
@@ -124,7 +126,7 @@ async function handlePOST(request: Request) {
     const { data: tenantSettings, error: tenantError } = await service
       .from('tenants')
       // The capability switches (resolveTenantCapabilities) plus the delivery fee.
-      .select('id, is_active, tenant_settings(orders_enabled, direct_orders_enabled, table_management_enabled, whatsapp_orders_enabled, whatsapp, tips_enabled, item_notes_enabled, ingredient_customization_enabled, dine_in_enabled, pickup_enabled, delivery_enabled, upsell_enabled, delivery_fee_cents, currency)')
+      .select('id, is_active, tenant_settings(orders_enabled, direct_orders_enabled, table_management_enabled, whatsapp_orders_enabled, whatsapp, tips_enabled, item_notes_enabled, ingredient_customization_enabled, dine_in_enabled, pickup_enabled, delivery_enabled, upsell_enabled, delivery_fee_cents, currency, country)')
       .eq('id', tenant_id)
       .eq('is_active', true)
       .single()
@@ -133,7 +135,7 @@ async function handlePOST(request: Request) {
       return NextResponse.json({ error: 'Invalid tenant' }, { status: 400 })
     }
     const rawSettings = tenantSettings.tenant_settings as unknown
-    const settings = (Array.isArray(rawSettings) ? rawSettings[0] : rawSettings) as (ServiceSettings & { delivery_fee_cents?: number | null; currency?: string | null }) | null | undefined
+    const settings = (Array.isArray(rawSettings) ? rawSettings[0] : rawSettings) as (ServiceSettings & { delivery_fee_cents?: number | null; currency?: string | null; country?: string | null }) | null | undefined
     if (!settings?.orders_enabled) {
       return NextResponse.json({ error: 'Orders not enabled for this tenant' }, { status: 403 })
     }
@@ -315,7 +317,8 @@ async function handlePOST(request: Request) {
     // phone-verified session, so a guest order on it must come from one. The
     // check follows the products' own menu, so leaving menu_id out of the
     // request cannot skip it. Staff orders may always use it.
-    if (orderMenu.is_private === true && !isStaffOrder && !(await hasPhoneVerifiedSession())) {
+    const sessionCustomer = isStaffOrder ? null : await phoneVerifiedUser()
+    if (orderMenu.is_private === true && !isStaffOrder && !sessionCustomer) {
       return NextResponse.json({ error: 'This menu requires signing in' }, { status: 403 })
     }
     const priceMultiplier = orderMenu.price_multiplier && Number(orderMenu.price_multiplier) > 0 ? Number(orderMenu.price_multiplier) : 1
@@ -440,7 +443,12 @@ async function handlePOST(request: Request) {
       tenant_id,
       customer_name: customer_name.trim(),
       customer_phone: customer_phone.trim(),
+      // Legacy key, kept for old reports; it grants no access (src/lib/phone.ts).
       customer_phone_key: phoneMatchKey(customer_phone),
+      // Identity (EX-07): the verified account placing it, and the typed number
+      // in E.164 only when derivable without guessing (restaurant's country).
+      customer_id: sessionCustomer?.id ?? null,
+      customer_phone_e164: toE164(customer_phone, settings?.country),
       status: initialStatus,
       total: fromCents(totalCents),
       // Snapshot of what was charged: items, delivery, currency at order time.
