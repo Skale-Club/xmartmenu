@@ -32,10 +32,6 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
     setDeleteId(null)
   }, [initial, menuUrl])
 
-  useEffect(() => {
-    generateQROnCanvas(selectedUrl)
-  }, [selectedUrl])
-
   async function generateQROnCanvas(url: string) {
     const QRCode = (await import('qrcode')).default
     if (canvasRef.current) {
@@ -46,6 +42,10 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
       })
     }
   }
+
+  useEffect(() => {
+    generateQROnCanvas(selectedUrl)
+  }, [selectedUrl])
 
   async function handleCreate() {
     if (!label.trim()) return
