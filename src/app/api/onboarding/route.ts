@@ -1,7 +1,7 @@
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { slugify } from '@/lib/utils'
-import { normalizeRole } from '@/lib/auth/role-utils'
+import { z } from 'zod'
 import { RESERVED_PATHS } from '@/lib/marketing/reserved-paths'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
 
@@ -29,66 +29,18 @@ function sanitizeMenuPurpose(raw: unknown) {
   return ALLOWED_MENU_PURPOSES.has(mapped) ? mapped : 'restaurant'
 }
 
-function isMissingI18nColumnError(message: string) {
-  const msg = message.toLowerCase()
-  return msg.includes('supported_languages') || msg.includes('translations')
-}
-
-function isMissingColumnError(message: string) {
-  const msg = message.toLowerCase()
-  return msg.includes('column') && msg.includes('does not exist')
-}
-
-function isSchemaCacheColumnError(message: string) {
-  const msg = message.toLowerCase()
-  return msg.includes('schema cache') && msg.includes('column')
-}
-
-type ServiceClient = ReturnType<typeof createServiceClient>
-
-/**
- * tenant_subscriptions is the source of truth for the plan (getTenantPlan
- * returns null without a row, which turns every plan gate off), so every
- * tenant needs one. New tenants start on the entry-level plan (slug 'menu',
- * "Digital Menu"); tenants.plan mirrors its slug (mirror_tenant_plan trigger).
- * Idempotent: an existing row (whatever its plan) is left alone.
- */
-async function ensureEntrySubscription(service: ServiceClient, tenantId: string): Promise<'created' | 'exists' | 'error'> {
-  const { data: current, error: currentError } = await service
-    .from('tenant_subscriptions')
-    .select('id')
-    .eq('tenant_id', tenantId)
-    .maybeSingle()
-  if (currentError) {
-    console.error('onboarding.lookup_subscription_error', currentError)
-    return 'error'
-  }
-  if (current) return 'exists'
-
-  const { data: entryPlan, error: entryPlanError } = await service
-    .from('plans')
-    .select('id')
-    .eq('slug', 'menu')
-    .eq('is_active', true)
-    .single()
-  if (entryPlanError || !entryPlan) {
-    console.error('onboarding.lookup_entry_plan_error', entryPlanError)
-    return 'error'
-  }
-  const { error: subscriptionError } = await service
-    .from('tenant_subscriptions')
-    .insert({
-      tenant_id: tenantId,
-      plan_id: entryPlan.id,
-      billing_cycle: 'monthly',
-      status: 'active',
-    })
-  if (subscriptionError) {
-    console.error('onboarding.create_subscription_error', subscriptionError)
-    return 'error'
-  }
-  return 'created'
-}
+const text = (max: number) => z.string().max(max)
+const onboardingSchema = z.object({
+  company_name: text(120).refine((v) => v.trim().length > 0, 'Company name is required'),
+  business_type: text(40).optional(),
+  responsible_name: text(120).nullish(),
+  phone: text(40).nullish(),
+  address: text(300).nullish(),
+  menu_name: text(120).refine((v) => v.trim().length > 0, 'Menu name is required'),
+  category_name: text(120).refine((v) => v.trim().length > 0, 'Category name is required'),
+  product_name: text(200).refine((v) => v.trim().length > 0, 'Product name is required'),
+  product_price: z.coerce.number().min(0).max(1_000_000).optional(),
+})
 
 export async function POST(request: Request) {
   try {
@@ -96,7 +48,11 @@ export async function POST(request: Request) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const body = await request.json()
+    const parsed = onboardingSchema.safeParse(await request.json().catch(() => null))
+    if (!parsed.success) {
+      const message = parsed.error.issues[0]?.message ?? ''
+      return NextResponse.json({ error: message.endsWith('is required') ? message : 'Invalid onboarding data' }, { status: 400 })
+    }
     const {
       company_name,
       business_type = 'restaurant',
@@ -107,258 +63,70 @@ export async function POST(request: Request) {
       category_name,
       product_name,
       product_price,
-    } = body
-    const safeMenuPurpose = sanitizeMenuPurpose(business_type)
+    } = parsed.data
     const defaultPalette = CUISINE_PALETTES[business_type?.trim().toLowerCase() ?? ''] ?? { primary: '#F52323', accent: '#09090b' }
 
-    if (!company_name?.trim()) return NextResponse.json({ error: 'Company name is required' }, { status: 400 })
-    if (!menu_name?.trim()) return NextResponse.json({ error: 'Menu name is required' }, { status: 400 })
-    if (!category_name?.trim()) return NextResponse.json({ error: 'Category name is required' }, { status: 400 })
-    if (!product_name?.trim()) return NextResponse.json({ error: 'Product name is required' }, { status: 400 })
+    // Reject slugs that collide with reserved marketing paths | dual enforcement
+    // (middleware blocks access; API blocks creation). D-07 from CONTEXT.md.
+    const tenantSlug = slugify(company_name)
+    if (!tenantSlug || RESERVED_PATHS.has(tenantSlug)) {
+      return NextResponse.json(
+        { error: 'This name is reserved. Please choose a different restaurant name.' },
+        { status: 400 }
+      )
+    }
+
     const service = createServiceClient()
-    const { data: currentProfile, error: profileError } = await service
+    const { data: currentProfile } = await service
       .from('profiles')
-      .select('role, tenant_id, tenants(slug)')
+      .select('tenant_id')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
+    const hadTenant = Boolean(currentProfile?.tenant_id)
 
-    if (profileError && profileError.code !== 'PGRST116') {
-      console.error('onboarding.profile_lookup_error', profileError)
-      return NextResponse.json({ error: 'Failed to validate user profile' }, { status: 500 })
-    }
-
-    if (normalizeRole(currentProfile?.role) === 'superadmin') {
-      return NextResponse.json({
-        error: 'Superadmin accounts do not require onboarding.',
-      }, { status: 403 })
-    }
-
-    // Track whether this request resumed a pre-existing tenant. A resume that
-    // finishes menu creation must re-assert CRM state with a no-note full-sync
-    // (reason 'manual') instead of re-firing the 'onboarded' note.
-    const wasResume = Boolean(currentProfile?.tenant_id)
-
-    let tenant: { id: string; slug: string }
-
-    if (currentProfile?.tenant_id) {
-      const { data: existingMenu } = await service
-        .from('menus')
-        .select('slug')
-        .eq('tenant_id', currentProfile.tenant_id)
-        .order('position')
-        .limit(1)
-        .maybeSingle()
-
-      if (existingMenu) {
-        // Resume path: tenant already fully configured. Re-assert CRM state with a
-        // full-sync (reason 'manual' emits NO onboarded note — no double-post).
-        // Enqueue-only + fail-open — never blocks or throws into the response.
-        // Also heal a tenant that finished onboarding without a subscription row
-        // (best effort: ensureEntrySubscription logs its own failures).
-        await ensureEntrySubscription(service, currentProfile.tenant_id)
-        await enqueueXphereSync(currentProfile.tenant_id, 'manual')
-        return NextResponse.json({
-          already_configured: true,
-          tenant_slug: (currentProfile.tenants as any)?.slug ?? null,
-          menu_slug: existingMenu.slug,
-        })
-      }
-
-      // Tenant exists but no menu | previous attempt failed mid-way. Resume from menu creation.
-      // The earlier attempt may have died before the subscription row was
-      // written, which would leave the tenant with no plan at all.
-      if (await ensureEntrySubscription(service, currentProfile.tenant_id) === 'error') {
-        return NextResponse.json({ error: 'Failed to assign default plan' }, { status: 500 })
-      }
-      tenant = {
-        id: currentProfile.tenant_id,
-        slug: (currentProfile.tenants as any)?.slug ?? '',
-      }
-    } else {
-      // 1. Create tenant
-      let slug = slugify(company_name)
-
-      // Reject slugs that collide with reserved marketing paths | dual enforcement
-      // (middleware blocks access; API blocks creation). D-07 from CONTEXT.md.
-      if (RESERVED_PATHS.has(slug)) {
-        return NextResponse.json(
-          { error: 'This name is reserved. Please choose a different restaurant name.' },
-          { status: 400 }
-        )
-      }
-
-      const { data: existingTenant } = await service.from('tenants').select('id').eq('slug', slug).single()
-      if (existingTenant) slug = `${slug}-${Date.now().toString(36)}`
-
-      const { data: newTenant, error: tenantError } = await service
-        .from('tenants')
-        .insert({ name: company_name.trim(), slug, plan: 'menu' })
-        .select()
-        .single()
-
-      if (tenantError || !newTenant) {
-        console.error('onboarding.create_tenant_error', tenantError)
-        return NextResponse.json({ error: 'Failed to create store' }, { status: 500 })
-      }
-
-      tenant = newTenant
-
-      // 2. Create tenant settings with contact info
-      const { error: tenantSettingsError } = await service.from('tenant_settings').insert({
-        tenant_id: tenant.id,
+    // EX-08: tenant, settings, profile link, subscription and first catalog in
+    // one transaction (migration 20261027096000). Repeating the request — a
+    // retry, a double submit, a resume after a failure — converges to the same
+    // restaurant and repairs whatever is missing; nothing is left orphaned.
+    const { data: result, error: onboardingError } = await service.rpc('complete_onboarding', {
+      p_user_id: user.id,
+      p_input: {
+        company_name: company_name.trim(),
+        tenant_slug: tenantSlug,
+        full_name: responsible_name?.trim() || user.user_metadata?.full_name || null,
         phone: phone?.trim() || null,
         address: address?.trim() || null,
         primary_color: defaultPalette.primary,
         accent_color: defaultPalette.accent,
-      })
-      if (tenantSettingsError) {
-        console.error('onboarding.create_tenant_settings_error', tenantSettingsError)
-        return NextResponse.json({ error: 'Failed to save store settings' }, { status: 500 })
-      }
-
-      // 3. Update user profile
-      const { error: profileUpsertError } = await service.from('profiles').upsert({
-        id: user.id,
-        tenant_id: tenant.id,
-        role: 'store-admin',
-        full_name: responsible_name?.trim() || user.user_metadata?.full_name || null,
-        phone: phone?.trim() || null,
-      })
-      if (profileUpsertError) {
-        console.error('onboarding.update_profile_error', profileUpsertError)
-        return NextResponse.json({ error: 'Failed to update user profile' }, { status: 500 })
-      }
-
-      // 3b. Create the default tenant_subscriptions row on the entry-level plan.
-      // Round-2 P1-03: without it getTenantPlan() returns null for the new
-      // tenant and every feature gate (orders, payments, stripe-connect)
-      // defaults off even after the tenant has paid.
-      if (await ensureEntrySubscription(service, tenant.id) === 'error') {
-        return NextResponse.json({ error: 'Failed to create subscription' }, { status: 500 })
-      }
-
-      // Event #1 (LIF-01): mirror the freshly-onboarded tenant into the CRM as
-      // Account + Contact + Opportunity (Onboarding stage). Enqueue-only +
-      // fail-open — never blocks or throws into the onboarding response. No
-      // eventId → the worker dedups the onboarded note on `onboarding:<tenant.id>`.
-      await enqueueXphereSync(tenant.id, 'onboarded')
-    }
-
-    // 4. Create default menu
-    let menuSlug = slugify(menu_name)
-    const { data: existingMenu } = await service
-      .from('menus').select('id').eq('tenant_id', tenant.id).eq('slug', menuSlug).single()
-    if (existingMenu) menuSlug = `${menuSlug}-${Date.now().toString(36)}`
-
-    const menuBasePayload = {
-      tenant_id: tenant.id,
-      name: menu_name.trim(),
-      slug: menuSlug,
-    }
-    const menuPayloadCandidates: Array<Record<string, unknown>> = [
-      {
-        ...menuBasePayload,
-        language: 'en',
-        supported_languages: ['en'],
-        purpose: safeMenuPurpose,
-        is_active: true,
-        is_default: true,
+        menu_name: menu_name.trim(),
+        menu_slug: slugify(menu_name) || 'menu',
+        menu_purpose: sanitizeMenuPurpose(business_type),
+        category_name: category_name.trim(),
+        product_name: product_name.trim(),
+        product_price: product_price ?? 0,
       },
-      {
-        ...menuBasePayload,
-        language: 'en',
-        purpose: safeMenuPurpose,
-        is_active: true,
-        is_default: true,
-      },
-      {
-        ...menuBasePayload,
-        language: 'en',
-        is_active: true,
-        is_default: true,
-      },
-      {
-        ...menuBasePayload,
-        language: 'en',
-        is_active: true,
-      },
-      {
-        ...menuBasePayload,
-      },
-    ]
-
-    let menu: { id: string; slug: string } | null = null
-    let menuError: { message?: string; code?: string } | null = null
-    for (const candidate of menuPayloadCandidates) {
-      const result = await service.from('menus').insert(candidate).select('id, slug').single()
-      if (!result.error && result.data) {
-        menu = result.data
-        menuError = null
-        break
-      }
-
-      menuError = result.error
-      const message = result.error?.message ?? ''
-      if (!message) break
-
-      const shouldTryNext =
-        isMissingI18nColumnError(message) ||
-        isMissingColumnError(message) ||
-        isSchemaCacheColumnError(message)
-
-      if (!shouldTryNext) break
-    }
-
-    if (menuError || !menu) {
-      console.error('onboarding.create_menu_error', menuError)
-      return NextResponse.json({
-        error: 'Failed to create menu',
-        ...(process.env.NODE_ENV !== 'production'
-          ? { details: menuError?.message ?? null, code: menuError?.code ?? null }
-          : {}),
-      }, { status: 500 })
-    }
-
-    // 5. Create first category
-    const { data: category, error: categoryError } = await service
-      .from('categories')
-      .insert({
-        tenant_id: tenant.id,
-        menu_id: menu.id,
-        name: category_name.trim(),
-        position: 0,
-        is_active: true,
-      })
-      .select()
-      .single()
-
-    if (categoryError || !category) {
-      console.error('onboarding.create_category_error', categoryError)
-      return NextResponse.json({ error: 'Failed to create category' }, { status: 500 })
-    }
-
-    // 6. Create first product
-    const { error: productError } = await service.from('products').insert({
-      tenant_id: tenant.id,
-      menu_id: menu.id,
-      category_id: category.id,
-      name: product_name.trim(),
-      price: parseFloat(product_price) || 0,
-      is_available: true,
-      is_featured: false,
-      position: 0,
     })
-    if (productError) {
-      console.error('onboarding.create_product_error', productError)
-      return NextResponse.json({ error: 'Failed to create first product' }, { status: 500 })
+
+    if (onboardingError || !result) {
+      if (onboardingError?.code === 'P0403') {
+        return NextResponse.json({ error: 'Superadmin accounts do not require onboarding.' }, { status: 403 })
+      }
+      console.error('onboarding.complete_error', onboardingError)
+      return NextResponse.json({ error: 'Failed to set up your restaurant, please try again' }, { status: 500 })
     }
+    const done = result as { tenant_id: string; tenant_slug: string; menu_slug: string; created_tenant: boolean }
 
-    // A resume that finished menu creation here did not hit the new-tenant
-    // 'onboarded' enqueue above — re-assert CRM state with a no-note full-sync
-    // (reason 'manual'). Enqueue-only + fail-open; never blocks the response.
-    if (wasResume) await enqueueXphereSync(tenant.id, 'manual')
+    // CRM after commit, enqueue-only and fail-open: a QStash/Xphere outage never
+    // undoes or blocks a valid onboarding. A new restaurant gets the
+    // 'onboarded' event (LIF-01); a resume re-asserts state with a no-note full
+    // sync ('manual'), so the onboarded note is never posted twice.
+    await enqueueXphereSync(done.tenant_id, done.created_tenant ? 'onboarded' : 'manual')
 
-    return NextResponse.json({ tenant_slug: tenant.slug, menu_slug: menu.slug })
+    return NextResponse.json({
+      ...(hadTenant ? { already_configured: true } : {}),
+      tenant_slug: done.tenant_slug,
+      menu_slug: done.menu_slug,
+    })
   } catch (error) {
     console.error('onboarding.unhandled_error', error)
     return NextResponse.json({ error: 'Unexpected server error during onboarding' }, { status: 500 })
