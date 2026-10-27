@@ -49,11 +49,6 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
   const videoInputRef = useRef<HTMLInputElement>(null)
   const [videoNote, setVideoNote] = useState<string | null>(null)
 
-  useEffect(() => {
-    load()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId])
-
   async function load() {
     setLoading(true)
     const { data } = await supabase
@@ -64,6 +59,11 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
     setMedia((data ?? []) as ProductMedia[])
     setLoading(false)
   }
+
+  useEffect(() => {
+    load()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productId])
 
   async function handleUpload(files: FileList | null) {
     if (!files || files.length === 0) return

@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import withBundleAnalyzer from "@next/bundle-analyzer";
-import { withSentryConfig } from "@sentry/nextjs";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 // Security response headers applied to every route. (S05 — Security Headers)
 // The CSP here is intentionally conservative: it hardens clickjacking
@@ -88,5 +88,5 @@ export default withSentryConfig(config, {
   sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
   // Same release as the runtime SDKs (Docker GIT_SHA -> NEXT_PUBLIC_RELEASE).
   release: process.env.NEXT_PUBLIC_RELEASE ? { name: process.env.NEXT_PUBLIC_RELEASE } : undefined,
-  disableLogger: true,
+  // disableLogger is deprecated and has no effect with Turbopack builds.
 });

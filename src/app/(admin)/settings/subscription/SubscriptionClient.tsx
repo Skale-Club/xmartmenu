@@ -171,7 +171,7 @@ export default function SubscriptionClient({
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error ?? 'Failed to start checkout')
       if (data.url) {
-        window.location.href = data.url
+        window.location.assign(data.url)
         return
       }
       if (data.updated) {
@@ -198,7 +198,7 @@ export default function SubscriptionClient({
       const res = await fetch('/api/tenant/subscription/portal', { method: 'POST' })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.url) throw new Error(data.error ?? 'Failed to open billing portal')
-      window.location.href = data.url
+      window.location.assign(data.url)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
       setLoading(false)
