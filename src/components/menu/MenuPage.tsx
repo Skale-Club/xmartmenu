@@ -18,6 +18,7 @@ import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
 import { contactLinks, displayPrice, phoneLabel, whatsappUrl } from './showcase'
 import { feedSizes } from './feed-sizes'
 import { contactEmailFor } from '@/lib/public-contacts'
+import { dishDetailsFor } from '@/lib/public-dish-details'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
@@ -1150,6 +1151,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             onIndexChange={setFeedIndex}
             onOpenCart={() => setCartOpen(true)}
             hasCustomization={hasCustomization}
+            detailsFor={product => dishDetailsFor(tenant.slug, product)}
             sizesFor={product => feedSizes(product.price, optionGroupsByProductId[product.id])}
             quantityFor={productId => cart.find(item => item.cartKey === buildCartKey(productId, {}))?.quantity ?? 0}
             onOpen={product => openProduct(product, 'feed')}
@@ -1295,6 +1297,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
         return (
         <ProductModal
           product={shownProduct}
+          details={dishDetailsFor(tenant.slug, shownProduct)}
           onPrevProduct={!editingCartKey && !upsell?.choosing && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
           onNextProduct={!editingCartKey && !upsell?.choosing && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           primaryColor={primaryColor}

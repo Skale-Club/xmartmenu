@@ -5,8 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
 import type { Product, ProductMedia } from '@/types/database'
+import FeedDescription from './FeedDescription'
 import FeedSizeSheet from './FeedSizeSheet'
 import type { FeedSize } from './feed-sizes'
+import type { DishDetail } from '@/lib/public-dish-details'
 import { getFeedSlideDuration, getProductImages, orderFeedMedia } from './menu-utils'
 
 interface FeedProps {
@@ -24,6 +26,8 @@ interface FeedProps {
   hasCustomization: (productId: string) => boolean
   /** Sizes to pick from before adding; [] when the dish has none to pick on the feed. */
   sizesFor: (product: Product) => FeedSize[]
+  /** Ingredient and allergen notes shown when the description is expanded. */
+  detailsFor: (product: Product) => DishDetail[]
   quantityFor: (productId: string) => number
   onExit: () => void
   onOpenCart: () => void
@@ -53,6 +57,7 @@ export default function MenuFeed({
   exitLabel,
   hasCustomization,
   sizesFor,
+  detailsFor,
   quantityFor,
   onExit,
   onOpenCart,
@@ -169,7 +174,7 @@ export default function MenuFeed({
                   <p className="shrink-0 text-xl font-black tracking-tight text-white drop-shadow-lg">{priceLabel ? priceLabel(product) : formatMoney(product.price, currency, lang)}</p>
                 </div>
 
-                {product.description ? <p className="mt-3 line-clamp-2 max-w-[90%] text-sm font-medium leading-relaxed text-white/75 drop-shadow">{product.description}</p> : null}
+                {product.description ? <FeedDescription text={product.description} details={detailsFor(product)} seeMore={copy.seeMore} seeLess={copy.seeLess} /> : null}
 
                 <div className="pointer-events-auto mt-5 flex items-center gap-3">
                   {/* View-only menu: "View dish" below is the one action. */}
