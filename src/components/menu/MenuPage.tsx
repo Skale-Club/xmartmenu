@@ -17,6 +17,7 @@ import { computeOpenState, resolveTimeZone } from '@/lib/chat-context'
 import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
 import { contactLinks, displayPrice, phoneLabel, whatsappUrl } from './showcase'
 import { feedSizes } from './feed-sizes'
+import { contactEmailFor } from '@/lib/public-contacts'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
@@ -560,7 +561,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
 
   const hours = settings?.business_hours
   const hasHours = hours && Object.values(hours).some(Boolean)
-  const email = settings?.contact_email?.trim() || null
+  const email = contactEmailFor(tenant.slug)
   // Contact links normalized: "(555) 123-4567" → wa.me/5551234567, "@handle" or a URL → one Instagram link.
   const contacts = contactLinks(settings)
   const hasContact = !!(contacts.phone || contacts.instagram || contacts.whatsapp || settings?.address || email)
@@ -1244,19 +1245,19 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             {hasContact && (
               <ul className="space-y-3 text-[15px] font-medium text-zinc-700">
                 {contacts.instagram && (
-                  <li className="flex items-center gap-3"><Instagram className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.instagram.handle}</span></li>
+                  <li><a href={contacts.instagram.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 transition-colors hover:text-zinc-950"><Instagram className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.instagram.handle.replace(/^@+/, '')}</span></a></li>
                 )}
                 {contacts.phone && (
-                  <li className="flex items-center gap-3"><Phone className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.phone.label}</span></li>
+                  <li><a href={contacts.phone.url} className="flex items-center gap-3 transition-colors hover:text-zinc-950"><Phone className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.phone.label}</span></a></li>
                 )}
                 {contacts.whatsapp && (
                   <li className="flex items-center gap-3"><MessageCircle className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{phoneLabel(settings?.whatsapp)}</span></li>
                 )}
                 {email && (
-                  <li className="flex items-center gap-3"><Mail className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{email}</span></li>
+                  <li><a href={`mailto:${email}`} className="flex items-center gap-3 transition-colors hover:text-zinc-950"><Mail className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{email}</span></a></li>
                 )}
                 {settings?.address && (
-                  <li className="flex items-center gap-3"><MapPin className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{settings.address}</span></li>
+                  <li><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 transition-colors hover:text-zinc-950"><MapPin className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{settings.address}</span></a></li>
                 )}
               </ul>
             )}

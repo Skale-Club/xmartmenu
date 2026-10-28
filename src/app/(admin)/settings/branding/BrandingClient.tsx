@@ -30,7 +30,6 @@ export default function BrandingClient({ settings, tenantSlug, tenantName }: Pro
     primary_color: settings?.primary_color ?? '#000000',
     accent_color: settings?.accent_color ?? '#FF5722',
     instagram: settings?.instagram ?? '',
-    contact_email: settings?.contact_email ?? '',
     tagline: settings?.tagline ?? '',
   })
   const [logoUrl, setLogoUrl] = useState(settings?.logo_url ?? '')
@@ -320,16 +319,6 @@ export default function BrandingClient({ settings, tenantSlug, tenantName }: Pro
                     className={cn(inputClassName, "pl-14")}
                   />
                 </div>
-              </div>
-              <div>
-                <label className={labelClassName}>Contact email</label>
-                <input
-                  type="email"
-                  value={form.contact_email}
-                  onChange={e => setForm(f => ({ ...f, contact_email: e.target.value }))}
-                  placeholder="hello@yourrestaurant.com"
-                  className={inputClassName}
-                />
               </div>
               <p className="flex items-center gap-2 rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-xs text-zinc-600">
                 <MessageCircle className="w-4 h-4 shrink-0 text-zinc-400" />

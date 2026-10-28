@@ -33,15 +33,6 @@ async function handlePATCH(request: Request) {
     tagline: str(body.tagline, 120),
   }
 
-  // The public contact email: empty clears it; anything else must look like one.
-  if ('contact_email' in body) {
-    const email = str(body.contact_email, 120)
-    if (email && !/^[^s@]+@[^s@]+.[^s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'Invalid contact_email' }, { status: 400 })
-    }
-    update.contact_email = email || null
-  }
-
   // Only written when sent, so a form without it never clears the number the
   // service settings saved.
   if ('whatsapp' in body) {
