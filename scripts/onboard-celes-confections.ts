@@ -44,8 +44,8 @@ const crepeSizes = [
 ]
 
 const puddingTraySizes = [
-  { name: 'Half Tray · up to 25 servings', price: 180 },
-  { name: 'Full Tray · up to 50 servings', price: 350 },
+  { name: 'Half Tray · 25 servings', price: 180 },
+  { name: 'Full Tray · 50 servings', price: 350 },
 ]
 
 const categories: CategorySeed[] = [
