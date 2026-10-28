@@ -15,7 +15,7 @@ import WaiterCallButtons from './WaiterCallButtons'
 import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, menuLanguage, translateTag } from './menu-i18n'
 import { computeOpenState, resolveTimeZone } from '@/lib/chat-context'
 import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
-import { contactLinks, displayPrice, whatsappUrl } from './showcase'
+import { contactLinks, displayPrice, phoneLabel, whatsappUrl } from './showcase'
 import { feedSizes } from './feed-sizes'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground } from '@/lib/color-utils'
@@ -44,13 +44,13 @@ import ModalPortal from '@/components/ui/ModalPortal'
 import UpsellSheet from './UpsellSheet'
 import { buildUpsellSteps, canQuickAdd, type UpsellStep } from './upsell'
 import {
+  Instagram,
+  Mail,
   MapPin,
+  MessageCircle,
   Phone,
   Search,
   X,
-  Camera,
-  MessageCircle,
-  Mail,
   Sparkles,
   Plus,
   Minus,
@@ -560,9 +560,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
 
   const hours = settings?.business_hours
   const hasHours = hours && Object.values(hours).some(Boolean)
-  const email = (settings && 'email' in settings)
-    ? (settings as { email?: string | null }).email ?? null
-    : null
+  const email = settings?.contact_email?.trim() || null
   // Contact links normalized: "(555) 123-4567" → wa.me/5551234567, "@handle" or a URL → one Instagram link.
   const contacts = contactLinks(settings)
   const hasContact = !!(contacts.phone || contacts.instagram || contacts.whatsapp || settings?.address || email)
@@ -1242,35 +1240,25 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
       {/* Contact and credits: a plain footer at the end of the page */}
       {activeMenuView === 'list' && (hasContact || footerBrand) && (
         <footer className="border-t border-zinc-200/70" style={{ marginBottom: showOrderBar ? 88 : 0 }}>
-          <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-5 py-8 sm:flex-row sm:justify-between sm:px-8">
+          <div className="mx-auto flex max-w-5xl flex-col items-start gap-8 px-5 py-8 sm:flex-row sm:items-end sm:justify-between sm:px-8">
             {hasContact && (
-              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-zinc-500">
-                {settings?.address && (
-                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <MapPin className="size-3.5" /> <span className="max-w-[240px] truncate">{settings.address}</span>
-                  </a>
+              <ul className="space-y-3 text-[15px] font-medium text-zinc-700">
+                {contacts.instagram && (
+                  <li className="flex items-center gap-3"><Instagram className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.instagram.handle}</span></li>
                 )}
                 {contacts.phone && (
-                  <a href={contacts.phone.url} className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <Phone className="size-3.5" /> {contacts.phone.label}
-                  </a>
+                  <li className="flex items-center gap-3"><Phone className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.phone.label}</span></li>
                 )}
                 {contacts.whatsapp && (
-                  <a href={contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <MessageCircle className="size-3.5" /> WhatsApp
-                  </a>
-                )}
-                {contacts.instagram && (
-                  <a href={contacts.instagram.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <Camera className="size-3.5" /> {contacts.instagram.handle}
-                  </a>
+                  <li className="flex items-center gap-3"><MessageCircle className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{phoneLabel(settings?.whatsapp)}</span></li>
                 )}
                 {email && (
-                  <a href={`mailto:${email}`} className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <Mail className="size-3.5" /> {email}
-                  </a>
+                  <li className="flex items-center gap-3"><Mail className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{email}</span></li>
                 )}
-              </div>
+                {settings?.address && (
+                  <li className="flex items-center gap-3"><MapPin className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{settings.address}</span></li>
+                )}
+              </ul>
             )}
             {footerBrand && (
               <p className="text-[12px] text-zinc-400">

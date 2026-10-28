@@ -109,6 +109,14 @@ export function whatsappUrl(raw: string | null | undefined, message?: string | n
 }
 
 /** tel: link keeping only a leading + and digits; null without a usable number. */
+/** "(330) 313-0832" for a US number (10 digits, or 11 with a leading 1); anything else as typed. */
+export function phoneLabel(raw: string | null | undefined): string {
+  const trimmed = (raw ?? '').trim()
+  const digits = trimmed.replace(/\D/g, '')
+  const national = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits.length === 10 ? digits : null
+  return national ? `(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}` : trimmed
+}
+
 export function telUrl(raw: string | null | undefined): string | null {
   const trimmed = (raw ?? '').trim()
   const digits = trimmed.replace(/\D/g, '')
@@ -152,7 +160,7 @@ export function contactLinks(
   const tel = telUrl(settings?.phone)
   return {
     whatsapp: whatsappUrl(settings?.whatsapp, whatsappMessage),
-    phone: tel ? { url: tel, label: settings!.phone!.trim() } : null,
+    phone: tel ? { url: tel, label: phoneLabel(settings!.phone) } : null,
     instagram: instagramProfile(settings?.instagram),
   }
 }

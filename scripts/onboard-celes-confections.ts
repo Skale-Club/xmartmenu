@@ -39,7 +39,7 @@ type CategorySeed = {
 
 const crepeSizes = [
   { name: 'Slice', price: 15 },
-  { name: '5-inch Birthday Cake', price: 60 },
+  { name: '5-inch Cake', price: 60 },
   { name: '10-inch Whole Cake', price: 180 },
 ]
 
@@ -246,7 +246,7 @@ async function main() {
     tenantId = tenant.id
 
     const logoUrl = `${assetBasePath}/logo.webp`
-    const bannerUrl = `${assetBasePath}/hero-raspberry-cheesecake.webp`
+    const bannerUrl = `${assetBasePath}/hero-raspberry-crepe.webp`
 
     const { error: settingsError } = await supabase.from('tenant_settings').insert({
       tenant_id: tenant.id,

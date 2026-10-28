@@ -119,6 +119,8 @@ export interface TenantSettings {
   whatsapp_orders_enabled: boolean
   orders_enabled: boolean
   direct_orders_enabled: boolean
+  /** Public contact email, shown in the menu footer (migration 20261028090000). */
+  contact_email?: string | null
   item_notes_enabled: boolean  // NOTE-01: per-item notes feature flag (migration 025)
   ingredient_customization_enabled: boolean  // INGR-03: ingredient customization opt-in (migration 026)
   amber_threshold_minutes: number  // KDS-07: amber urgency threshold in minutes (default 10)

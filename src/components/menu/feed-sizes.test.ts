@@ -7,12 +7,12 @@ const size = (id: string, name: string, base_price: number | null, price_modifie
 
 const sizeGroup = {
   id: 'g1', name: 'Size', type: 'single', required: true,
-  options: [size('o1', 'Slice', 15), size('o2', '5-inch Birthday Cake', 60), size('o3', '10-inch Whole Cake', 180)],
+  options: [size('o1', 'Slice', 15), size('o2', '5-inch Cake', 60), size('o3', '10-inch Whole Cake', 180)],
 }
 
 test('a dish whose only required choice is a size becomes one choice per size', () => {
   const sizes = feedSizes(15, [sizeGroup])
-  assert.deepEqual(sizes.map(s => [s.label, s.price]), [['Slice', 15], ['5-inch Birthday Cake', 60], ['10-inch Whole Cake', 180]])
+  assert.deepEqual(sizes.map(s => [s.label, s.price]), [['Slice', 15], ['5-inch Cake', 60], ['10-inch Whole Cake', 180]])
   assert.deepEqual(sizes[0].selectedOptions, { Size: 'Slice' })
   assert.deepEqual(sizes[2].editorState.singleSelections, { g1: 'o3' })
 })
