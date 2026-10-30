@@ -246,7 +246,7 @@ async function main() {
     tenantId = tenant.id
 
     const logoUrl = `${assetBasePath}/logo.webp`
-    const bannerUrl = `${assetBasePath}/hero-raspberry-crepe.webp`
+    const bannerUrl = `${assetBasePath}/hero-raspberry-cake.webp`
 
     const { error: settingsError } = await supabase.from('tenant_settings').insert({
       tenant_id: tenant.id,

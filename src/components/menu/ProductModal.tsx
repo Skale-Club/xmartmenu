@@ -69,7 +69,9 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [] }: {
+export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [] }: {
+  /** Photos shown after the dish's own (e.g. the whole cake). */
+  extraImages?: string[]
   /** Ingredient and allergen notes, shown right after the description. */
   details?: DishDetail[]
   product: Product; primaryColor: string; currency: string;
@@ -104,7 +106,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
       return [...videos, ...images]
     }
     return getProductImages(product).map(url => ({ type: 'image' as const, url }))
-  })()
+  })().concat(extraImages.map(url => ({ type: 'image' as const, url })))
 
   const [slideIndex, setSlideIndex] = useState(0)
   const hasManySlides = mediaSlides.length > 1
@@ -465,7 +467,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                   src={mediaSlides[slideIndex]?.url ?? ''}
                   alt={`${product.name} ${imageIndex + 1}`}
                   fill
-                  className={`object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
+                  className={`object-cover object-[center_15%] ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
                   style={{ transform: `translateX(${touchOffsetX}px)` }}
                   sizes="(max-width: 640px) 100vw, 512px"
                 />

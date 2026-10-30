@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
+import { Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
 import type { Product, ProductMedia } from '@/types/database'
 import FeedDescription from './FeedDescription'
@@ -10,6 +10,11 @@ import FeedSizeSheet from './FeedSizeSheet'
 import type { FeedSize } from './feed-sizes'
 import type { DishDetail } from '@/lib/public-dish-details'
 import { getFeedSlideDuration, getProductImages, orderFeedMedia } from './menu-utils'
+
+function feedImageSrc(url: string) {
+  if (!url.includes('/brands/celes-confections/')) return url
+  return `${url}${url.includes('?') ? '&' : '?'}v=20261029`
+}
 
 interface FeedProps {
   products: Product[]
@@ -28,6 +33,8 @@ interface FeedProps {
   sizesFor: (product: Product) => FeedSize[]
   /** Ingredient and allergen notes shown when the description is expanded. */
   detailsFor: (product: Product) => DishDetail[]
+  /** Photos shown after the dish's own (e.g. the whole cake). */
+  extraImagesFor: (product: Product) => string[]
   quantityFor: (productId: string) => number
   onExit: () => void
   onOpenCart: () => void
@@ -58,6 +65,7 @@ export default function MenuFeed({
   hasCustomization,
   sizesFor,
   detailsFor,
+  extraImagesFor,
   quantityFor,
   onExit,
   onOpenCart,
@@ -74,6 +82,10 @@ export default function MenuFeed({
   const feedScrollerRef = useRef<HTMLDivElement | null>(null)
   const lastIndexRef = useRef(initialIndex)
   const [sizePick, setSizePick] = useState<{ product: Product; sizes: FeedSize[] } | null>(null)
+  const [slideInfo, setSlideInfo] = useState<Record<string, { index: number; count: number }>>({})
+  const reportSlides = useCallback((productId: string, index: number, count: number) => {
+    setSlideInfo(prev => (prev[productId]?.index === index && prev[productId]?.count === count ? prev : { ...prev, [productId]: { index, count } }))
+  }, [])
 
   // Land on the restored dish without animating through the ones before it.
   useEffect(() => {
@@ -96,8 +108,15 @@ export default function MenuFeed({
   }, [onIndexChange])
   const advanceDish = useCallback((dishIndex: number) => {
     const scroller = feedScrollerRef.current
-    if (!scroller || dishIndex >= products.length - 1) return
-    scroller.scrollTo({ top: (dishIndex + 1) * scroller.clientHeight, behavior: 'smooth' })
+    if (!scroller || products.length < 2) return
+
+    const nextDishIndex = dishIndex >= products.length - 1 ? 0 : dishIndex + 1
+    // The visual feed is continuous: after the last dish, restart at the first
+    // instead of leaving guests on a completed final card.
+    scroller.scrollTo({
+      top: nextDishIndex * scroller.clientHeight,
+      behavior: nextDishIndex === 0 ? 'instant' : 'smooth',
+    })
   }, [products.length])
 
   return (
@@ -146,6 +165,8 @@ export default function MenuFeed({
               <FeedMedia
                 product={product}
                 media={productMediaByProductId[product.id] ?? []}
+                extraImages={extraImagesFor(product)}
+                onSlidesChange={reportSlides}
                 priority={index === 0}
                 panDirection={index % 2 === 0 ? 'alternate' : 'alternate-reverse'}
                 autoplay={autoplayVideos}
@@ -158,6 +179,8 @@ export default function MenuFeed({
 
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/95" />
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-28">
+                {(slideInfo[product.id]?.count ?? 0) > 1 ? <SlideDots count={slideInfo[product.id].count} index={slideInfo[product.id].index} label={product.name} /> : null}
+
                 <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/65">
                   <span>{String(index + 1).padStart(2, '0')} / {String(products.length).padStart(2, '0')}</span>
                   <span className="h-px w-8 bg-white/35" />
@@ -251,6 +274,8 @@ export default function MenuFeed({
 function FeedMedia({
   product,
   media,
+  extraImages,
+  onSlidesChange,
   priority,
   panDirection,
   autoplay,
@@ -262,6 +287,8 @@ function FeedMedia({
 }: {
   product: Product
   media: ProductMedia[]
+  extraImages: string[]
+  onSlidesChange: (productId: string, index: number, count: number) => void
   priority: boolean
   panDirection: 'alternate' | 'alternate-reverse'
   autoplay: boolean
@@ -279,14 +306,21 @@ function FeedMedia({
   const [nearViewport, setNearViewport] = useState(priority)
   const [active, setActive] = useState(false)
   const [mediaIndex, setMediaIndex] = useState(0)
+  // A finger (or the mouse button) on the photo freezes the progress bar, the drift and any video.
+  const [held, setHeld] = useState(false)
+  const pressRef = useRef<{ x: number; y: number } | null>(null)
   const orderedMedia = useMemo(() => orderFeedMedia(media), [media])
   const images = useMemo(() => getProductImages(product), [product])
   const slides = useMemo<Array<{ type: 'image' | 'video'; url: string }>>(() => (
     orderedMedia.length > 0
       ? orderedMedia.map(item => ({ type: item.type, url: item.url }))
       : images.map(url => ({ type: 'image' as const, url }))
-  ), [images, orderedMedia])
+  ).concat(extraImages.map(url => ({ type: 'image' as const, url }))), [extraImages, images, orderedMedia])
   const current = slides[mediaIndex] ?? null
+
+  useEffect(() => {
+    onSlidesChange(product.id, mediaIndex, slides.length)
+  }, [mediaIndex, onSlidesChange, product.id, slides.length])
   const directVideo = current?.type === 'video' && /\.(mp4|webm|ogg)(?:$|\?)/i.test(current.url)
   const imageUrl = current?.type === 'image' ? current.url : null
 
@@ -329,12 +363,12 @@ function FeedMedia({
     const video = videoRef.current
     if (!video) return
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (active && autoplay && !reducedMotion) {
+    if (active && autoplay && !reducedMotion && !held) {
       void video.play().catch(() => undefined)
     } else {
       video.pause()
     }
-  }, [active, autoplay, nearViewport, mediaIndex])
+  }, [active, autoplay, held, nearViewport, mediaIndex])
 
   useEffect(() => {
     startedRef.current = false
@@ -347,22 +381,14 @@ function FeedMedia({
   }, [active])
 
   useEffect(() => {
-    if (!active || !current) return
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-
-    const timeout = window.setTimeout(advanceTimed, getFeedSlideDuration(current.type))
-    return () => window.clearTimeout(timeout)
-  }, [active, advanceTimed, current])
-
-  useEffect(() => {
     if (!active || current?.type !== 'image' || startedRef.current) return
     startedRef.current = true
     onMediaEvent('media_started', 'image', mediaIndex)
   }, [active, current?.type, mediaIndex, onMediaEvent])
 
   function moveMedia(direction: -1 | 1) {
-    if (slides.length < 2) return
-    const nextIndex = (mediaIndex + direction + slides.length) % slides.length
+    const nextIndex = mediaIndex + direction
+    if (nextIndex < 0 || nextIndex >= slides.length) return
     const next = slides[nextIndex]
     startedRef.current = false
     completedRef.current = false
@@ -372,7 +398,31 @@ function FeedMedia({
   }
 
   return (
-    <div ref={containerRef} className="absolute inset-0 overflow-hidden bg-zinc-950">
+    <div
+      ref={containerRef}
+      className="absolute inset-0 overflow-hidden bg-zinc-950"
+      onPointerDown={event => {
+        pressRef.current = { x: event.clientX, y: event.clientY }
+        setHeld(true)
+      }}
+      onPointerUp={event => {
+        const start = pressRef.current
+        pressRef.current = null
+        setHeld(false)
+        if (!start) return
+        const dx = event.clientX - start.x
+        const dy = event.clientY - start.y
+        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) moveMedia(dx < 0 ? 1 : -1)
+      }}
+      onPointerCancel={() => {
+        pressRef.current = null
+        setHeld(false)
+      }}
+      onPointerLeave={() => {
+        pressRef.current = null
+        setHeld(false)
+      }}
+    >
       {directVideo && nearViewport ? (
         <video
           key={current.url}
@@ -402,12 +452,12 @@ function FeedMedia({
         />
       ) : imageUrl ? (
         <Image
-          src={imageUrl}
+          src={feedImageSrc(imageUrl)}
           alt={product.name}
           fill
           priority={priority}
-          className={`object-cover ${active ? 'menu-feed-image-pan' : 'scale-[1.08]'}`}
-          style={{ animationDirection: panDirection }}
+          className={`object-cover ${active ? 'menu-feed-image-pan' : 'translate-y-10 scale-[1.08]'}`}
+          style={{ animationDirection: panDirection, animationPlayState: held ? 'paused' : 'running' }}
           sizes="100vw"
         />
       ) : (
@@ -420,13 +470,6 @@ function FeedMedia({
         <button type="button" onClick={onOpen} className="absolute inset-0 flex items-center justify-center bg-black/15" aria-label={`Open ${product.name} video in details`}><span className="flex size-14 items-center justify-center rounded-full border border-white/40 bg-black/45 text-white backdrop-blur"><Play className="ml-1 size-5 fill-current" /></span></button>
       ) : null}
 
-      {slides.length > 1 ? (
-        <>
-          <button type="button" onClick={() => moveMedia(-1)} aria-label={`Previous media for ${product.name}`} className="absolute left-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition active:scale-90"><ChevronLeft className="size-5" /></button>
-          <button type="button" onClick={() => moveMedia(1)} aria-label={`Next media for ${product.name}`} className="absolute right-3 top-1/2 z-10 flex size-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/35 text-white backdrop-blur transition active:scale-90"><ChevronRight className="size-5" /></button>
-        </>
-      ) : null}
-
       {slides.length > 0 ? (
         <div className="absolute inset-x-4 top-[max(4.5rem,calc(env(safe-area-inset-top)+3.75rem))] z-10 flex gap-1" aria-label={`Media ${mediaIndex + 1} of ${slides.length}`}>
           {slides.map((slide, index) => (
@@ -436,13 +479,24 @@ function FeedMedia({
                 <span
                   key={`${slide.url}-${active ? 'active' : 'inactive'}`}
                   className="menu-feed-slide-progress absolute inset-0 bg-white"
-                  style={{ animationDuration: `${getFeedSlideDuration(slide.type)}ms`, animationPlayState: active ? 'running' : 'paused' }}
+                  style={{ animationDuration: `${getFeedSlideDuration(slide.type)}ms`, animationPlayState: active && !held ? 'running' : 'paused' }}
+                  onAnimationEnd={advanceTimed}
                 />
               ) : null}
             </span>
           ))}
         </div>
       ) : null}
+    </div>
+  )
+}
+
+function SlideDots({ count, index, label }: { count: number; index: number; label: string }) {
+  return (
+    <div className="mb-4 flex justify-center gap-1.5" role="img" aria-label={`${label}: photo ${index + 1} of ${count}`}>
+      {Array.from({ length: count }, (_, i) => (
+        <span key={i} className={`h-1.5 rounded-full transition-all duration-200 ${i === index ? 'w-5 bg-white' : 'w-1.5 bg-white/45'}`} />
+      ))}
     </div>
   )
 }

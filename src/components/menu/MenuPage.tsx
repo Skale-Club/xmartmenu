@@ -19,6 +19,7 @@ import { contactLinks, displayPrice, phoneLabel, whatsappUrl } from './showcase'
 import { feedSizes } from './feed-sizes'
 import { contactEmailFor } from '@/lib/public-contacts'
 import { dishDetailsFor } from '@/lib/public-dish-details'
+import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
@@ -1108,7 +1109,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                 >
                   <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-zinc-100">
                     {image
-                      ? <Image src={image} alt="" fill sizes="(max-width: 640px) 156px, 220px" className="object-cover" />
+                      ? <Image src={image} alt="" fill sizes="(max-width: 640px) 156px, 220px" className="object-cover object-[center_18%]" />
                       : <DishPlaceholder />}
                   </div>
                   <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-zinc-900 sm:text-[15px]">{p.name}</p>
@@ -1152,6 +1153,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             onOpenCart={() => setCartOpen(true)}
             hasCustomization={hasCustomization}
             detailsFor={product => dishDetailsFor(tenant.slug, product)}
+            extraImagesFor={product => extraDishImagesFor(tenant.slug, product)}
             sizesFor={product => feedSizes(product.price, optionGroupsByProductId[product.id])}
             quantityFor={productId => cart.find(item => item.cartKey === buildCartKey(productId, {}))?.quantity ?? 0}
             onOpen={product => openProduct(product, 'feed')}
@@ -1298,6 +1300,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
         <ProductModal
           product={shownProduct}
           details={dishDetailsFor(tenant.slug, shownProduct)}
+          extraImages={extraDishImagesFor(tenant.slug, shownProduct)}
           onPrevProduct={!editingCartKey && !upsell?.choosing && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
           onNextProduct={!editingCartKey && !upsell?.choosing && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           primaryColor={primaryColor}
@@ -1556,7 +1559,7 @@ function ProductCard({ product, lang, currency, primaryColor, price, onOpen, car
       <div className="pointer-events-none relative size-[104px] shrink-0 sm:order-1 sm:aspect-[4/3] sm:size-auto sm:w-full">
         <div className="relative size-full overflow-hidden rounded-xl bg-zinc-100 sm:rounded-none">
           {image
-            ? <Image src={image} alt="" fill sizes="(max-width: 640px) 104px, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-500 sm:group-hover:scale-[1.03]" />
+            ? <Image src={image} alt="" fill sizes="(max-width: 640px) 104px, (max-width: 1024px) 50vw, 33vw" className="object-cover object-top transition-transform duration-500 sm:group-hover:scale-[1.03]" />
             : <DishPlaceholder />}
         </div>
         {onAdd && quantity === 0 && (
