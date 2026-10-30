@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Camera, Check, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
+import type { DishDetail } from '@/lib/public-dish-details'
+import DishDetails from './DishDetails'
 import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { getProductImages, type CartEditorState } from './menu-utils'
@@ -67,7 +69,11 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct }: {
+export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [] }: {
+  /** Photos shown after the dish's own (e.g. the whole cake). */
+  extraImages?: string[]
+  /** Ingredient and allergen notes, shown right after the description. */
+  details?: DishDetail[]
   product: Product; primaryColor: string; currency: string;
   /** Set when guests may send their order on WhatsApp (TenantCapabilities.whatsappOrders): shows "Order on WhatsApp". */
   whatsapp?: string | null;
@@ -100,7 +106,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
       return [...videos, ...images]
     }
     return getProductImages(product).map(url => ({ type: 'image' as const, url }))
-  })()
+  })().concat(extraImages.map(url => ({ type: 'image' as const, url })))
 
   const [slideIndex, setSlideIndex] = useState(0)
   const hasManySlides = mediaSlides.length > 1
@@ -461,7 +467,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                   src={mediaSlides[slideIndex]?.url ?? ''}
                   alt={`${product.name} ${imageIndex + 1}`}
                   fill
-                  className={`object-cover ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
+                  className={`object-cover object-[center_15%] ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
                   style={{ transform: `translateX(${touchOffsetX}px)` }}
                   sizes="(max-width: 640px) 100vw, 512px"
                 />
@@ -517,6 +523,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                 </div>
               </div>
               {product.description && <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">{product.description}</p>}
+              <DishDetails details={details} />
               {product.tags?.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {product.tags.map(tag => (
@@ -799,7 +806,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                 >
                   {canAddToCart ? (
                     <>
-                      <span className="truncate">{isEditing ? copy.updateItem : copy.addToOrder}</span>
+                      <span className="truncate">{isEditing ? copy.updateItem : copy.orderNow}</span>
                       <span aria-hidden="true" className="opacity-70">·</span>
                       <span className="tabular-nums">{money(finalUnitPrice * (isEditing ? 1 : quantity))}</span>
                     </>

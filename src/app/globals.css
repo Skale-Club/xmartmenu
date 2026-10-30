@@ -156,8 +156,8 @@ input[type="file"] {
 }
 
 @keyframes menu-feed-horizontal-drift {
-  from { transform: scale(1.16) translate3d(-5.25%, 0, 0); }
-  to   { transform: scale(1.16) translate3d(5.25%, 0, 0); }
+  from { transform: scale(1.16) translate3d(-5.25%, 2.5rem, 0); }
+  to   { transform: scale(1.16) translate3d(5.25%, 2.5rem, 0); }
 }
 
 .menu-feed-image-pan {
@@ -198,7 +198,7 @@ input[type="file"] {
 @media (prefers-reduced-motion: reduce) {
   .menu-feed-image-pan {
     animation: none;
-    transform: scale(1.04);
+    transform: scale(1.04) translateY(2.5rem);
   }
 
   .menu-feed-slide-progress {

@@ -15,7 +15,11 @@ import WaiterCallButtons from './WaiterCallButtons'
 import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, menuLanguage, translateTag } from './menu-i18n'
 import { computeOpenState, resolveTimeZone } from '@/lib/chat-context'
 import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
-import { contactLinks, displayPrice, whatsappUrl } from './showcase'
+import { contactLinks, displayPrice, phoneLabel, whatsappUrl } from './showcase'
+import { feedSizes } from './feed-sizes'
+import { contactEmailFor } from '@/lib/public-contacts'
+import { dishDetailsFor } from '@/lib/public-dish-details'
+import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
@@ -43,13 +47,13 @@ import ModalPortal from '@/components/ui/ModalPortal'
 import UpsellSheet from './UpsellSheet'
 import { buildUpsellSteps, canQuickAdd, type UpsellStep } from './upsell'
 import {
+  Instagram,
+  Mail,
   MapPin,
+  MessageCircle,
   Phone,
   Search,
   X,
-  Camera,
-  MessageCircle,
-  Mail,
   Sparkles,
   Plus,
   Minus,
@@ -559,9 +563,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
 
   const hours = settings?.business_hours
   const hasHours = hours && Object.values(hours).some(Boolean)
-  const email = (settings && 'email' in settings)
-    ? (settings as { email?: string | null }).email ?? null
-    : null
+  const email = contactEmailFor(tenant.slug)
   // Contact links normalized: "(555) 123-4567" → wa.me/5551234567, "@handle" or a URL → one Instagram link.
   const contacts = contactLinks(settings)
   const hasContact = !!(contacts.phone || contacts.instagram || contacts.whatsapp || settings?.address || email)
@@ -1107,7 +1109,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                 >
                   <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-zinc-100">
                     {image
-                      ? <Image src={image} alt="" fill sizes="(max-width: 640px) 156px, 220px" className="object-cover" />
+                      ? <Image src={image} alt="" fill sizes="(max-width: 640px) 156px, 220px" className="object-cover object-[center_18%]" />
                       : <DishPlaceholder />}
                   </div>
                   <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-zinc-900 sm:text-[15px]">{p.name}</p>
@@ -1150,10 +1152,14 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             onIndexChange={setFeedIndex}
             onOpenCart={() => setCartOpen(true)}
             hasCustomization={hasCustomization}
+            detailsFor={product => dishDetailsFor(tenant.slug, product)}
+            extraImagesFor={product => extraDishImagesFor(tenant.slug, product)}
+            sizesFor={product => feedSizes(product.price, optionGroupsByProductId[product.id])}
             quantityFor={productId => cart.find(item => item.cartKey === buildCartKey(productId, {}))?.quantity ?? 0}
             onOpen={product => openProduct(product, 'feed')}
-            onAdd={product => {
-              addToCart(product, {}, product.price, undefined, undefined, undefined, 'feed')
+            onAdd={(product, size) => {
+              if (size) addToCart(product, size.selectedOptions, size.price, undefined, undefined, size.editorState, 'feed')
+              else addToCart(product, {}, product.price, undefined, undefined, undefined, 'feed')
               startUpsell(product)
             }}
             onIncrement={product => {
@@ -1239,35 +1245,25 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
       {/* Contact and credits: a plain footer at the end of the page */}
       {activeMenuView === 'list' && (hasContact || footerBrand) && (
         <footer className="border-t border-zinc-200/70" style={{ marginBottom: showOrderBar ? 88 : 0 }}>
-          <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 px-5 py-8 sm:flex-row sm:justify-between sm:px-8">
+          <div className="mx-auto flex max-w-5xl flex-col items-start gap-8 px-5 py-8 sm:flex-row sm:items-end sm:justify-between sm:px-8">
             {hasContact && (
-              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[13px] font-medium text-zinc-500">
-                {settings?.address && (
-                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <MapPin className="size-3.5" /> <span className="max-w-[240px] truncate">{settings.address}</span>
-                  </a>
+              <ul className="space-y-3 text-[15px] font-medium text-zinc-700">
+                {contacts.instagram && (
+                  <li><a href={contacts.instagram.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 transition-colors hover:text-zinc-950"><Instagram className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.instagram.handle.replace(/^@+/, '')}</span></a></li>
                 )}
                 {contacts.phone && (
-                  <a href={contacts.phone.url} className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <Phone className="size-3.5" /> {contacts.phone.label}
-                  </a>
+                  <li><a href={contacts.phone.url} className="flex items-center gap-3 transition-colors hover:text-zinc-950"><Phone className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.phone.label}</span></a></li>
                 )}
                 {contacts.whatsapp && (
-                  <a href={contacts.whatsapp} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <MessageCircle className="size-3.5" /> WhatsApp
-                  </a>
-                )}
-                {contacts.instagram && (
-                  <a href={contacts.instagram.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <Camera className="size-3.5" /> {contacts.instagram.handle}
-                  </a>
+                  <li className="flex items-center gap-3"><MessageCircle className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{phoneLabel(settings?.whatsapp)}</span></li>
                 )}
                 {email && (
-                  <a href={`mailto:${email}`} className="flex items-center gap-1.5 hover:text-zinc-900">
-                    <Mail className="size-3.5" /> {email}
-                  </a>
+                  <li><a href={`mailto:${email}`} className="flex items-center gap-3 transition-colors hover:text-zinc-950"><Mail className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{email}</span></a></li>
                 )}
-              </div>
+                {settings?.address && (
+                  <li><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 transition-colors hover:text-zinc-950"><MapPin className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{settings.address}</span></a></li>
+                )}
+              </ul>
             )}
             {footerBrand && (
               <p className="text-[12px] text-zinc-400">
@@ -1303,6 +1299,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
         return (
         <ProductModal
           product={shownProduct}
+          details={dishDetailsFor(tenant.slug, shownProduct)}
+          extraImages={extraDishImagesFor(tenant.slug, shownProduct)}
           onPrevProduct={!editingCartKey && !upsell?.choosing && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
           onNextProduct={!editingCartKey && !upsell?.choosing && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           primaryColor={primaryColor}
@@ -1561,7 +1559,7 @@ function ProductCard({ product, lang, currency, primaryColor, price, onOpen, car
       <div className="pointer-events-none relative size-[104px] shrink-0 sm:order-1 sm:aspect-[4/3] sm:size-auto sm:w-full">
         <div className="relative size-full overflow-hidden rounded-xl bg-zinc-100 sm:rounded-none">
           {image
-            ? <Image src={image} alt="" fill sizes="(max-width: 640px) 104px, (max-width: 1024px) 50vw, 33vw" className="object-cover transition-transform duration-500 sm:group-hover:scale-[1.03]" />
+            ? <Image src={image} alt="" fill sizes="(max-width: 640px) 104px, (max-width: 1024px) 50vw, 33vw" className="object-cover object-top transition-transform duration-500 sm:group-hover:scale-[1.03]" />
             : <DishPlaceholder />}
         </div>
         {onAdd && quantity === 0 && (

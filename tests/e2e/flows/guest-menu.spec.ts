@@ -55,8 +55,8 @@ test.describe('self-service plan', () => {
     const dish = page.getByRole('dialog', { name: 'Ribeye Steak' })
     await expect(dish).toBeVisible()
     await dish.getByText('Large', { exact: true }).click()
-    // Accessible name is "Add R$55.00" (the "·" is decorative): Large adds 10.00.
-    await dish.getByRole('button', { name: /^Add R\$\s?55[.,]00/ }).click()
+    // Accessible name is "Add to order R$55.00" (the "·" is decorative): Large adds 10.00.
+    await dish.getByRole('button', { name: /^Add to order R\$\s?55[.,]00/ }).click()
 
     await expect(upsell(page)).toContainText('Ribeye Steak added')
   })
