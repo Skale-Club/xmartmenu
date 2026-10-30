@@ -10,6 +10,7 @@ import FeedSizeSheet from './FeedSizeSheet'
 import type { FeedSize } from './feed-sizes'
 import type { DishDetail } from '@/lib/public-dish-details'
 import { getFeedSlideDuration, getProductImages, orderFeedMedia } from './menu-utils'
+import { dragOffset, lockAxis, resolveSwipe, type SwipeAxis } from './feed-gestures'
 
 function feedImageSrc(url: string) {
   if (!url.includes('/brands/celes-confections/')) return url
@@ -306,9 +307,13 @@ function FeedMedia({
   const [nearViewport, setNearViewport] = useState(priority)
   const [active, setActive] = useState(false)
   const [mediaIndex, setMediaIndex] = useState(0)
+  // Horizontal drag inside the dish (feed-gestures.ts): the media follows the
+  // finger, then snaps to the next/previous photo or springs back.
+  const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; startedAt: number; axis: SwipeAxis | null } | null>(null)
+  const [dragX, setDragX] = useState(0)
+  const [settling, setSettling] = useState(false)
   // A finger (or the mouse button) on the photo freezes the progress bar, the drift and any video.
   const [held, setHeld] = useState(false)
-  const pressRef = useRef<{ x: number; y: number } | null>(null)
   const orderedMedia = useMemo(() => orderFeedMedia(media), [media])
   const images = useMemo(() => getProductImages(product), [product])
   const slides = useMemo<Array<{ type: 'image' | 'video'; url: string }>>(() => (
@@ -397,32 +402,54 @@ function FeedMedia({
     onMediaEvent('media_swiped', next.type, nextIndex)
   }
 
+  function onPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return
+    gestureRef.current = { pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, startedAt: performance.now(), axis: null }
+    setSettling(false)
+    setHeld(true)
+  }
+
+  function onPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const gesture = gestureRef.current
+    if (!gesture || gesture.pointerId !== event.pointerId) return
+    const dx = event.clientX - gesture.startX
+    const dy = event.clientY - gesture.startY
+    gesture.axis = lockAxis(dx, dy, gesture.axis)
+    // Vertical belongs to the scroller (touch-action: pan-y): leave it alone.
+    if (gesture.axis !== 'horizontal') return
+    setDragX(dragOffset(dx, slides.length))
+  }
+
+  function endGesture(event: React.PointerEvent<HTMLDivElement>, cancelled: boolean) {
+    const gesture = gestureRef.current
+    if (!gesture || gesture.pointerId !== event.pointerId) return
+    gestureRef.current = null
+    setHeld(false)
+    if (gesture.axis !== 'horizontal') return
+    const dx = event.clientX - gesture.startX
+    const direction = cancelled ? 0 : resolveSwipe(dx, performance.now() - gesture.startedAt, slides.length)
+    setSettling(true)
+    setDragX(0)
+    if (direction !== 0) moveMedia(direction)
+  }
+
   return (
     <div
       ref={containerRef}
       className="absolute inset-0 overflow-hidden bg-zinc-950"
-      onPointerDown={event => {
-        pressRef.current = { x: event.clientX, y: event.clientY }
-        setHeld(true)
-      }}
-      onPointerUp={event => {
-        const start = pressRef.current
-        pressRef.current = null
-        setHeld(false)
-        if (!start) return
-        const dx = event.clientX - start.x
-        const dy = event.clientY - start.y
-        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) moveMedia(dx < 0 ? 1 : -1)
-      }}
-      onPointerCancel={() => {
-        pressRef.current = null
-        setHeld(false)
-      }}
-      onPointerLeave={() => {
-        pressRef.current = null
-        setHeld(false)
-      }}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={event => endGesture(event, false)}
+      onPointerCancel={event => endGesture(event, true)}
+      onPointerLeave={event => endGesture(event, true)}
     >
+      <div
+        className="absolute inset-0"
+        style={{
+          transform: dragX ? `translate3d(${dragX}px, 0, 0)` : undefined,
+          transition: settling ? 'transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1)' : undefined,
+        }}
+      >
       {directVideo && nearViewport ? (
         <video
           key={current.url}
@@ -465,13 +492,14 @@ function FeedMedia({
           <span className="text-7xl">🍽️</span><span className="text-[10px] font-black uppercase tracking-[0.24em]">{viewDishLabel}</span>
         </button>
       )}
+      </div>
 
       {current?.type === 'video' && !directVideo ? (
         <button type="button" onClick={onOpen} className="absolute inset-0 flex items-center justify-center bg-black/15" aria-label={`Open ${product.name} video in details`}><span className="flex size-14 items-center justify-center rounded-full border border-white/40 bg-black/45 text-white backdrop-blur"><Play className="ml-1 size-5 fill-current" /></span></button>
       ) : null}
 
       {slides.length > 0 ? (
-        <div className="absolute inset-x-4 top-[max(4.5rem,calc(env(safe-area-inset-top)+3.75rem))] z-10 flex gap-1" aria-label={`Media ${mediaIndex + 1} of ${slides.length}`}>
+        <div className="absolute inset-x-4 top-[max(4.5rem,calc(env(safe-area-inset-top)+3.75rem))] z-10 flex gap-1" role="group" aria-label={`Media ${mediaIndex + 1} of ${slides.length}${slides.length > 1 ? ' — swipe sideways for more' : ''}`}>
           {slides.map((slide, index) => (
             <span key={`${slide.url}-${index}`} className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/30 shadow-sm">
               {index < mediaIndex ? <span className="absolute inset-0 bg-white" /> : null}
