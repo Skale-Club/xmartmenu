@@ -88,7 +88,9 @@ const config = withBundleAnalyzer({
 // is skipped unless SENTRY_AUTH_TOKEN is present, so builds stay green without
 // Sentry credentials.
 export default withSentryConfig(config, {
-  silent: true,
+  // Keep the plugin's output in the build log: upload failures are only warnings
+  // here, so a silent build hides them and stack traces stay minified.
+  silent: false,
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
