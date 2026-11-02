@@ -38,7 +38,8 @@ stdout/stderr, which Coolify collects:
 
 ## Sentry
 
-Installed but **off until a DSN is set**. To turn it on:
+On in production (`skale-club/xmartmenu`). The SDK stays **off until a DSN is
+set**, so a new environment needs these steps:
 
 1. Create a Next.js project at sentry.io.
 2. **Coolify (runtime env):** `SENTRY_DSN`. Optional:
@@ -47,6 +48,11 @@ Installed but **off until a DSN is set**. To turn it on:
    baked into the browser bundle), plus `SENTRY_ORG` and `SENTRY_PROJECT`.
 4. **GitHub → Secrets:** `SENTRY_AUTH_TOKEN`, so source maps are uploaded and
    stack traces point at the real code.
+
+**Rotating `SENTRY_AUTH_TOKEN`:** the next deploy must include a new commit.
+BuildKit secrets are not part of the cache key, so redeploying the same commit
+reuses the cached `npm run build` layer and uploads nothing. Upload failures do
+not fail the build: look for `@sentry/nextjs` errors in the build log.
 
 What it records:
 
