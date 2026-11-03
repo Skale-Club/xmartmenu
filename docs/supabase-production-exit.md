@@ -292,3 +292,67 @@ revocation, concurrent snapshot coherence/read-only behavior and column-only
 reader grants. They have not been run locally. Full TypeScript/build/PG/E2E
 validation belongs to the remote CI checkpoint for this increment; no live
 source, production flag or deployment was changed.
+
+## Administrative menu lifecycle boundary (disabled)
+
+`OWNED_ADMIN_MENUS_ENABLED=false` now covers the complete `/menus` lifecycle:
+list/create/patch/delete/select HTTP routes, initial page data, sidebar menu lists
+and shared active-menu resolution. It uses explicit `ADMIN_MENUS_DATABASE_URL`
+and `ADMIN_MENUS_DATABASE_SSL`, with the same exact independent production target
+guard. No owned operation falls back to Supabase data on absence or failure.
+The existing `getEffectiveTenant` authentication/profile/preview checks remain
+authoritative and legacy; this is not the default identity cutover.
+
+Staff can list and select menus but cannot mutate them. Store admins and
+superadmin preview retain their effective tenant scope; client-supplied IDs,
+tenant IDs and slug changes cannot replace that scope. Every record lookup and
+mutation constrains tenant and menu IDs. Existing public menu DTO columns, original
+UUIDs/slugs, decimal prices, language/translation normalization, slug collision
+suffixes and the selected/default/first administrative selection order are
+preserved. Administration deliberately includes inactive menus. Default deletion
+still returns 400; a foreign record is concealed by 404.
+
+The two-connection pool defaults to read-only. Explicit write transactions have
+five-second statement, two-second lock and eight-second total admission/operation
+limits. A per-tenant transaction advisory lock serializes writes; replacing a
+default unsets the old default and updates the new one atomically. A failed
+constraint rolls back both changes. Admission/transaction timeouts destroy active
+or late leases once. No write is retried: a lost COMMIT acknowledgment can leave
+an ambiguous result, which must be inspected before another operator action.
+
+Deletion also protects the legacy simple-FK graph. It locks every affected parent
+and leaf (including SET NULL recipients), in deterministic order, returning keys
+only and refusing more than 5,000 affected rows per relation. The subsequent
+tenant-integrity guard refuses corrupt cross-tenant products/categories, options,
+ingredients, media, locations, analytics and linked orders before any cascade.
+Parent locks block new FK links; leaf locks also block a tenant-only UPDATE that
+keeps its FK unchanged. ROW EXCLUSIVE relation locks allow ordinary DML but stop
+concurrent FK graph changes. Catalog inspection refuses any unreviewed cascading
+or SET NULL/DEFAULT edge, nonpublic child, composite or unvalidated constraint.
+This boundary therefore requires the reconciled historical dependent tables too;
+missing tables or permissions fail closed instead of weakening deletion checks.
+
+A dedicated server-only login needs SELECT on the explicit menu projection,
+INSERT/UPDATE on allowed menu fields, DELETE on menus, and SELECT/key-lock rights
+on the reviewed dependent relations. Row/relation locks require suitable UPDATE
+privileges there, even though the adapter changes only the menus relation and
+PostgreSQL performs its existing cascades. No runtime role, grant, schema or
+migration is provisioned. No browser receives database credentials. Existing
+HTTP success invalidation still expires both public cache source namespaces.
+
+Keep this flag false until public reads, restored writers, sidebar/context
+authorization and all downstream catalog consumers have been verified against
+the same target. Products/categories/options/media browser writes and other
+administrative pages remain legacy and must be reconciled before activation;
+enabling only this writer would split the catalog between targets. Final restore,
+writer freeze/replay, identity and deployment gates remain unchanged.
+
+Local verification: 57 tests across six files passed, including 18 new lifecycle,
+authorization/source and transaction tests plus 39 public-reader regression
+cases. Targeted ESLint and `git diff --check` passed. Ten new disposable PostgreSQL
+cases are prepared for CI: original/numeric DTOs, scoped create/update, staff and
+foreign-record denial, partial-default rollback, concurrent default promotions,
+corrupt-cascade refusal, tenant-only leaf-update blocking, default read-only
+limits and unknown-FK refusal. They have not run locally. Full build/TypeScript,
+PostgreSQL and browser validation remain the remote CI checkpoint; no live SQL,
+feature activation, production credentials, infrastructure or deployment changed.

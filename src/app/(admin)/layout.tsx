@@ -12,6 +12,7 @@ import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import type { ServiceSettings } from '@/lib/service-modes'
 import { ArrowLeft } from 'lucide-react'
+import { listAdminMenus } from '@/lib/admin/menu-data'
 
 type PanelSettings = ServiceSettings & { primary_color?: string | null; accent_color?: string | null }
 
@@ -66,12 +67,8 @@ export default async function AdminLayout({
 
     if (!tenant) redirect('/tenants')
 
-    const [{ data: menus }, activeMenu, { data: tenantSettings }] = await Promise.all([
-      supabase
-        .from('menus')
-        .select('id, name, slug, is_active, is_default')
-        .eq('tenant_id', tenant.id)
-        .order('position'),
+    const [menus, activeMenu, { data: tenantSettings }] = await Promise.all([
+      listAdminMenus(tenant.id),
       getActiveMenuForTenant(tenant.id),
       supabase
         .from('tenant_settings')
@@ -142,12 +139,8 @@ export default async function AdminLayout({
   }
 
   const tenantId = profile.tenant_id as string
-  const [{ data: menus }, activeMenu, { data: tenantSettings }] = await Promise.all([
-    supabase
-      .from('menus')
-      .select('id, name, slug, is_active, is_default')
-      .eq('tenant_id', tenantId)
-      .order('position'),
+  const [menus, activeMenu, { data: tenantSettings }] = await Promise.all([
+    listAdminMenus(tenantId),
     getActiveMenuForTenant(tenantId),
     supabase
       .from('tenant_settings')

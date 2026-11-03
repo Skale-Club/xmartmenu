@@ -1,13 +1,15 @@
 export const dynamic = 'force-dynamic'
-import { createClient } from '@/lib/supabase/server'
+import { listAdminMenus } from '@/lib/admin/menu-data'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import MenusClient from './MenusClient'
+import { notFound } from 'next/navigation'
 
 export default async function MenusPage() {
-  const supabase = await createClient()
-  const { tenantId, slug } = (await getEffectiveTenant())!
+  const effective = await getEffectiveTenant()
+  if (!effective) notFound()
+  const { tenantId, slug } = effective
   const activeMenu = await getActiveMenuForTenant(tenantId)
-  const { data: menus } = await supabase.from('menus').select('*').eq('tenant_id', tenantId).order('position')
+  const menus = await listAdminMenus(tenantId)
   return <MenusClient menus={menus ?? []} tenantSlug={slug} activeMenuId={activeMenu?.id ?? null} />
 }

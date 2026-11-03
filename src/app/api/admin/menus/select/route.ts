@@ -2,8 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
 
 async function handlePOST(request: Request) {
+  if (adminMenusOwned()) return (await import('@/lib/admin/owned-menu-http')).ownedMenuHttp(request, 'select')
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
