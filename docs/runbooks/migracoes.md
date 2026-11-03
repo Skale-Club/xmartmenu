@@ -17,9 +17,17 @@ npm run db:migrate -- --apply                  # aplica, cada um numa transaçã
 npm run db:migrate -- --only=058_x.sql --apply # só esse ficheiro
 ```
 
-Connection string, por ordem: `MIGRATION_DATABASE_URL`, `POSTGRES_URL_NON_POOLING`,
-`DATABASE_URL`. A não-pooling vem primeiro de propósito — DDL através de um pooler
-em modo transação perde estado de sessão entre statements.
+Por omissão, o alvo é o projeto Supabase isolado de desenvolvimento, definido
+por `DEV_SUPABASE_*` e `DEV_DATABASE_URL`. Os aliases `DATABASE_URL`,
+`MIGRATION_DATABASE_URL` e `POSTGRES_URL_NON_POOLING` não são aceites como fallback.
+O projeto de origem de produção não pode ser usado como desenvolvimento.
+
+Para PostgreSQL próprio de produção, configure `PROD_MIGRATION_DATABASE_URL`,
+`PROD_DATABASE_HOST` e `PROD_DATABASE_NAME`, e use `--target=production`.
+Escritas exigem também `--coordinated-cutover`, depois de coordenar a janela do
+servidor compartilhado. Este argumento não adquire um lock entre chats.
+Não use pooler em modo transação (porta 6543) para DDL em produção.
+`scripts/apply-migration.mjs` usa o mesmo executor e agora também simula por omissão.
 
 ## Primeira vez numa base de dados que já existe
 

@@ -16,7 +16,8 @@ First, run the development server:
 cp .env.example .env.local
 ```
 
-Then fill the Supabase values in `.env.local` and run:
+Configure the explicit `DEV_SUPABASE_*` and `DEV_DATABASE_URL` values for an
+isolated development project in `.env.local`, then run:
 
 ```bash
 npm run dev
@@ -29,6 +30,11 @@ bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+The development command rejects the current production-source Supabase project
+and does not inherit its `DATABASE_URL`. It never copies production data.
+Migration status, account-preservation rules and deployment coordination are in
+[docs/supabase-production-exit.md](docs/supabase-production-exit.md).
 
 The application uses the Next.js App Router under `src/app`.
 

@@ -1,0 +1,55 @@
+// Never let a developer command inherit the production/source DATABASE_URL.
+export const SOURCE_SUPABASE_PROJECT = 'ktogbpqookfcqilqvici'
+
+function parseUrl(value) {
+  try {
+    const url = new URL(value)
+    if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname || !url.pathname.slice(1)) throw new Error()
+    return url
+  } catch { throw new Error('Invalid PostgreSQL target (credentials omitted)') }
+}
+
+/** @param {Record<string, string | undefined>} [env] */
+export function developmentConfig(env = process.env) {
+  const ref = env.DEV_SUPABASE_PROJECT_REF?.trim()
+  if (!ref || !/^[a-z]{20}$/.test(ref) || ref === SOURCE_SUPABASE_PROJECT) {
+    throw new Error('Set DEV_SUPABASE_PROJECT_REF to an isolated development project, distinct from the production source')
+  }
+  let api
+  try { api = new URL(env.DEV_SUPABASE_URL) } catch { throw new Error('DEV_SUPABASE_URL is required') }
+  if (api.protocol !== 'https:' || api.hostname !== `${ref}.supabase.co` || api.port || api.username || api.password) {
+    throw new Error('Development API must match DEV_SUPABASE_PROJECT_REF')
+  }
+  const database = parseUrl(env.DEV_DATABASE_URL)
+  const direct = database.hostname === `db.${ref}.supabase.co`
+  const pooler = /\.pooler\.supabase\.com$/.test(database.hostname) && decodeURIComponent(database.username) === `postgres.${ref}`
+  if ((!direct && !pooler) || database.pathname !== '/postgres') throw new Error('Development database must match the isolated Supabase project')
+  if (!env.DEV_SUPABASE_ANON_KEY || !env.DEV_SUPABASE_SERVICE_ROLE_KEY) throw new Error('Explicit development API keys are required')
+  // JWT keys must belong to the selected project. New opaque sb_* keys are
+  // scoped by Supabase itself; the API hostname remains pinned above.
+  for (const key of [env.DEV_SUPABASE_ANON_KEY, env.DEV_SUPABASE_SERVICE_ROLE_KEY]) {
+    if (key.startsWith('eyJ')) {
+      let claims
+      try { claims = JSON.parse(Buffer.from(key.split('.')[1], 'base64url').toString()) } catch { throw new Error('Invalid development API key') }
+      if (claims.ref !== ref) throw new Error('Development API key belongs to another project')
+    }
+  }
+  return { ref, url: api.origin, databaseUrl: database.href, anonKey: env.DEV_SUPABASE_ANON_KEY, serviceKey: env.DEV_SUPABASE_SERVICE_ROLE_KEY }
+}
+
+/** @param {Record<string, string | undefined>} [env] */
+export function migrationTarget(env = process.env, target = 'development') {
+  if (target === 'development') {
+    const dev = developmentConfig({ ...env, DEV_DATABASE_URL: env.DEV_MIGRATION_DATABASE_URL || env.DEV_DATABASE_URL })
+    if (new URL(dev.databaseUrl).port === '6543') throw new Error('Development migrations require the direct connection or session pooler on port 5432')
+    return dev.databaseUrl
+  }
+  if (target !== 'production') throw new Error('Target must be development or production')
+  const url = parseUrl(env.PROD_MIGRATION_DATABASE_URL)
+  if (!env.PROD_DATABASE_HOST || !env.PROD_DATABASE_NAME || url.hostname !== env.PROD_DATABASE_HOST || decodeURIComponent(url.pathname.slice(1)) !== env.PROD_DATABASE_NAME) {
+    throw new Error('Production migration requires an explicit matching PROD_DATABASE_HOST and PROD_DATABASE_NAME')
+  }
+  if (/supabase\.(co|com)$/.test(url.hostname)) throw new Error('Production target must be independent PostgreSQL')
+  if (url.port === '6543') throw new Error('Do not run DDL through a transaction pooler')
+  return url.href
+}
