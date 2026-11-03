@@ -13,13 +13,21 @@ const target = new URL(raw)
 if (!['localhost', '127.0.0.1'].includes(target.hostname) || target.pathname !== '/xmartmenu_identity_test') throw new Error('Not an isolated identity test target')
 const admin = new pg.Pool({ connectionString: raw, max: 2, connectionTimeoutMillis: 5_000, statement_timeout: 5_000 })
 const backend = new pg.Pool({ connectionString: raw, max: 3, options: '-c role=service_role', statement_timeout: 5_000 })
-const store = new IdentityStore(backend)
+const providerState = new Map<string, { disabled: boolean; validSince: number }>()
+const providerReads: string[] = []
+let providerUnavailable = false
+const store = new IdentityStore(backend, async id => {
+  providerReads.push(id.subject)
+  if (providerUnavailable) throw new Error('Provider unavailable')
+  return providerState.get(id.subject) ?? { disabled: false, validSince: 0 }
+})
 const a = randomUUID(), b = randomUUID()
 const identity = (subject: string): VerifiedGoogleIdentity => ({ projectId: 'skaleclub', subject, provider: 'phone', phone: '+15551234567', authenticatedAt: Math.floor(Date.now() / 1000) })
 
 before(async () => {
   await admin.query('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;')
   await admin.query(await readFile(new URL('../../supabase/migrations/20261103190000_application_identity.sql', import.meta.url), 'utf8'))
+  await admin.query(await readFile(new URL('../../supabase/migrations/20261103200000_identity_session_provenance.sql', import.meta.url), 'utf8'))
   await admin.query('INSERT INTO public.app_accounts(id) VALUES($1),($2)', [a, b])
 })
 after(async () => { await backend.end(); await admin.end() })
@@ -74,4 +82,59 @@ test('blocking an account prevents binding and invalidates its sessions', async 
   assert.equal(await store.session(session.token), null)
   await assert.rejects(store.createSession(id))
   await assert.rejects(store.bind(identity('another'), b, 'legacy-session'))
+})
+
+test('an existing session checks the exact provider on every read and fails closed', async () => {
+  const id = identity('live-provider')
+  await store.bind(id, a, 'legacy-session')
+  const session = await store.createSession(id)
+  const reads = providerReads.length
+  assert.equal((await store.session(session.token))?.userId, a)
+  assert.equal((await store.session(session.token))?.userId, a)
+  assert.deepEqual(providerReads.slice(reads), [id.subject, id.subject])
+  providerState.set(id.subject, { disabled: true, validSince: 0 })
+  await assert.rejects(store.session(session.token), /disabled or revoked/)
+  await assert.rejects(store.createSession(id), /disabled or revoked/)
+  providerState.set(id.subject, { disabled: false, validSince: id.authenticatedAt + 1 })
+  await assert.rejects(store.session(session.token), /disabled or revoked/)
+  providerState.delete(id.subject)
+  providerUnavailable = true
+  try { await assert.rejects(store.session(session.token), /Identity provider account status unavailable/) }
+  finally { providerUnavailable = false }
+})
+
+test('disabled local bindings cannot own, mint or retain an app session', async () => {
+  const id = identity('disabled-binding')
+  await store.bind(id, a, 'legacy-session')
+  const session = await store.createSession(id)
+  await admin.query('UPDATE public.app_identity_bindings SET disabled_at=now() WHERE project_id=$1 AND subject=$2', [id.projectId, id.subject])
+  assert.equal(await store.owner(id), null)
+  assert.equal(await store.session(session.token), null)
+  await assert.rejects(store.createSession(id), /Account unavailable/)
+  await assert.rejects(store.bind(id, a, 'operator-recovery'), /Identity binding unavailable/)
+})
+
+test('session provenance cannot be reassigned to a different application account', async () => {
+  const id = identity('provenance')
+  await store.bind(id, a, 'legacy-session')
+  await store.createSession(id)
+  // The second app account is disabled above, but ownership constraints remain
+  // independent of that mutable state.
+  await assert.rejects(admin.query('UPDATE public.app_sessions SET user_id=$1 WHERE project_id=$2 AND subject=$3', [b, id.projectId, id.subject]), { code: '23503' })
+})
+
+test('old sessions with no provider provenance require a fresh sign-in', async () => {
+  const id = identity('unattributed')
+  await store.bind(id, a, 'legacy-session')
+  const session = await store.createSession(id)
+  await admin.query('UPDATE public.app_sessions SET project_id=NULL,subject=NULL WHERE project_id=$1 AND subject=$2', [id.projectId, id.subject])
+  assert.equal(await store.session(session.token), null)
+})
+
+test('binding and session creation reject stale or future authentication', async () => {
+  for (const authenticatedAt of [Math.floor(Date.now() / 1000) - 301, Math.floor(Date.now() / 1000) + 60]) {
+    const id = { ...identity('stale'), authenticatedAt }
+    await assert.rejects(store.bind(id, a, 'legacy-session'), /Recent authentication required/)
+    await assert.rejects(store.createSession(id), /Recent authentication required/)
+  }
 })

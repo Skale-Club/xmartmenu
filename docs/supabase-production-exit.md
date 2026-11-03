@@ -42,6 +42,8 @@ The locally available Supabase management credential lists only the source Xmart
 - Signed Identity Platform verification pins project/issuer/audience, RS256 and expiry; rejects future authentication, tenant identities and unsupported providers. New account bindings require recent authentication. Signed provider claims never supply application roles. Implementation follows [Google's ID-token verification contract](https://firebase.google.com/docs/auth/admin/verify-id-tokens).
 - Identity policy preserves app UUIDs: existing binding, valid legacy-session ownership, or exact unique signed Google provider-subject association. Verified email or an unverified profile phone is never enough. Unmatched identities require recovery; new-customer onboarding will be a separate explicit path.
 - Transactional identity store serializes concurrent first association, stores only random-session token hashes, honors account disabling, expiry, logout and all-session version revocation. No HTTP exchange endpoint or login UI activates this store yet; authorization remains on the existing production path until compatible repositories are ready.
+- Session provenance/liveness continuation: `20261103200000_identity_session_provenance.sql` adds the exact provider project/subject and an account-consistent binding foreign key to owned sessions. Reads require a locally active binding and a fresh provider account-status lookup; Google disable/revocation or a lookup failure denies access. Binding and session creation require a sign-in within five minutes. Existing preparatory sessions without provenance require a fresh sign-in; account UUIDs, memberships and roles are unchanged. Apply only after the original identity migration in an isolated rehearsal.
+- The provider reader uses the fixed Identity Toolkit `accounts:lookup` endpoint and exact immutable UID, requiring only `firebaseauth.users.get`. Its credential callback must supply a short-lived Google OAuth token using ADC/federation; no JSON service-account key is created or accepted by this increment. Credential/transport errors are sanitized. An operational credential binding and HTTP integration are still release gates; these modules do not activate new production authentication.
 - Orders and waiter screens use existing tenant-authorized HTTP APIs instead of direct Supabase Realtime. Polling runs at 5s after completion, pauses hidden tabs, aborts on exit/timeout, prevents overlap and backs off to 30s on failures. Pending/paid arrivals retain sound notifications. This introduces up to one poll interval of normal update latency.
 - Remote CI now includes independent PostgreSQL 17 identity integration tests, and deploy depends on that job as well as existing checks/E2E. Existing CI still validates the legacy application with disposable Supabase; this is transition evidence, not proof of complete production independence.
 
@@ -68,3 +70,12 @@ Before new writes, rollback can use the old image/target. After new writes, free
 ## Validation record
 
 Locally: 28 focused target/Google-claim/ownership tests, then 3 polling tests passed sequentially; targeted ESLint had no errors (existing OrdersClient warnings remain). `npm run dev` rejected the current production-source-only local configuration as intended. No local build, Docker service, full test suite or live migration ran. CI evidence is recorded below after the remote run completes.
+
+Continuation on 2026-11-03: the existing remote baseline is PR #26, HEAD
+`78eb523c19996359753a667be433122f6c55c278`; its checks, E2E and independent
+PostgreSQL identity job passed. New focused tests cover provider lookup
+validation, no caching of revocation state, sanitized failures and denial before
+database effects. The disposable PostgreSQL suite additionally checks live
+revocation, provider unavailability, local binding disablement, account-consistent
+session provenance and sessions without provenance. The PostgreSQL additions
+must run in CI; no production migration or provider change has been made.
