@@ -79,3 +79,94 @@ database effects. The disposable PostgreSQL suite additionally checks live
 revocation, provider unavailability, local binding disablement, account-consistent
 session provenance and sessions without provenance. The PostgreSQL additions
 must run in CI; no production migration or provider change has been made.
+
+The liveness increment was published as `dfd5917d4c142687cade7958c75cd30854b51239`.
+[CI 41716176961](https://github.com/Skale-Club/xmartmenu/actions/runs/41716176961)
+passed checks, the real disposable PostgreSQL job, production build and
+Playwright. Deploy was skipped for this PR. This evidence covers the increment,
+not production cutover or real Google/SMS verification.
+
+## Isolated identity pilot
+
+`/identity` and `/api/identity/*` are opt-in through `GOOGLE_AUTH_ENABLED=true`;
+the example/default remains false. Configure `IDENTITY_ORIGIN` explicitly, the
+Google project/public web key, and renewable read-only ADC/workload credentials.
+The Codex OIDC connection is an audit identity and does not by itself establish
+renewable credentials inside the Hetzner application container. Do not copy its
+short-lived token or create a JSON private key to bridge that gap.
+
+Development uses only the guarded dedicated `DEV_*` project/database. Production
+pilot runtime additionally requires `IDENTITY_DATABASE_URL` matching
+`PROD_DATABASE_HOST`/`PROD_DATABASE_NAME` on independent PostgreSQL; legacy SQL
+aliases cannot satisfy it. TLS is mandatory for development. Private production
+Docker networking can use explicit `IDENTITY_DATABASE_SSL=disable` after the
+destination has been verified. Before enabling a rehearsal, apply the three
+additive identity migrations in order and bootstrap `app_accounts` only from
+the reviewed exact-ID manifest of the isolated accounts. No account bootstrap,
+copy, migration or environment activation runs automatically.
+
+Google development is isolated too: `DEV_GOOGLE_AUTH_PROJECT_ID`,
+`DEV_GOOGLE_AUTH_PROJECT_NUMBER` and `DEV_GOOGLE_AUTH_WEB_API_KEY` are mandatory
+and cannot fall back to production variables. `skaleclub`/`937861185231` and the
+configured production ID/number are rejected for development. The official
+read-only Identity Toolkit `GET /v1/projects` must prove the API key belongs to
+the reviewed ID/number pair and includes the default Firebase domain plus the
+canonical origin's hostname. The key is sent in `X-Goog-Api-Key`, never the URL;
+there are no deprecated project-number query overrides. A missing/mismatched
+response or timeout fails closed. Both the server-rendered page and every
+mutable browser authentication action require this proof before SDK use;
+previous initialization does not bypass a subsequently disabled flag. No dev
+Google project/key was created and no shared Google grant was changed here.
+
+Connection strings accept only `sslmode` and `application_name` query options.
+Other/duplicate options are rejected before pg parsing: its `host`/`user`/`port`
+query precedence must not override the validated authority. Supabase development
+always uses full TLS verification, including migration commands. Offline tests
+inspect pg.Client's effective parameters without connecting. Legacy account
+proof uses the exact online `/auth/v1/user` endpoint with the public anon key,
+bounded to eight seconds, redirect rejection and caller cancellation. The direct
+reader avoids credential-bearing SDK error logs and never falls back to JWT
+claims, email or phone.
+
+The browser uses Firebase memory-only persistence for phone/SMS or Google proof,
+then signs out of Firebase and exchanges the proof only with its own origin.
+Owned session cookies are host-only, HttpOnly, Secure on HTTPS, SameSite=Lax and
+bounded by the store's absolute eight-hour deadline. A separate two-minute
+cookie challenge is hashed in PostgreSQL and claimed atomically, preventing
+replayed login/link requests. Missing/wrong Origin, another host, malformed or
+oversized/slow bodies, and exhausted limits are rejected before mutation. No
+provider token appears in a redirect or response. Provider/account lookups fail
+closed and errors omit credential-bearing SDK details.
+
+Login uses an existing immutable binding. Linking requires a fresh provider
+proof plus either a still-valid online legacy UID proof for that exact account,
+or a recent live-checked owned session. Preview sessions, conflicting owners and
+expired/replayed challenges are refused. Neither email/phone profile matches nor
+`SUPERADMIN_EMAILS` grant authority. No new account, tenant membership or role is
+created; unmatched identities require the separately reviewed recovery process.
+
+The pilot can verify a session, link a sign-in method, sign out or revoke all
+owned sessions. It does not replace existing admin/customer guards, the default
+login, machine OAuth, invites or recovery. Other/custom origins fail closed until
+their explicit browser-bound handoff is implemented and tested. The application
+root layout still loads platform appearance through Supabase; the isolated dev
+project must contain that configuration. Removing that layout dependency belongs
+to the SQL boundary below. This pilot is not evidence of a completed exit.
+
+## PostgreSQL repository replacement order
+
+| Order | Boundary and current entrypoints | Required compatibility before switching |
+| --- | --- | --- |
+| 1 | Verified host/tenant resolution in `src/middleware.ts`; root appearance in `src/app/layout.tsx` | Exact verified hostname/active-tenant checks, safe miss caching, public appearance projection, no legacy network dependency at boot. |
+| 2 | Public menu in `src/lib/menu/public-menu-data.ts`, tenant plan and chat-addon helpers | Tenant-scoped menus/categories/products/options/ingredients/media, branches/tables/zones, private-menu gate outside shared cache, immediate invalidation. |
+| 3 | Principal/roles in `src/lib/get-effective-tenant.ts` and `src/lib/superadmin-auth.ts` | Reviewed original account IDs/roles, fresh DB role reads, preview boundaries, disabled users, removal of email auto-promotion; deliberate replacement of `auth.users` FKs and `auth.uid()` context. |
+| 4 | Admin catalog/settings/staff and onboarding routes plus direct browser CRUD | Authenticated tenant/role checks for every write, transactional onboarding/invites, audited mutations and equivalent RLS/authorization. Browser CRUD must stop before identity cutover. |
+| 5 | Order/payment/customer-history routes and their SQL RPCs | Preserve immutable IDs, atomic order/items/idempotency, verified full E.164 claims, signed payment transitions and historical currency/financial totals. |
+| 6 | Waiter calls, chat and media writers | Tenant authorization, polling/cancellation, file references and private storage boundaries; replace historical direct Supabase media migration route. |
+| 7 | Analytics/blog/AI, Xphere and QStash workers | Scoped aggregates, scheduled-job auth, billing idempotency, durable drain/replay; staging must not call production side effects. |
+| 8 | MCP OAuth/consent/JWT verification and administrative identity lifecycle | Independent machine auth/scopes/revocation, reviewed recovery, grants/invites/deletion; preserve Stripe OAuth as a separate integration. |
+
+These boundaries can be implemented in separate owned modules/PRs, but share the
+same identity, tenant, cache and migration contracts. Keep the source ledger and
+data intact; coordinate schema/deploys, rehearse restoration and verify exact
+deployed SHA before removing any production Supabase credential.

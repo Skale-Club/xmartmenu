@@ -4,6 +4,15 @@ export type ProviderIdentity = Pick<VerifiedGoogleIdentity, 'projectId' | 'subje
 export type ProviderAccountStatus = { disabled: boolean; validSince: number }
 export type ProviderAccountStatusReader = (identity: ProviderIdentity) => Promise<ProviderAccountStatus>
 
+async function boundedAccessToken(read: () => Promise<string>): Promise<string> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    return await Promise.race([read(), new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => reject(new Error('Credential lookup timed out')), 8_000)
+    })])
+  } finally { clearTimeout(timeout) }
+}
+
 /** Signature verification alone cannot establish current provider revocation. */
 export function assertProviderAccountActive(status: ProviderAccountStatus, authenticatedAt: number): void {
   if (typeof status.disabled !== 'boolean' || status.disabled || !Number.isSafeInteger(status.validSince)
@@ -24,7 +33,7 @@ export function createGoogleAccountStatusReader(
     if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(identity.projectId)
       || !identity.subject || identity.subject.length > 128) throw new Error('Invalid provider identity')
     try {
-      const token = await accessToken()
+      const token = await boundedAccessToken(accessToken)
       if (typeof token !== 'string' || !token || /[\r\n]/.test(token)) throw new Error()
       const response = await request(`https://identitytoolkit.googleapis.com/v1/projects/${identity.projectId}/accounts:lookup`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

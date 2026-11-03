@@ -5,7 +5,7 @@ import { assertProviderAccountActive, type ProviderAccountStatusReader, type Pro
 
 const SESSION_MS = 8 * 60 * 60 * 1000
 const digest = (token: string) => createHash('sha256').update(token).digest('hex')
-export type BindingProof = 'legacy-session' | 'google-subject' | 'operator-recovery'
+export type BindingProof = 'legacy-session' | 'owned-session' | 'google-subject' | 'operator-recovery'
 
 async function transaction<T>(pool: Pool, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect()
@@ -31,6 +31,22 @@ export class IdentityStore {
   private async readProviderStatus(identity: ProviderIdentity) {
     try { return await this.accountStatus(identity) }
     catch { throw new Error('Identity provider account status unavailable') }
+  }
+
+  async issueChallenge(): Promise<string> {
+    const token = randomBytes(32).toString('base64url')
+    await this.pool.query(`WITH expired AS (
+      DELETE FROM public.app_identity_challenges WHERE token_hash IN (
+        SELECT token_hash FROM public.app_identity_challenges WHERE expires_at<=now() ORDER BY expires_at LIMIT 500
+      )
+    ) INSERT INTO public.app_identity_challenges(token_hash,expires_at) VALUES($1,now()+interval '2 minutes')`, [digest(token)])
+    return token
+  }
+
+  async consumeChallenge(token: string): Promise<boolean> {
+    if (!/^[A-Za-z0-9_-]{43}$/.test(token)) return false
+    const result = await this.pool.query('DELETE FROM public.app_identity_challenges WHERE token_hash=$1 AND expires_at>now() RETURNING token_hash', [digest(token)])
+    return result.rowCount === 1
   }
 
   private async verifyActive(identity: VerifiedGoogleIdentity, recent: boolean): Promise<void> {

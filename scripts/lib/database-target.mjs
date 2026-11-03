@@ -1,10 +1,25 @@
 // Never let a developer command inherit the production/source DATABASE_URL.
 export const SOURCE_SUPABASE_PROJECT = 'ktogbpqookfcqilqvici'
 
+/** node-postgres query fields can override URL host/user/port or read SSL files. */
+export function assertConnectionQuery(url) {
+  const seen = new Set()
+  for (const [key, value] of url.searchParams) {
+    if (!['sslmode', 'application_name'].includes(key) || seen.has(key)) {
+      throw new Error('Unsupported PostgreSQL connection option (credentials omitted)')
+    }
+    if (key === 'sslmode' && !['disable', 'require', 'verify-full'].includes(value)) {
+      throw new Error('Unsupported PostgreSQL TLS option (credentials omitted)')
+    }
+    seen.add(key)
+  }
+}
+
 function parseUrl(value) {
   try {
     const url = new URL(value)
     if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname || !url.pathname.slice(1)) throw new Error()
+    assertConnectionQuery(url)
     return url
   } catch { throw new Error('Invalid PostgreSQL target (credentials omitted)') }
 }
@@ -24,6 +39,7 @@ export function developmentConfig(env = process.env) {
   const direct = database.hostname === `db.${ref}.supabase.co`
   const pooler = /\.pooler\.supabase\.com$/.test(database.hostname) && decodeURIComponent(database.username) === `postgres.${ref}`
   if ((!direct && !pooler) || database.pathname !== '/postgres') throw new Error('Development database must match the isolated Supabase project')
+  database.searchParams.set('sslmode', 'verify-full')
   if (!env.DEV_SUPABASE_ANON_KEY || !env.DEV_SUPABASE_SERVICE_ROLE_KEY) throw new Error('Explicit development API keys are required')
   // JWT keys must belong to the selected project. New opaque sb_* keys are
   // scoped by Supabase itself; the API hostname remains pinned above.

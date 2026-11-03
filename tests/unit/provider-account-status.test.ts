@@ -54,6 +54,18 @@ describe('live Identity Platform account status', () => {
     await expect(lookup({ ...identity, projectId: 'skaleclub/other-project' })).rejects.toThrow('Invalid provider identity')
     expect(credentials).not.toHaveBeenCalled()
   })
+
+  it('bounds a stalled runtime credential lookup and never starts the API request', async () => {
+    vi.useFakeTimers()
+    try {
+      const request = vi.fn<typeof fetch>()
+      const lookup = createGoogleAccountStatusReader(() => new Promise(() => {}), request)
+      const result = expect(lookup(identity)).rejects.toEqual(new Error('Identity provider account status unavailable'))
+      await vi.advanceTimersByTimeAsync(8_001)
+      await result
+      expect(request).not.toHaveBeenCalled()
+    } finally { vi.useRealTimers() }
+  })
 })
 
 describe('provider revocation compared with original authentication time', () => {

@@ -28,6 +28,7 @@ before(async () => {
   await admin.query('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;')
   await admin.query(await readFile(new URL('../../supabase/migrations/20261103190000_application_identity.sql', import.meta.url), 'utf8'))
   await admin.query(await readFile(new URL('../../supabase/migrations/20261103200000_identity_session_provenance.sql', import.meta.url), 'utf8'))
+  await admin.query(await readFile(new URL('../../supabase/migrations/20261103210000_identity_browser_challenges.sql', import.meta.url), 'utf8'))
   await admin.query('INSERT INTO public.app_accounts(id) VALUES($1),($2)', [a, b])
 })
 after(async () => { await backend.end(); await admin.end() })
@@ -38,6 +39,7 @@ test('migration does not expose identities or sessions through browser roles', a
     await c.query('SET ROLE authenticated')
     await assert.rejects(c.query('SELECT * FROM public.app_identity_bindings'), { code: '42501' })
     await assert.rejects(c.query('UPDATE public.app_accounts SET session_version=1'), { code: '42501' })
+    await assert.rejects(c.query('SELECT * FROM public.app_identity_challenges'), { code: '42501' })
     await c.query('SET ROLE anon')
     await assert.rejects(c.query('SELECT * FROM public.app_sessions'), { code: '42501' })
   } finally { await c.query('RESET ROLE'); c.release() }
@@ -137,4 +139,20 @@ test('binding and session creation reject stale or future authentication', async
     await assert.rejects(store.bind(id, a, 'legacy-session'), /Recent authentication required/)
     await assert.rejects(store.createSession(id), /Recent authentication required/)
   }
+})
+
+test('browser challenges are stored as hashes and consumed only once under concurrency', async () => {
+  const challenge = await store.issueChallenge()
+  const rows = await admin.query('SELECT token_hash FROM public.app_identity_challenges')
+  assert.ok(rows.rows.every(row => /^[a-f0-9]{64}$/.test(row.token_hash) && row.token_hash !== challenge))
+  const outcomes = await Promise.all([store.consumeChallenge(challenge), store.consumeChallenge(challenge)])
+  assert.equal(outcomes.filter(Boolean).length, 1)
+  assert.equal(await store.consumeChallenge(challenge), false)
+})
+
+test('expired browser challenges cannot authenticate or link accounts', async () => {
+  const challenge = await store.issueChallenge()
+  await admin.query("UPDATE public.app_identity_challenges SET created_at=now()-interval '3 minutes',expires_at=now()-interval '1 minute'")
+  assert.equal(await store.consumeChallenge(challenge), false)
+  assert.equal(await store.consumeChallenge('invalid'), false)
 })

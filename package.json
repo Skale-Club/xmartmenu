@@ -51,7 +51,9 @@
     "@upstash/redis": "^1.38.0",
     "ai": "^6.0.175",
     "clsx": "^2.1.1",
+    "firebase": "^13.2.0",
     "framer-motion": "^12.38.0",
+    "google-auth-library": "^10.9.1",
     "jose": "^6.2.15",
     "lucide-react": "^0.475.0",
     "mcp-handler": "^1.1.0",
@@ -88,6 +90,7 @@
     "vitest": "^3.2.7"
   },
   "overrides": {
+    "@grpc/grpc-js": "^1.14.7",
     "mcp-handler": {
       "@modelcontextprotocol/sdk": "$@modelcontextprotocol/sdk"
     }
