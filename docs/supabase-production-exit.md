@@ -32,7 +32,7 @@ A further sequential read-only probe found no source-project Supabase URL in any
 
 Host read-only probe on 2026-11-03: 7,751 MiB total RAM, 1,257 MiB available, 1,450 MiB swap used; root disk 75G total, 61G used, 12G available (85%). Sent these observations to the Xmail chat. They do not approve placement of a new database/container. No pruning, host configuration or shared PostgreSQL changes were made.
 
-The locally available Supabase management credential lists only the source XmartMenu project. A distinct development project is not configured. `npm run dev` now refuses this source configuration rather than writing production. Do not silently repurpose the source as development or borrow another application's shared schema.
+The locally available Supabase management credential lists only the source XmartMenu project. A distinct development project is not configured. `npm run dev` now refuses this source configuration rather than writing production. Do not silently repurpose the source as development or borrow another application's shared schema. The user prefers reusing existing databases and does not authorize paid Supabase projects, upgrades or new spending. The coordinator will inventory reuse after production cutover and source retirement/restore checks; an old database is eligible only after explicit reassignment and isolation, never while it remains a live production dependency. Missing isolated development configuration remains a fail-closed gate, not a request to buy capacity.
 
 ## Implemented increment
 
@@ -51,7 +51,7 @@ The locally available Supabase management credential lists only the source Xmart
 
 Repository scan at baseline found 193 source files referencing Supabase factories/auth, RPCs, Storage or Realtime. These require feature-level server repositories and authorization tests; changing the database URL is insufficient.
 
-1. **Complete destination/identity dossier.** Allocate private PostgreSQL after capacity coordination, configure isolated Supabase dev, verify Google project/client/provider settings and SMS countries. Define backup storage and retention before copying live data.
+1. **Complete destination/identity dossier.** Inventory existing PostgreSQL/Supabase resources with the coordinator and reuse approved capacity after dependency, backup and isolation checks. Do not provision paid projects, upgrade plans or incur new expenses. Configure isolated Supabase dev only from a safely reassigned existing resource; verify Google project/client/provider settings and SMS countries. Define backup storage and retention before copying live data.
 2. **Independent data boundaries.** Move tenant resolution, platform settings/public catalog, customer history, admin catalog/staff, orders/payments, waiter calls, analytics/blog/AI and Xphere workers in distinct increments. Preserve RLS or equivalent tenant and role checks. Direct browser CRUD still exists in catalog/settings/onboarding; migrate it to authenticated routes before auth cutover. Drain/reconcile QStash workers and acknowledged webhooks.
 3. **Accounts and identity transition.** Reconcile all seven account UUIDs and roles. Bootstrap `app_accounts` in a separate audited transaction; preserve blocked/deleted state. The two existing Google accounts can prove their exact provider subject. The five email identities need still-valid legacy session plus fresh new identity or documented operator recovery. Staff invitations must stop creating temporary passwords only after replacement is usable. Keep phone a verified mutable attribute, not an owner key. Google users must verify phone before claiming anonymous orders by exact full E.164; define number recycling/recovery, unlinking and provider revocation.
 4. **Separate authentication release.** Add app-only secure HttpOnly session cookies, origin/CSRF checks, rate limits, fresh identity linking, current app DB role checks, all-device/provider revocation and recovery. Integrate every protected page/API, custom domains and logout cache clearing. No email-based superadmin promotion in the new path. Retire password/email-OTP only after all cohorts have a working path.
@@ -149,9 +149,9 @@ The pilot can verify a session, link a sign-in method, sign out or revoke all
 owned sessions. It does not replace existing admin/customer guards, the default
 login, machine OAuth, invites or recovery. Other/custom origins fail closed until
 their explicit browser-bound handoff is implemented and tested. The application
-root layout still loads platform appearance through Supabase; the isolated dev
-project must contain that configuration. Removing that layout dependency belongs
-to the SQL boundary below. This pilot is not evidence of a completed exit.
+root appearance defaults to Supabase; its separate opt-in PostgreSQL reader is
+described below. Other layouts and public pages still use Supabase. This pilot
+is not evidence of a completed exit.
 
 ## PostgreSQL repository replacement order
 
@@ -170,3 +170,47 @@ These boundaries can be implemented in separate owned modules/PRs, but share the
 same identity, tenant, cache and migration contracts. Keep the source ledger and
 data intact; coordinate schema/deploys, rehearse restoration and verify exact
 deployed SHA before removing any production Supabase credential.
+
+## First SQL boundary: public root appearance
+
+`OWNED_PLATFORM_APPEARANCE_ENABLED=false` preserves the legacy default. When
+explicitly enabled, root metadata, viewport and layout share a request-scoped
+reader selecting only `cta_color` and `favicon_url` from the restored
+`public.platform_settings`. That path does not initialize a Supabase client,
+Google provider, storage client or identity runtime. Owned errors do not fall
+back to the source. A missing row uses the existing UI defaults; duplicate rows,
+malformed values and database errors fail with a sanitized error.
+
+Historical schema evidence: `004_platform_settings.sql` creates the original
+UUID table and the unique singleton expression index; `019_full_schema_sync.sql`
+only repeats an idempotent baseline; `045_platform_settings_columns.sql` adds
+`cta_color`; `047_platform_favicon.sql` adds `favicon_url`. There is no new DDL or
+ledger version for this read-only boundary. The recorded source ledger baseline
+is still 92/latest `20261027097000`; it has not been read live again or replayed.
+The three additive identity migrations remain separately unapplied in production.
+Restore/reconcile those historical objects and original IDs before enabling the
+reader; do not rerun `004` to create a second seed or rebuild an existing table.
+
+Production requires explicit `PLATFORM_APPEARANCE_DATABASE_URL` matching
+`PROD_DATABASE_HOST` and `PROD_DATABASE_NAME`. It cannot inherit `DATABASE_URL`,
+the identity connection, or a Supabase host. Development uses the same guarded
+isolated `DEV_DATABASE_URL` as the identity pilot and never reads production
+provider/storage configuration. TLS is verified by default; private production
+networking may explicitly set `PLATFORM_APPEARANCE_DATABASE_SSL=disable` after
+destination review. Connection-query overrides remain rejected by the shared
+guard. Configure a dedicated login with only schema USAGE and column-level
+SELECT on these two fields; no credentials or grants are created by the app.
+
+The pool has two connections, five-second connection/statement limits, a
+six-second query limit, two-second lock limit and read-only transactions by
+default. The projection reads at most two rows to verify the singleton. React
+request caching shares a single snapshot among the three root consumers; there
+is no cross-request TTL to hide a branding change. Private settings, IDs,
+landing content and integration values are never serialized by this reader.
+
+Disposable CI PostgreSQL tests use the real historical table/index DDL and
+column migrations (without hosted Auth policies/triggers), preserve a restored
+UUID, verify immediate changes, exercise column-only grants and reject writes
+through the actual runtime pool. This does not move the superadmin/MCP writers,
+marketing page, tenant resolution or menu consumers; after restore, keep the flag
+off until the writer freeze/replay procedure keeps both targets consistent.

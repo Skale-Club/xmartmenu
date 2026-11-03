@@ -212,10 +212,10 @@ jobs:
           node-version: '24'
           cache: 'npm'
       - run: npm ci
-      - name: Independent PostgreSQL identity, ownership and session checks
+      - name: Independent PostgreSQL identity and public appearance checks
         env:
           IDENTITY_TEST_DATABASE_URL: postgresql://identity_test:disposable_ci_only@127.0.0.1:5432/xmartmenu_identity_test
-        run: npx tsx --test --test-concurrency=1 tests/integration/identity-store.test.ts
+        run: npx tsx --test --test-concurrency=1 tests/integration/identity-store.test.ts tests/integration/platform-appearance.test.ts
 
   deploy:
     needs: [checks, e2e, identity-postgres]

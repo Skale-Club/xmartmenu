@@ -1,4 +1,5 @@
-import { assertConnectionQuery, developmentConfig } from '../../../scripts/lib/database-target.mjs'
+import { developmentConfig } from '../../../scripts/lib/database-target.mjs'
+import { postgresRuntimeConfig } from '../data/database-config'
 
 /** Legacy proof reads use the isolated provider in dev, even outside npm dev. */
 export function identityLegacyProofConfig(env: Record<string, string | undefined> = process.env) {
@@ -29,26 +30,7 @@ export function identityRuntimeConfig(env: Record<string, string | undefined> = 
   if (origin.username || origin.password || origin.pathname !== '/' || origin.search || origin.hash
     || (origin.protocol !== 'https:' && !(env.NODE_ENV !== 'production' && origin.protocol === 'http:'
       && ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)))) throw new Error('Invalid identity origin')
-  let connectionString: string
-  let ssl: false | { rejectUnauthorized: true }
-  if (env.NODE_ENV !== 'production') {
-    connectionString = developmentConfig(env).databaseUrl
-    ssl = { rejectUnauthorized: true }
-  } else {
-    let target: URL
-    try { target = new URL(env.IDENTITY_DATABASE_URL ?? '') } catch { throw new Error('Explicit identity database required') }
-    assertConnectionQuery(target)
-    if (!['postgres:', 'postgresql:'].includes(target.protocol) || !env.PROD_DATABASE_HOST || !env.PROD_DATABASE_NAME
-      || target.hostname !== env.PROD_DATABASE_HOST || decodeURIComponent(target.pathname.slice(1)) !== env.PROD_DATABASE_NAME
-      || /supabase\.(co|com)$/.test(target.hostname) || target.port === '6543') throw new Error('Identity database must match the independent production target')
-    if (env.IDENTITY_DATABASE_SSL && !['require', 'disable'].includes(env.IDENTITY_DATABASE_SSL)) throw new Error('Invalid identity database TLS setting')
-    connectionString = target.href
-    ssl = env.IDENTITY_DATABASE_SSL === 'disable' ? false : { rejectUnauthorized: true }
-  }
-  const database = new URL(connectionString)
-  // pg connection-string sslmode options otherwise override the explicit TLS
-  // decision above, including the mandatory TLS for isolated Supabase dev.
-  for (const key of ['ssl', 'sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'sslpassword']) database.searchParams.delete(key)
-  return { origin: origin.origin, connectionString: database.href, ssl, projectNumber,
+  const database = postgresRuntimeConfig(env, 'IDENTITY')
+  return { origin: origin.origin, ...database, projectNumber,
     web: { projectId, apiKey, authDomain: `${projectId}.firebaseapp.com` } }
 }
