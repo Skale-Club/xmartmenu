@@ -26,6 +26,14 @@ Reproducible sanitized evidence: [supabase-exit-baseline.json](supabase-exit-bas
 | Production integration presence | Xphere producer, API credentials and QStash configured; Stripe secret empty |
 | Legacy identity | Google enabled, phone disabled, Supabase OAuth server enabled; legacy Google web client project number begins `805069132783` |
 
+Coordinator recheck on 2026-11-03 used the existing local source configuration,
+the official CA with full TLS verification and read-only queries. It confirmed
+47 public tables with SELECT access to all 47, database size 20,311,187 bytes,
+one `platform_settings` row and zero newly added identity-pilot tables in the
+live source. No DDL or source mutation ran. These aggregate observations support
+the appearance reader's source shape and confirm that the pilot schema remains
+unapplied; they do not prove a restored destination, refreshed ledger or cutover.
+
 No real SMS or interactive Google sign-in was performed. Existing OAuth client alone does not establish an Identity Platform project. Read-only public Identity Toolkit configuration confirms the Xpot reference is `skaleclub` (project number `937861185231`), distinct from the old XmartMenu OAuth project. Its authorized-domain list includes Xpot/Xpeed and localhost, but not XmartMenu. Default to `skaleclub`, but verify whether the existing Google project is already suitable before creating a product-specific client. Do not edit shared authorized domains, providers, SMS regions, quotas or hooks without coordination.
 
 A further sequential read-only probe found no source-project Supabase URL in any public text/JSON column. R2 lists 4 tenant-asset objects totaling 17,971,466 bytes and zero product-image objects. All four old Supabase object keys exist in R2 (HEAD); checksums/content equivalence are not yet proven. The two historical orders total 247.90 cancelled and 77.90 pending; both have NULL currency. Preserve the NULL values during copy and resolve currency from historical business context, without silently treating them as USD. The application has 56 product records, but images may be external URLs; zero R2 product objects does not establish missing media.
@@ -214,3 +222,10 @@ UUID, verify immediate changes, exercise column-only grants and reject writes
 through the actual runtime pool. This does not move the superadmin/MCP writers,
 marketing page, tenant resolution or menu consumers; after restore, keep the flag
 off until the writer freeze/replay procedure keeps both targets consistent.
+
+The reader was published as `2cc03fcd8768c0b14bfb200591916b7949e4cc6b`.
+[CI 41726256143](https://github.com/Skale-Club/xmartmenu/actions/runs/41726256143)
+passed 600 unit tests across 57 files, build/TypeScript, 113 Playwright tests,
+Lighthouse and 17 real disposable PostgreSQL tests with zero skips (including
+all six appearance cases). Deploy was skipped and both feature flags remain
+off. This verifies the code increment rather than a live data migration.
