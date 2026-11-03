@@ -229,3 +229,66 @@ passed 600 unit tests across 57 files, build/TypeScript, 113 Playwright tests,
 Lighthouse and 17 real disposable PostgreSQL tests with zero skips (including
 all six appearance cases). Deploy was skipped and both feature flags remain
 off. This verifies the code increment rather than a live data migration.
+
+## Second SQL boundary: public menu catalog
+
+`OWNED_PUBLIC_MENU_ENABLED=false` keeps the existing default. Its explicit own
+mode supplies the data consumed by `/[slug]`, `/[slug]/[menuSlug]`, metadata and
+the existing public-menu API from independent PostgreSQL. The reader preserves
+original UUIDs, slugs, branch/default-menu selection, translations, prices and
+the existing public DTO. Numeric values are projected through PostgreSQL JSON
+so `numeric` prices remain JavaScript numbers rather than pg's default numeric
+strings. SQL queries list their public columns explicitly; new restored columns,
+tenant CRM fields, integration credentials and chat provider keys cannot become
+public accidentally.
+
+Every selected tenant must be active. Menus, locations, categories, products,
+tables and zones are scoped to its exact ID; product options, ingredients and
+media additionally join the corresponding tenant and selected menu/product.
+These joins reject mismatched historical simple foreign keys instead of trusting
+an object ID alone. Plan capabilities retain the existing active/trial rule;
+chat availability and channel switches retain the existing subscription/override
+contract. The reader invokes no provider, RPC, billing or storage client and
+owned errors never fall back to Supabase.
+
+Production requires separate `PUBLIC_MENU_DATABASE_URL` and
+`PUBLIC_MENU_DATABASE_SSL`, with the same exact independent host/database and
+connection-option guards as the earlier repositories. The two-connection pool
+defaults to read-only, with five-second connection/statement, six-second query
+and two-second lock limits. All stages run in one read-only repeatable-read
+transaction. An eight-second total deadline includes pool admission and destroys
+a stalled or late-arriving connection without returning an active transaction
+to the pool. Per-relation row
+limits fail closed on overflow instead of silently truncating menus. No pool,
+login, credential, grant, schema copy or new resource is provisioned by this code.
+
+Cache entries use distinct `legacy` and `owned-v1` namespaces, including the
+React request cache, and owned target configuration is checked even before a
+warmed cache entry. Existing invalidation tags still expire both sources. The
+visitor's private-menu access is checked on every request outside the shared
+cache; a denied visitor receives no categories, products or details even if an
+authorized visitor warmed that cache. The current private-session check and
+middleware remain on the legacy identity path until their separate replacement;
+this increment does not claim that public requests are fully Supabase-free.
+
+There is no new migration or ledger version. The CI fixture composes actual
+historical table CREATE and selected ADD COLUMN clauses (001/004/009/021/026/
+030/036/041/042/043/044 and later public-column additions), omitting hosted Auth
+policies, triggers, seeds and provider operations. Reconcile and restore those
+objects before enabling the flag; do not run the whole historical ledger against
+production. Restore/writer synchronization and existing admin/browser writes
+remain cutover gates.
+
+Local focused verification: 37 tests in four files passed, including source
+selection/cache separation, per-visitor private access, parameterized tenant
+queries, grouped DTOs and destruction of a stalled snapshot. After extending the
+deadline to pool admission, all 13 SQL/snapshot unit cases passed, including
+never-resolving acquisition and destruction of a late lease without any query.
+Targeted ESLint,
+TypeScript syntax parsing of the integration fixture and `git diff --check`
+passed. Seven real PostgreSQL cases were added to CI for original IDs/prices,
+foreign-tenant detail rejection, branch isolation, private markers, subscription
+revocation, concurrent snapshot coherence/read-only behavior and column-only
+reader grants. They have not been run locally. Full TypeScript/build/PG/E2E
+validation belongs to the remote CI checkpoint for this increment; no live
+source, production flag or deployment was changed.
