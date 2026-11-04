@@ -115,7 +115,7 @@ describe('owned core guards', () => {
     const menu = randomUUID()
     state.query.mockImplementation(async (sql: string) => sql.startsWith('SELECT id FROM public.menus') ? { rows: [{ id: menu }] } : { rows: [profile()] })
     const { POST } = await import('@/app/api/admin/menus/select/route')
-    const request = (origin: string, id = menu) => new Request('https://xmartmenu.test/api/admin/menus/select', { method: 'POST', headers: { origin }, body: JSON.stringify({ menu_id: id }) })
+    const request = (origin: string, id: string = menu) => new Request('https://xmartmenu.test/api/admin/menus/select', { method: 'POST', headers: { origin }, body: JSON.stringify({ menu_id: id }) })
     expect((await POST(request('https://other.test'), undefined)).status).toBe(403)
     expect((await POST(request('https://xmartmenu.test', 'invalid'), undefined)).status).toBe(400)
     const result = await POST(request('https://xmartmenu.test'), undefined)
