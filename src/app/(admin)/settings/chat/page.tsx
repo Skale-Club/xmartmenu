@@ -5,11 +5,18 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { createServiceClient } from '@/lib/supabase/server'
 import ChatAddonClient from './ChatAddonClient'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatContext } from '@/lib/admin/chat-context'
+import { readOwnedAdminChatSettings } from '@/lib/data/admin-chat-runtime'
 
 export default async function ChatAddonSettingsPage() {
   const effective = await getEffectiveTenant()
   if (!effective) redirect('/auth/login')
   if (effective.role === 'store-staff') redirect('/dashboard')
+  if (adminMenusOwned()) {
+    const result = await readOwnedAdminChatSettings(await adminChatContext(effective))
+    return <ChatAddonClient initialSettings={result.settings} status={result.status} />
+  }
 
   const supabase = createServiceClient()
   const { data: settings } = await supabase

@@ -6,11 +6,18 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatContext, adminChatError } from '@/lib/admin/chat-context'
+import { readOwnedAdminChatBlocked, unblockOwnedAdminChatPhone } from '@/lib/data/admin-chat-runtime'
 
 async function handleGET() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await readOwnedAdminChatBlocked(await adminChatContext(effective))) }
+    catch (error) { return adminChatError(error) }
+  }
 
   const supabase = createServiceClient()
   const { data } = await supabase
@@ -30,6 +37,10 @@ async function handleDELETE(request: Request) {
   const url = new URL(request.url)
   const id = url.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await unblockOwnedAdminChatPhone(await adminChatContext(effective), id)) }
+    catch (error) { return adminChatError(error) }
+  }
 
   const supabase = createServiceClient()
   const { data: row } = await supabase
