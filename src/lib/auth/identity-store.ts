@@ -2,6 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import type { Pool, PoolClient } from 'pg'
 import type { VerifiedGoogleIdentity } from './google-identity'
 import { assertProviderAccountActive, type ProviderAccountStatusReader, type ProviderIdentity } from './provider-account-status'
+import { requireCurrentPhone, type CustomerAccountStatus } from './google-customer-account'
 
 const SESSION_MS = 8 * 60 * 60 * 1000
 const digest = (token: string) => createHash('sha256').update(token).digest('hex')
@@ -26,7 +27,8 @@ async function transaction<T>(pool: Pool, fn: (client: PoolClient) => Promise<T>
  * application account, promotes a role, or matches an email/phone.
  */
 export class IdentityStore {
-  constructor(private readonly pool: Pool, private readonly accountStatus: ProviderAccountStatusReader) {}
+  constructor(private readonly pool: Pool, private readonly accountStatus: ProviderAccountStatusReader,
+    private readonly customerAccount?: (identity: ProviderIdentity) => Promise<CustomerAccountStatus>) {}
 
   private async readProviderStatus(identity: ProviderIdentity) {
     try { return await this.accountStatus(identity) }
@@ -71,9 +73,19 @@ export class IdentityStore {
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [JSON.stringify([identity.projectId, identity.subject])])
       const account = await client.query('SELECT id FROM public.app_accounts WHERE id=$1 AND disabled_at IS NULL FOR UPDATE', [userId])
       if (!account.rowCount) throw new Error('Account unavailable')
-      const bound = await client.query<{ user_id: string; disabled_at: Date | null }>('SELECT user_id,disabled_at FROM public.app_identity_bindings WHERE project_id=$1 AND subject=$2', [identity.projectId, identity.subject])
+      const bound = await client.query<{ user_id: string; disabled_at: Date | null; provider: string }>('SELECT user_id,disabled_at,provider FROM public.app_identity_bindings WHERE project_id=$1 AND subject=$2 FOR UPDATE', [identity.projectId, identity.subject])
       if (bound.rows[0] && bound.rows[0].user_id !== userId) throw new Error('Identity already belongs to another account')
       if (bound.rows[0]?.disabled_at) throw new Error('Identity binding unavailable')
+      if (bound.rows[0]?.provider === 'google.com' && identity.provider === 'phone') {
+        // The caller has independently proved this exact app UID through an
+        // owned/source session. A fresh phone token plus current Google account
+        // coherence may add phone provenance, never a role or another UUID.
+        if (!['legacy-session','owned-session'].includes(proof) || !identity.phone || !this.customerAccount) throw new Error('Independent phone proof required')
+        requireCurrentPhone(await this.customerAccount(identity),identity.authenticatedAt,identity.phone)
+        const promoted = await client.query(`UPDATE public.app_identity_bindings SET provider='phone'
+          WHERE project_id=$1 AND subject=$2 AND user_id=$3 AND provider='google.com' AND disabled_at IS NULL`,[identity.projectId,identity.subject,userId])
+        if (promoted.rowCount !== 1) throw new Error('Phone provenance unavailable')
+      }
       await client.query(
         `INSERT INTO public.app_identity_bindings(project_id,subject,user_id,provider,binding_proof)
          VALUES($1,$2,$3,$4,$5) ON CONFLICT (project_id,subject) DO NOTHING`,

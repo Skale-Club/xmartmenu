@@ -34,6 +34,8 @@ import type { DeliveryZone, ProductIngredientWithIngredient, ProductMedia } from
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { menuCacheKey, menuCacheTags, publicMenuCacheSeconds } from '@/lib/menu/public-menu-cache'
 import { effectiveMultiplier, scaleOptionGroups, scaleProductIngredients, scaleProducts } from '@/components/menu/price-multiplier'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedCustomer } from '@/lib/auth/owned-customer-runtime'
 
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-tested in tests/unit/menu/public-menu-data.test.ts)
@@ -316,6 +318,7 @@ export function withMenuPrices<T extends Pick<PublicMenuData, 'menu' | 'products
  * visitor never unlocks the menu for the next one.
  */
 async function hasPhoneVerifiedSession(): Promise<boolean> {
+  if (ownedAuthSelected()) return !!(await getOwnedCustomer())?.phoneE164
   const client = await createClient()
   const { data: { user } } = await client.auth.getUser()
   return !!user?.phone

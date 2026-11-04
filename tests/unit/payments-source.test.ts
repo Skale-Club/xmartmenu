@@ -1,7 +1,8 @@
 import {randomUUID} from 'node:crypto'
 import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest'
 import {PaymentDataError} from '@/lib/data/payments'
-const mock=vi.hoisted(()=>({cookie:vi.fn(),legacy:vi.fn(),transaction:vi.fn(),construct:vi.fn(),intent:vi.fn(),rate:vi.fn(),ownedRetrieve:vi.fn(),legacyRetrieve:vi.fn(),checkout:vi.fn()}))
+const mock=vi.hoisted(()=>({cookie:vi.fn(),legacy:vi.fn(),transaction:vi.fn(),construct:vi.fn(),intent:vi.fn(),rate:vi.fn(),ownedRetrieve:vi.fn(),legacyRetrieve:vi.fn(),checkout:vi.fn(),principal:vi.fn()}))
+vi.mock('@/lib/auth/owned-principal-runtime',()=>({getOwnedPrincipal:mock.principal}))
 vi.mock('@/lib/supabase/server',()=>({createClient:mock.cookie,createServiceClient:mock.legacy}))
 vi.mock('@/lib/data/payments-runtime',()=>({withOwnedPayments:mock.transaction,loadOwnedPaymentCheckout:mock.checkout}))
 vi.mock('@/lib/stripe',()=>({stripe:{webhooks:{constructEvent:mock.construct},paymentIntents:{retrieve:mock.legacyRetrieve}},retrieveOwnedPaymentIntent:mock.ownedRetrieve,getOrCreatePaymentIntent:mock.intent,isStripeEnabled:vi.fn()}))
@@ -32,6 +33,19 @@ beforeEach(()=>{
 })
 afterEach(()=>{vi.unstubAllEnvs();vi.resetAllMocks()})
 describe('owned payment HTTP source selection',()=>{
+ it('uses native UUID authorization before constructing any source Auth client',async()=>{
+   vi.stubEnv('OWNED_AUTH_ENABLED','true');mock.principal.mockResolvedValue({userId:user,mustChangePassword:false})
+   const response=await paymentRoute(request({order_id:id,user_id:forged}) as never,undefined)
+   expect(response.status).toBe(200);expect(repo.authorizedOrder).toHaveBeenCalledWith(id,user)
+   expect(mock.cookie).not.toHaveBeenCalled();expect(mock.legacy).not.toHaveBeenCalled()
+ })
+ it('denies absent/recovery-required native principals without source Auth fallback or Stripe calls',async()=>{
+   vi.stubEnv('OWNED_AUTH_ENABLED','true');mock.principal.mockResolvedValue(null)
+   expect((await paymentRoute(request({order_id:id}) as never,undefined)).status).toBe(401)
+   mock.principal.mockResolvedValue({userId:user,mustChangePassword:true})
+   expect((await paymentRoute(request({order_id:id}) as never,undefined)).status).toBe(403)
+   expect(mock.cookie).not.toHaveBeenCalled();expect(mock.intent).not.toHaveBeenCalled()
+ })
  it('keeps authentication and database authorization and ignores body tenant/price',async()=>{
    const response=await paymentRoute(request({order_id:id,tenant_id:forged,amount:1}) as never,undefined)
    expect(response.status).toBe(200);expect(repo.authorizedOrder).toHaveBeenCalledWith(id,user)

@@ -156,3 +156,24 @@ test('expired browser challenges cannot authenticate or link accounts', async ()
   assert.equal(await store.consumeChallenge(challenge), false)
   assert.equal(await store.consumeChallenge('invalid'), false)
 })
+
+test('phone provenance promotion preserves the locked immutable app UID and requires current coherent provider proof', async () => {
+  const uid = randomUUID(), base = { ...identity('phone-promotion'),provider: 'google.com' as const }
+  await admin.query('INSERT INTO public.app_accounts(id) VALUES($1)',[uid])
+  await store.bind(base,uid,'legacy-session')
+  const verified = { ...base,provider: 'phone' as const,phone: '+15559876543' }
+  const promoting = new IdentityStore(backend,async () => ({ disabled: false,validSince: 0 }),async () => ({ disabled: false,validSince: 0,phoneE164: verified.phone }))
+  await promoting.bind(verified,uid,'owned-session')
+  const row = (await admin.query('SELECT user_id,provider,binding_proof FROM public.app_identity_bindings WHERE subject=$1',[base.subject])).rows[0]
+  assert.deepEqual(row,{ user_id: uid,provider: 'phone',binding_proof: 'legacy-session' })
+})
+
+test('mismatched or revoked phone promotion rolls back without changing the existing binding', async () => {
+  const uid = randomUUID(), base = { ...identity('phone-promotion-denied'),provider: 'google.com' as const }
+  await admin.query('INSERT INTO public.app_accounts(id) VALUES($1)',[uid]); await store.bind(base,uid,'legacy-session')
+  const promoting = new IdentityStore(backend,async () => ({ disabled: false,validSince: 0 }),async () => ({ disabled: false,validSince: 0,phoneE164: '+15550000000' }))
+  await assert.rejects(promoting.bind({ ...base,provider: 'phone' },uid,'owned-session'))
+  assert.equal((await admin.query('SELECT provider FROM public.app_identity_bindings WHERE subject=$1',[base.subject])).rows[0].provider,'google.com')
+  await admin.query('UPDATE public.app_identity_bindings SET disabled_at=now() WHERE subject=$1',[base.subject])
+  await assert.rejects(promoting.bind({ ...base,provider: 'phone' },uid,'owned-session'),/binding unavailable/)
+})

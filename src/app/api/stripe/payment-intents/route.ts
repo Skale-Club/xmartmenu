@@ -14,11 +14,31 @@ import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { ownedAuthSelected, OwnedAuthenticationUnavailable } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
+
+async function createOwnedIntentForUser(request: Request,userId: string) {
+  const body=await request.json().catch(()=>null)
+  if(!body||typeof body.order_id!=='string'||!body.order_id)return NextResponse.json({error:'order_id is required'},{status:400})
+  const order=await withOwnedPayments(false,repo=>repo.authorizedOrder(body.order_id,userId))
+  if(!order)return NextResponse.json({error:'Order not found'},{status:404})
+  if(!['awaiting_payment','pending','payment_failed'].includes(order.status))return NextResponse.json({error:'Order is not awaiting payment'},{status:400})
+  const {clientSecret}=await getOrCreatePaymentIntent({tenantId:order.tenant_id,orderId:order.id,amountDollars:Number(order.total),tipCents:order.tip_cents,currency:order.currency??undefined})
+  return NextResponse.json({client_secret:clientSecret})
+}
 
 async function handlePOST(request: NextRequest) {
   try {
     const rl = await rateLimit('payment-intents', getClientIp(request), 12, '1 m')
     if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
+
+    if (ownedAuthSelected()) {
+      if (!paymentsDataOwned()) return NextResponse.json({ error: 'Independent payments must be enabled' },{ status: 503 })
+      const principal = await getOwnedPrincipal()
+      if (!principal) return NextResponse.json({ error: 'Unauthorized' },{ status: 401 })
+      if (principal.mustChangePassword) return NextResponse.json({ error: 'Account recovery is required' },{ status: 403 })
+      return await createOwnedIntentForUser(request,principal.userId)
+    }
 
     const supabase = await createClient()
     
@@ -28,15 +48,7 @@ async function handlePOST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    if(paymentsDataOwned()) {
-      const body=await request.json().catch(()=>null)
-      if(!body||typeof body.order_id!=='string'||!body.order_id)return NextResponse.json({error:'order_id is required'},{status:400})
-      const order=await withOwnedPayments(false,repo=>repo.authorizedOrder(body.order_id,user.id))
-      if(!order)return NextResponse.json({error:'Order not found'},{status:404})
-      if(!['awaiting_payment','pending','payment_failed'].includes(order.status))return NextResponse.json({error:'Order is not awaiting payment'},{status:400})
-      const {clientSecret}=await getOrCreatePaymentIntent({tenantId:order.tenant_id,orderId:order.id,amountDollars:Number(order.total),tipCents:order.tip_cents,currency:order.currency??undefined})
-      return NextResponse.json({client_secret:clientSecret})
-    }
+    if(paymentsDataOwned()) return await createOwnedIntentForUser(request,user.id)
     // 2. Get request body
     const body = await request.json()
     const { order_id } = body as { order_id: string }
@@ -115,6 +127,7 @@ async function handlePOST(request: NextRequest) {
 
     return NextResponse.json({ client_secret: clientSecret })
   } catch (error) {
+    if (error instanceof OwnedAuthenticationUnavailable) return NextResponse.json({ error: error.message },{ status: 503 })
     if(error instanceof PaymentDataError)return NextResponse.json({error:error.message},{status:error.status})
     log.error('PaymentIntent creation error', { err: error })
     

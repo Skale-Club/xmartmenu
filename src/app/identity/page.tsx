@@ -6,5 +6,6 @@ export const metadata = { title: 'Phone and Google sign-in', robots: { index: fa
 
 export default async function IdentityPage({ searchParams }: { searchParams: Promise<Record<string,string | string[] | undefined>> }) {
   const params = await searchParams
-  return <IdentityEntry continueToApp={ownedAuthSelected()} existingAccountLink={params.action === 'existing-account-link'} />
+  return <IdentityEntry continueToApp={ownedAuthSelected()} existingAccountLink={params.action === 'existing-account-link'}
+    linkCurrentAccount={params.action === 'link'} next={typeof params.from === 'string' ? params.from : '/'} customerFlow={params.flow === 'customer'} />
 }
