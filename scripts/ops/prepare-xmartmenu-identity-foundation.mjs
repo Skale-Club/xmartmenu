@@ -14,6 +14,21 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 const HEX = /^[0-9a-f]{64}$/
 const literal = value => `'${String(value).replaceAll("'", "''")}'`
 export const PLAN = 'PLAN ONLY: no source/SSH/SQL/filesystem mutation. Prepare three pinned additive migrations and optional exact-seven UUID/ban/reset bootstrap; no bindings, sessions, roles, runtime login, flags or provider calls. Application requires a separately reviewed backup/restore and host runner.\n'
+// Public prelude must execute BEFORE sending a private libpq batch. A psql
+// stdin caller executes these statements before parsing later private SQL.
+export const FOUNDATION_PRELUDE = `BEGIN;
+SET LOCAL log_statement='none'; SET LOCAL log_duration=off;
+SET LOCAL log_min_duration_statement=-1; SET LOCAL log_min_duration_sample=-1;
+SET LOCAL log_statement_sample_rate=0; SET LOCAL log_min_error_statement='panic';
+SET LOCAL log_min_messages='panic'; SET LOCAL log_parameter_max_length=0;
+SET LOCAL log_parameter_max_length_on_error=0; SET LOCAL pg_stat_statements.track='none';
+DO $guard$ BEGIN
+ IF EXISTS(SELECT FROM regexp_split_to_table(current_setting('shared_preload_libraries'),',') AS item
+   WHERE trim(both ' "' from item) NOT IN ('','pg_stat_statements'))
+ OR current_setting('session_preload_libraries')<>'' OR current_setting('local_preload_libraries')<>''
+ THEN RAISE EXCEPTION 'Unreviewed identity SQL audit module'; END IF;
+END $guard$;
+`
 
 export function validateReview(value, manifest, now = Date.now()) {
   assertManifest(manifest)
@@ -103,7 +118,7 @@ export async function buildFoundationSql(manifest, review = null, now = Date.now
   const newNames = IDENTITY_TABLES.map(literal).join(',')
   const roles = `SELECT jsonb_agg(to_jsonb(r)-'rolpassword' ORDER BY r.rolname) FROM pg_roles r`
   // Entire returned string is private when review is supplied. No stdout CLI.
-  return `BEGIN;
+  return `${FOUNDATION_PRELUDE}
 SET LOCAL statement_timeout=15000; SET LOCAL lock_timeout=2000;
 SET LOCAL timezone='UTC'; SET LOCAL datestyle='ISO, YMD'; SET LOCAL extra_float_digits=3; SET LOCAL bytea_output='hex';
 SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-identity-foundation-v1',0));
@@ -160,6 +175,14 @@ DO $guard$ BEGIN
 END $guard$;
 COMMIT;
 `
+}
+
+// Preferred API for a future programmatic executor: await the PUBLIC prelude
+// before submitting privateSql. Never send the combined string as one libpq
+// simple-query batch while connection logging is not yet disabled.
+export async function foundationTransaction(manifest, review = null, now = Date.now()) {
+  const combined = await buildFoundationSql(manifest, review, now)
+  return { publicPrelude: FOUNDATION_PRELUDE, privateSql: combined.slice(FOUNDATION_PRELUDE.length) }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

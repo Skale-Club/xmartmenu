@@ -3,7 +3,9 @@
 This change prepares private SQL; it cannot execute a production operation.
 The CLI accepts only the default/explicit offline plan. Source capture is an
 exported function for a future reviewed caller, never a CLI that prints accounts.
-No source capture, backup, DDL, account bootstrap or activation ran in preparation.
+No source capture, foundation DDL, account bootstrap or activation ran in
+preparation. A separately reviewed fresh backup/temporary restore then completed
+as recorded below; the foundation compiler still has no apply entrypoint.
 
 ## Candidate and additive scope
 
@@ -37,6 +39,12 @@ function bodies, old ledger records and NULL monetary values must match. Cluster
 role metadata is compared inside the transaction without password verifiers.
 Any failure raises before COMMIT. The eventual host caller must use ON_ERROR_STOP
 and treat a lost commit acknowledgement as unknown state, never retry blindly.
+The compiler includes session-local quiet logging/parameter/statistics settings
+and refuses unreviewed preload/audit modules. A programmatic libpq executor must
+use foundationTransaction() and await its publicPrelude before sending the
+privateSql batch; sending a combined batch could log private literals before a
+SET takes effect. A psql stdin executor parses the public prefix statements
+before the later private statements. No global logging setting is changed.
 
 ## Exact account bootstrap and proof
 
@@ -83,10 +91,38 @@ to a newly named positively owned temporary database on the admitted cluster,
 and match the entire original manifest before removing only that temporary DB.
 Do not reset the candidate or rerun the persistent importer.
 
-The backup/rehearsal/apply caller is deliberately not included here. Its review,
-capacity admission, source capture and final source hashes remain required
-before one application. The earlier import backup does not replace this fresh
-proof. Off-host private R2 restore/scheduling/retention remain cutover gates.
+The backup/rehearsal caller is a separate operator; it cannot apply foundation
+SQL. The reviewed backup completed on 2026-11-04 at 16:17 UTC using source
+SHA256 cc9b692f82daee9d0862e8f1367b7060c36c289f0f8323ac2ff462fa9c3bf255 and canonical
+manifest query SHA256 02a027f4f79ce1afdcd1d5212fdec1b38781d5766478faaede28270209dd1fb1.
+The fresh root-only directory is
+`/opt/xmartmenu/backups/identity-20261104T161702Z-3a8d70dc23a3989e`.
+Authenticated archive SHA256 is
+95df4fedb8fb3a5e38590c4a08533bfe04f20daaec92392a8ec14358b327fd0c; canonical
+manifest-file SHA256 is
+a71caedb653ad18358861ed280a885b25f784d937d0b382925f91f886b4d887d.
+The recovery key stayed in the operator/root-only file and was never output.
+
+The restored temporary database matched the complete 47-table manifest and all
+92 original ledger entries, and was removed only after owner/OID checks.
+Independent post-verification matched original database OID and full data
+manifest, confirmed both SQL roles NOLOGIN/password NULL, and verified the
+temporary database absent. PG event counters did not increase. No foundation
+SQL, account bootstrap, source Auth capture, app flags or deploy ran. An initial
+public-bootstrap syntax refusal created no stage or backup; corrected public
+bootstrap AST was checked before the first actual operator execution.
+
+Seven backup policy tests passed locally and on Linux with all PG calls mocked.
+A synthetic AES-GCM roundtrip using the existing Linux cryptography package
+matched the existing Node crypto archive bytes exactly. No software or helper
+container was installed. The backup retains original table ACLs/owners; its
+restore happens only in the newly created temporary database. Failure preserves
+private backup/temporary state rather than retrying or dropping anything blindly.
+
+The foundation execution caller remains separate and unimplemented. Source
+capture, latest release admission, final hashes and review of the actual private
+SQL are still required before one foundation application. Off-host private R2
+restore/scheduling/retention remain cutover gates.
 
 ## Existing pilot and remaining login work
 
@@ -109,7 +145,7 @@ reconciliation also remain necessary before complete Supabase exit.
 
 ## Tests
 
-Seven offline tests cover review rejection, source-control scope, migration pins,
+Eight offline tests cover review rejection, source-control scope, migration pins,
 no-execute defaults and generated preservation/bootstrap contracts. Four CI
 PostgreSQL cases cover baseline rollback, post-DDL privilege failure rollback,
 exact seven-account bootstrap and retry refusal. The existing identity-store

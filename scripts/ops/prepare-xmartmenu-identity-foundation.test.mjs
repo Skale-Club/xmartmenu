@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
-import { buildFoundationSql, CONTROL_SQL, migrationSources, preservedManifestSql, validateReview } from './prepare-xmartmenu-identity-foundation.mjs'
+import { buildFoundationSql, CONTROL_SQL, FOUNDATION_PRELUDE, foundationTransaction, migrationSources, preservedManifestSql, validateReview } from './prepare-xmartmenu-identity-foundation.mjs'
 import { SEQUENCES, SOURCE_PROJECT, TABLES } from './xmartmenu-source-protocol.mjs'
 
 function fixture() {
@@ -86,4 +86,15 @@ test('reviewed bootstrap keeps exact IDs/disabled state/version zero and creates
   assert.match(sql, /EXCEPT SELECT id FROM auth.users/)
   assert.match(sql, /count\(\*\) FROM public\.app_accounts\)<>7/)
   assert.doesNotMatch(sql, /INSERT INTO public\.app_identity_bindings|INSERT INTO public\.app_sessions/)
+})
+
+test('public quiet prelude is separated before private libpq SQL and rejects unreviewed audit modules', async () => {
+  const { manifest, review } = fixture(), parts = await foundationTransaction(manifest, review)
+  assert.equal(parts.publicPrelude, FOUNDATION_PRELUDE)
+  for (const { id } of review.users) { assert.ok(!parts.publicPrelude.includes(id)); assert.ok(parts.privateSql.includes(id)) }
+  assert.match(parts.publicPrelude, /pg_stat_statements.track='none'/)
+  assert.match(parts.publicPrelude, /log_statement='none'/)
+  assert.match(parts.publicPrelude, /session_preload_libraries/)
+  assert.match(parts.publicPrelude, /local_preload_libraries/)
+  assert.ok(parts.privateSql.endsWith('COMMIT;\n'))
 })
