@@ -1,4 +1,5 @@
 import type { VerifiedGoogleIdentity } from './google-identity'
+import { RegistrationConflict, type RegistrationKind } from './native-registration'
 
 const OPAQUE = /^[A-Za-z0-9_-]{43}$/
 const BODY_LIMIT = 20_000
@@ -13,6 +14,7 @@ export interface IdentityHttpDependencies {
   legacyOwner: (token: string, signal?: AbortSignal) => Promise<string | null>
   legacyPasswordOwner?: (email: unknown, password: unknown, signal?: AbortSignal) => Promise<string | null>
   eligibleOwner?: (userId: string) => Promise<boolean>
+  register?: (identity: VerifiedGoogleIdentity, name: string, kind: RegistrationKind) => Promise<{ token: string; expiresAt: Date }>
   store: {
     issueChallenge: () => Promise<string>
     consumeChallenge: (token: string) => Promise<boolean>
@@ -93,7 +95,9 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
     if (!deps.enabled()) return reply({ message: 'Not found' }, 404)
     if (request.headers.get('host')?.toLowerCase() !== origin.host.toLowerCase()) return reply({ message: 'Not found' }, 404)
     const method = ['config', 'session'].includes(operation) ? 'GET' : 'POST'
-    if (!['config', 'session', 'challenge', 'login', 'link', 'existing-account-link', 'logout', 'revoke-all'].includes(operation)) return reply({ message: 'Not found' }, 404)
+    const registration = operation === 'register-customer' || operation === 'register-business'
+    if (!['config', 'session', 'challenge', 'login', 'link', 'existing-account-link', 'logout', 'revoke-all'].includes(operation) && !registration) return reply({ message: 'Not found' }, 404)
+    if (registration && !deps.register) return reply({ message: 'Registration is temporarily unavailable.' }, 503)
     if (request.method !== method) return reply({ message: 'Method not allowed' }, 405)
     if (request.headers.get('sec-fetch-site') === 'cross-site'
       || (method === 'POST' && request.headers.get('origin') !== origin.origin)) return reply({ message: 'Origin mismatch' }, 403)
@@ -135,6 +139,23 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
       const age = Date.now() / 1000 - identity.authenticatedAt
       if (identity.projectId !== deps.config.projectId || !Number.isSafeInteger(identity.authenticatedAt)
         || age < -5 || age > 300) return reply({ message: 'A recent verified phone or Google sign-in is required.' }, 401)
+      if (registration) {
+        if (request.headers.has('authorization') || cookiePresent(request, sessionName)
+          || cookiePresent(request,'preview_tenant_id') || cookiePresent(request,'xm_demo')) return reply({ message: 'Sign out and leave preview or demo mode before creating an account.' },403)
+        if (Object.keys(body).some(key => !['idToken','name','challenge'].includes(key))
+          || typeof body.name !== 'string' || !body.name.trim() || body.name.length > 120) return reply({ message: 'Enter your name. Extra account fields are not accepted.' },400)
+        if (!(await claimBrowser(request,body))) return reply({ message: 'Invalid or expired browser challenge.' },403)
+        let next: { token: string; expiresAt: Date }
+        try { next = await deps.register!(identity,body.name,operation === 'register-business' ? 'business' : 'customer') }
+        catch (error) {
+          if (error instanceof RegistrationConflict) return reply({ code: 'ACCOUNT_LINK_REQUIRED',message: 'Use sign-in, independent account linking, or reviewed recovery.' },409)
+          throw error
+        }
+        const response = reply({ authenticated: true },201)
+        setCookie(response,sessionName,next.token,Math.max(0,Math.floor((next.expiresAt.getTime()-Date.now())/1000)))
+        setCookie(response,challengeName,'',0)
+        return response
+      }
       if (operation === 'existing-account-link') {
         if (!deps.legacyPasswordOwner || !deps.eligibleOwner) return reply({ message: 'Not found' }, 404)
         if (cookiePresent(request,'preview_tenant_id') || cookiePresent(request,'xm_demo')) return reply({ message: 'Leave preview or demo mode before linking your account.' },403)
