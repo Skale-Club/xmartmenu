@@ -22,18 +22,20 @@ describe('owned QR and restaurant table repositories', () => {
   it('keeps QR writes manager-only, tenant-bound, and scan-event deletion semantics intact', async () => {
     const insert = vi.fn(async (sql: string, values?: unknown[]) => {
       void values
+      if (sql.includes('count(*)::integer')) return { rows: [{ count: 0 }] }
       return sql.includes('INSERT INTO public.qr_codes') ? { rows: [{ id: qrId, tenant_id: tenantId, label: 'Front', target_url: 'https://menu.test/shop', scans: 0 }] } : { rows: [{ id: qrId }] }
     })
     await expect(createAdminQrCode(insert, owner, 'Front', 'https://menu.test/shop')).resolves.toMatchObject({ tenant_id: tenantId })
-    expect(insert.mock.calls[0]?.[0]).toContain('INSERT INTO public.qr_codes (tenant_id,label,target_url)')
+    expect(insert.mock.calls[2]?.[0]).toContain('INSERT INTO public.qr_codes (tenant_id,label,target_url)')
     await expect(deleteAdminQrCode(insert, staff, qrId)).rejects.toMatchObject({ status: 403 })
-    expect(insert.mock.calls).toHaveLength(1)
+    expect(insert.mock.calls).toHaveLength(3)
     await expect(deleteAdminQrCode(insert, owner, qrId)).resolves.toEqual({ ok: true })
-    expect(insert.mock.calls[1]?.[0]).toContain('WHERE tenant_id=$1 AND id=$2 RETURNING id')
+    expect(insert.mock.calls[3]?.[0]).toContain('WHERE tenant_id=$1 AND id=$2 RETURNING id')
   })
 
   it('derives table positions server-side and atomically swaps only two tenant-owned rows', async () => {
     const query = vi.fn(async (sql: string) => {
+      if (sql.includes('count(*)::integer')) return { rows: [{ count: 0 }] }
       if (sql.includes('coalesce(max(position)')) return { rows: [{ position: 3 }] }
       if (sql.includes('INSERT INTO public.restaurant_tables')) return { rows: [{ id: randomUUID(), tenant_id: tenantId, name: 'Table 4', position: 3 }] }
       if (sql.includes('SELECT id,position')) return { rows: [{ id: tableA, position: 0 }, { id: tableB, position: 1 }] }
@@ -41,7 +43,7 @@ describe('owned QR and restaurant table repositories', () => {
       return { rows: [] }
     })
     await expect(mutateAdminRestaurantTable(query, staff, { kind: 'create', name: ' Table 4 ' })).resolves.toMatchObject({ name: 'Table 4', position: 3 })
-    expect(query.mock.calls[2]?.[0]).toContain('INSERT INTO public.restaurant_tables (tenant_id,name,position)')
+    expect(query.mock.calls[3]?.[0]).toContain('INSERT INTO public.restaurant_tables (tenant_id,name,position)')
     const ordered = await mutateAdminRestaurantTable(query, owner, { kind: 'reorder', firstId: tableA, secondId: tableB })
     expect(ordered).toMatchObject([{ id: tableB, position: 0 }, { id: tableA, position: 1 }])
     expect(query.mock.calls.some(([sql]) => sql.includes('FOR UPDATE'))).toBe(true)
@@ -55,5 +57,15 @@ describe('owned QR and restaurant table repositories', () => {
     expect(query.mock.calls.some(([sql]) => sql.includes('UPDATE public.restaurant_tables'))).toBe(false)
     expect(query.mock.calls.some(([sql]) => sql.includes('DELETE FROM public.restaurant_tables WHERE tenant_id=$1 AND id=$2'))).toBe(true)
     await expect(readAdminQrCodes(query, { tenantId: 'invalid', role: 'store-admin' })).rejects.toBeInstanceOf(AdminMenuError)
+  })
+
+  it.each(['qr','table'] as const)('rejects %s creation at the real 1000-item boundary before insert', async kind => {
+    const query = vi.fn(async (sql: string) => ({ rows: sql.includes('count(*)::integer') ? [{ count: 1000 }] : [] }))
+    const create = kind === 'qr'
+      ? createAdminQrCode(query,owner,'Front','https://menu.test/shop')
+      : mutateAdminRestaurantTable(query,owner,{ kind: 'create',name: 'Table 1001' })
+    await expect(create).rejects.toMatchObject({ status: 409,message: expect.stringContaining('limit reached (1000)') })
+    expect(query.mock.calls[0][0]).toContain('pg_advisory_xact_lock')
+    expect(query.mock.calls.some(([sql]) => sql.includes('INSERT INTO'))).toBe(false)
   })
 })

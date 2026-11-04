@@ -10,6 +10,18 @@ export type RestaurantTableMutation =
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const TABLE_COLUMNS = 'id,tenant_id,name,position,is_active,created_at,updated_at'
 const QR_COLUMNS = 'id,tenant_id,label,target_url,scans,created_at'
+const CATALOG_LIMIT = 1000
+
+async function requireCatalogRoom(query: AdminMenuQuery, ctx: StoreOperationsContext, kind: 'qr' | 'table') {
+  const table = kind === 'qr' ? 'qr_codes' : 'restaurant_tables'
+  // The caller holds the same tenant lock as every other creation. Bound the
+  // count at the supported read limit, even for an already oversized catalog.
+  const result = await query(`SELECT count(*)::integer AS count FROM
+    (SELECT id FROM public.${table} WHERE tenant_id=$1 LIMIT ${CATALOG_LIMIT}) catalog`, [ctx.tenantId])
+  const count = result.rows[0]?.count
+  if (typeof count !== 'number' || !Number.isInteger(count) || count < 0) throw new AdminMenuError(503, 'Catalog capacity is unavailable')
+  if (count >= CATALOG_LIMIT) throw new AdminMenuError(409, `${kind === 'qr' ? 'QR code' : 'Table'} limit reached (${CATALOG_LIMIT}). Delete an existing item before creating another.`)
+}
 
 function context(context: StoreOperationsContext, write = false, managersOnly = false) {
   if (!UUID.test(context.tenantId) || !['superadmin', 'store-admin', 'store-staff'].includes(context.role)) throw new AdminMenuError(403, 'Forbidden')
@@ -33,6 +45,8 @@ export async function createAdminQrCode(query: AdminMenuQuery, ctx: StoreOperati
   context(ctx, true, true)
   if (typeof label !== 'string' || !label.trim() || label.length > 500) throw new AdminMenuError(400, 'A label up to 500 characters is required')
   if (typeof targetUrl !== 'string' || targetUrl.length > 4096) throw new AdminMenuError(400, 'Invalid QR target')
+  await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`xmartmenu-qr-codes:${ctx.tenantId}`])
+  await requireCatalogRoom(query, ctx, 'qr')
   const result = await query(`INSERT INTO public.qr_codes (tenant_id,label,target_url) VALUES($1,$2,$3) RETURNING ${QR_COLUMNS}`,
     [ctx.tenantId, label, targetUrl])
   return row<QRCode>(result.rows, 'QR code')
@@ -57,6 +71,7 @@ export async function mutateAdminRestaurantTable(query: AdminMenuQuery, ctx: Sto
   await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`xmartmenu-restaurant-tables:${ctx.tenantId}`])
   if (mutation.kind === 'create') {
     if (typeof mutation.name !== 'string' || !mutation.name.trim() || mutation.name.trim().length > 200) throw new AdminMenuError(400, 'A table name up to 200 characters is required')
+    await requireCatalogRoom(query, ctx, 'table')
     const position = await query('SELECT coalesce(max(position),-1)+1 AS position FROM public.restaurant_tables WHERE tenant_id=$1', [ctx.tenantId])
     const result = await query(`INSERT INTO public.restaurant_tables (tenant_id,name,position) VALUES($1,$2,$3) RETURNING ${TABLE_COLUMNS}`,
       [ctx.tenantId, mutation.name.trim(), position.rows[0]?.position ?? 0])
