@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { summarizeChanges, TABLE_LABELS, VIA_LABELS } from '@/lib/observability/audit-format'
 import { adminMenusOwned } from '@/lib/data/admin-menus'
-import { readOwnedPlatformAuditPage } from '@/lib/data/admin-audit-runtime'
+import { getPlatformAuditPrincipal, readOwnedPlatformAuditPage } from '@/lib/data/admin-audit-runtime'
 import { PLATFORM_AUDIT_PAGE_SIZE, type AuditPerson, type AuditTenant, type PlatformAuditRow } from '@/lib/data/admin-audit'
 
 export const dynamic = 'force-dynamic'
@@ -32,7 +32,9 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   let error: { message: string } | null = null
   if (adminMenusOwned()) {
     try {
-      const data = await readOwnedPlatformAuditPage({ role: 'superadmin' }, { tenant, table, actor, request, days, before })
+      const principal = await getPlatformAuditPrincipal()
+      if (!principal || principal.mustChangePassword || principal.role !== 'superadmin') throw new Error('Forbidden')
+      const data = await readOwnedPlatformAuditPage({ tenant, table, actor, request, days, before })
       rows = data.rows
       tenants = data.tenants
       people = data.people
