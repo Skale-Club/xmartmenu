@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import { normalizeRole } from '@/lib/auth/role-utils'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
 
 export async function updateSession(request: NextRequest, rewriteUrl?: URL) {
   // When a rewriteUrl is supplied (custom-domain host → /[slug] path) the
@@ -8,6 +9,9 @@ export async function updateSession(request: NextRequest, rewriteUrl?: URL) {
   // refresh and the host rewrite happen in a single pass.
   const makeResponse = () =>
     rewriteUrl ? NextResponse.rewrite(rewriteUrl, { request }) : NextResponse.next({ request })
+  // The server layout/API guards verify native sessions and SQL profiles.
+  // Cookie presence alone is never authorization and legacy Auth is not queried.
+  if (ownedAuthSelected()) return makeResponse()
 
   // On a custom domain the route checks below look at the path that is
   // actually served (/<slug>/…): "/" there is the restaurant's menu, not the

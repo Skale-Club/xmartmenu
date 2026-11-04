@@ -7,10 +7,13 @@ import { enqueueXphereSync } from '@/lib/xphere/queue'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 import { initialSettingsForPlan } from '@/lib/plan-settings'
+import { ownedShellRepository } from '@/lib/auth/owned-shell-runtime'
 
 async function handleGET() {
-  const supabase = await assertSuperadmin()
-  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (authorization.mode === 'owned') return NextResponse.json(await ownedShellRepository().tenants(authorization.principal))
+  const supabase = authorization.legacyClient
 
   const { data } = await supabase
     .from('tenants')
@@ -21,7 +24,11 @@ async function handleGET() {
 }
 
 async function handlePOST(request: Request) {
-  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  // Provider-backed account creation is a separate migration; never send a
+  // native principal to the legacy Auth-admin/data path.
+  if (authorization.mode === 'owned') return NextResponse.json({ error: 'This operation is temporarily unavailable' }, { status: 503 })
 
   const body = await request.json().catch(() => null)
   const name = typeof body?.name === 'string' ? body.name.trim() : ''

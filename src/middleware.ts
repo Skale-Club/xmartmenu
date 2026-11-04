@@ -6,6 +6,7 @@ import { BLOCKED_TENANT_SLUGS } from './lib/marketing/blocked-tenant-slugs'
 import { resolveFeedRewritePath } from './lib/feed-route'
 import { resolveCustomDomainRoute } from './lib/custom-domain-routing'
 import { REQUEST_ID_HEADER, resolveRequestId } from './lib/observability/request-id'
+import { LegacyIdentityBoundaryUnavailable } from './lib/auth/owned-principal'
 
 // Cache BOTH hits and misses. Without caching misses, every request carrying an
 // unknown Host header (bots hitting the raw IP, preview hosts, misconfigured
@@ -51,7 +52,12 @@ async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
 export async function middleware(request: NextRequest) {
   const requestId = resolveRequestId(request.headers)
   request.headers.set(REQUEST_ID_HEADER, requestId)
-  const response = await route(request)
+  let response: NextResponse
+  try { response = await route(request) }
+  catch (error) {
+    if (!(error instanceof LegacyIdentityBoundaryUnavailable)) throw error
+    response = NextResponse.json({ error: error.message }, { status: 503 })
+  }
   response.headers.set(REQUEST_ID_HEADER, requestId)
   return response
 }

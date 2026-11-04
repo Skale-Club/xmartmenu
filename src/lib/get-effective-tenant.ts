@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { isTenantMemberRole, normalizeRole } from '@/lib/auth/role-utils'
 import type { UserRole } from '@/types/database'
 import { setRequestContext } from '@/lib/observability/context'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal, ownedPrincipalRepository } from '@/lib/auth/owned-principal-runtime'
 
 interface EffectiveTenant {
   tenantId: string
@@ -12,6 +14,16 @@ interface EffectiveTenant {
 }
 
 export async function getEffectiveTenant(): Promise<EffectiveTenant | null> {
+  if (ownedAuthSelected()) {
+    const principal = await getOwnedPrincipal()
+    if (!principal || principal.mustChangePassword) return null
+    const tenant = principal.role === 'superadmin'
+      ? await ownedPrincipalRepository().previewTenant(principal, (await cookies()).get('preview_tenant_id')?.value ?? '')
+      : isTenantMemberRole(principal.role) ? principal.tenant : null
+    if (!tenant) return null
+    setRequestContext({ actorId: principal.userId, tenantId: tenant.id, tenantSlug: tenant.slug, role: principal.role })
+    return { tenantId: tenant.id, slug: tenant.slug, name: tenant.name, role: principal.role }
+  }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null

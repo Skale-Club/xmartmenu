@@ -14,8 +14,9 @@ async function handlePUT(
   { params }: { params: Promise<{ id: string; itemKey: string }> },
 ) {
   const { id, itemKey } = await params
-  const supabase = await assertSuperadmin()
-  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (authorization.mode === 'owned') return NextResponse.json({ error: 'This operation is temporarily unavailable' }, { status: 503 })
   if (!isLaunchChecklistKey(itemKey)) return NextResponse.json({ error: 'Unknown checklist item' }, { status: 400 })
 
   const body = await request.json().catch(() => null)
@@ -27,7 +28,7 @@ async function handlePUT(
   }
   const note = typeof body.note === 'string' ? body.note.trim() : undefined
 
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await authorization.legacyClient.auth.getUser()
   try {
     const entry = await setLaunchChecklistItem(createServiceClient(), {
       tenantId: id,

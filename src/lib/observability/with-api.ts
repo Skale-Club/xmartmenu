@@ -15,6 +15,7 @@ import { getRequestContext, runWithRequestContext } from './context'
 import { log } from './log'
 import { REQUEST_ID_HEADER, resolveRequestId } from './request-id'
 import { applyMenuCacheAction, menuCacheActionFor } from '@/lib/menu/menu-cache-hooks'
+import { LegacyIdentityBoundaryUnavailable, OwnedAuthenticationUnavailable } from '@/lib/auth/owned-principal'
 
 // Next passes `{ params }` as the second argument for dynamic routes; some
 // handlers take a NextRequest, so the request type is generic too.
@@ -29,13 +30,17 @@ export function withApi<R extends Request = Request, C = unknown>(route: string,
       try {
         response = await handler(request, context)
       } catch (error) {
-        log.error('http.unhandled_error', { err: error })
-        Sentry.withScope(scope => {
-          scope.setTag('request_id', requestId)
-          scope.setTag('route', route)
-          Sentry.captureException(error)
-        })
-        response = NextResponse.json({ error: 'Internal server error', request_id: requestId }, { status: 500 })
+        if (error instanceof LegacyIdentityBoundaryUnavailable || error instanceof OwnedAuthenticationUnavailable) {
+          response = NextResponse.json({ error: error.message, request_id: requestId }, { status: 503 })
+        } else {
+          log.error('http.unhandled_error', { err: error })
+          Sentry.withScope(scope => {
+            scope.setTag('request_id', requestId)
+            scope.setTag('route', route)
+            Sentry.captureException(error)
+          })
+          response = NextResponse.json({ error: 'Internal server error', request_id: requestId }, { status: 500 })
+        }
       }
       const status = response.status
       const fields = { method: request.method, status, duration_ms: Math.round(performance.now() - startedAt) }

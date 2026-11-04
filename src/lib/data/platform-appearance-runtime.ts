@@ -2,6 +2,8 @@ import pg from 'pg'
 import { cache } from 'react'
 import { postgresRuntimeConfig } from './database-config'
 import { readPlatformAppearance, selectPlatformAppearance } from './platform-appearance'
+import { ownedAuthSelected } from '../auth/owned-principal'
+import { getIdentityServices } from '../auth/identity-services'
 
 let pool: pg.Pool | undefined
 export function createPlatformAppearancePool(env: Record<string, string | undefined>) {
@@ -20,7 +22,9 @@ function ownedPool() {
 
 // React request cache deduplicates metadata, viewport and layout, without a
 // shared TTL that could conceal an operator's appearance/configuration change.
-export const getPlatformAppearance = cache(() => selectPlatformAppearance(process.env, {
+export const getPlatformAppearance = cache(() => ownedAuthSelected()
+  ? readPlatformAppearance(text => getIdentityServices().pool.query(text))
+  : selectPlatformAppearance(process.env, {
   owned: () => readPlatformAppearance(text => ownedPool().query(text)),
   legacy: async () => {
     const { createServiceClient } = await import('../supabase/server')

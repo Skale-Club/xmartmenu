@@ -9,12 +9,12 @@ async function handlePATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = await assertSuperadmin()
-  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: { user: currentUser } } = await supabase.auth.getUser()
-  if (currentUser?.id === id) {
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (authorization.principal.userId === id) {
     return NextResponse.json({ error: 'You cannot change your own access.' }, { status: 400 })
   }
+  if (authorization.mode === 'owned') return NextResponse.json({ error: 'This operation is temporarily unavailable' }, { status: 503 })
 
   const body = await request.json()
   const service = await createServiceClient()
@@ -72,12 +72,12 @@ async function handleDELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const supabase = await assertSuperadmin()
-  if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  const { data: { user: currentUser } } = await supabase.auth.getUser()
-  if (currentUser?.id === id) {
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (authorization.principal.userId === id) {
     return NextResponse.json({ error: 'You cannot delete your own account.' }, { status: 400 })
   }
+  if (authorization.mode === 'owned') return NextResponse.json({ error: 'This operation is temporarily unavailable' }, { status: 503 })
 
   const service = await createServiceClient()
   const { error } = await service.auth.admin.deleteUser(id)

@@ -5,8 +5,22 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import DashboardShell from '@/components/admin/DashboardShell'
 import SuperadminSidebar from '@/components/admin/SuperadminSidebar'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
+import { getOwnedShellPlatform } from '@/lib/auth/owned-shell-runtime'
 
 export default async function SuperadminLayout({ children }: { children: React.ReactNode }) {
+  if (ownedAuthSelected()) {
+    const principal = await getOwnedPrincipal()
+    if (!principal) redirect('/auth/login')
+    if (principal.mustChangePassword) redirect('/identity?recovery=required')
+    if (principal.role !== 'superadmin') redirect('/dashboard')
+    const ps = await getOwnedShellPlatform(), primary = ps?.cta_color ?? '#F52323'
+    return <><style>{`:root{--primary:${safeCssColor(primary)};--primary-foreground:${computePrimaryForeground(primary)};}`}</style>
+      <DashboardShell appName={ps?.app_name ?? 'XmartMenu'} contextName="Super Admin" eyebrow="Super Admin Console"
+        logoUrl={ps?.favicon_url} backgroundClassName="bg-zinc-50"
+        sidebar={<SuperadminSidebar appName={ps?.app_name ?? 'XmartMenu'} logoUrl={ps?.favicon_url} />}>{children}</DashboardShell></>
+  }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 

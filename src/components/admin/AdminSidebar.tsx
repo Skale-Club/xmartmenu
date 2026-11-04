@@ -72,6 +72,7 @@ export default function AdminSidebar({
   activeMenuId = null,
   capabilities = NO_CAPABILITIES,
   chatAvailable = false,
+  ownedAuth = false,
 }: {
   tenantName: string
   tenantSlug?: string
@@ -85,10 +86,11 @@ export default function AdminSidebar({
   capabilities?: TenantCapabilities
   /** The AI chat add-on is available on the plan: Chat Inbox and Settings > AI Chat. */
   chatAvailable?: boolean
+  ownedAuth?: boolean
 }) {
   const pathname = usePathname()
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = ownedAuth ? null : createClient()
   const isInSettings = pathname.startsWith('/settings')
   const [panelOpen, setPanelOpen] = useState(isInSettings)
   const [selectedMenuId, setSelectedMenuId] = useState<string | null>(activeMenuId)
@@ -112,6 +114,7 @@ export default function AdminSidebar({
     ? adminPanelItems.filter((item) => item.href === '/settings/qrcode' || item.href === '/settings/password')
     : adminPanelItems
   ).filter(item => item.href !== '/settings/chat' || chatAvailable)
+    .map(item => ownedAuth && item.href === '/settings/password' ? { ...item, href: '/identity', label: 'Account access' } : item)
 
   useEffect(() => {
     setSelectedMenuId(activeMenuId)
@@ -135,7 +138,7 @@ export default function AdminSidebar({
   }
 
   async function handleLogout() {
-    await supabase.auth.signOut()
+    await supabase?.auth.signOut()
     router.push('/auth/login')
   }
 
@@ -247,13 +250,16 @@ export default function AdminSidebar({
             View active menu
           </a>
         )}
-        <button 
+        {ownedAuth ? <form action="/api/auth/signout" method="post"><button type="submit"
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all group">
+          <LogOut className="w-4 h-4 text-zinc-500 group-hover:text-red-500 transition-colors" />Sign out
+        </button></form> : <button
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold text-zinc-500 hover:bg-red-500/10 hover:text-red-500 transition-all group"
         >
           <LogOut className="w-4 h-4 text-zinc-500 group-hover:text-red-500 transition-colors" />
           Sign out
-        </button>
+        </button>}
       </div>
     </aside>
   )
