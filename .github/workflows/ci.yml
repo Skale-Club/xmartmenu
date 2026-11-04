@@ -79,6 +79,8 @@ jobs:
           python3 -B scripts/ops/test_xmartmenu_pg_stdio.py
           python3 -B scripts/ops/test_upgrade_xmartmenu_pg_stdio.py
           node --test scripts/ops/prepare-xmartmenu-identity-foundation.test.mjs
+          python3 -B scripts/ops/test_backup_xmartmenu_identity_candidate.py
+          python3 -B scripts/ops/test_apply_xmartmenu_identity_foundation.py
 
       - name: Xphere contract checks
         run: npm run xphere:check:all

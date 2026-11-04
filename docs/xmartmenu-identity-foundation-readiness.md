@@ -121,10 +121,34 @@ container was installed. The backup retains original table ACLs/owners; its
 restore happens only in the newly created temporary database. Failure preserves
 private backup/temporary state rather than retrying or dropping anything blindly.
 
-The foundation execution caller remains separate and unimplemented. Source
-capture, latest release admission, final hashes and review of the actual private
-SQL are still required before one foundation application. Off-host private R2
-restore/scheduling/retention remain cutover gates.
+The separate foundation host caller was prepared and reviewed, with recovery-key
+metadata (regular root-only single-link file, mode 0400, size 65) required before
+any application. It reuses the existing guarded psql stdin path; no new receipt
+framework or alternate target is accepted. Its private payload is hash pinned,
+and postchecking independently verifies the exact seven account controls,
+51/95 table/ledger counts, zero bindings/sessions/challenges and dormant roles.
+Six mocked policy tests passed locally and on Linux, including missing/wrong-size
+recovery-key rejection before SQL or file-content reads. The reviewed runner
+source SHA256 is f8685cd502ce31797ddc6e68000244a1ff8309e67739af9cae7cd305e2011234.
+
+The latest preparation CI passed five real PostgreSQL cases plus checks and E2E.
+Actual main release 88bde8a/image d4e0fe28c2dab7a15b9c61bf37d7e058cde9661ab189f531ea90a84b453de05e
+was healthy with readiness 200, six owned flags absent, Google false, the exact
+RO Google mount/private bridge, pg driver and UID/GID 1000. A first conditional
+operation then refused during the READ ONLY source-manifest comparison, before
+account-control selection or any foundation transaction attempt.
+
+The read-only diff found new engagement events: menu_events 4394 to 4666,
+menu_sessions 110 to 121 and scan_events 2503 to 2514. All other 44 full-row
+digests, all six critical UUID/authority groups, role distribution, order totals,
+function bodies, original ledger and both sequences were identical. Those counts
+are an observation, not a new accepted baseline. No gate was widened implicitly,
+no source refresh/reset ran, and candidate business data stayed unchanged.
+An explicit decision and reviewed source-comparison change or a coordinated
+final refresh is required before proceeding. Engagement data must be retained
+and reconciled in the final writer-freeze/cutover, even if an additive identity
+preparation is separately admitted. Off-host private R2 restore/scheduling/
+retention remain cutover gates.
 
 ## Existing pilot and remaining login work
 
