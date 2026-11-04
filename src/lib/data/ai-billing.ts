@@ -53,11 +53,15 @@ async function usage(query: AdminMenuQuery, tenantId: string, batch: string | nu
 /** Resolve only signed renewal events; no writes or provider calls. */
 export async function nativeInvoiceTarget(query: AdminMenuQuery, event: SaasWebhookEvent): Promise<NativeBillingOptions | null> {
   if (event.type !== 'invoice.created' || !event.data.object || typeof event.data.object !== 'object') return null
+  // Once this event has a financial request, changing its subscription tuple
+  // must not turn an unsettled delivery into a harmless/no-op success receipt.
+  const prior = one((await query('SELECT tenant_id,request_body FROM public.ai_billing_requests WHERE source_event_id=$1 LIMIT 2', [event.id])).rows)
   const invoice = event.data.object as Row, subscriptionId = invoiceSubscriptionId(invoice)
-  if (invoice.status !== 'draft' || invoice.billing_reason !== 'subscription_cycle' || !subscriptionId) return null
+  if (invoice.status !== 'draft' || invoice.billing_reason !== 'subscription_cycle' || !subscriptionId) { if (prior) throw unavailable(); return null }
   if (!validId(invoice.id) || !validId(subscriptionId)) throw unavailable()
   const row = one((await query('SELECT tenant_id FROM public.tenant_subscriptions WHERE stripe_subscription_id=$1 LIMIT 2', [subscriptionId])).rows)
-  if (!row) return null
+  if (!row) { if (prior) throw unavailable(); return null }
+  if (prior && (prior.tenant_id !== row.tenant_id || (prior.request_body as Row)?.invoice !== invoice.id)) throw unavailable()
   return { tenantId: String(row.tenant_id), invoiceId: invoice.id, currency: typeof invoice.currency === 'string' ? invoice.currency : undefined, event: { id: event.id, invoiceId: invoice.id, subscriptionId } }
 }
 

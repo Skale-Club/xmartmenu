@@ -49,7 +49,7 @@ before(async () => {
 })
 beforeEach(async () => {
   await admin.query('DELETE FROM public.processed_stripe_events; DELETE FROM public.ai_billing_requests; DELETE FROM public.ai_usage_events; UPDATE public.platform_ai_settings SET usd_to_brl=5')
-  await admin.query("UPDATE public.tenant_subscriptions SET stripe_customer_id=CASE WHEN tenant_id=$1 THEN 'cus_a' ELSE 'cus_b' END", [a])
+  await admin.query("UPDATE public.tenant_subscriptions SET stripe_customer_id=CASE WHEN tenant_id=$1 THEN 'cus_a' ELSE 'cus_b' END,stripe_subscription_id=CASE WHEN tenant_id=$1 THEN 'sub_a' ELSE 'sub_b' END", [a])
   await admin.query('INSERT INTO public.ai_usage_events(tenant_id,occurred_at,billable,cost_usd,charge_usd) VALUES($1,$3,true,0.1,0.13),($1,$3,true,0.2,0.26),($2,$3,true,1,2)', [a, b, now.toISOString()])
 })
 after(async () => {
@@ -153,6 +153,14 @@ test('request state CHECKs and the one-open-tenant index reject malformed financ
   const req = await frozen()
   await assert.rejects(admin.query("UPDATE public.ai_billing_requests SET state='confirmed' WHERE batch_id=$1", [req.batchId]))
   await assert.rejects(admin.query('INSERT INTO public.ai_billing_requests SELECT $2,tenant_id,created_at,cutoff_at,request_body,provider_context,request_hash,usage_digest,event_count,cost_usd,charge_usd,max_event_id,NULL,state,first_attempt_at,attempt_token,lease_until,stripe_invoice_item_id,confirmed_at FROM public.ai_billing_requests WHERE batch_id=$1', [req.batchId, randomUUID()]))
+  assert.equal((await requestRow()).state, 'prepared')
+})
+test('subscription drift cannot acknowledge an invoice event with an unsettled financial request', async () => {
+  const event = { id: `evt_${randomUUID().replaceAll('-', '')}`, invoiceId: 'in_fixture', subscriptionId: 'sub_a' }
+  await frozen({ ...options, invoiceId: event.invoiceId, event })
+  await admin.query("UPDATE public.tenant_subscriptions SET stripe_subscription_id='sub_changed' WHERE tenant_id=$1", [a])
+  await assert.rejects(tx(q => nativeInvoiceTarget(q, { id: event.id, type: 'invoice.created', data: { object: { id: event.invoiceId, status: 'draft', billing_reason: 'subscription_cycle', subscription: event.subscriptionId } } })), { status: 503 })
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM public.processed_stripe_events')).rows[0].n, 0)
   assert.equal((await requestRow()).state, 'prepared')
 })
 test('the proposed runtime grants permit state advancement but forbid fact replacement and deletion', async () => {
