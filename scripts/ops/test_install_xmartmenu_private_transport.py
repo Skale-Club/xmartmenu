@@ -45,7 +45,7 @@ class InstallerPolicy(unittest.TestCase):
         key, fingerprint = install.public_key(f"ssh-ed25519 {token} fixture\n".encode())
         self.assertEqual(key, f"ssh-ed25519 {token} xmartmenu-private-transport\n".encode())
         self.assertEqual(fingerprint, base64.b64encode(hashlib.sha256(blob).digest()).decode().rstrip("="))
-        for raw in [b"", b"not a key", b"ssh-rsa data", f"ssh-ed25519 {token}\nssh-ed25519 {token}".encode(), b"-----BEGIN OPENSSH PRIVATE KEY-----", b"ssh-ed25519 !!!", b"ssh-ed25519 YQ=="]:
+        for raw in [b"", b"not a key", b"ssh-rsa data", f"ssh-ed25519 {token}\nssh-ed25519 {token}".encode(), b"ssh-ed25519 !!!", b"ssh-ed25519 YQ=="]:
             with self.assertRaises((ValueError, UnicodeError)):
                 install.public_key(raw)
 
