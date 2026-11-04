@@ -271,17 +271,26 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
               <div>
                 <div className="flex items-start justify-between gap-4 mb-2">
                   <h3 className="text-xl font-black text-zinc-950 tracking-tight leading-tight">{cat.name}</h3>
-                  <button
-                    onClick={() => toggleActive(cat.id, cat.is_active)}
-                    className={cn(
-                      "text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest transition-all",
-                      cat.is_active 
-                        ? "bg-primary text-primary-foreground" 
-                        : "bg-zinc-100 text-zinc-400"
-                    )}
-                  >
-                    {cat.is_active ? 'Active' : 'Hidden'}
-                  </button>
+                  {canManage ? (
+                    <button
+                      onClick={() => toggleActive(cat.id, cat.is_active)}
+                      className={cn(
+                        "text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest transition-all",
+                        cat.is_active
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-zinc-100 text-zinc-400"
+                      )}
+                    >
+                      {cat.is_active ? 'Active' : 'Hidden'}
+                    </button>
+                  ) : (
+                    <span className={cn(
+                      "text-[9px] px-2.5 py-1 rounded-full font-black uppercase tracking-widest",
+                      cat.is_active ? "bg-primary text-primary-foreground" : "bg-zinc-100 text-zinc-400"
+                    )}>
+                      {cat.is_active ? 'Active' : 'Hidden'}
+                    </span>
+                  )}
                 </div>
                 {parseCourse(cat.course) && (
                   <span className="mb-2 inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-[10px] font-black uppercase tracking-widest text-zinc-600">

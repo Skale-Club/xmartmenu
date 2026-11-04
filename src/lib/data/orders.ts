@@ -2,15 +2,26 @@ import { randomUUID } from 'node:crypto'
 import { canKitchenMove, isOrderStatus, type OrderStatus } from '../orders/status-machine'
 import { resolveTenantCapabilities, type ServiceSettings } from '../service-modes'
 import { resolveOptionSelection, type OptionSelectionState, type ServerOptionGroup } from '../menu/option-pricing'
-import type { UserRole } from '@/types/database'
+import type { Order, OrderItem, UserRole } from '@/types/database'
 
 export type OrderQuery = (text: string, values?: unknown[]) => Promise<{ rows: Record<string, unknown>[] }>
 export type OrderContext = { tenantId: string; role: UserRole }
 type Result<T> = { data: T; error: { code?: string } | null }
-type Settings = ServiceSettings & { delivery_fee_cents?: number | null; currency?: string | null; country?: string | null }
+type Settings = ServiceSettings & { delivery_fee_cents?: number | null; currency?: string | null; country?: string | null;
+  amber_threshold_minutes?: number | null; red_threshold_minutes?: number | null }
 type Product = { id: string; tenant_id: string; name: string; price: number; is_available: boolean | null; menu_id: string;
   menus: { id: string; is_active: boolean | null; is_private: boolean | null; price_multiplier: number | null } }
 export type CreatedOrder = { id: string; status: string; total: number | string; order_type: string; replayed: boolean }
+export type KdsOrder = Order & { order_items: OrderItem[] }
+export type KdsLocation = { id: string; name: string; slug: string }
+export type KdsBootstrap = {
+  orders: KdsOrder[]
+  locations: KdsLocation[]
+  capabilities: ReturnType<typeof resolveTenantCapabilities>
+  amberThreshold: number
+  redThreshold: number
+  currency: string
+}
 export class OrderDataError extends Error {
   constructor(public status: number, message: string) { super(message) }
 }
@@ -59,7 +70,7 @@ export function assertUnambiguousOrderOptionPricing(basePrice: number, editor: O
 }
 const ORDER_COLUMNS = 'id tenant_id customer_name customer_phone customer_phone_key customer_id customer_phone_e164 customer_linked_at customer_link_method status total subtotal currency delivery_fee_cents payment_intent_id order_type delivery_address delivery_street delivery_complement delivery_zipcode delivery_city delivery_notes delivery_zone_id location_id tip_cents table_name table_id analytics_session_id notes created_at updated_at'
 const ITEM_COLUMNS = 'id order_id product_id product_name quantity unit_price selected_options notes ingredient_modifications added_via'
-const SETTINGS_COLUMNS = 'orders_enabled direct_orders_enabled table_management_enabled whatsapp_orders_enabled whatsapp tips_enabled item_notes_enabled ingredient_customization_enabled dine_in_enabled pickup_enabled delivery_enabled upsell_enabled delivery_fee_cents currency country'
+const SETTINGS_COLUMNS = 'orders_enabled direct_orders_enabled table_management_enabled whatsapp_orders_enabled whatsapp tips_enabled item_notes_enabled ingredient_customization_enabled dine_in_enabled pickup_enabled delivery_enabled upsell_enabled delivery_fee_cents currency country amber_threshold_minutes red_threshold_minutes'
 const orderFields = new Set(('tenant_id customer_name customer_phone customer_phone_key customer_id customer_phone_e164 status total subtotal currency delivery_fee_cents order_type delivery_address delivery_street delivery_complement delivery_zipcode delivery_city delivery_notes delivery_zone_id location_id tip_cents table_name table_id analytics_session_id idempotency_key request_fingerprint').split(' '))
 const itemFields = new Set('product_id product_name quantity unit_price notes selected_options ingredient_modifications added_via'.split(' '))
 const projected = (columns: string, alias: string) => `to_jsonb((SELECT projected FROM (SELECT ${columns.split(' ').map(c => `${alias}.${c}`).join(', ')}) projected))`
@@ -107,6 +118,28 @@ export class OwnedOrderRepository {
     return ok(rows<{ id: string; is_active: boolean; tenant_settings: Settings | null }>(await this.query(`SELECT
       jsonb_build_object('id',t.id,'is_active',t.is_active,'tenant_settings',CASE WHEN s.tenant_id IS NULL THEN NULL ELSE ${projected(SETTINGS_COLUMNS, 's')} END) AS row
       FROM public.tenants t LEFT JOIN public.tenant_settings s ON s.tenant_id=t.id WHERE t.id=$1 AND t.is_active=true LIMIT 1`, [this.tenantId]), 1)[0] ?? null)
+  }
+  async locations() {
+    return ok(rows<KdsLocation>(await this.query(`SELECT ${projected('id name slug', 'l')} AS row FROM public.locations l
+      WHERE l.tenant_id=$1 AND l.is_active=true ORDER BY l.created_at ASC LIMIT 1001`, [this.tenantId]), 1000))
+  }
+  async kdsBootstrap(context: OrderContext, cutoff: string): Promise<KdsBootstrap> {
+    staff(context, this.tenantId)
+    const tenant = (await this.tenantSettings()).data
+    if (!tenant?.is_active) throw new OrderDataError(404, 'Tenant not available')
+    const settings = tenant.tenant_settings
+    const capabilities = await this.capabilities(settings)
+    const orders = await this.list(context, cutoff)
+    const locations = await this.locations()
+    const threshold = (value: unknown, fallback: number) => typeof value === 'number' && Number.isFinite(value) ? value : fallback
+    return {
+      orders: orders.data,
+      locations: locations.data,
+      capabilities,
+      amberThreshold: threshold(settings?.amber_threshold_minutes, 10),
+      redThreshold: threshold(settings?.red_threshold_minutes, 20),
+      currency: typeof settings?.currency === 'string' ? settings.currency : 'USD',
+    }
   }
   async capabilities(settings?: Settings | null) {
     const source = await this.query(`SELECT CASE WHEN s.status IN ('active','trial') THEN p.features ELSE '[]'::jsonb END AS features
@@ -203,7 +236,7 @@ export class OwnedOrderRepository {
   async list(context: OrderContext, cutoff: string) {
     staff(context, this.tenantId)
     if (!Number.isFinite(Date.parse(cutoff)) || Date.parse(cutoff) < Date.now() - 49 * 3600000) throw new OrderDataError(400, 'Invalid order window')
-    const found = rows<Record<string, unknown>>(await this.query(`SELECT ${projected(ORDER_COLUMNS, 'o')}
+    const found = rows<KdsOrder>(await this.query(`SELECT ${projected(ORDER_COLUMNS, 'o')}
       || jsonb_build_object('order_items',COALESCE((SELECT jsonb_agg(items.row ORDER BY items.id) FROM
         (SELECT oi.id,${projected(ITEM_COLUMNS, 'oi')} AS row FROM public.order_items oi WHERE oi.order_id=o.id ORDER BY oi.id LIMIT 1001) items),'[]'::jsonb)) AS row
       FROM public.orders o WHERE o.tenant_id=$1 AND o.created_at >= $2::timestamptz ORDER BY o.created_at DESC,o.id DESC LIMIT 500`, [this.tenantId, cutoff]), 500)
