@@ -79,6 +79,13 @@ test('same owner and slug concurrent creations serialize: exactly one complete r
  assert.equal(results.filter(row=>row.status==='fulfilled').length,1)
  for(const table of ['tenant_settings','menus','tenant_subscriptions','app_tenant_effects','audit_events'])assert.equal((await snapshot(table)).length,1)
 })
+test('last supported restaurant slot serializes concurrent owners at the actual 1000-row boundary',async()=>{
+ await admin.query("INSERT INTO tenants(name,slug) SELECT 'Synthetic quota','quota-'||n FROM generate_series(1,998) n")
+ const results=await Promise.allSettled([write(q=>createTenant(q,context,input())),write(q=>createTenant(q,context,input(ids[2],'other-shop')))])
+ assert.equal(results.filter(row=>row.status==='fulfilled').length,1)
+ assert.equal((await admin.query('SELECT count(*)::int n FROM tenants')).rows[0].n,1000)
+ assert.equal((await snapshot('app_tenant_effects')).length,1)
+})
 test('audit failure rolls back every ownership, version, settings, menu, subscription and outbox change',async()=>{
  const profiles=await snapshot('profiles'),accounts=await snapshot('app_accounts'),sessions=await snapshot('app_sessions')
  await admin.query('ALTER TABLE audit_events ADD CONSTRAINT reject_audit CHECK(false) NOT VALID')

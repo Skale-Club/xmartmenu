@@ -479,7 +479,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans, 
     <div className="w-full p-8">
       <ConfirmDialog
         open={!!deleteTarget}
-        title={native && !deleteTarget?.id ? 'Disable local account' : 'Delete restaurant'}
+        title={native ? (!deleteTarget?.id ? 'Disable local account' : 'Delete restaurant') : 'Delete client'}
         message={native ? (deleteTarget?.id ? `Delete the unused local restaurant shell "${deleteTarget.name}"? Content, billing or external dependencies prevent deletion. Use Deactivate to preserve it.` : 'Disable this local account and revoke its local sessions? Its profile, provider sign-ins and history are preserved.') : `Delete "${deleteTarget?.name ?? deleteTarget?.email}"? This action cannot be undone.`}
         onConfirm={handleDelete}
         onCancel={() => { if (!deleteLoading) setDeleteTarget(null) }}

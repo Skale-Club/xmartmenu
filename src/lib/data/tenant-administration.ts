@@ -73,6 +73,10 @@ export async function mutatePlan(query: AdminMenuQuery,context: TenantAdminConte
   const current = action === 'create' ? undefined : single((await query(`SELECT ${PLAN_SELECT} FROM public.plans p WHERE p.id=$1 FOR UPDATE`,[id])).rows) ?? undefined
   if (action !== 'create' && !current) refuse(404,'Plan not found')
   const targetId = id ?? randomUUID()
+  if (action === 'create') {
+    const count = (await query('SELECT count(*)::int AS count FROM (SELECT id FROM public.plans LIMIT 1000) bounded')).rows[0]
+    if (!count || Number(count.count) >= 1000) refuse(409,'The supported plan limit has been reached')
+  }
   if (action === 'delete') {
     if (current?.stripe_product_id || current?.stripe_price_monthly_id || current?.stripe_price_annual_id || (await query('SELECT id FROM public.tenant_subscriptions WHERE plan_id=$1 LIMIT 1',[id])).rows.length) refuse(409,'This plan has billing dependencies. Deactivate it instead.')
     await query('DELETE FROM public.plans WHERE id=$1',[id]); await audit(query,context,'plans',targetId,'delete'); return null
@@ -88,7 +92,7 @@ export async function mutatePlan(query: AdminMenuQuery,context: TenantAdminConte
 export async function readTenants(query: AdminMenuQuery,context: TenantAdminContext,id?: string) {
   await requireTenantAdministrator(query,context)
   if (id && !UUID.test(id)) refuse(404,'Restaurant not found')
-  const rows = bounded((await query(`SELECT t.*,s.logo_url FROM public.tenants t LEFT JOIN public.tenant_settings s ON s.tenant_id=t.id
+  const rows = bounded((await query(`SELECT t.*,s.logo_url,jsonb_build_object('logo_url',s.logo_url) AS tenant_settings FROM public.tenants t LEFT JOIN public.tenant_settings s ON s.tenant_id=t.id
     ${id ? 'WHERE t.id=$1' : ''} ORDER BY t.created_at DESC,t.id LIMIT 1001`,id ? [id] : [])).rows).map(dto)
   if (id && !rows.length) refuse(404,'Restaurant not found')
   return id ? rows[0] : rows

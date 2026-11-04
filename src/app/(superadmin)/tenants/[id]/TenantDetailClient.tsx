@@ -594,7 +594,7 @@ export default function TenantDetailClient({
           >
             {t === 'staff' ? <Users className="size-4 shrink-0" /> : t === 'menus' ? <MenuIcon className="size-4 shrink-0" /> : <CreditCard className="size-4 shrink-0" />}
             <span className="truncate">{t === 'staff' ? 'Staff' : t === 'menus' ? 'Menus' : 'Subscription'}</span>
-            {t !== 'subscription' && <span className={`hidden min-w-6 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums sm:inline-flex sm:justify-center ${tab === t ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-500'}`}>{t === 'staff' ? staff.length : menus.length}</span>}
+            {t !== 'subscription' && !(native && t === 'staff') && <span className={`hidden min-w-6 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums sm:inline-flex sm:justify-center ${tab === t ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-500'}`}>{t === 'staff' ? staff.length : menus.length}</span>}
           </button>
         ))}
       </nav>
