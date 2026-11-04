@@ -11,6 +11,9 @@ import { hashPhone } from '@/lib/crypto'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned, AdminMenuError } from '@/lib/data/admin-menus'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
+import { createOwnedPublicChatSession } from '@/lib/data/public-chat-session-runtime'
 
 export const runtime = 'nodejs'
 
@@ -23,6 +26,16 @@ function validatePhone(phone: string): boolean {
 
 async function handlePOST(request: Request, { params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+  if (adminMenusOwned()) {
+    try {
+      const body: unknown = JSON.parse(await readNativeAnalyticsBody(request))
+      const phone = body && typeof body === 'object' && !Array.isArray(body) ? (body as { phone?: unknown }).phone : undefined
+      return NextResponse.json(await createOwnedPublicChatSession(slug, phone))
+    } catch (error) {
+      const status = error instanceof AdminMenuError ? error.status : error instanceof SyntaxError ? 400 : 503
+      return NextResponse.json({ error: error instanceof AdminMenuError ? error.message : 'Failed to create conversation' }, { status })
+    }
+  }
   const { phone } = (await request.json()) as Body
   if (!phone || !validatePhone(phone)) {
     return NextResponse.json({ error: 'Invalid phone number' }, { status: 400 })
