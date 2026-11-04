@@ -4,6 +4,8 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { ownedCustomDomainVerificationHttp } from '@/lib/admin/owned-store-settings-http'
 
 const dnsLookup = (host: string) =>
   new Promise<string | null>((resolve) => {
@@ -53,11 +55,9 @@ async function handlePOST(
     if (!isSuperadmin) {
       return NextResponse.json({ error: 'Only superadmins may force-verify domains' }, { status: 403 })
     }
+    if (adminMenusOwned()) return ownedCustomDomainVerificationHttp(request, id, normalizedDomain, 'Superadmin force-activated')
     const service = await createServiceClient()
-    await service
-      .from('tenants')
-      .update({ custom_domain_verified: true, custom_domain: normalizedDomain })
-      .eq('id', id)
+    await service.from('tenants').update({ custom_domain_verified: true, custom_domain: normalizedDomain }).eq('id', id)
 
     return NextResponse.json({
       verified: true,
@@ -95,11 +95,12 @@ async function handlePOST(
 
   // Persist verification flag when verification passes
   if (verified) {
+    if (adminMenusOwned()) {
+      return ownedCustomDomainVerificationHttp(request, id, normalizedDomain,
+        cnameMatches ? 'CNAME matches platform host' : 'A record matches platform')
+    }
     const service = await createServiceClient()
-    await service
-      .from('tenants')
-      .update({ custom_domain_verified: true, custom_domain: normalizedDomain })
-      .eq('id', id)
+    await service.from('tenants').update({ custom_domain_verified: true, custom_domain: normalizedDomain }).eq('id', id)
   }
 
   return NextResponse.json({

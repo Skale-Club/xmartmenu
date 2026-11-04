@@ -4,6 +4,11 @@ import { slugify } from '@/lib/utils'
 import { z } from 'zod'
 import { RESERVED_PATHS } from '@/lib/marketing/reserved-paths'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
+import { getIdentityServices } from '@/lib/auth/identity-services'
+import { ownedAdminTransaction } from '@/lib/data/admin-menus-runtime'
+import { nativeOnboarding, NativeOnboardingDenied } from '@/lib/auth/native-onboarding'
 
 const CUISINE_PALETTES: Record<string, { primary: string; accent: string }> = {
   pizza:        { primary: '#E74C3C', accent: '#FFFFFF' },
@@ -42,7 +47,54 @@ const onboardingSchema = z.object({
   product_price: z.coerce.number().min(0).max(1_000_000).optional(),
 })
 
+async function ownedAccount(request: Request) {
+  if (process.env.OWNED_ONBOARDING_ENABLED !== 'true') throw new Error('Onboarding unavailable')
+  const origin = new URL(getIdentityServices().config.origin)
+  if (request.headers.get('host')?.toLowerCase() !== origin.host.toLowerCase()
+    || request.headers.get('sec-fetch-site') === 'cross-site'
+    || (request.method === 'POST' && request.headers.get('origin') !== origin.origin)
+    || /(?:^|;)\s*(?:preview_tenant_id|xm_demo)=/.test(request.headers.get('cookie') ?? '')) throw new NativeOnboardingDenied('Origin or mode denied')
+  const principal = await getOwnedPrincipal()
+  if (!principal) throw new NativeOnboardingDenied('Authentication required')
+  return principal
+}
+
+export async function GET(request: Request) {
+  if (!ownedAuthSelected()) return NextResponse.json({ error: 'Not found' },{ status: 404 })
+  try {
+    const principal = await ownedAccount(request)
+    const state = await ownedAdminTransaction(true,query => nativeOnboarding(query,principal.userId))
+    return NextResponse.json(state,{ headers: { 'Cache-Control': 'no-store' } })
+  } catch (error) { return NextResponse.json({ error: 'Onboarding is unavailable.' },{ status: error instanceof NativeOnboardingDenied ? 403 : 503 }) }
+}
+
+async function ownedPost(request: Request) {
+  try {
+    const principal = await ownedAccount(request)
+    const body = await request.text()
+    if (body.length > 12000) return NextResponse.json({ error: 'Invalid onboarding data' },{ status: 400 })
+    const parsed = onboardingSchema.strict().safeParse(JSON.parse(body))
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid onboarding data' },{ status: 400 })
+    const data = parsed.data, tenantSlug = slugify(data.company_name)
+    if (!tenantSlug || RESERVED_PATHS.has(tenantSlug)) return NextResponse.json({ error: 'This name is reserved. Please choose a different restaurant name.' },{ status: 400 })
+    const palette = CUISINE_PALETTES[data.business_type?.trim().toLowerCase() ?? ''] ?? { primary: '#F52323',accent: '#09090b' }
+    const input = { company_name: data.company_name.trim(),tenant_slug: tenantSlug,
+      full_name: data.responsible_name?.trim() || principal.fullName,phone: data.phone?.trim() || null,address: data.address?.trim() || null,
+      primary_color: palette.primary,accent_color: palette.accent,menu_name: data.menu_name.trim(),menu_slug: slugify(data.menu_name) || 'menu',
+      menu_purpose: sanitizeMenuPurpose(data.business_type),category_name: data.category_name.trim(),product_name: data.product_name.trim(),product_price: data.product_price ?? 0 }
+    const done = await ownedAdminTransaction(true,query => nativeOnboarding(query,principal.userId,input))
+    if (!('tenant_id' in done)) throw new Error('Onboarding failed')
+    // CRM still uses source SQL internally; do not enqueue an owned tenant into
+    // that integration until its data adapter is migrated separately.
+    return NextResponse.json({ tenant_slug: done.tenant_slug,menu_slug: done.menu_slug,
+      ...(done.already_configured ? { already_configured: true } : {}) },{ headers: { 'Cache-Control': 'no-store' } })
+  } catch (error) {
+    return NextResponse.json({ error: 'Onboarding is unavailable. Please try again.' },{ status: error instanceof NativeOnboardingDenied ? 403 : error instanceof SyntaxError ? 400 : 503 })
+  }
+}
+
 export async function POST(request: Request) {
+  if (ownedAuthSelected()) return ownedPost(request)
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()

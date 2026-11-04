@@ -14,17 +14,19 @@ interface Props {
   tenantName: string
   activeMenuName: string | null
   canManage: boolean
+  ownedSource: boolean
 }
 
-export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tenantName, activeMenuName, canManage }: Props) {
+export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tenantName, activeMenuName, canManage, ownedSource }: Props) {
   const [qrcodes, setQrcodes] = useState(initial)
   const [label, setLabel] = useState('')
   const [loading, setLoading] = useState(false)
   const [selectedUrl, setSelectedUrl] = useState(menuUrl)
   const [deleteId, setDeleteId] = useState<string | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const supabase = createClient()
+  const supabase = ownedSource ? null : createClient()
 
   useEffect(() => {
     setQrcodes(initial)
@@ -50,19 +52,33 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
   async function handleCreate() {
     if (!label.trim()) return
     setLoading(true)
-    const targetUrl = menuUrl + (label ? `?source=${encodeURIComponent(label)}` : '')
-    const { data } = await supabase
-      .from('qr_codes')
-      .insert({ tenant_id: tenantId, label: label || null, target_url: targetUrl })
-      .select()
-      .single()
-
-    if (data) {
-      setQrcodes([data, ...qrcodes])
-      setSelectedUrl(targetUrl)
+    setError(null)
+    try {
+      let data: QRCodeType | null = null
+      if (ownedSource) {
+        const response = await fetch('/api/admin/qr-codes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label }) })
+        const result = await response.json().catch(() => ({})) as QRCodeType & { error?: string }
+        if (!response.ok) throw new Error(result.error ?? 'Could not create QR code')
+        data = result
+      } else {
+        const result = await supabase!
+          .from('qr_codes')
+          .insert({ tenant_id: tenantId, label: label || null, target_url: menuUrl + (label ? `?source=${encodeURIComponent(label)}` : '') })
+          .select()
+          .single()
+        if (result.error) throw new Error('Could not create QR code')
+        data = result.data as QRCodeType | null
+      }
+      if (data) {
+        setQrcodes(prev => [data!, ...prev])
+        setSelectedUrl(data.target_url)
+        setLabel('')
+      }
+    } catch {
+      setError('Could not create QR code. Please try again.')
+    } finally {
+      setLoading(false)
     }
-    setLabel('')
-    setLoading(false)
   }
 
   function downloadPNG() {
@@ -77,15 +93,23 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
   async function handleDelete() {
     if (!deleteId) return
     setDeleting(true)
-    const { error } = await supabase.from('qr_codes').delete().eq('id', deleteId)
-    if (!error) {
-      setQrcodes(qrcodes.filter(qr => qr.id !== deleteId))
-      if (qrcodes.find(qr => qr.id === deleteId)?.target_url === selectedUrl) {
-        setSelectedUrl(menuUrl)
+    setError(null)
+    try {
+      if (ownedSource) {
+        const response = await fetch(`/api/admin/qr-codes/${deleteId}`, { method: 'DELETE' })
+        if (!response.ok) throw new Error()
+      } else {
+        const result = await supabase!.from('qr_codes').delete().eq('id', deleteId)
+        if (result.error) throw new Error()
       }
+      setQrcodes(prev => prev.filter(qr => qr.id !== deleteId))
+      if (qrcodes.find(qr => qr.id === deleteId)?.target_url === selectedUrl) setSelectedUrl(menuUrl)
+      setDeleteId(null)
+    } catch {
+      setError('Could not delete QR code. Please try again.')
+    } finally {
+      setDeleting(false)
     }
-    setDeleteId(null)
-    setDeleting(false)
   }
 
   const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
@@ -141,6 +165,7 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
 
         {/* Management Section */}
         <div className="space-y-8">
+          {error && <p role="alert" className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700"><AlertCircle className="h-4 w-4" />{error}</p>}
           {canManage ? (
             <div className="bg-white border border-zinc-100 rounded-[1.25rem] p-8 shadow-sm">
               <div className="flex items-center gap-3 mb-6">
