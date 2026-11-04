@@ -1,19 +1,15 @@
-import { normalizeRole } from '../auth/role-utils'
-import type { UserRole } from '@/types/database'
+import { authorizeAdminActor, type AdminActorContext } from './admin-actor'
 import { AdminMenuError, type AdminMenuQuery } from './admin-menus'
 import { readPublicChatAddon } from './public-chat-session'
 
-export interface AdminChatContext { tenantId: string; actorId: string; role: UserRole }
+export interface AdminChatContext extends AdminActorContext { tenantId: string }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const SETTINGS = 'tenant_id,enabled,openrouter_model,audio_enabled,text_enabled,audio_provider,rate_limit_per_phone_per_day,created_at,updated_at'
 const CONVERSATION = 'id,tenant_id,phone_hash,started_at,last_message_at,message_count,status,admin_note'
 const dateValues = (row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).map(([key, value]) => [key, value instanceof Date ? value.toISOString() : value]))
 async function authorized(query: AdminMenuQuery, context: AdminChatContext, write = false) {
-  if (!UUID.test(context.tenantId) || !UUID.test(context.actorId) || !['store-admin', 'superadmin'].includes(context.role)) throw new AdminMenuError(403, 'Forbidden')
-  const result = await query(`SELECT p.id,p.role,p.tenant_id,p.must_change_password,a.disabled_at FROM public.profiles p JOIN public.app_accounts a ON a.id=p.id WHERE p.id=$1${write ? ' FOR SHARE OF p,a' : ''}`, [context.actorId])
-  const profile = result.rows[0], role = normalizeRole(profile?.role)
-  if (result.rows.length !== 1 || !profile || profile.disabled_at !== null || profile.must_change_password === true || role !== context.role
-    || (role !== 'superadmin' && profile.tenant_id !== context.tenantId)) throw new AdminMenuError(403, 'Forbidden')
+  if (!UUID.test(context.tenantId)) throw new AdminMenuError(403, 'Forbidden')
+  await authorizeAdminActor(query, context, write)
 }
 function id(value: string) { if (!UUID.test(value)) throw new AdminMenuError(404, 'Not found') }
 function object(value: unknown) {

@@ -10,11 +10,21 @@ import { withApi } from '@/lib/observability/with-api'
 import { loadPlatformAiSettings } from '@/lib/ai/access'
 import { parseBillingMode, clampMarkup } from '@/lib/ai/billing-rules'
 import { maskedOrEmpty, nextStoredKey, startOfMonthIso, usageByTenant, verifyOpenRouterKey } from '@/lib/ai/settings-service'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatError } from '@/lib/admin/chat-context'
+import { assertOwnedAiActor, writeOwnedAiPlatformSettings } from '@/lib/data/ai-panel-runtime'
+import { nativeAiGlobalPayload } from '@/lib/ai/native-panel'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
 
 export const dynamic = 'force-dynamic'
 
 async function handleGET() {
-  if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await nativeAiGlobalPayload({ actorId: authorization.principal.userId, role: 'superadmin' })) }
+    catch (error) { return adminChatError(error) }
+  }
   const service = createServiceClient()
   const [platform, { data: tenants }, { data: tenantSettings }, usage] = await Promise.all([
     loadPlatformAiSettings(),
@@ -51,7 +61,17 @@ async function handleGET() {
 }
 
 async function handlePUT(request: Request) {
-  if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (adminMenusOwned()) {
+    try {
+      const context = { actorId: authorization.principal.userId, role: 'superadmin' as const }
+      let body: unknown
+      try { body = JSON.parse(await readNativeAnalyticsBody(request)) } catch (error) { if (error instanceof SyntaxError) body = {}; else throw error }
+      await writeOwnedAiPlatformSettings(context, body)
+      return NextResponse.json(await nativeAiGlobalPayload(context))
+    } catch (error) { return adminChatError(error) }
+  }
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
@@ -80,7 +100,12 @@ async function handlePUT(request: Request) {
 
 /** { action: 'test', api_key? } — checks the given key, or the stored global one. */
 async function handlePOST(request: Request) {
-  if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (adminMenusOwned()) {
+    try { await assertOwnedAiActor({ actorId: authorization.principal.userId, role: 'superadmin' }) }
+    catch (error) { return adminChatError(error) }
+  }
   const body = (await request.json().catch(() => ({}))) as { action?: string; api_key?: string }
   if (body.action !== 'test') return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   const candidate = body.api_key?.trim() && !body.api_key.includes('••') ? body.api_key.trim() : (await loadPlatformAiSettings()).platformKey
