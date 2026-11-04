@@ -1,4 +1,3 @@
-import { GoogleAuth } from 'google-auth-library'
 import { Pool } from 'pg'
 import { createIdentityHttp } from './identity-http'
 import { IdentityStore } from './identity-store'
@@ -8,6 +7,8 @@ import { identityLegacyProofConfig, identityRuntimeConfig } from './identity-run
 import { createLegacyOwnerReader } from './legacy-account-proof'
 import { verifyPublicProject } from './public-project-proof'
 import { getClientIp, rateLimit } from '@/lib/rate-limit'
+import { readGoogleRuntimeAdc } from './google-runtime-adc'
+import { getGoogleX509AccessToken } from './google-x509-access-token'
 
 let handler: ReturnType<typeof createIdentityHttp> | undefined
 function runtime() {
@@ -17,12 +18,17 @@ function runtime() {
     max: 2, connectionTimeoutMillis: 5_000, statement_timeout: 5_000, idleTimeoutMillis: 30_000 })
   // Errors on idle clients must not crash the shared process or expose a URL.
   pool.on('error', () => {})
-  const google = new GoogleAuth({ scopes: ['https://www.googleapis.com/auth/identitytoolkit'] })
-  const status = createGoogleAccountStatusReader(async () => {
-    const token = await google.getAccessToken()
-    if (!token) throw new Error('Provider credentials unavailable')
-    return token
+  const lookup = createGoogleAccountStatusReader(async signal => {
+    const current = identityRuntimeConfig()
+    if (current.web.projectId !== config.web.projectId || current.projectNumber !== config.projectNumber) throw new Error('Identity project changed')
+    const credential = readGoogleRuntimeAdc({ application: 'xmartmenu', projectId: current.web.projectId,
+      projectNumber: current.projectNumber, production: process.env.NODE_ENV === 'production' })
+    return getGoogleX509AccessToken(credential, signal)
   })
+  const status = async (identity: Parameters<typeof lookup>[0]) => {
+    if (process.env.GOOGLE_AUTH_ENABLED !== 'true' || identity.projectId !== identityRuntimeConfig().web.projectId) throw new Error('Identity project mismatch')
+    return lookup(identity)
+  }
   handler = createIdentityHttp({
     enabled: () => process.env.GOOGLE_AUTH_ENABLED === 'true', origin: config.origin, config: config.web,
     verifyConfig: () => verifyPublicProject({ ...config.web, projectNumber: config.projectNumber, origin: config.origin }),
