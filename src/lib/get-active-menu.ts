@@ -1,11 +1,14 @@
 import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import type { Menu } from '@/types/database'
+import { activeAdminMenu, adminMenusOwned } from '@/lib/data/admin-menus'
+import { listAdminMenus } from '@/lib/admin/menu-data'
 
 export async function getActiveMenuForTenant(tenantId: string): Promise<Menu | null> {
-  const supabase = await createClient()
   const cookieStore = await cookies()
   const selectedMenuId = cookieStore.get('selected_menu_id')?.value
+  if (adminMenusOwned()) return activeAdminMenu(await listAdminMenus(tenantId), selectedMenuId)
+  const supabase = await createClient()
 
   if (selectedMenuId) {
     const { data: selectedMenu } = await supabase

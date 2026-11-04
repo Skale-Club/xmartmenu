@@ -18,9 +18,9 @@
  *       marca como aplicado, SEM CORRER, tudo até essa versão. É o primeiro
  *       passo numa base de dados cuja história é anterior ao registo.
  *
- * Connection string, por ordem: MIGRATION_DATABASE_URL, POSTGRES_URL_NON_POOLING,
- * DATABASE_URL. A não-pooling vem primeiro de propósito: DDL através de um
- * pooler em modo transação perde estado de sessão entre statements.
+ * Alvo explícito: desenvolvimento isolado por omissão (DEV_SUPABASE_* e
+ * DEV_MIGRATION_DATABASE_URL/DEV_DATABASE_URL). --target=production exige
+ * PROD_MIGRATION_DATABASE_URL e host/base esperados; nunca usa aliases antigos.
  */
 import { readFileSync as __read } from 'node:fs'
 
@@ -50,6 +50,7 @@ const INVOCATION = 'npm run db:migrate'
 // ─── fim do carregamento de env; daqui para baixo é igual nos cinco repos ────
 
 import pg from 'pg'
+import { migrationTarget } from './lib/database-target.mjs'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
@@ -93,16 +94,11 @@ async function main() {
     throw new Error(`${MIGRATIONS_DIR} não existe — corre isto a partir da raiz do repo`)
   }
 
-  // Não-pooling primeiro: DDL através de um pooler em modo transação perde o
-  // estado de sessão entre statements e falha de formas difíceis de ler.
-  const url =
-    process.env.MIGRATION_DATABASE_URL ||
-    process.env.POSTGRES_URL_NON_POOLING ||
-    process.env.DATABASE_URL
-  if (!url) {
-    throw new Error(
-      'Sem connection string. Define MIGRATION_DATABASE_URL, POSTGRES_URL_NON_POOLING ou DATABASE_URL.',
-    )
+  // No implicit source/production fallback. DDL requires session semantics.
+  const target = valueOf('--target') ?? 'development'
+  const url = migrationTarget(process.env, target)
+  if (target === 'production' && apply && !has('--coordinated-cutover')) {
+    throw new Error('Production writes require --coordinated-cutover after reserving the shared-server window')
   }
 
   const files = readdirSync(MIGRATIONS_DIR)
@@ -122,7 +118,7 @@ async function main() {
   }
   const collisions = [...byVersion.entries()].filter(([, group]) => group.length > 1)
 
-  const client = new pg.Client({ connectionString: url })
+  const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 10_000, statement_timeout: 60_000 })
   await client.connect()
 
   try {

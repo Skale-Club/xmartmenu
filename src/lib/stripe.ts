@@ -10,6 +10,10 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getTenantPlan } from '@/lib/tenant-plan'
 import { planCeiling } from '@/lib/service-modes'
+import { paymentsDataOwned, PaymentDataError } from '@/lib/data/payments'
+import { currencyMinorFactor, toStripeAmount } from '@/lib/orders/payment-money'
+export { currencyMinorFactor, toStripeAmount } from '@/lib/orders/payment-money'
+import type { OwnedPaymentGateway } from '@/lib/orders/owned-payment-intent'
 
 let stripeClient: Stripe | null = null
 
@@ -34,27 +38,19 @@ const stripe = new Proxy({} as Stripe, {
 })
 
 export { stripe }
-
-// Stripe charges in the smallest currency unit. For most currencies (BRL, USD,
-// EUR, GBP…) that is 1/100 of the major unit; a set of "zero-decimal" currencies
-// (JPY, KRW…) have no minor unit and must NOT be multiplied by 100, otherwise
-// every charge is 100x too large. Orders store `total` as a NUMERIC major-unit
-// amount, so every Stripe amount goes through this single conversion point.
-const ZERO_DECIMAL_CURRENCIES = new Set([
-  'bif', 'clp', 'djf', 'gnf', 'jpy', 'kmf', 'krw', 'mga',
-  'pyg', 'rwf', 'ugx', 'vnd', 'vuv', 'xaf', 'xof', 'xpf',
-])
-
-export function currencyMinorFactor(currency: string): number {
-  return ZERO_DECIMAL_CURRENCIES.has(currency.toLowerCase()) ? 1 : 100
+const OWNED_STRIPE_REQUEST_OPTIONS=Object.freeze({timeout:6000,maxNetworkRetries:0})
+async function safeOwnedProvider<T>(operation:()=>Promise<T>){try{return await operation()}catch{throw new PaymentDataError(503,'Payment provider is unavailable')}}
+/** Bounded provider read shared by owned creation and confirmation; legacy SDK defaults stay unchanged. */
+export function retrieveOwnedPaymentIntent(id:string){
+  return safeOwnedProvider(()=>stripe.paymentIntents.retrieve(id,{},OWNED_STRIPE_REQUEST_OPTIONS))
 }
-
-// Convert a major-unit amount (e.g. 19.99) into Stripe's smallest unit for the
-// given currency. Math.round avoids float drift (e.g. 19.99 * 100).
-export function toStripeAmount(major: number, currency: string): number {
-  return Math.round(Number(major) * currencyMinorFactor(currency))
+function ownedGateway():OwnedPaymentGateway {
+  return {
+    retrieve:retrieveOwnedPaymentIntent,
+    cancel:id=>safeOwnedProvider(()=>stripe.paymentIntents.cancel(id,{},OWNED_STRIPE_REQUEST_OPTIONS)),
+    create:(body,idempotencyKey)=>safeOwnedProvider(()=>stripe.paymentIntents.create(body,{...OWNED_STRIPE_REQUEST_OPTIONS,idempotencyKey})),
+  }
 }
-
 // Resolve a tenant's configured currency (menu prices are already rendered in
 // this currency, so the PaymentIntent MUST match it). Defaults to USD to align
 // with the English-first product default; falls back gracefully if unset.
@@ -166,6 +162,7 @@ export async function createPaymentIntent(params: {
   tipCents?: number
   currency?: string
 }): Promise<PaymentIntentResult> {
+  if (paymentsDataOwned()) return (await import('@/lib/orders/owned-payment-intent')).getOwnedPaymentIntent(params,ownedGateway())
   const supabase = createServiceClient()
 
   // 1. Get tenant's Stripe connection
@@ -240,6 +237,7 @@ export async function getOrCreatePaymentIntent(params: {
   tipCents?: number
   currency?: string
 }): Promise<PaymentIntentResult> {
+  if (paymentsDataOwned()) return (await import('@/lib/orders/owned-payment-intent')).getOwnedPaymentIntent(params,ownedGateway())
   const supabase = createServiceClient()
 
   // Check if order already has a payment intent

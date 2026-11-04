@@ -1,9 +1,9 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { BellRing, Check, Footprints, Receipt } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
-import { activeCalls, CALL_REASON_LABELS, upsertCall, waitingFor, type WaiterCall } from '@/lib/waiter-calls'
+import { startVisiblePolling } from '@/lib/visible-polling'
+import { activeCalls, CALL_REASON_LABELS, waitingFor, type WaiterCall } from '@/lib/waiter-calls'
 
 // A call is "new" for each tap: id + when it was last called + status.
 const keyOf = (c: WaiterCall) => `${c.id}:${c.last_called_at ?? c.created_at}:${c.status}`
@@ -11,10 +11,9 @@ const keyOf = (c: WaiterCall) => `${c.id}:${c.last_called_at ?? c.created_at}:${
 /**
  * Live list of tables calling a waiter or asking for the bill (waiter app and
  * orders screen). New calls beep and vibrate; staff mark "On my way" / "Done".
- * Realtime first, with a slow poll as a safety net.
+ * Authenticated API polling; tenant and plan access stay on the server.
  */
 export default function WaiterCallsPanel({ tenantId, compact = false }: { tenantId: string; compact?: boolean }) {
-  const supabase = useMemo(() => createClient(), [])
   const [calls, setCalls] = useState<WaiterCall[]>([])
   const [now, setNow] = useState(() => Date.now())
   const seen = useRef<Set<string>>(new Set())
@@ -47,32 +46,25 @@ export default function WaiterCallsPanel({ tenantId, compact = false }: { tenant
     setCalls(activeCalls(next))
   }, [alert])
 
-  const load = useCallback(async () => {
-    const res = await fetch('/api/admin/waiter-calls').catch(() => null)
-    if (res?.ok) apply(((await res.json()) as { calls: WaiterCall[] }).calls)
+  const load = useCallback(async (signal?: AbortSignal) => {
+    const res = await fetch('/api/admin/waiter-calls', { signal, cache: 'no-store' }).catch(() => null)
+    if (!res?.ok) return false
+    const data = await res.json() as { calls: WaiterCall[] }
+    if (signal?.aborted) return false
+    apply(data.calls)
+    return true
   }, [apply])
 
   useEffect(() => {
-    void load()
-    const poll = setInterval(() => void load(), 30_000)
+    seen.current.clear()
+    ready.current = false
+    const stop = startVisiblePolling(load)
     const tick = setInterval(() => setNow(Date.now()), 30_000)
-    const channel = supabase
-      .channel(`waiter-calls-${tenantId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'waiter_calls', filter: `tenant_id=eq.${tenantId}` }, (payload) => {
-        const row = payload.new as WaiterCall | undefined
-        if (!row?.id) return
-        const key = keyOf(row)
-        if (row.status === 'open' && !seen.current.has(key)) alert()
-        seen.current.add(key)
-        setCalls(prev => activeCalls(upsertCall(prev, row)))
-      })
-      .subscribe()
     return () => {
-      clearInterval(poll)
+      stop()
       clearInterval(tick)
-      supabase.removeChannel(channel)
     }
-  }, [supabase, tenantId, load, alert])
+  }, [tenantId, load])
 
   async function update(call: WaiterCall, status: 'acknowledged' | 'done') {
     setCalls(prev => activeCalls(prev.map(c => (c.id === call.id ? { ...c, status } : c))))

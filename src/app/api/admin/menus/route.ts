@@ -5,6 +5,7 @@ import { slugify } from '@/lib/utils'
 import { MENU_LANGUAGE_CODES } from '@/components/menu/menu-i18n'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
 
 const ALLOWED_LANGUAGE_CODES: readonly string[] = MENU_LANGUAGE_CODES
 
@@ -42,6 +43,7 @@ async function getTenantContext() {
 }
 
 async function handleGET() {
+  if (adminMenusOwned()) return (await import('@/lib/admin/owned-menu-http')).ownedMenuHttp(null, 'list')
   const ctx = await getTenantContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -56,6 +58,7 @@ async function handleGET() {
 }
 
 async function handlePOST(request: Request) {
+  if (adminMenusOwned()) return (await import('@/lib/admin/owned-menu-http')).ownedMenuHttp(request, 'create')
   const ctx = await getTenantContext()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (ctx.role === 'store-staff') {

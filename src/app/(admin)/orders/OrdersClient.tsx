@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import WaiterCallsPanel from '@/components/admin/WaiterCallsPanel'
-import { createClient } from '@/lib/supabase/client'
+import { startVisiblePolling } from '@/lib/visible-polling'
 import type { Order, OrderItem } from '@/types/database'
 import { useElapsedTime } from './useElapsedTime'
 import { Bell, BellOff, LayoutGrid, List, MessageSquare, Package, Clock, CheckCircle2, XCircle, AlertCircle, Play, Check, X, Info, ChevronRight, Plus, UtensilsCrossed, Truck, Building2 } from 'lucide-react'
@@ -255,7 +255,6 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
   const [muted, setMuted] = useState(false)
   const audioCtxRef = useRef<AudioContext | null>(null)
   const mutedRef = useRef(false)
-  const supabase = createClient()
 
   useEffect(() => {
     const saved = localStorage.getItem(KDS_VIEW_KEY(tenantId))
@@ -298,91 +297,28 @@ export default function OrdersClient({ initialOrders, tenantId, amberThreshold, 
   }
 
   useEffect(() => {
-    const channel = supabase
-      .channel(`orders-realtime-${tenantId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'orders',
-          filter: `tenant_id=eq.${tenantId}`,
-        },
-        async (payload) => {
-          const { data: fullOrder } = await supabase
-            .from('orders')
-            .select('*, order_items(*)')
-            .eq('id', (payload.new as { id: string }).id)
-            .single()
-          if (fullOrder) {
-            setOrders((prev) => {
-              if (prev.some((o) => o.id === fullOrder.id)) return prev
-              return [fullOrder as OrderWithItems, ...prev]
-            })
-            const newOrder = fullOrder as OrderWithItems
-            if (newOrder.status === 'pending' && !mutedRef.current) {
-              playBeep()
-            }
-          }
-        }
-      )
-      // Round-2 P0-06 fix: also listen for UPDATEs so webhook-driven status
-      // transitions (pending -> paid -> payment_failed) reach the KDS without
-      // waiting for the 15s poll.
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'orders',
-          filter: `tenant_id=eq.${tenantId}`,
-        },
-        async (payload) => {
-          const updated = payload.new as { id: string; status: string }
-          setOrders((prev) =>
-            prev.map((o) =>
-              o.id === updated.id ? { ...o, ...(updated as Partial<OrderWithItems>) } : o,
-            ),
-          )
-          // Beep on freshly-paid orders the same way we beep on new pending
-          // orders — pay flow is the "real" arrival for paid stores.
-          if (updated.status === 'paid' && !mutedRef.current) {
-            playBeep()
-          }
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [tenantId, supabase])
-
-  useEffect(() => {
-    // Polling is a safety net behind realtime. Tenant scope is derived
-    // server-side from getEffectiveTenant — the URL no longer needs a
-    // tenant_id query parameter (the route ignores it after round-1 P0-07).
-    const id = setInterval(async () => {
-      try {
-        const res = await fetch('/api/orders')
-        if (!res.ok) return
-        const data = await res.json()
-        // Merge by id rather than replace, so an optimistic status update
-        // isn't reverted if a poll lands between the PATCH and the realtime
-        // UPDATE event.
-        setOrders((prev) => {
-          const byId = new Map<string, OrderWithItems>(prev.map((o) => [o.id, o]))
-          for (const o of data.orders as OrderWithItems[]) byId.set(o.id, o)
-          return Array.from(byId.values()).sort(
-            (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-          )
-        })
-      } catch {
-        // Offline / transient — the next tick retries; don't throw unhandled.
+    const known = new Map(initialOrders.map(order => [order.id, order.status]))
+    return startVisiblePolling(async signal => {
+      const res = await fetch('/api/orders', { signal, cache: 'no-store' })
+      if (!res.ok) return false
+      const data = await res.json() as { orders: OrderWithItems[] }
+      if (signal.aborted) return false
+      let arrival = false
+      for (const order of data.orders) {
+        const previous = known.get(order.id)
+        if ((previous === undefined && (order.status === 'pending' || order.status === 'paid')) ||
+          (previous !== undefined && previous !== 'paid' && order.status === 'paid')) arrival = true
+        known.set(order.id, order.status)
       }
-    }, 15_000)
-    return () => clearInterval(id)
-  }, [tenantId])
+      if (arrival && !mutedRef.current) playBeep()
+      setOrders(previous => {
+        const byId = new Map(previous.map(order => [order.id, order]))
+        for (const order of data.orders) byId.set(order.id, order)
+        return Array.from(byId.values()).sort((a, b) => b.created_at.localeCompare(a.created_at))
+      })
+      return true
+    })
+  }, [tenantId, initialOrders])
 
   function toggleView(next: 'grid' | 'list') {
     setView(next)

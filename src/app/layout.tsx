@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
-import { createServiceClient } from '@/lib/supabase/server'
+import { getPlatformAppearance } from '@/lib/data/platform-appearance-runtime'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 import InstallPrompt from '@/components/InstallPrompt'
@@ -14,8 +14,7 @@ const inter = Inter({
 })
 
 export async function generateViewport(): Promise<Viewport> {
-  const supabase = createServiceClient()
-  const { data: ps } = await supabase.from('platform_settings').select('cta_color').single()
+  const ps = await getPlatformAppearance()
   return {
     themeColor: ps?.cta_color ?? '#F52323',
     viewportFit: 'cover',
@@ -23,8 +22,7 @@ export async function generateViewport(): Promise<Viewport> {
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const supabase = createServiceClient()
-  const { data: ps } = await supabase.from('platform_settings').select('favicon_url').single()
+  const ps = await getPlatformAppearance()
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://xmartmenu.skale.club'
   return {
     title: {
@@ -57,8 +55,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = createServiceClient()
-  const { data: ps } = await supabase.from('platform_settings').select('cta_color, favicon_url').single()
+  const ps = await getPlatformAppearance()
   const primary = ps?.cta_color ?? '#F52323'
   const primaryFg = computePrimaryForeground(primary)
 

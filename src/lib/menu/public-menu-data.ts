@@ -20,6 +20,10 @@
  * phone-session check runs on every request.
  */
 import { cache } from 'react'
+import { publicMenuSource } from '@/lib/data/public-menu'
+import { buildOptionGroupsByProductId, groupByProductId, pickDefaultMenu, pickSectionMenu } from './public-menu-model'
+export { buildOptionGroupsByProductId, groupByProductId, pickDefaultMenu, pickSectionMenu } from './public-menu-model'
+export type { MenuLike } from './public-menu-model'
 import { unstable_cache } from 'next/cache'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
@@ -34,63 +38,6 @@ import { effectiveMultiplier, scaleOptionGroups, scaleProductIngredients, scaleP
 // ---------------------------------------------------------------------------
 // Pure helpers (unit-tested in tests/unit/menu/public-menu-data.test.ts)
 // ---------------------------------------------------------------------------
-
-export interface MenuLike {
-  id: string
-  slug?: string | null
-  is_default?: boolean | null
-}
-
-/** The single row matching `predicate`; null when none or several (same as PostgREST maybeSingle()). */
-function single<T>(rows: readonly T[], predicate: (row: T) => boolean): T | null {
-  const matches = rows.filter(predicate)
-  return matches.length === 1 ? matches[0] : null
-}
-
-/**
- * The tenant's default menu: the one active menu flagged is_default, otherwise
- * the first active menu by position. `activeMenus` must be the tenant's active
- * menus ordered by position.
- */
-export function pickDefaultMenu<M extends MenuLike>(activeMenus: readonly M[]): M | null {
-  return single(activeMenus, m => m.is_default === true) ?? activeMenus[0] ?? null
-}
-
-/**
- * The menu for /[slug]/[section]: when `location` is set (the segment is a
- * branch slug) its own menu if active, else the default menu; otherwise the
- * active menu whose slug is the segment. `activeMenus` must be ordered by position.
- */
-export function pickSectionMenu<M extends MenuLike>(
-  activeMenus: readonly M[],
-  sectionSlug: string,
-  location: { menu_id?: string | null } | null,
-): M | null {
-  if (location) {
-    const own = location.menu_id ? activeMenus.find(m => m.id === location.menu_id) ?? null : null
-    return own ?? pickDefaultMenu(activeMenus)
-  }
-  return single(activeMenus, m => m.slug === sectionSlug)
-}
-
-/** Rows bucketed by product_id, keeping their order. */
-export function groupByProductId<T extends { product_id: string }>(rows: readonly T[] | null | undefined): Record<string, T[]> {
-  const byProduct: Record<string, T[]> = {}
-  for (const row of rows ?? []) {
-    ;(byProduct[row.product_id] ??= []).push(row)
-  }
-  return byProduct
-}
-
-/** Option groups by product, each keeping only its available options. */
-export function buildOptionGroupsByProductId(rawGroups: readonly GroupWithOptions[] | null | undefined): Record<string, GroupWithOptions[]> {
-  return groupByProductId(
-    (rawGroups ?? []).map(group => ({
-      ...group,
-      options: (group.options ?? []).filter(o => o.is_available),
-    })),
-  )
-}
 
 // ---------------------------------------------------------------------------
 // Loader
@@ -155,7 +102,14 @@ export type CachedPublicMenu =
  * (slug, menuSlug). Reads with the service client it creates itself (a cache
  * key must be serialisable, so no client is passed in).
  */
-export async function loadPublicMenuBase(slug: string, menuSlug: string | undefined): Promise<CachedPublicMenu> {
+export function loadPublicMenuBase(slug: string, menuSlug: string | undefined): Promise<CachedPublicMenu> {
+  return loadPublicMenuFromSource(publicMenuSource(process.env), slug, menuSlug)
+}
+async function loadPublicMenuFromSource(source: 'legacy' | 'owned-v1', slug: string, menuSlug: string | undefined): Promise<CachedPublicMenu> {
+  if (source === 'owned-v1') {
+    const { loadOwnedPublicMenuBase } = await import('@/lib/data/public-menu-runtime')
+    return loadOwnedPublicMenuBase(slug, menuSlug)
+  }
   const supabase = createServiceClient()
 
   // Stage 1 — needs the slug.
@@ -277,16 +231,24 @@ export async function loadPublicMenuBase(slug: string, menuSlug: string | undefi
  * section, tagged for revalidation (public-menu-cache.ts), deduplicated per
  * request so generateMetadata and the page share one read.
  */
-export const getPublicMenuBase = cache(async (slug: string, menuSlug: string | undefined): Promise<CachedPublicMenu> => {
+const cachedMenuBase = cache(async (source: 'legacy' | 'owned-v1', slug: string, menuSlug: string | undefined): Promise<CachedPublicMenu> => {
   const seconds = publicMenuCacheSeconds()
-  if (seconds <= 0) return loadPublicMenuBase(slug, menuSlug)
+  if (seconds <= 0) return loadPublicMenuFromSource(source, slug, menuSlug)
   const cached = unstable_cache(
-    () => loadPublicMenuBase(slug, menuSlug),
-    menuCacheKey(slug, menuSlug),
+    () => loadPublicMenuFromSource(source, slug, menuSlug),
+    [...menuCacheKey(slug, menuSlug), source],
     { revalidate: seconds, tags: menuCacheTags(slug) },
   )
   return cached()
 })
+export async function getPublicMenuBase(slug: string, menuSlug: string | undefined): Promise<CachedPublicMenu> {
+  const source = publicMenuSource(process.env)
+  if (source === 'owned-v1') {
+    const { assertPublicMenuTarget } = await import('@/lib/data/public-menu-runtime')
+    assertPublicMenuTarget()
+  }
+  return cachedMenuBase(source, slug, menuSlug)
+}
 
 /** The active tenant (+ settings) for a slug, from the cached base. */
 export async function getTenantBySlug(slug: string) {

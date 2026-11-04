@@ -5,6 +5,8 @@
 
 import React from 'react'
 import { createServiceClient } from '@/lib/supabase/server'
+import { paymentsDataOwned } from '@/lib/data/payments'
+import { loadOwnedPaymentCheckout,ownedStripeEnabled } from '@/lib/data/payments-runtime'
 import { isStripeEnabled, getOrCreatePaymentIntent } from '@/lib/stripe'
 import { StripeProvider } from '@/components/StripeProvider'
 import { CheckoutForm } from './CheckoutForm'
@@ -23,10 +25,11 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
   // only) would hide the order. The orderId is an unguessable UUID that acts as
   // a capability token (standard payment-link pattern), so we read via the
   // service client scoped to that single id.
-  const supabase = createServiceClient()
+  const owned=paymentsDataOwned()
+  const supabase = owned?undefined:createServiceClient()
 
   // Fetch order with items and tenant info
-  const { data: order, error } = await supabase
+  const { data: order, error } = owned?{data:await loadOwnedPaymentCheckout(orderId),error:null}:await supabase!
     .from('orders')
     .select('*, order_items(*), tenants(slug, name, tenant_settings(currency))')
     .eq('id', orderId)
@@ -82,7 +85,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
   }
 
   // Check tenant has Stripe enabled
-  const stripeEnabled = await isStripeEnabled(order.tenant_id)
+  const stripeEnabled = owned?await ownedStripeEnabled(order.tenant_id):await isStripeEnabled(order.tenant_id)
   if (!stripeEnabled) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">

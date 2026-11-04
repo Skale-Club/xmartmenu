@@ -7,6 +7,8 @@ import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 
 import { canKitchenMove, isOrderStatus } from '@/lib/orders/status-machine'
+import { ordersDataOwned, OrderDataError } from '@/lib/data/orders'
+import { withOwnedOrders } from '@/lib/data/orders-runtime'
 
 async function handlePATCH(
   request: Request,
@@ -35,6 +37,11 @@ async function handlePATCH(
       return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
     }
 
+    if (ordersDataOwned()) return await withOwnedOrders(effective.tenantId, true, async owned => {
+      const capabilities = await owned.capabilities()
+      if (!capabilities.kds) return NextResponse.json({ error: 'The kitchen display is part of the Menu + Orders plan' }, { status: 403 })
+      return NextResponse.json(await owned.move(effective, orderId, status))
+    })
     const service = await createServiceClient()
 
     const capabilities = await getTenantCapabilities(effective.tenantId, undefined, service)
@@ -91,6 +98,7 @@ async function handlePATCH(
 
     return NextResponse.json({ id: order.id, status: order.status })
   } catch (error) {
+    if (error instanceof OrderDataError) return NextResponse.json({ error: error.message }, { status: error.status })
     log.error('orders.update_error', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }

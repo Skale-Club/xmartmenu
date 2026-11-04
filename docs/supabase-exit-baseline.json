@@ -1,0 +1,704 @@
+{
+  "measuredAt": "2026-11-03T18:54:47.983Z",
+  "sourceProject": "ktogbpqookfcqilqvici",
+  "tables": [
+    {
+      "name": "ai_generation_logs",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "ai_jobs",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "ai_usage",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "ai_usage_events",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "audit_events",
+      "rls": true,
+      "rows": 34
+    },
+    {
+      "name": "blog_generation_jobs",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "blog_post_feedback",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "blog_posts",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "blog_rss_items",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "blog_rss_sources",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "blog_settings",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "categories",
+      "rls": true,
+      "rows": 12
+    },
+    {
+      "name": "chat_addon_settings",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "chat_blocked_phones",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "chat_conversations",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "chat_messages",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "customer_profiles",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "delivery_zones",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "ingredients",
+      "rls": true,
+      "rows": 34
+    },
+    {
+      "name": "launch_checklist_items",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "locations",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "menu_events",
+      "rls": true,
+      "rows": 3990
+    },
+    {
+      "name": "menu_sessions",
+      "rls": true,
+      "rows": 93
+    },
+    {
+      "name": "menus",
+      "rls": true,
+      "rows": 5
+    },
+    {
+      "name": "order_items",
+      "rls": true,
+      "rows": 6
+    },
+    {
+      "name": "orders",
+      "rls": true,
+      "rows": 2
+    },
+    {
+      "name": "payment_divergences",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "plans",
+      "rls": true,
+      "rows": 3
+    },
+    {
+      "name": "platform_ai_settings",
+      "rls": true,
+      "rows": 1
+    },
+    {
+      "name": "platform_settings",
+      "rls": true,
+      "rows": 1
+    },
+    {
+      "name": "processed_stripe_events",
+      "rls": true,
+      "rows": 6
+    },
+    {
+      "name": "product_ingredients",
+      "rls": true,
+      "rows": 43
+    },
+    {
+      "name": "product_media",
+      "rls": true,
+      "rows": 56
+    },
+    {
+      "name": "product_option_groups",
+      "rls": true,
+      "rows": 18
+    },
+    {
+      "name": "product_options",
+      "rls": true,
+      "rows": 48
+    },
+    {
+      "name": "products",
+      "rls": true,
+      "rows": 56
+    },
+    {
+      "name": "profiles",
+      "rls": true,
+      "rows": 7
+    },
+    {
+      "name": "qr_codes",
+      "rls": true,
+      "rows": 13
+    },
+    {
+      "name": "restaurant_tables",
+      "rls": true,
+      "rows": 1
+    },
+    {
+      "name": "scan_events",
+      "rls": true,
+      "rows": 2486
+    },
+    {
+      "name": "stripe_connections",
+      "rls": true,
+      "rows": 1
+    },
+    {
+      "name": "telegram_settings",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "tenant_ai_settings",
+      "rls": true,
+      "rows": 0
+    },
+    {
+      "name": "tenant_settings",
+      "rls": true,
+      "rows": 3
+    },
+    {
+      "name": "tenant_subscriptions",
+      "rls": true,
+      "rows": 3
+    },
+    {
+      "name": "tenants",
+      "rls": true,
+      "rows": 3
+    },
+    {
+      "name": "waiter_calls",
+      "rls": true,
+      "rows": 0
+    }
+  ],
+  "database": [
+    {
+      "version": "17.6",
+      "bytes": "20106387"
+    }
+  ],
+  "roles": [
+    {
+      "role": "customer",
+      "count": 3
+    },
+    {
+      "role": "store-admin",
+      "count": 3
+    },
+    {
+      "role": "superadmin",
+      "count": 1
+    }
+  ],
+  "identities": [
+    {
+      "provider": "email",
+      "count": 5
+    },
+    {
+      "provider": "google",
+      "count": 2
+    }
+  ],
+  "accounts": [
+    {
+      "total": 7,
+      "verified_phone": 0,
+      "verified_email": 7,
+      "banned": 0
+    }
+  ],
+  "accountIntegrity": [
+    {
+      "orphan_profiles": 0,
+      "users_without_profile": 0
+    }
+  ],
+  "buckets": [
+    {
+      "id": "product-images",
+      "public": true
+    },
+    {
+      "id": "tenant-assets",
+      "public": true
+    }
+  ],
+  "objects": [
+    {
+      "bucket_id": "tenant-assets",
+      "objects": 4,
+      "bytes": "17971466"
+    }
+  ],
+  "extensions": [
+    {
+      "extname": "pg_net",
+      "extversion": "0.20.0"
+    },
+    {
+      "extname": "pg_stat_statements",
+      "extversion": "1.11"
+    },
+    {
+      "extname": "pgcrypto",
+      "extversion": "1.3"
+    },
+    {
+      "extname": "plpgsql",
+      "extversion": "1.0"
+    },
+    {
+      "extname": "supabase_vault",
+      "extversion": "0.3.1"
+    },
+    {
+      "extname": "uuid-ossp",
+      "extversion": "1.1"
+    }
+  ],
+  "functions": [
+    {
+      "proname": "audit_row_change",
+      "prosecdef": true
+    },
+    {
+      "proname": "auth_can_manage_tenant",
+      "prosecdef": true
+    },
+    {
+      "proname": "auth_tenant_id",
+      "prosecdef": true
+    },
+    {
+      "proname": "complete_onboarding",
+      "prosecdef": false
+    },
+    {
+      "proname": "create_order_with_items",
+      "prosecdef": false
+    },
+    {
+      "proname": "get_menu_analytics_overview",
+      "prosecdef": true
+    },
+    {
+      "proname": "get_menu_engagement",
+      "prosecdef": true
+    },
+    {
+      "proname": "get_menu_product_analytics",
+      "prosecdef": true
+    },
+    {
+      "proname": "get_menu_upsell_analytics",
+      "prosecdef": true
+    },
+    {
+      "proname": "get_order_attribution",
+      "prosecdef": true
+    },
+    {
+      "proname": "get_platform_menu_overview",
+      "prosecdef": true
+    },
+    {
+      "proname": "guard_profile_privileges",
+      "prosecdef": false
+    },
+    {
+      "proname": "handle_new_user",
+      "prosecdef": true
+    },
+    {
+      "proname": "is_superadmin",
+      "prosecdef": true
+    },
+    {
+      "proname": "link_orders_to_verified_phone",
+      "prosecdef": false
+    },
+    {
+      "proname": "menu_is_public",
+      "prosecdef": true
+    },
+    {
+      "proname": "mirror_tenant_plan",
+      "prosecdef": true
+    },
+    {
+      "proname": "product_is_public",
+      "prosecdef": true
+    },
+    {
+      "proname": "rls_auto_enable",
+      "prosecdef": true
+    },
+    {
+      "proname": "set_stripe_connections_updated_at",
+      "prosecdef": false
+    },
+    {
+      "proname": "update_updated_at",
+      "prosecdef": false
+    }
+  ],
+  "policies": [
+    {
+      "tablename": "ai_jobs",
+      "count": 1
+    },
+    {
+      "tablename": "ai_usage",
+      "count": 1
+    },
+    {
+      "tablename": "ai_usage_events",
+      "count": 2
+    },
+    {
+      "tablename": "audit_events",
+      "count": 2
+    },
+    {
+      "tablename": "blog_posts",
+      "count": 1
+    },
+    {
+      "tablename": "categories",
+      "count": 3
+    },
+    {
+      "tablename": "chat_addon_settings",
+      "count": 2
+    },
+    {
+      "tablename": "chat_blocked_phones",
+      "count": 2
+    },
+    {
+      "tablename": "chat_conversations",
+      "count": 2
+    },
+    {
+      "tablename": "chat_messages",
+      "count": 1
+    },
+    {
+      "tablename": "customer_profiles",
+      "count": 2
+    },
+    {
+      "tablename": "delivery_zones",
+      "count": 3
+    },
+    {
+      "tablename": "ingredients",
+      "count": 3
+    },
+    {
+      "tablename": "locations",
+      "count": 3
+    },
+    {
+      "tablename": "menu_events",
+      "count": 1
+    },
+    {
+      "tablename": "menu_sessions",
+      "count": 1
+    },
+    {
+      "tablename": "menus",
+      "count": 3
+    },
+    {
+      "tablename": "order_items",
+      "count": 2
+    },
+    {
+      "tablename": "orders",
+      "count": 2
+    },
+    {
+      "tablename": "plans",
+      "count": 1
+    },
+    {
+      "tablename": "processed_stripe_events",
+      "count": 1
+    },
+    {
+      "tablename": "product_ingredients",
+      "count": 3
+    },
+    {
+      "tablename": "product_media",
+      "count": 3
+    },
+    {
+      "tablename": "product_option_groups",
+      "count": 3
+    },
+    {
+      "tablename": "product_options",
+      "count": 3
+    },
+    {
+      "tablename": "products",
+      "count": 3
+    },
+    {
+      "tablename": "profiles",
+      "count": 2
+    },
+    {
+      "tablename": "qr_codes",
+      "count": 2
+    },
+    {
+      "tablename": "restaurant_tables",
+      "count": 2
+    },
+    {
+      "tablename": "scan_events",
+      "count": 1
+    },
+    {
+      "tablename": "stripe_connections",
+      "count": 2
+    },
+    {
+      "tablename": "tenant_settings",
+      "count": 2
+    },
+    {
+      "tablename": "tenant_subscriptions",
+      "count": 2
+    },
+    {
+      "tablename": "tenants",
+      "count": 2
+    },
+    {
+      "tablename": "waiter_calls",
+      "count": 1
+    }
+  ],
+  "migrations": [
+    {
+      "applied": 92,
+      "latest": "20261027097000"
+    }
+  ],
+  "authForeignKeys": [
+    {
+      "source": "auth.identities",
+      "conname": "identities_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "auth.mfa_amr_claims",
+      "conname": "mfa_amr_claims_session_id_fkey",
+      "target": "auth.sessions"
+    },
+    {
+      "source": "auth.mfa_challenges",
+      "conname": "mfa_challenges_auth_factor_id_fkey",
+      "target": "auth.mfa_factors"
+    },
+    {
+      "source": "auth.mfa_factors",
+      "conname": "mfa_factors_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "auth.mfa_recovery_code_sets",
+      "conname": "mfa_recovery_code_sets_mfa_factor_id_fkey",
+      "target": "auth.mfa_factors"
+    },
+    {
+      "source": "auth.mfa_recovery_code_sets",
+      "conname": "mfa_recovery_code_sets_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "auth.mfa_recovery_codes",
+      "conname": "mfa_recovery_codes_mfa_recovery_code_set_id_fkey",
+      "target": "auth.mfa_recovery_code_sets"
+    },
+    {
+      "source": "auth.oauth_authorizations",
+      "conname": "oauth_authorizations_client_id_fkey",
+      "target": "auth.oauth_clients"
+    },
+    {
+      "source": "auth.oauth_authorizations",
+      "conname": "oauth_authorizations_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "auth.oauth_consents",
+      "conname": "oauth_consents_client_id_fkey",
+      "target": "auth.oauth_clients"
+    },
+    {
+      "source": "auth.oauth_consents",
+      "conname": "oauth_consents_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "auth.one_time_tokens",
+      "conname": "one_time_tokens_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "auth.refresh_tokens",
+      "conname": "refresh_tokens_session_id_fkey",
+      "target": "auth.sessions"
+    },
+    {
+      "source": "auth.saml_providers",
+      "conname": "saml_providers_sso_provider_id_fkey",
+      "target": "auth.sso_providers"
+    },
+    {
+      "source": "auth.saml_relay_states",
+      "conname": "saml_relay_states_flow_state_id_fkey",
+      "target": "auth.flow_state"
+    },
+    {
+      "source": "auth.saml_relay_states",
+      "conname": "saml_relay_states_sso_provider_id_fkey",
+      "target": "auth.sso_providers"
+    },
+    {
+      "source": "auth.scim_tokens",
+      "conname": "scim_tokens_sso_provider_id_fkey",
+      "target": "auth.sso_providers"
+    },
+    {
+      "source": "auth.scim_users",
+      "conname": "scim_users_sso_provider_id_fkey",
+      "target": "auth.sso_providers"
+    },
+    {
+      "source": "auth.scim_users",
+      "conname": "scim_users_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "auth.sessions",
+      "conname": "sessions_oauth_client_id_fkey",
+      "target": "auth.oauth_clients"
+    },
+    {
+      "source": "auth.sessions",
+      "conname": "sessions_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "auth.sso_domains",
+      "conname": "sso_domains_sso_provider_id_fkey",
+      "target": "auth.sso_providers"
+    },
+    {
+      "source": "auth.webauthn_challenges",
+      "conname": "webauthn_challenges_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "auth.webauthn_credentials",
+      "conname": "webauthn_credentials_user_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "customer_profiles",
+      "conname": "customer_profiles_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "orders",
+      "conname": "orders_customer_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "profiles",
+      "conname": "profiles_id_fkey",
+      "target": "auth.users"
+    },
+    {
+      "source": "waiter_calls",
+      "conname": "waiter_calls_acknowledged_by_fkey",
+      "target": "auth.users"
+    }
+  ]
+}

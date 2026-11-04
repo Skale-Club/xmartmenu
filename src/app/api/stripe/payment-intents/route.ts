@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { paymentsDataOwned, PaymentDataError } from '@/lib/data/payments'
+import { withOwnedPayments } from '@/lib/data/payments-runtime'
 import { getOrCreatePaymentIntent, isStripeEnabled } from '@/lib/stripe'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
@@ -26,6 +28,15 @@ async function handlePOST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if(paymentsDataOwned()) {
+      const body=await request.json().catch(()=>null)
+      if(!body||typeof body.order_id!=='string'||!body.order_id)return NextResponse.json({error:'order_id is required'},{status:400})
+      const order=await withOwnedPayments(false,repo=>repo.authorizedOrder(body.order_id,user.id))
+      if(!order)return NextResponse.json({error:'Order not found'},{status:404})
+      if(!['awaiting_payment','pending','payment_failed'].includes(order.status))return NextResponse.json({error:'Order is not awaiting payment'},{status:400})
+      const {clientSecret}=await getOrCreatePaymentIntent({tenantId:order.tenant_id,orderId:order.id,amountDollars:Number(order.total),tipCents:order.tip_cents,currency:order.currency??undefined})
+      return NextResponse.json({client_secret:clientSecret})
+    }
     // 2. Get request body
     const body = await request.json()
     const { order_id } = body as { order_id: string }
@@ -104,6 +115,7 @@ async function handlePOST(request: NextRequest) {
 
     return NextResponse.json({ client_secret: clientSecret })
   } catch (error) {
+    if(error instanceof PaymentDataError)return NextResponse.json({error:error.message},{status:error.status})
     log.error('PaymentIntent creation error', { err: error })
     
     if (error instanceof Error) {

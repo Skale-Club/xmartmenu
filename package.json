@@ -4,7 +4,7 @@
   "private": true,
   "browserslist": "> 0.5%, last 2 versions, not dead, not IE 11",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/dev.mjs",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -51,7 +51,10 @@
     "@upstash/redis": "^1.38.0",
     "ai": "^6.0.175",
     "clsx": "^2.1.1",
+    "firebase": "^13.2.0",
     "framer-motion": "^12.38.0",
+    "google-auth-library": "^10.9.1",
+    "jose": "^6.2.15",
     "lucide-react": "^0.475.0",
     "mcp-handler": "^1.1.0",
     "next": "^16.4.3",
@@ -71,6 +74,7 @@
     "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/sanitize-html": "^2.16.1",
@@ -86,6 +90,7 @@
     "vitest": "^3.2.7"
   },
   "overrides": {
+    "@grpc/grpc-js": "^1.14.7",
     "mcp-handler": {
       "@modelcontextprotocol/sdk": "$@modelcontextprotocol/sdk"
     }

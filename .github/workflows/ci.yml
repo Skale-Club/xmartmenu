@@ -67,6 +67,18 @@ jobs:
       - name: Legacy tsx suites
         run: npm run test:legacy
 
+      - name: Offline database rehearsal policy and authenticated crypto fixtures
+        run: |
+          bash -n scripts/ops/xmartmenu-database-rehearsal.sh
+          node scripts/ops/xmartmenu-database-rehearsal.mjs --plan
+          bash scripts/ops/xmartmenu-database-rehearsal.sh --plan
+          node --test scripts/ops/import-xmartmenu-private-candidate.test.mjs
+          node --test scripts/ops/xmartmenu-database-rehearsal.test.mjs
+          python3 -B scripts/ops/test_xmartmenu_private_transport.py
+          python3 -B scripts/ops/test_install_xmartmenu_private_transport.py
+          python3 -B scripts/ops/test_xmartmenu_pg_stdio.py
+          python3 -B scripts/ops/test_upgrade_xmartmenu_pg_stdio.py
+
       - name: Xphere contract checks
         run: npm run xphere:check:all
 
@@ -190,8 +202,35 @@ jobs:
         if: failure()
         run: docker logs $(docker ps -qf "name=supabase_db") 2>&1 | tail -200 || true
 
+  identity-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: identity_test
+          POSTGRES_PASSWORD: disposable_ci_only
+          POSTGRES_DB: xmartmenu_identity_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U identity_test -d xmartmenu_identity_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: Independent PostgreSQL identity and public repository checks
+        env:
+          IDENTITY_TEST_DATABASE_URL: postgresql://identity_test:disposable_ci_only@127.0.0.1:5432/xmartmenu_identity_test
+        run: npx tsx --test --test-concurrency=1 tests/integration/identity-store.test.ts tests/integration/platform-appearance.test.ts tests/integration/public-menu.test.ts tests/integration/admin-menus.test.ts tests/integration/orders.test.ts tests/integration/payments.test.ts tests/integration/rehearsal-manifest.test.ts
+
   deploy:
-    needs: [checks, e2e]
+    needs: [checks, e2e, identity-postgres]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read

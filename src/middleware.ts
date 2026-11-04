@@ -59,6 +59,12 @@ export async function middleware(request: NextRequest) {
 async function route(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // The opt-in pilot owns its cookies and validates its canonical host/origin.
+  // It must not depend on or refresh a legacy session in middleware.
+  if (pathname === '/identity' || pathname.startsWith('/api/identity/')) {
+    return NextResponse.next()
+  }
+
   // Internal QStash worker routes authenticate by signature, not session.
   // Let /api/internal/* through untouched BEFORE any tenant-slug block,
   // custom-domain host rewrite, or updateSession()/getUser() so an

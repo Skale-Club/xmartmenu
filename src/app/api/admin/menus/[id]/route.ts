@@ -4,6 +4,7 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { MENU_LANGUAGE_CODES } from '@/components/menu/menu-i18n'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
 
 interface Props { params: Promise<{ id: string }> }
 const ALLOWED_LANGUAGE_CODES: readonly string[] = MENU_LANGUAGE_CODES
@@ -46,6 +47,7 @@ async function assertOwnership(menuId: string) {
 
 async function handlePATCH(request: Request, { params }: Props) {
   const { id } = await params
+  if (adminMenusOwned()) return (await import('@/lib/admin/owned-menu-http')).ownedMenuHttp(request, 'patch', id)
   const ctx = await assertOwnership(id)
   if (!ctx) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (ctx.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
@@ -83,6 +85,7 @@ async function handlePATCH(request: Request, { params }: Props) {
 
 async function handleDELETE(_req: Request, { params }: Props) {
   const { id } = await params
+  if (adminMenusOwned()) return (await import('@/lib/admin/owned-menu-http')).ownedMenuHttp(_req, 'delete', id)
   const ctx = await assertOwnership(id)
   if (!ctx) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (ctx.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

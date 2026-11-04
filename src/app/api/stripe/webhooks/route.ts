@@ -20,6 +20,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
+import { paymentsDataOwned } from '@/lib/data/payments'
+import { withOwnedPayments } from '@/lib/data/payments-runtime'
 import { createServiceClient } from '@/lib/supabase/server'
 import { captureSecurityEvent } from '@/lib/observability'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
@@ -65,6 +67,10 @@ async function handlePOST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
     }
 
+    if(paymentsDataOwned()&&['payment_intent.succeeded','payment_intent.payment_failed','payment_intent.canceled'].includes(event.type)) {
+      const result=await withOwnedPayments(true,repo=>repo.event({id:event.id,type:event.type,data:{object:event.data.object as IntentFacts}}))
+      return NextResponse.json(result)
+    }
     // Webhook requests have no cookies; the service client bypasses RLS to write
     // orders, tenant_subscriptions, stripe_connections, and processed_stripe_events.
     const supabase = createServiceClient()

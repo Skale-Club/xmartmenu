@@ -11,10 +11,12 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { paymentsDataOwned } from '@/lib/data/payments'
+import { loadOwnedPaymentCheckout } from '@/lib/data/payments-runtime'
 import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
 import { embeddedCurrency } from '@/components/menu/menu-utils'
-import { stripe } from '@/lib/stripe'
+import { stripe,retrieveOwnedPaymentIntent } from '@/lib/stripe'
 import { applyPaymentSignal, signalForIntentStatus } from '@/lib/orders/payment-sync'
 import { log } from '@/lib/observability/log'
 import { CheckCircle, XCircle, Loader2 } from 'lucide-react'
@@ -33,9 +35,10 @@ export default async function ConfirmationPage({ params }: ConfirmationPageProps
   const { orderId } = await params
   // Anonymous customer context — read the order by its unguessable UUID via the
   // service client (RLS on `orders` is admin/staff-only). See checkout page.
-  const supabase = createServiceClient()
+  const owned=paymentsDataOwned()
+  const supabase = owned?undefined:createServiceClient()
 
-  const loadOrder = () => supabase
+  const loadOrder = async () => owned?{data:await loadOwnedPaymentCheckout(orderId)}:await supabase!
     .from('orders')
     .select('*, tenants(slug, name, tenant_settings(currency))')
     .eq('id', orderId)
@@ -58,7 +61,7 @@ export default async function ConfirmationPage({ params }: ConfirmationPageProps
   let intentFailed = false
   if ((WAITING.has(order.status) || order.status === 'payment_failed') && order.payment_intent_id) {
     try {
-      const intent = await stripe.paymentIntents.retrieve(order.payment_intent_id)
+      const intent = owned?await retrieveOwnedPaymentIntent(order.payment_intent_id):await stripe.paymentIntents.retrieve(order.payment_intent_id)
       const signal = signalForIntentStatus(intent.status)
       if (signal) {
         const result = await applyPaymentSignal(supabase, intent, signal)
