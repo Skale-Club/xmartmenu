@@ -29,18 +29,18 @@ import {
   MAX_USER_MESSAGE_CHARS,
   assistantTurnForHistory,
   buildModelMessages,
-  buildSystemPrompt,
-  formatMenuContext,
   loadMenuCatalog,
-  parseCartSnapshot,
   runChatAgent,
 } from '@/lib/chat-agent'
-import { MENU_LANGUAGE_CODES, menuLanguage } from '@/components/menu/menu-i18n'
-import { computeOpenStatus, describeOrdering, describeProfile, resolveOrderingMode, resolveTimeZone } from '@/lib/chat-context'
+import { resolveOrderingMode } from '@/lib/chat-context'
+import { buildPublicChatPrompt } from '@/lib/chat-prompt'
 import { isStripeEnabled } from '@/lib/stripe'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned, AdminMenuError } from '@/lib/data/admin-menus'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
+import { handleOwnedChatMessage } from '@/lib/chat-native'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -77,7 +77,13 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
   const rlDay = await rateLimit('chat-message-ip-day', ip, 300, '1 d')
   if (!rlDay.ok) return NextResponse.json({ error: 'Daily limit reached for this device.' }, { status: 429 })
 
-  const body = (await request.json().catch(() => null)) as ChatRequestBody | null
+  const owned = adminMenusOwned()
+  let body: ChatRequestBody | null
+  try { body = owned ? JSON.parse(await readNativeAnalyticsBody(request)) : await request.json() }
+  catch (error) {
+    if (owned && error instanceof AdminMenuError) return NextResponse.json({ error: 'Invalid chat request' }, { status: error.status })
+    body = null
+  }
   const conversation_id = body?.conversation_id
   const rawMessage = typeof body?.message === 'string'
     ? body.message
@@ -89,6 +95,10 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
   }
   if (userMessage.length > MAX_USER_MESSAGE_CHARS) {
     return NextResponse.json({ error: `Message too long (max ${MAX_USER_MESSAGE_CHARS} characters)` }, { status: 413 })
+  }
+  if (owned) {
+    if (typeof conversation_id !== 'string') return NextResponse.json({ error: 'Invalid conversation' }, { status: 400 })
+    return handleOwnedChatMessage(slug, conversation_id, userMessage, body)
   }
 
   const supabase = createServiceClient()
@@ -169,9 +179,7 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
   const canAddToCart = resolveOrderingMode(settingsRow, capabilities) === 'cart'
   // The guest opened the menu from a table link: the assistant may point them
   // to "Call waiter" instead of a cart that does not exist on this plan.
-  const atTable = typeof body?.table_id === 'string' && body.table_id.length > 0
   const menuId = typeof body?.menu_id === 'string' ? body.menu_id : null
-  const locationId = typeof body?.location_id === 'string' ? body.location_id : null
 
   const [catalog, { data: history }, { data: locations }, { data: zones }, onlinePayment] = await Promise.all([
     loadMenuCatalog(supabase, tenant.id, settingsRow.currency ?? null, menuId),
@@ -193,49 +201,8 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
     canAddToCart ? isStripeEnabled(tenant.id, supabase).catch(() => false) : Promise.resolve(false),
   ])
 
-  // A location page describes that location: its address, phone and hours
-  // win over the restaurant's, falling back field by field.
-  const location = locationId ? (locations ?? []).find((l) => l.id === locationId) ?? null : null
-  const hours = location?.business_hours && Object.values(location.business_hours).some(Boolean)
-    ? location.business_hours
-    : settingsRow.business_hours
-  const country = location?.country ?? settingsRow.country
-  const region = location?.region ?? settingsRow.region
-  const timeZone = resolveTimeZone({ country, region, currency: settingsRow.currency })
-
-  const profile = describeProfile(
-    {
-      name: tenant.name,
-      locationName: location?.name ?? null,
-      tagline: settingsRow.tagline,
-      about: settingsRow.about,
-      cuisine: settingsRow.business_type,
-      priceRange: settingsRow.price_range,
-      address: location?.address ?? settingsRow.address,
-      city: location?.city ?? settingsRow.city,
-      region,
-      postalCode: location?.postal_code ?? settingsRow.postal_code,
-      country,
-      phone: location?.phone ?? settingsRow.phone,
-      whatsapp: settingsRow.whatsapp,
-      instagram: settingsRow.instagram,
-      hours,
-      otherLocations: (locations ?? []).filter((l) => l.id !== location?.id),
-    },
-    computeOpenStatus(hours, new Date(), timeZone),
-  )
-
-  const systemPrompt = buildSystemPrompt({
-    name: tenant.name,
-    profile,
-    menuContext: formatMenuContext(catalog),
-    ordering: describeOrdering(settingsRow, { onlinePayment, deliveryZones: zones ?? [], capabilities, atTable }),
-    canAddToCart,
-    cart: body?.cart === undefined ? null : parseCartSnapshot(body.cart),
-    guestLanguage: typeof body?.language === 'string' && (MENU_LANGUAGE_CODES as readonly string[]).includes(body.language)
-      ? menuLanguage(body.language).englishName
-      : null,
-  })
+  const systemPrompt = buildPublicChatPrompt({ tenantName: tenant.name, settingsRow, capabilities, catalog,
+    locations: locations ?? [], zones: zones ?? [], onlinePayment, canAddToCart, body })
 
   let result
   try {
