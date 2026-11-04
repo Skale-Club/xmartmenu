@@ -8,8 +8,8 @@ export type RestaurantTableMutation =
   | { kind: 'reorder'; firstId: string; secondId: string }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-const TABLE_COLUMNS = 'id tenant_id name position is_active created_at updated_at'
-const QR_COLUMNS = 'id tenant_id label target_url scans created_at'
+const TABLE_COLUMNS = 'id,tenant_id,name,position,is_active,created_at,updated_at'
+const QR_COLUMNS = 'id,tenant_id,label,target_url,scans,created_at'
 
 function context(context: StoreOperationsContext, write = false, managersOnly = false) {
   if (!UUID.test(context.tenantId) || !['superadmin', 'store-admin', 'store-staff'].includes(context.role)) throw new AdminMenuError(403, 'Forbidden')
