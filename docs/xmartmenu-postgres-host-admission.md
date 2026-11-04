@@ -1,8 +1,10 @@
 # PostgreSQL placement and rehearsal inventory
 
 Read-only observation window: 2026-11-03 23:56–23:58 UTC and
-2026-11-04 00:01–00:03 UTC. No database, token, network, host configuration,
-application environment, container lifecycle or permission was changed.
+2026-11-04 00:01–00:03 UTC. During this inventory no database, token, network,
+host configuration, application environment, container lifecycle or permission
+was changed. A later reviewed temporary restore rehearsal is recorded below;
+no persistent XmartMenu database was provisioned.
 
 ## Persistent production candidate: admission denied
 
@@ -155,7 +157,7 @@ It must copy no auth sessions, refresh/provider tokens, password hashes or auth
 server credentials. This scaffold permits app-schema restoration and ID/FK
 comparison only; **it is not migrated login or production authorization**.
 
-## Prepared next code slice (not executed)
+## Prepared protocol and verified temporary rehearsal
 
 The separate [XmartMenu default-plan rehearsal protocol](xmartmenu-database-rehearsal.md) and offline tests are prepared,
 borrowing Xmail V2's one exported snapshot and source/target canonical comparison
@@ -198,3 +200,23 @@ Proposed runtime phases:
 The target/client/crypto/tmpfs aggregate must be accounted for by phase before
 implementation review, not treated as free memory. Real execution remains
 subject to coordinator review of the exact protocol and a fresh host window.
+
+The coordinator subsequently executed the reviewed protocol at
+`854bff5494b74072e01b928ff148d2c9074d89dd` successfully on the alternate host.
+All 47 public counts/full-row digests, six critical UUID/authority groups,
+the two reviewed sequence definitions/states, profile roles, NULL-preserving
+order totals, function bodies and 92 ledger records matched. The restored
+application dataset retained 7 profiles, 3 tenants, 56 products, 2 orders and
+6 items; login migration and application cutover both remained false.
+
+A fresh independent SSH post-check confirmed zero run-label containers and
+zero rehearsal directories. Existing Xmail and its candidate remained healthy
+on their original pinned images; XmartMenu production remained healthy with its
+original image unchanged. No app/source write was performed. See the
+[restore proof](xmartmenu-database-rehearsal.md#real-source-restore-proof).
+
+The temporary encrypted archive and target were removed. This does not admit
+a persistent candidate on the 8 GB XmartMenu host, prove private runtime
+connectivity, establish off-host R2 disaster recovery/retention, or migrate login.
+Sequence state is still non-MVCC and final writer freeze remains required.
+No existing Xpot/Xmail volume or production application was reassigned.

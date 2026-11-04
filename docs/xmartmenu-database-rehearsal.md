@@ -1,4 +1,4 @@
-# Temporary XmartMenu database rehearsal — prepared, unexecuted
+# Temporary XmartMenu database rehearsal — verified restore
 
 This protocol restores the **application database**, not login, into a new
 temporary PostgreSQL container on the existing Xmail server. It does not create
@@ -6,10 +6,12 @@ a persistent XmartMenu production database. Persistent placement on the current
 XmartMenu host remains denied by
 [the capacity inventory](xmartmenu-postgres-host-admission.md).
 
-No real dump, encrypted archive transfer, target container, host tmpfs mount,
-source credential in CI or production DDL has been executed by this increment.
-The coordinator must review this exact revision and repeat capacity checks before
-execution. Default modes perform no operational work:
+The coordinator executed the reviewed protocol successfully on 2026-11-04 UTC,
+at revision `854bff5494b74072e01b928ff148d2c9074d89dd`. The source stayed read-only;
+the encrypted archive and restored database were temporary and removed. No source
+credential/customer data entered CI and no production DDL or app cutover ran.
+Any repeat still requires exact-code review and fresh capacity checks. Default
+modes perform no operational work:
 
 ```text
 node scripts/ops/xmartmenu-database-rehearsal.mjs --plan
@@ -166,7 +168,37 @@ the coordinator may run locally:
 node scripts/ops/xmartmenu-database-rehearsal.mjs --execute-reviewed-rehearsal --source-env C:\Users\Vanildo\Dev\xmartmenu\.env.local
 ```
 
-That is an explicit execution command, not a step already performed here.
+The coordinator used explicit execution mode for the proof below. This example
+does not authorize an unattended repeat or a persistent production deployment.
+
+## Real source restore proof
+
+The coordinator's actual host-bound run on the reviewed revision passed:
+
+| Reconciliation | Verified result |
+| --- | --- |
+| Source consistency | TLS-verified exported REPEATABLE READ READ ONLY snapshot |
+| Public application data | 47 table counts and 47 full-row digests matched |
+| Critical identities/relations | 6 UUID/role/tenant/order groups matched |
+| Original records | 7 profiles, 3 tenants, 56 products, 2 orders, 6 items |
+| Authority/financial context | Roles and original totals with SQL NULL currency matched |
+| Functions / historical ledger | Function bodies and all 92 ledger records matched |
+| Reviewed sequences | Both definitions/ownership and last-value/called states matched |
+| Authentication / release | `loginMigrated=false`, `applicationCutover=false` |
+
+Independent fresh SSH verification after the run found zero matching temporary
+containers and zero rehearsal directories. Existing Xmail and its persistent
+candidate remained healthy on the exact pinned image IDs. XmartMenu production
+remained healthy on its original image ID. No application/source write occurred.
+Only aggregate proof is recorded here; private IDs, row digests, keys, archives
+and environment values are not included.
+
+This is a verified app-database restore rehearsal, not durable disaster recovery
+or a production migration. The archive was destroyed with the private tmpfs;
+off-host R2 backup/restore and retention remain unverified gates. Sequences are
+not MVCC-snapshot state, so final cutover still requires writer freeze/replay.
+Persistent destination capacity/networking, default login/authorization and
+remaining writers are still pending. No production feature flag was enabled.
 
 ## Cleanup and validation evidence
 
