@@ -22,7 +22,7 @@ beforeEach(() => {
   state.effective.mockResolvedValue({ tenantId, role: 'store-admin' }); state.context.mockResolvedValue(context)
   state.read.mockResolvedValue({ tenantId, feature: true, connection: null })
   state.claim.mockImplementation(async () => { state.order.push('claim'); return 'claimed' })
-  state.token.mockImplementation(async () => { state.order.push('provider'); return { stripe_user_id: 'acct_fixture' } })
+  state.token.mockImplementation(async () => { state.order.push('provider'); return { stripe_user_id: 'acct_fixture', scope: 'read_write' } })
   state.connect.mockImplementation(async () => { state.order.push('commit') })
   state.enqueue.mockImplementation(async () => { state.order.push('queue') })
   state.disconnect.mockImplementation(async () => { state.order.push('disconnect'); return { accountId: 'acct_fixture' } })
@@ -48,6 +48,20 @@ it('callback exchanges once with bounded options, persists only account ID and q
   expect(state.connect).toHaveBeenCalledWith(context, 'acct_fixture', expect.objectContaining({ nonceHash: expect.stringMatching(/^[a-f0-9]{64}$/), codeHash: expect.stringMatching(/^[a-f0-9]{64}$/) }))
   expect(state.order).toEqual(['claim','provider','commit','queue'])
   expect(state.source).not.toHaveBeenCalled(); expect(state.cookie).not.toHaveBeenCalled()
+})
+it('read-only or missing OAuth scope consumes the attempt without connection, CRM or a second exchange', async () => {
+  for (const scope of ['read_only', undefined]) {
+    let refused = false
+    state.claim.mockImplementation(async () => refused ? 'refused' : 'claimed')
+    state.refuse.mockImplementation(async () => { refused = true })
+    state.token.mockResolvedValue({ stripe_user_id: 'acct_fixture', scope })
+    const callback = request(), before = state.token.mock.calls.length
+    expect((await finish(callback, undefined)).headers.get('location')).toContain('stripe=exchange_failed')
+    expect(state.refuse).toHaveBeenLastCalledWith(context, expect.any(Object), 'acct_fixture')
+    expect((await finish(new Request(callback.url), undefined)).headers.get('location')).toContain('stripe=invalid_state')
+    expect(state.token.mock.calls.length).toBe(before + 1)
+  }
+  expect(state.connect).not.toHaveBeenCalled(); expect(state.enqueue).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled()
 })
 it('missing principal/staff/current SQL denial fails before exchange without Source fallback', async () => {
   state.effective.mockResolvedValue(null); expect((await start(new Request('http://localhost/api/stripe/connect/oauth'), undefined)).headers.get('location')).toContain('/auth/login')

@@ -53,10 +53,16 @@ export async function finishOwnedStripeConnect(request: Request) {
     if (claimed !== 'claimed') return redirect('invalid_state')
     if (Date.now() > signed.expiresAt) { await refuseOwnedStripeOAuth(context, proof); return redirect('invalid_state') }
     let accountId: string | undefined
+    let grantedScope: string | undefined
     try {
       const response = await stripe.oauth.token({ grant_type: 'authorization_code', code }, OPTIONS)
       accountId = response.stripe_user_id
+      grantedScope = response.scope
     } catch { await refuseOwnedStripeOAuth(context, proof); return redirect('exchange_failed') }
+    if (grantedScope !== 'read_write') {
+      await refuseOwnedStripeOAuth(context, proof, typeof accountId === 'string' && /^acct_[A-Za-z0-9]+$/.test(accountId) ? accountId : undefined)
+      return redirect('exchange_failed')
+    }
     if (typeof accountId !== 'string' || !/^acct_[A-Za-z0-9]+$/.test(accountId)) { await refuseOwnedStripeOAuth(context, proof); return redirect('exchange_failed') }
     try { await connectOwnedStripe(context, accountId, proof) }
     catch (error) {
