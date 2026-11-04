@@ -3,6 +3,8 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { ownedLocationHttp } from '@/lib/admin/owned-locations-http'
 
 async function handlePATCH(
   request: Request,
@@ -73,4 +75,7 @@ async function handlePATCH(
   return NextResponse.json(data)
 }
 
-export const PATCH = withApi('PATCH /api/admin/locations/[id]', handlePATCH)
+export const PATCH = withApi('PATCH /api/admin/locations/[id]', (request: Request, context: { params: Promise<{ id: string }> }) =>
+  adminMenusOwned()
+    ? context.params.then(({ id }) => ownedLocationHttp(request, 'patch', id))
+    : handlePATCH(request, context))

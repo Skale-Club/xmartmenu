@@ -4,6 +4,8 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { ownedDeliveryZoneHttp } from '@/lib/admin/owned-locations-http'
 
 const DELIVERY_ZONES_LOCKED = 'Delivery zones are part of the Menu + Payments plan'
 
@@ -59,5 +61,7 @@ async function handlePOST(request: Request) {
   return NextResponse.json(data, { status: 201 })
 }
 
-export const GET = withApi('GET /api/admin/delivery-zones', handleGET)
-export const POST = withApi('POST /api/admin/delivery-zones', handlePOST)
+export const GET = withApi('GET /api/admin/delivery-zones', (request: Request) =>
+  adminMenusOwned() ? ownedDeliveryZoneHttp(request, 'list') : handleGET())
+export const POST = withApi('POST /api/admin/delivery-zones', (request: Request) =>
+  adminMenusOwned() ? ownedDeliveryZoneHttp(request, 'create') : handlePOST(request))
