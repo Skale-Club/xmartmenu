@@ -20,7 +20,7 @@ it('links by explicit previous-password proof, then uses a new challenge/login a
   const request = vi.fn(async (path: string | URL | Request,options?: RequestInit) => {
     calls.push({ path: String(path),body: options?.body ? JSON.parse(String(options.body)) : {} })
     expect(options).toMatchObject({ cache: 'no-store',redirect: 'error',credentials: 'same-origin' })
-    return Response.json(String(path).endsWith('authority') ? { authority: 'owned' } : String(path).endsWith('challenge') ? { challenge } : String(path).endsWith('resolve-redirect') ? { redirectTo: '/dashboard' } : { linked: true })
+    return Response.json(String(path).endsWith('authority') ? { authority: 'owned' } : String(path).endsWith('challenge') ? { challenge } : String(path).endsWith('resolve-redirect') ? { redirectTo: '/dashboard' } : String(path).endsWith('/login') ? { authenticated: true } : { linked: true })
   })
   expect(await completeOwnedLogin('fixture-google-proof',{ existing: { email: 'old@example.test',password: 'fixture-password' },next: '/' },request)).toBe('/dashboard')
   expect(calls.map(call => call.path)).toEqual(['/api/auth/authority','/api/identity/challenge','/api/identity/existing-account-link','/api/identity/challenge','/api/identity/login','/api/auth/authority','/api/auth/resolve-redirect'])
@@ -32,6 +32,14 @@ it('does not try login, redirect or a legacy request after a denied link', async
   const request = vi.fn(async (path: string | URL | Request) => Response.json(String(path).endsWith('authority') ? { authority: 'owned' } : String(path).endsWith('challenge') ? { challenge } : { message: 'Ownership conflict' },{ status: String(path).endsWith('existing-account-link') ? 409 : 200 }))
   await expect(completeOwnedLogin('fixture-proof',{ existing: { email: 'old@example.test',password: 'fixture-password' } },request)).rejects.toThrow('Ownership conflict')
   expect(request.mock.calls.map(([path]) => path)).toEqual(['/api/auth/authority','/api/identity/challenge','/api/identity/existing-account-link'])
+})
+
+it('requires affirmative native link/login results before continuing an existing session', async () => {
+  for (const link of [false,true]) {
+    const request = vi.fn(async (path: string | URL | Request) => Response.json(String(path).endsWith('authority') ? { authority: 'owned' } : String(path).endsWith('challenge') ? { challenge } : {}))
+    await expect(completeOwnedLogin('fixture-proof',{ link },request)).rejects.toThrow('confirmed')
+    expect(request.mock.calls.some(([path]) => String(path).endsWith('resolve-redirect'))).toBe(false)
+  }
 })
 
 it('rejects external and ambiguous server destinations without a dashboard fallback', async () => {

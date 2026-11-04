@@ -25,10 +25,13 @@ export async function completeOwnedLogin(idToken: string, options: {
     return result.challenge as string
   }
   if (options.existing) {
-    await post(request,'/api/identity/existing-account-link',{ idToken,challenge: await challenge(),...options.existing })
+    const result = await post(request,'/api/identity/existing-account-link',{ idToken,challenge: await challenge(),...options.existing })
+    if (result?.linked !== true) throw new Error('Account linking could not be confirmed.')
   } else if (options.link) {
-    await post(request,'/api/identity/link',{ idToken,challenge: await challenge() })
+    const result = await post(request,'/api/identity/link',{ idToken,challenge: await challenge() })
+    if (result?.linked !== true) throw new Error('Account linking could not be confirmed.')
   }
-  await post(request,'/api/identity/login',{ idToken,challenge: await challenge() })
+  const result = await post(request,'/api/identity/login',{ idToken,challenge: await challenge() })
+  if (result?.authenticated !== true) throw new Error('Sign-in could not be confirmed.')
   return ownedLoginDestination(options.next,request)
 }
