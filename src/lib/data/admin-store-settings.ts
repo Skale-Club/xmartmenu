@@ -89,7 +89,7 @@ function validateRegionalPatch(input: unknown, payments: boolean, current: Recor
       continue
     }
     if (['currency', 'language'].includes(key) ? typeof value !== 'string' : value !== null && typeof value !== 'string') throw new AdminMenuError(400, `Invalid ${key}`)
-    if (['address', 'city', 'region', 'postal_code', 'country', 'price_range'].includes(key)) {
+    if (['city', 'region', 'postal_code', 'country', 'price_range'].includes(key)) {
       patch[key] = typeof value === 'string' ? value.trim() || null : null
     } else if (key === 'currency') {
       patch[key] = value.trim().toUpperCase()

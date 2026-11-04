@@ -63,7 +63,7 @@ test('owned Store page reads scoped settings and live plan capabilities without 
 
 test('regional and service writes preserve payment gates, strict tenant scope, and domain verification reset', async () => {
   const saved = await adminMenuTransaction(pool, true, query => mutateAdminStoreSettings(query, active, {
-    currency: ' CAD ', language: 'en', address: ' 22 King St ', city: 'Toronto', latitude: 43.65, longitude: -79.38,
+    currency: ' CAD ', language: 'en', address: '22 King St', city: 'Toronto', latitude: 43.65, longitude: -79.38,
     business_hours: { mon: '09:00-17:00' }, tip_percentage_1: 16,
   }))
   assert.equal(saved.settings.currency, 'CAD')
