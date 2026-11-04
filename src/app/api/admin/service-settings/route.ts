@@ -16,6 +16,8 @@ import { resolveTenantCapabilities, type ServiceSettings } from '@/lib/service-m
 import { SERVICE_SETTINGS_KEYS, validateServiceSettingsPatch } from '@/lib/service-settings'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { ownedServiceSettingsHttp } from '@/lib/admin/owned-store-settings-http'
 
 export const dynamic = 'force-dynamic'
 
@@ -74,4 +76,5 @@ async function handlePATCH(request: Request) {
   })
 }
 
-export const PATCH = withApi('PATCH /api/admin/service-settings', handlePATCH)
+export const PATCH = withApi('PATCH /api/admin/service-settings', (request: Request) =>
+  adminMenusOwned() ? ownedServiceSettingsHttp(request) : handlePATCH(request))
