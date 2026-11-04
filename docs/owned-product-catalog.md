@@ -1,4 +1,4 @@
-# Product list and row mutations on independent PostgreSQL
+# Product catalog on independent PostgreSQL
 
 The existing OWNED_ADMIN_CATALOG_ENABLED flag also selects the product-list
 page and product row create/update/delete APIs. It remains false by default.
@@ -18,8 +18,14 @@ and media metadata, with analytics product references cleared. It refuses
 unreviewed or inconsistent cross-tenant dependencies before deleting. Storage
 objects are preserved. Upload endpoints and their existing backend are unchanged.
 
-The product detail page, options, ingredient associations, gallery metadata,
-translation and upsell writers still need coordinated migration. Keep the
-catalog flag disabled until all of these readers/writers and authoritative
+The same flag selects product detail, option groups/options, ingredient
+associations, gallery metadata, translations and ordered upsell suggestions.
+Each operation checks the tenant and its parent records; translations save
+atomically. Signed option modifiers and original gallery image behavior remain
+intact. The detail page reads subscription features from the same SQL snapshot.
+Staff can read configuration but cannot change it. Gallery operations alter
+metadata only; existing uploads and storage remain intact.
+
+Keep the catalog flag disabled until these readers/writers and authoritative
 public reads share the final database. Deploying this code performs no SQL,
 role, provider or environment operation.

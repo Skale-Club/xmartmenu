@@ -3,8 +3,10 @@ import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { activeAdminMenu, AdminMenuError, readAdminMenus, type AdminMenuContext, type AdminMenuQuery } from './admin-menus'
 import { findAdminProduct, guardProductDeletion } from './admin-products'
 import { PUBLIC_MENU_COLUMNS } from './public-menu'
+import { planCeiling } from '../service-modes'
+import { sanitizeTranslations } from '../menu-translations'
 
-type Entity = 'groups' | 'options' | 'ingredients' | 'media'
+type Entity = 'groups' | 'options' | 'ingredients' | 'media' | 'translations'
 type Action = 'list' | 'create' | 'patch' | 'delete' | 'reorder'
 export type DetailOperation = { entity: Entity; action: Action; id?: unknown; groupId?: unknown; ingredientId?: unknown; values?: unknown; firstId?: unknown; secondId?: unknown }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -24,10 +26,10 @@ function fields(value: unknown, allowed: readonly string[]) {
 }
 export function detailOperation(value: unknown): DetailOperation {
   const body = fields(value, ['entity', 'action', 'id', 'groupId', 'ingredientId', 'values', 'firstId', 'secondId'])
-  if (typeof body.entity !== 'string' || !['groups', 'options', 'ingredients', 'media'].includes(body.entity)
+  if (typeof body.entity !== 'string' || !['groups', 'options', 'ingredients', 'media', 'translations'].includes(body.entity)
     || typeof body.action !== 'string' || !['list', 'create', 'patch', 'delete', 'reorder'].includes(body.action)
     || (body.action === 'list' && body.entity !== 'media') || (body.entity === 'ingredients' && body.action === 'reorder')
-    || (body.entity === 'media' && body.action === 'patch')) throw bad()
+    || (body.entity === 'media' && body.action === 'patch') || (body.entity === 'translations' && body.action !== 'patch')) throw bad()
   return body as DetailOperation
 }
 function scope(context: AdminMenuContext, write = false) {
@@ -106,13 +108,19 @@ export async function readProductDetailPage(query: AdminMenuQuery, context: Admi
   const menus = await readAdminMenus(query, context)
   const menu: Menu | null = menus.find(row => row.id === product.menu_id) ?? activeAdminMenu(menus, selectedMenuId)
   const settings = (await query('SELECT currency,ingredient_customization_enabled FROM public.tenant_settings WHERE tenant_id=$1', [context.tenantId])).rows[0]
+  const subscriptions = await query(`SELECT s.status,p.features FROM public.tenant_subscriptions s
+    LEFT JOIN public.plans p ON p.id=s.plan_id WHERE s.tenant_id=$1 LIMIT 2`, [context.tenantId])
+  if (subscriptions.rows.length > 1) throw new AdminMenuError(409, 'Ambiguous tenant subscription')
+  const subscription = subscriptions.rows[0]
+  const features = subscription && ['active', 'trial'].includes(String(subscription.status)) && Array.isArray(subscription.features)
+    ? subscription.features.filter((value): value is string => typeof value === 'string') : []
   const ingredients = records<Ingredient>(await query(`SELECT ${projection('i', PUBLIC_MENU_COLUMNS.ingredient)} FROM public.ingredients i
     WHERE i.tenant_id=$1 ORDER BY i.position,i.id LIMIT 1001`, [context.tenantId]), 1000)
   const candidates = await query(`SELECT p.id,p.name,c.name AS category_name FROM public.products p
     LEFT JOIN public.categories c ON c.id=p.category_id AND c.tenant_id=p.tenant_id AND c.menu_id IS NOT DISTINCT FROM p.menu_id
     WHERE p.tenant_id=$1 AND p.id<>$2 AND ($3::uuid IS NULL OR p.menu_id=$3) ORDER BY p.position,p.id LIMIT 2001`, [context.tenantId, product.id, product.menu_id])
   if (candidates.rows.length > 2000) throw new AdminMenuError(409, 'Product catalog exceeds the supported limit')
-  return { product, menu, groups: await readProductGroups(query, context, product.id), ingredients,
+  return { product, menu, plan: planCeiling(features), groups: await readProductGroups(query, context, product.id), ingredients,
     productIngredients: await productIngredients(query, context, product.id), settings: {
       currency: typeof settings?.currency === 'string' ? settings.currency : 'USD',
       ingredient_customization_enabled: settings?.ingredient_customization_enabled === true,
@@ -165,6 +173,22 @@ export async function mutateProductDetail(query: AdminMenuQuery, context: AdminM
   scope(context, operation.action !== 'list')
   if (operation.action !== 'list') await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`xmartmenu-admin-menus:${context.tenantId}`])
   const product = await findAdminProduct(query, context, productId, operation.action !== 'list')
+  if (operation.entity === 'translations') {
+    const values = fields(operation.values, ['product', 'groups', 'options'])
+    const groupUpdates = object(values.groups), optionUpdates = object(values.options)
+    if (Object.keys(groupUpdates).length > 1000 || Object.keys(optionUpdates).length > 5000) throw bad()
+    const groups = await readProductGroups(query, context, product.id)
+    const groupIds = new Set(groups.map(row => row.id)), optionIds = new Set(groups.flatMap(row => row.options.map(option => option.id)))
+    if (Object.keys(groupUpdates).some(id => !groupIds.has(identity(id))) || Object.keys(optionUpdates).some(id => !optionIds.has(identity(id)))) throw new AdminMenuError(404, 'Product configuration not found')
+    // Lock every submitted parent before writing. A later failure rolls back all texts.
+    for (const id of Object.keys(groupUpdates).sort()) await group(query, context, product.id, id)
+    for (const id of Object.keys(optionUpdates).sort()) await option(query, context, product.id, id)
+    const translatedProduct = sanitizeTranslations(values.product)
+    await patchRow(query, context, 'products', product.id, { translations: translatedProduct })
+    for (const [id, texts] of Object.entries(groupUpdates)) await patchRow(query, context, 'product_option_groups', id, { translations: sanitizeTranslations(texts, ['name']) })
+    for (const [id, texts] of Object.entries(optionUpdates)) await patchRow(query, context, 'product_options', id, { translations: sanitizeTranslations(texts, ['name']) })
+    return { product: translatedProduct, groups: await readProductGroups(query, context, product.id) }
+  }
   if (operation.entity === 'groups') {
     if (operation.action === 'reorder') await reorder(query, context, 'product_option_groups', 'product_id', product.id, operation)
     else if (operation.action === 'create') {

@@ -802,7 +802,7 @@ export default function ProductDetailClient({
         >
           Media
         </button>
-        {!ownedSource && <button
+        {<button
           onClick={() => setActiveTab('translations')}
           className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
             activeTab === 'translations'
@@ -917,12 +917,13 @@ export default function ProductDetailClient({
       </div>
       )}
 
-      {activeTab === 'details' && !ownedSource && upsellAvailable && (
+      {activeTab === 'details' && upsellAvailable && (
         <ProductUpsellCard
           productId={product.id}
           initialIds={product.upsell_product_ids ?? []}
           candidates={upsellCandidates}
           canManage={canManage}
+          ownedSource={ownedSource}
         />
       )}
 
@@ -1328,8 +1329,9 @@ export default function ProductDetailClient({
       )}
 
       {/* Translations tab */}
-      {activeTab === 'translations' && !ownedSource && (
+      {activeTab === 'translations' && (
         <ProductTranslationsTab
+          ownedSource={ownedSource}
           product={{ ...product, name: productForm.name, description: productForm.description, translations: productTranslations }}
           groups={groups}
           baseLanguage={baseLanguage}

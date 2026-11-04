@@ -8,6 +8,7 @@ import { createAdminMenusPool, adminMenuTransaction } from '../../src/lib/data/a
 import { mutateAdminProduct, readProductsPage, type AdminProduct, type ProductMutation } from '../../src/lib/data/admin-products'
 import { PUBLIC_MENU_COLUMNS } from '../../src/lib/data/public-menu'
 import { mutateProductDetail, readProductDetailPage, type DetailOperation } from '../../src/lib/data/admin-product-detail'
+import { updateAdminProductUpsellIds } from '../../src/lib/data/admin-product-upsell'
 import type { ProductMedia } from '../../src/types/database'
 import type { GroupWithOptions } from '../../src/app/(admin)/menu/products/[id]/page'
 
@@ -31,6 +32,7 @@ before(async () => {
     ['product_option_groups', '021_orders_v11_schema.sql', 'group'], ['product_options', '021_orders_v11_schema.sql', 'option'],
     ['ingredients', '026_ingredient_schema.sql', 'ingredient'], ['product_ingredients', '026_ingredient_schema.sql', 'productIngredient'],
     ['product_media', '042_product_media.sql', 'media'], ['locations', '036_locations.sql', null], ['qr_codes', '001_initial_schema.sql', null],
+    ['plans', '030_plans_subscriptions.sql', null], ['tenant_subscriptions', '030_plans_subscriptions.sql', null],
     ['orders', '019_full_schema_sync.sql', null], ['menu_sessions', '20261009010000_menu_analytics_foundation.sql', null], ['menu_events', '20261009010000_menu_analytics_foundation.sql', null],
   ]
   const directory = new URL('../../supabase/migrations/', import.meta.url), sources = new Map<string, string>()
@@ -42,7 +44,7 @@ before(async () => {
     await admin.query(ddl)
   }
   for (const [table, , key] of tables) {
-    const wanted = key ? PUBLIC_MENU_COLUMNS[key].split(' ') : table === 'tenant_settings' ? ['currency', 'custom_tags'] : []
+    const wanted = key ? PUBLIC_MENU_COLUMNS[key].split(' ') : table === 'tenant_settings' ? ['currency', 'custom_tags', 'ingredient_customization_enabled'] : []
     for (const source of sources.values()) for (const match of source.matchAll(new RegExp(`ALTER TABLE\\s+(?:public\\.)?${table}\\s+(ADD\\s+COLUMN[\\s\\S]*?);`, 'gi'))) {
       const added = [...match[1].matchAll(/ADD\s+COLUMN(?:\s+IF\s+NOT\s+EXISTS)?\s+([a-z_][a-z0-9_]*)/gi)].map(item => item[1])
       if (!added.some(column => wanted.includes(column))) continue
@@ -212,4 +214,43 @@ test('deleting a group keeps the reviewed cascade while refusing unreviewed chil
   const groups = await detail(own.id, { entity: 'groups', action: 'delete', id: targetGroup.id }) as GroupWithOptions[]
   assert.equal(groups.some(group => group.id === targetGroup.id), false)
   assert.equal((await admin.query('SELECT count(*)::int AS n FROM public.product_options WHERE group_id=$1', [targetGroup.id])).rows[0].n, 0)
+})
+
+test('translations commit as one tenant-scoped operation and refuse a foreign child before changing text', async () => {
+  const own = (await page()).products[0]
+  const groups = await detail(own.id, { entity: 'groups', action: 'create', values: { name: 'Translated group' } }) as GroupWithOptions[]
+  const target = groups.find(row => row.name === 'Translated group')!
+  const updated = await detail(own.id, { entity: 'options', action: 'create', groupId: target.id, values: { name: 'Translated option' } }) as GroupWithOptions[]
+  const optionId = updated.find(row => row.id === target.id)!.options[0].id
+  const values = { product: { pt: { name: 'Prato', description: 'Descrição' } }, groups: { [target.id]: { pt: { name: 'Grupo' } } }, options: { [optionId]: { pt: { name: 'Opção' } } } }
+  await detail(own.id, { entity: 'translations', action: 'patch', values })
+  let data = await adminMenuTransaction(pool, false, query => readProductDetailPage(query, context, own.id))
+  assert.deepEqual(data.product.translations, values.product)
+  assert.deepEqual(data.groups.find(row => row.id === target.id)!.translations, values.groups[target.id])
+  assert.deepEqual(data.groups.find(row => row.id === target.id)!.options[0].translations, values.options[optionId])
+  await assert.rejects(detail(own.id, { entity: 'translations', action: 'patch', values: { ...values, product: { pt: { name: 'Must roll back' } }, options: { [randomUUID()]: {} } } }), { status: 404 })
+  data = await adminMenuTransaction(pool, false, query => readProductDetailPage(query, context, own.id))
+  assert.deepEqual(data.product.translations, values.product)
+  await assert.rejects(detail(own.id, { entity: 'translations', action: 'patch', values }, 'store-staff'), { status: 403 })
+})
+
+test('product plan metadata follows the current own subscription and revokes cancelled features', async () => {
+  const own = (await page()).products[0], plan = randomUUID()
+  await admin.query("INSERT INTO public.plans(id,name,slug,monthly_price,annual_price,features) VALUES($1,'Catalog plan','catalog-test',1,10,'[\"payments\"]')", [plan])
+  await admin.query("INSERT INTO public.tenant_subscriptions(tenant_id,plan_id,billing_cycle,status) VALUES($1,$2,'monthly','active')", [a, plan])
+  const read = () => adminMenuTransaction(pool, false, query => readProductDetailPage(query, context, own.id))
+  assert.equal((await read()).plan.payments, true)
+  await admin.query("UPDATE public.tenant_subscriptions SET status='cancelled' WHERE tenant_id=$1", [a])
+  assert.equal((await read()).plan.payments, false)
+})
+
+test('upsell writes preserve ordered IDs and reject foreign menu or tenant candidates', async () => {
+  const own = (await page()).products[0], candidate = randomUUID(), other = randomUUID()
+  await admin.query("INSERT INTO public.products(id,tenant_id,menu_id,name,price) VALUES($1,$2,$3,'Suggestion',2),($4,$2,$5,'Other menu',3)", [candidate, a, menu, other, secondMenu])
+  const write = (ids: string[]) => adminMenuTransaction(pool, true, query => updateAdminProductUpsellIds(query, context, own.id, ids))
+  await write([candidate])
+  assert.deepEqual((await page()).products.find(row => row.id === own.id)!.upsell_product_ids, [candidate])
+  for (const ids of [[foreignProduct], [other], [own.id], [candidate, candidate]]) await assert.rejects(write(ids), { status: 400 })
+  assert.deepEqual((await page()).products.find(row => row.id === own.id)!.upsell_product_ids, [candidate])
+  await write([])
 })

@@ -36,7 +36,6 @@ export default async function ProductDetailPage({
       if (error instanceof AdminMenuError && error.status === 404) notFound()
       throw error
     })
-    const capabilities = await getTenantCapabilities(tenantId)
     return (
       <ProductDetailClient
         product={data.product as Product & { category: { id: string; name: string } | null }}
@@ -50,8 +49,8 @@ export default async function ProductDetailPage({
         baseLanguage={data.menu?.language ?? 'en'}
         supportedLanguages={data.menu?.supported_languages?.length ? data.menu.supported_languages : [data.menu?.language ?? 'en']}
         upsellCandidates={data.upsellCandidates}
-        showcase={isShowcasePlan(capabilities.plan)}
-        upsellAvailable={capabilities.plan.payments}
+        showcase={isShowcasePlan(data.plan)}
+        upsellAvailable={data.plan.payments}
         ownedSource
       />
     )
