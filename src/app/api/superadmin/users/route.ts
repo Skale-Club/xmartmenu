@@ -3,8 +3,12 @@ import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { accountAdministrationSelected } from '@/lib/data/account-administration'
+import { ownedAccountsHttp } from '@/lib/admin/owned-account-administration-http'
 
 async function handleGET() {
+  if (ownedAuthSelected() || accountAdministrationSelected()) return ownedAccountsHttp()
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = await createServiceClient()
