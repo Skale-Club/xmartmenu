@@ -24,8 +24,8 @@ do not admit another 512 MiB database plus a 128 MiB client while retaining an
 adequate host reserve. The coordinator denied placement. Do not lower the
 database budget, prune another app or weaken admission merely to make it pass.
 
-The production XmartMenu container remains healthy at
-`app-gmaayluj11x1m6j7baogonfn-20261102T010249`, image tag
+The production XmartMenu container remains healthy for application UUID
+`gmaayluj11x1m6j7baogonfn`, deployment timestamp `20261102T010249`, image tag
 `ghcr.io/skale-club/xmartmenu:e5b1fb54ddc55a3445bd115a5973e4e30cb48876` and image ID
 `sha256:06645e194800d6ed0ef8e2e729991affd14c6bec057a1e98e71359062d4a58b6`.
 Its only runtime network is the existing attachable bridge
