@@ -834,7 +834,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                 </div>
                 <h2 className="text-xl font-black text-zinc-950 tracking-tight">Tables</h2>
               </div>
-              <TablesSection tenantId={tenantId} tenantSlug={tenantSlug} tableLinksEnabled={caps.plan.payments} />
+              <TablesSection tenantId={tenantId} tenantSlug={tenantSlug} tableLinksEnabled={caps.plan.payments} ownedSource={ownedSource} />
             </div>
           )}
 
