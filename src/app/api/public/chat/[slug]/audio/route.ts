@@ -19,6 +19,8 @@ import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { transcribeWithOpenRouter, transcriptionModelId, OpenRouterError } from '@/lib/ai/openrouter'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { handleOwnedChatAudio } from '@/lib/chat-native'
 
 export const runtime = 'nodejs'
 export const maxDuration = 30
@@ -42,6 +44,7 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
   if (audio.size > MAX_BYTES) {
     return NextResponse.json({ error: 'Audio too large (max 5 MB)' }, { status: 413 })
   }
+  if (adminMenusOwned()) return handleOwnedChatAudio(slug, conversationId, audio)
 
   const supabase = createServiceClient()
   const { data: tenant } = await supabase

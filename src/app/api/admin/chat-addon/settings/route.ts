@@ -10,11 +10,19 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatContext, adminChatError } from '@/lib/admin/chat-context'
+import { readOwnedAdminChatSettings, writeOwnedAdminChatSettings } from '@/lib/data/admin-chat-runtime'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
 
 async function handleGET() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await readOwnedAdminChatSettings(await adminChatContext(effective))) }
+    catch (error) { return adminChatError(error) }
+  }
 
   const supabase = createServiceClient()
   const { data } = await supabase
@@ -42,6 +50,10 @@ async function handlePUT(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await writeOwnedAdminChatSettings(await adminChatContext(effective), JSON.parse(await readNativeAnalyticsBody(request)))) }
+    catch (error) { return adminChatError(error) }
+  }
 
   const body = await request.json()
   const {

@@ -7,6 +7,9 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatContext, adminChatError } from '@/lib/admin/chat-context'
+import { readOwnedAdminChatConversations } from '@/lib/data/admin-chat-runtime'
 
 async function handleGET(request: Request) {
   const effective = await getEffectiveTenant()
@@ -14,6 +17,10 @@ async function handleGET(request: Request) {
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const url = new URL(request.url)
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await readOwnedAdminChatConversations(await adminChatContext(effective), url.searchParams)) }
+    catch (error) { return adminChatError(error) }
+  }
   const status = url.searchParams.get('status') ?? 'all'
   const page = Math.max(1, Number(url.searchParams.get('page')) || 1)
   const pageSize = Math.min(100, Math.max(1, Number(url.searchParams.get('page_size')) || 50))

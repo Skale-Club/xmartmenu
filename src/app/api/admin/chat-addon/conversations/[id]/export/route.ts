@@ -6,6 +6,9 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatContext, adminChatError } from '@/lib/admin/chat-context'
+import { readOwnedAdminChatThread } from '@/lib/data/admin-chat-runtime'
 
 function csvEscape(v: string): string {
   if (/[",\n\r]/.test(v)) return `"${v.replace(/"/g, '""')}"`
@@ -18,6 +21,12 @@ async function handleGET(_request: Request, { params }: { params: Promise<{ id: 
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
+  if (adminMenusOwned()) {
+    try {
+      const thread = await readOwnedAdminChatThread(await adminChatContext(effective), id)
+      return csvResponse(id, thread.messages)
+    } catch (error) { return adminChatError(error) }
+  }
   const supabase = createServiceClient()
 
   const { data: convo } = await supabase
@@ -34,10 +43,12 @@ async function handleGET(_request: Request, { params }: { params: Promise<{ id: 
     .eq('conversation_id', id)
     .order('created_at', { ascending: true })
 
+  return csvResponse(id, messages ?? [])
+}
+
+function csvResponse(id: string, messages: Array<Record<string, unknown>>) {
   const rows = ['timestamp,role,content']
-  for (const m of messages ?? []) {
-    rows.push(`${csvEscape(m.created_at)},${csvEscape(m.role)},${csvEscape(m.content ?? '')}`)
-  }
+  for (const m of messages) rows.push(`${csvEscape(String(m.created_at))},${csvEscape(String(m.role))},${csvEscape(String(m.content ?? ''))}`)
   const csv = rows.join('\n')
 
   return new Response(csv, {
