@@ -24,7 +24,7 @@ export function validContext(value: BillingProviderContext) {
 }
 export function usageFacts(rows: BillingUsage[]) {
   if (!rows.length || rows.length > 50000) throw unavailable()
-  let costUsd = 0, chargeUsd = 0, last = 0n
+  let costUsd = 0, chargeUsd = 0, last = BigInt(0)
   for (const row of rows) {
     if (!/^[1-9][0-9]*$/.test(row.id) || BigInt(row.id) <= last) throw unavailable()
     last = BigInt(row.id)
