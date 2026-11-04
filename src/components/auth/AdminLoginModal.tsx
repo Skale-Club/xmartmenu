@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { captureSecurityEvent } from '@/lib/observability'
 import { ArrowRight, ChevronLeft, X } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
+import { readLoginAuthority, requireLoginAuthority, type LoginAuthority } from '@/lib/auth/browser-login-authority'
+import Link from 'next/link'
 
 interface Props {
   open: boolean
@@ -21,6 +23,15 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
   const [emailLoading, setEmailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const [authority, setAuthority] = useState<LoginAuthority | 'unavailable' | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+    let active = true
+    setAuthority(null)
+    void readLoginAuthority().then(value => { if (active) setAuthority(value) }).catch(() => { if (active) setAuthority('unavailable') })
+    return () => { active = false }
+  },[open])
 
   useEffect(() => {
     if (!open) return
@@ -41,6 +52,8 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
   async function handleGoogleLogin() {
     setGoogleLoading(true)
     setError(null)
+    try { await requireLoginAuthority('legacy') }
+    catch { setError('Sign-in is unavailable or changed. Reload and try again.'); setGoogleLoading(false); return }
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -63,6 +76,8 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
     e.preventDefault()
     setEmailLoading(true)
     setError(null)
+    try { await requireLoginAuthority('legacy') }
+    catch { setError('Sign-in is unavailable or changed. Reload and try again.'); setEmailLoading(false); return }
 
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
@@ -74,24 +89,34 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
       return
     }
 
-    let redirectTo = '/dashboard'
     try {
       const response = await fetch('/api/auth/resolve-redirect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ next: '/' }),
       })
-      if (response.ok) {
-        const payload = await response.json() as { redirectTo?: string }
-        if (payload.redirectTo) redirectTo = payload.redirectTo
-      }
+      if (!response.ok) throw new Error('Sign-in unavailable')
+      const payload = await response.json() as { redirectTo?: string }
+      if (!payload.redirectTo?.startsWith('/') || payload.redirectTo.startsWith('//') || payload.redirectTo.includes('\\') || /[\u0000-\u001f\u007f]/.test(payload.redirectTo)) throw new Error('Invalid sign-in destination')
+      router.replace(payload.redirectTo)
     } catch {
-      // fall back to /dashboard
+      setError('Your access could not be confirmed. Reload and try again.')
+      setEmailLoading(false)
     }
-    router.replace(redirectTo)
   }
 
   if (!open) return null
+
+  if (authority !== 'legacy') return <ModalPortal closeOnEscape={false}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
+      <section role="dialog" aria-modal="true" aria-label="Admin sign in" className="relative w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-950 p-8 text-white" onClick={event => event.stopPropagation()}>
+        <button aria-label="Close sign in" onClick={onClose} className="absolute right-4 top-4 p-2"><X className="size-4" /></button>
+        <h2 className="text-2xl font-bold">Sign in to XmartMenu</h2>
+        {authority === 'owned' ? <><p className="mt-3 text-sm leading-6 text-zinc-400">Use your verified phone number or Google account.</p><Link href="/auth/login" className="mt-6 block rounded-full bg-primary px-5 py-3 text-center font-bold text-primary-foreground">Continue to sign in</Link></>
+          : <p role={authority === 'unavailable' ? 'alert' : 'status'} className="mt-4 text-sm text-zinc-400">{authority === 'unavailable' ? 'Sign-in is temporarily unavailable. Reload and try again.' : 'Checking sign-in availability…'}</p>}
+      </section>
+    </div>
+  </ModalPortal>
 
   return (
     <ModalPortal closeOnEscape={false}>

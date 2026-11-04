@@ -5,11 +5,13 @@ import { createLegacyOwnerReader } from './legacy-account-proof'
 import { verifyPublicProject } from './public-project-proof'
 import { getClientIp, rateLimit } from '@/lib/rate-limit'
 import { getIdentityServices } from './identity-services'
+import { readLegacyPasswordOwner } from './legacy-password-proof'
+import { OwnedPrincipalRepository } from './owned-principal'
 
 let handler: ReturnType<typeof createIdentityHttp> | undefined
 function runtime() {
   if (handler) return handler
-  const { config, store } = getIdentityServices()
+  const { config, store, pool } = getIdentityServices()
   handler = createIdentityHttp({
     enabled: () => process.env.GOOGLE_AUTH_ENABLED === 'true', origin: config.origin, config: config.web,
     verifyConfig: () => verifyPublicProject({ ...config.web, projectNumber: config.projectNumber, origin: config.origin }),
@@ -20,6 +22,11 @@ function runtime() {
         // Independent online proof by immutable UID; never an email/JWKS fallback.
         return await createLegacyOwnerReader(identityLegacyProofConfig())(token, signal)
       } catch { return null }
+    },
+    legacyPasswordOwner: (email,password,signal) => readLegacyPasswordOwner(email,password,{ signal }),
+    eligibleOwner: async userId => {
+      const principal = await new OwnedPrincipalRepository((text,values) => pool.query(text,values)).profile(userId,new Date())
+      return !!principal && !principal.mustChangePassword
     },
     store,
   })

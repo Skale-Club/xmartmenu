@@ -11,6 +11,8 @@ export interface IdentityHttpDependencies {
   allowRequest: (request: Request) => Promise<boolean>
   verify: (token: string) => Promise<VerifiedGoogleIdentity>
   legacyOwner: (token: string, signal?: AbortSignal) => Promise<string | null>
+  legacyPasswordOwner?: (email: unknown, password: unknown, signal?: AbortSignal) => Promise<string | null>
+  eligibleOwner?: (userId: string) => Promise<boolean>
   store: {
     issueChallenge: () => Promise<string>
     consumeChallenge: (token: string) => Promise<boolean>
@@ -91,7 +93,7 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
     if (!deps.enabled()) return reply({ message: 'Not found' }, 404)
     if (request.headers.get('host')?.toLowerCase() !== origin.host.toLowerCase()) return reply({ message: 'Not found' }, 404)
     const method = ['config', 'session'].includes(operation) ? 'GET' : 'POST'
-    if (!['config', 'session', 'challenge', 'login', 'link', 'logout', 'revoke-all'].includes(operation)) return reply({ message: 'Not found' }, 404)
+    if (!['config', 'session', 'challenge', 'login', 'link', 'existing-account-link', 'logout', 'revoke-all'].includes(operation)) return reply({ message: 'Not found' }, 404)
     if (request.method !== method) return reply({ message: 'Method not allowed' }, 405)
     if (request.headers.get('sec-fetch-site') === 'cross-site'
       || (method === 'POST' && request.headers.get('origin') !== origin.origin)) return reply({ message: 'Origin mismatch' }, 403)
@@ -133,6 +135,24 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
       const age = Date.now() / 1000 - identity.authenticatedAt
       if (identity.projectId !== deps.config.projectId || !Number.isSafeInteger(identity.authenticatedAt)
         || age < -5 || age > 300) return reply({ message: 'A recent verified phone or Google sign-in is required.' }, 401)
+      if (operation === 'existing-account-link') {
+        if (!deps.legacyPasswordOwner || !deps.eligibleOwner) return reply({ message: 'Not found' }, 404)
+        if (cookiePresent(request,'preview_tenant_id') || cookiePresent(request,'xm_demo')) return reply({ message: 'Leave preview or demo mode before linking your account.' },403)
+        if (request.headers.has('authorization') || Object.keys(body).some(key => !['email','password','idToken','challenge'].includes(key))) return reply({ message: 'Invalid account proof' },400)
+        const principal = await readSession(request)
+        if (cookiePresent(request,sessionName) && (!principal || !recent(principal))) return reply({ message: 'Sign in to your existing account again.' },401)
+        if (!(await claimBrowser(request,body))) return reply({ message: 'Invalid or expired browser challenge.' },403)
+        const userId = await deps.legacyPasswordOwner(body.email,body.password,request.signal)
+        if (!userId || !await deps.eligibleOwner(userId)) return reply({ message: 'Existing account proof is unavailable. Use reviewed recovery if needed.' },403)
+        if (principal && principal.userId !== userId) return reply({ message: 'Account ownership conflict.' },409)
+        const bound = await deps.store.owner(identity)
+        if (bound && bound !== userId) return reply({ message: 'Account ownership conflict.' },409)
+        // Password grant produced a source Auth session, independently checked
+        // online by getUser. Preserve the existing legacy-session proof category.
+        await deps.store.bind(identity,userId,'legacy-session')
+        const response = reply({ linked: true }); setCookie(response,challengeName,'',0)
+        return response
+      }
       if (operation === 'link') {
         if (cookiePresent(request, 'preview_tenant_id')) return reply({ message: 'Leave the company preview before linking your account.' }, 403)
         const existingToken = cookiePresent(request, sessionName)
