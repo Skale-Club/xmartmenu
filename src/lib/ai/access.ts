@@ -25,6 +25,8 @@ import {
   type KeyChoice,
 } from './billing-rules'
 import { platformOpenRouterKey } from './openrouter'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { readOwnedPlatformAiRecord, readOwnedTenantAiRecord, recordOwnedTenantAiKeyError, insertOwnedAiUsageRecord } from '@/lib/data/ai-access-runtime'
 
 export interface PlatformAiSettings {
   platformKey: string | null
@@ -53,7 +55,7 @@ function decryptOrNull(value: string | null | undefined): string | null {
 }
 
 export async function loadPlatformAiSettings(): Promise<PlatformAiSettings> {
-  const { data } = await createServiceClient()
+  const { data } = adminMenusOwned() ? { data: await readOwnedPlatformAiRecord() } : await createServiceClient()
     .from('platform_ai_settings')
     .select('openrouter_api_key, default_billing_mode, default_markup_pct, usd_to_brl')
     .eq('id', 1)
@@ -70,7 +72,7 @@ export async function loadPlatformAiSettings(): Promise<PlatformAiSettings> {
 }
 
 export async function loadTenantAiSettings(tenantId: string): Promise<TenantAiSettings> {
-  const { data } = await createServiceClient()
+  const { data } = adminMenusOwned() ? { data: await readOwnedTenantAiRecord(tenantId) } : await createServiceClient()
     .from('tenant_ai_settings')
     .select('billing_mode, openrouter_api_key, markup_pct, last_key_error, last_key_error_at')
     .eq('tenant_id', tenantId)
@@ -138,9 +140,12 @@ export async function runAi<T>(access: ResolvedAiAccess, fn: (choice: KeyChoice)
     if (!access.fallback || access.primary.keySource !== 'tenant' || !isKeyRejection(status)) throw error
     log.warn('ai.client_key_rejected', { feature: access.feature, status, tenant_id: access.tenantId })
     if (access.tenantId) {
-      await createServiceClient()
+      const message = `HTTP ${status}: ${error instanceof Error ? error.message.slice(0, 200) : 'rejected'}`
+      const occurredAt = new Date().toISOString()
+      if (adminMenusOwned()) await recordOwnedTenantAiKeyError(access.tenantId, message, occurredAt)
+      else await createServiceClient()
         .from('tenant_ai_settings')
-        .update({ last_key_error: `HTTP ${status}: ${error instanceof Error ? error.message.slice(0, 200) : 'rejected'}`, last_key_error_at: new Date().toISOString() })
+        .update({ last_key_error: message, last_key_error_at: occurredAt })
         .eq('tenant_id', access.tenantId)
     }
     return fn(access.fallback)
@@ -158,7 +163,7 @@ interface UsageMeta {
 export async function recordAiUsage(meta: UsageMeta, body: unknown): Promise<void> {
   const json = (body ?? {}) as { id?: unknown; model?: unknown; usage?: { cost?: unknown } }
   const cost = Math.max(0, Number(json.usage?.cost ?? 0) || 0)
-  const { error } = await createServiceClient().from('ai_usage_events').insert({
+  const usage = {
     tenant_id: meta.tenantId,
     feature: meta.feature,
     model: typeof json.model === 'string' ? json.model : meta.model ?? null,
@@ -169,7 +174,9 @@ export async function recordAiUsage(meta: UsageMeta, body: unknown): Promise<voi
     charge_usd: chargeFor(cost, meta.choice.billable, meta.choice.markupPct),
     generation_id: typeof json.id === 'string' ? json.id : null,
     request_id: getRequestContext()?.requestId ?? null,
-  })
+  }
+  if (adminMenusOwned()) { await insertOwnedAiUsageRecord(usage); return }
+  const { error } = await createServiceClient().from('ai_usage_events').insert(usage)
   if (error) log.error('ai.usage_record_failed', { err: error, feature: meta.feature })
 }
 
