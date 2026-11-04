@@ -31,8 +31,18 @@ async function admission(query: AdminMenuQuery, slug: string, conversationId: st
   if (!tenant) throw new AdminMenuError(404, 'Tenant not found')
   const addon = await readPublicChatAddon(query, tenant.id)
   if (!addon.status.enabled) throw new AdminMenuError(403, 'Chat addon not enabled')
+  // Moderation/session creation use this same phone lock before row locks.
+  // Read the immutable tuple first, then lock and independently re-read it.
+  let lockedHash: unknown
+  if (lock) {
+    const lookup = one(await rows<{ phone_hash: string }>(query, 'SELECT phone_hash FROM public.chat_conversations WHERE id=$1 AND tenant_id=$2 LIMIT 2', [conversationId, tenant.id], 1))
+    if (!lookup) throw new AdminMenuError(400, 'Invalid conversation')
+    lockedHash = lookup.phone_hash
+    await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`xmartmenu-chat-session:${tenant.id}:${lockedHash}`])
+  }
   const conversation = one(await rows<Conversation>(query, `SELECT id,tenant_id,phone_hash,status,message_count FROM public.chat_conversations WHERE id=$1 AND tenant_id=$2 LIMIT 2${lock ? ' FOR UPDATE' : ''}`, [conversationId, tenant.id], 1))
   if (!conversation) throw new AdminMenuError(400, 'Invalid conversation')
+  if (lock && conversation.phone_hash !== lockedHash) throw new AdminMenuError(409, 'Conversation identity changed')
   if (conversation.status === 'blocked') throw new AdminMenuError(audio ? 400 : 403, audio ? 'Invalid conversation' : 'Conversation has been blocked')
   const blocked = await rows<Row>(query, 'SELECT id FROM public.chat_blocked_phones WHERE tenant_id=$1 AND phone_hash=$2 LIMIT 2', [tenant.id, conversation.phone_hash], 1)
   if (blocked.length) throw new AdminMenuError(403, 'This number is blocked')
@@ -109,7 +119,6 @@ export async function savePublicChatTurn(query: AdminMenuQuery, input: { slug: s
   if (current.tenant.id !== input.tenantId) throw new AdminMenuError(400, 'Invalid conversation')
   const channels = resolveChatChannels(current.configuration)
   if (!channels.text && (!channels.voice || !input.voiceVerified)) throw new AdminMenuError(403, 'This restaurant takes voice messages only')
-  await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`xmartmenu-chat-session:${current.tenant.id}:${current.conversation.phone_hash}`])
   const used = await countPublicChatMessages(query, current.tenant.id, current.conversation.phone_hash, now)
   if (used >= current.limit) throw new ChatLimitError(current.limit, used)
   const timestamp = now.toISOString(), assistantTime = new Date(now.getTime() + 1).toISOString()

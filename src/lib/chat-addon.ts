@@ -8,6 +8,8 @@
  */
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createServiceClient } from '@/lib/supabase/server'
+import { adminMenusOwned } from './data/admin-menus'
+import { readOwnedChatAddonStatus } from './data/admin-chat-runtime'
 
 export interface ChatAddonStatus {
   available: boolean       // plan permits it
@@ -17,6 +19,7 @@ export interface ChatAddonStatus {
 }
 
 export async function getChatAddonStatus(tenantId: string): Promise<ChatAddonStatus> {
+  if (adminMenusOwned()) return readOwnedChatAddonStatus(tenantId)
   const supabase = createServiceClient()
   const [{ data: sub }, { data: settings }] = await Promise.all([
     supabase

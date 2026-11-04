@@ -6,11 +6,23 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatContext, adminChatError } from '@/lib/admin/chat-context'
+import { blockOwnedAdminChatPhone } from '@/lib/data/admin-chat-runtime'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
 
 async function handlePOST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (adminMenusOwned()) {
+    try {
+      const { id } = await params
+      let body: unknown
+      try { body = JSON.parse(await readNativeAnalyticsBody(request)) } catch (error) { if (error instanceof SyntaxError) body = {}; else throw error }
+      return NextResponse.json(await blockOwnedAdminChatPhone(await adminChatContext(effective), id, body))
+    } catch (error) { return adminChatError(error) }
+  }
 
   const auth = await createClient()
   const { data: { user } } = await auth.auth.getUser()
