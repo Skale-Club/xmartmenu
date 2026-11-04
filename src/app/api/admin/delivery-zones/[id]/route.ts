@@ -4,6 +4,8 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { ownedDeliveryZoneHttp } from '@/lib/admin/owned-locations-http'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -56,5 +58,11 @@ async function handleDELETE(_req: Request, { params }: Props) {
   return NextResponse.json({ ok: true })
 }
 
-export const PATCH = withApi('PATCH /api/admin/delivery-zones/[id]', handlePATCH)
-export const DELETE = withApi('DELETE /api/admin/delivery-zones/[id]', handleDELETE)
+export const PATCH = withApi('PATCH /api/admin/delivery-zones/[id]', (request: Request, context: Props) =>
+  adminMenusOwned()
+    ? context.params.then(({ id }) => ownedDeliveryZoneHttp(request, 'patch', id))
+    : handlePATCH(request, context))
+export const DELETE = withApi('DELETE /api/admin/delivery-zones/[id]', (request: Request, context: Props) =>
+  adminMenusOwned()
+    ? context.params.then(({ id }) => ownedDeliveryZoneHttp(request, 'delete', id))
+    : handleDELETE(request, context))

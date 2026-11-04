@@ -3,6 +3,8 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { ownedLocationHttp } from '@/lib/admin/owned-locations-http'
 
 async function handleGET() {
   const effective = await getEffectiveTenant()
@@ -89,5 +91,7 @@ async function handlePOST(request: Request) {
   return NextResponse.json(data, { status: 201 })
 }
 
-export const GET = withApi('GET /api/admin/locations', handleGET)
-export const POST = withApi('POST /api/admin/locations', handlePOST)
+export const GET = withApi('GET /api/admin/locations', (request: Request) =>
+  adminMenusOwned() ? ownedLocationHttp(request, 'list') : handleGET())
+export const POST = withApi('POST /api/admin/locations', (request: Request) =>
+  adminMenusOwned() ? ownedLocationHttp(request, 'create') : handlePOST(request))
