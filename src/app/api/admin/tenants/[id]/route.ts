@@ -3,6 +3,8 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { ownedCustomDomainHttp } from '@/lib/admin/owned-store-settings-http'
 
 async function handlePATCH(
   request: Request,
@@ -50,4 +52,7 @@ async function handlePATCH(
   return NextResponse.json({ tenant: data })
 }
 
-export const PATCH = withApi('PATCH /api/admin/tenants/[id]', handlePATCH)
+export const PATCH = withApi('PATCH /api/admin/tenants/[id]', (request: Request, context: { params: Promise<{ id: string }> }) =>
+  adminMenusOwned()
+    ? context.params.then(({ id }) => ownedCustomDomainHttp(request, id))
+    : handlePATCH(request, context))
