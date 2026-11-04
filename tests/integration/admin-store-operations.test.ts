@@ -42,7 +42,33 @@ test('owned table CRUD derives tenant, permits staff like the existing tenant RL
   assert.equal(created.name, 'A3')
   assert.equal(created.tenant_id, tenantA)
   assert.equal(created.position, 2)
-  await adminMenuTransaction(pool, true, query => mutateAdminRestaurantTable(query, owner, { kind: 'reorder', firstId: tableA, secondId: tableB }))
+  let databaseFailure: { code?: string; column?: string } | undefined
+  const diagnosticPool = {
+    connect: async () => {
+      const client = await pool.connect()
+      return {
+        query: async (sql: string, values?: unknown[]) => {
+          try {
+            return await client.query(sql, values)
+          } catch (error) {
+            const pgError = error as { code?: unknown; column?: unknown }
+            databaseFailure = {
+              code: typeof pgError.code === 'string' ? pgError.code : undefined,
+              column: typeof pgError.column === 'string' ? pgError.column : undefined,
+            }
+            throw error
+          }
+        },
+        release: (destroy?: boolean) => client.release(destroy),
+      } as unknown as pg.PoolClient
+    },
+  } as Pick<pg.Pool, 'connect'>
+  try {
+    await adminMenuTransaction(diagnosticPool, true, query => mutateAdminRestaurantTable(query, owner, { kind: 'reorder', firstId: tableA, secondId: tableB }))
+  } catch (error) {
+    if (databaseFailure) throw new Error(`Reorder SQLSTATE ${databaseFailure.code ?? 'unknown'}; column ${databaseFailure.column ?? 'unknown'}`)
+    throw error
+  }
   const afterRows = await adminMenuTransaction(pool, false, query => readAdminRestaurantTables(query, owner))
   assert.deepEqual(afterRows.slice(0, 2).map(item => item.id), [tableB, tableA])
   assert.equal(afterRows.length, 3)

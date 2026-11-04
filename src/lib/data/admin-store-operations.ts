@@ -76,7 +76,7 @@ export async function mutateAdminRestaurantTable(query: AdminMenuQuery, ctx: Sto
   const positions = new Map(locked.rows.map(item => [String(item.id), Number(item.position)]))
   const first = positions.get(mutation.firstId), second = positions.get(mutation.secondId)
   if (!Number.isInteger(first) || !Number.isInteger(second)) throw new AdminMenuError(503, 'Table order is unavailable')
-  await query(`UPDATE public.restaurant_tables SET position=CASE id WHEN $2 THEN $4 WHEN $3 THEN $5 END,updated_at=now()
+  await query(`UPDATE public.restaurant_tables SET position=CASE id WHEN $2 THEN $4::integer WHEN $3 THEN $5::integer END,updated_at=now()
     WHERE tenant_id=$1 AND id IN ($2,$3)`, [ctx.tenantId, mutation.firstId, mutation.secondId, second, first])
   const result = await query(`SELECT ${TABLE_COLUMNS} FROM public.restaurant_tables WHERE tenant_id=$1 ORDER BY position,id LIMIT 1001`, [ctx.tenantId])
   if (result.rows.length > 1000) throw new AdminMenuError(409, 'Table list exceeds the supported limit')

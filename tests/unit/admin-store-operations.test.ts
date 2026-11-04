@@ -45,7 +45,7 @@ describe('owned QR and restaurant table repositories', () => {
     const ordered = await mutateAdminRestaurantTable(query, owner, { kind: 'reorder', firstId: tableA, secondId: tableB })
     expect(ordered).toMatchObject([{ id: tableB, position: 0 }, { id: tableA, position: 1 }])
     expect(query.mock.calls.some(([sql]) => sql.includes('FOR UPDATE'))).toBe(true)
-    expect(query.mock.calls.some(([sql]) => sql.includes('CASE id WHEN $2 THEN $4 WHEN $3 THEN $5'))).toBe(true)
+    expect(query.mock.calls.some(([sql]) => sql.includes('CASE id WHEN $2 THEN $4::integer WHEN $3 THEN $5::integer'))).toBe(true)
   })
 
   it('refuses missing reorder pairs and scopes table deletion to the current tenant', async () => {
