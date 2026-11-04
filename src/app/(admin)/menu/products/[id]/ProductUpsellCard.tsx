@@ -22,19 +22,20 @@ export default function ProductUpsellCard({
   initialIds,
   candidates,
   canManage,
+  ownedSource = false,
 }: {
   productId: string
   initialIds: string[]
   /** Other dishes on the same menu. */
   candidates: UpsellCandidate[]
   canManage: boolean
+  ownedSource?: boolean
 }) {
   const byId = new Map(candidates.map(c => [c.id, c]))
   const [ids, setIds] = useState(() => initialIds.filter(id => byId.has(id)))
   const [saved, setSaved] = useState(ids)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
-  const supabase = createClient()
   const dirty = JSON.stringify(ids) !== JSON.stringify(saved)
   const available = candidates.filter(c => !ids.includes(c.id))
 
@@ -48,15 +49,27 @@ export default function ProductUpsellCard({
   async function save() {
     setSaving(true)
     setStatus(null)
-    const { error } = await supabase.from('products').update({ upsell_product_ids: ids }).eq('id', productId)
-    setSaving(false)
-    if (error) {
-      setStatus({ kind: 'error', text: error.message })
-      return
+    try {
+      if (ownedSource) {
+        const response = await fetch(`/api/admin/products/${encodeURIComponent(productId)}/upsell`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ upsell_product_ids: ids }),
+        })
+        const result = await response.json().catch(() => ({})) as { error?: string }
+        if (!response.ok) throw new Error(result.error || 'Failed to save suggestions')
+      } else {
+        const { error } = await createClient().from('products').update({ upsell_product_ids: ids }).eq('id', productId)
+        if (error) throw error
+      }
+      notifyPublicMenuChanged()
+      setSaved(ids)
+      setStatus({ kind: 'ok', text: 'Saved.' })
+    } catch (error) {
+      setStatus({ kind: 'error', text: error instanceof Error ? error.message : 'Failed to save suggestions' })
+    } finally {
+      setSaving(false)
     }
-    notifyPublicMenuChanged()
-    setSaved(ids)
-    setStatus({ kind: 'ok', text: 'Saved.' })
   }
 
   return (

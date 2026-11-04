@@ -78,7 +78,7 @@ async function guardDeletion(query: AdminMenuQuery, context: AdminMenuContext, i
 /** The caller supplies a bounded transaction. Interrupted writes are never retried. */
 export async function mutateAdminIngredient(query: AdminMenuQuery, context: AdminMenuContext, mutation: IngredientMutation): Promise<Ingredient | Ingredient[] | { ok: true }> {
   scope(context, true)
-  await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`xmartmenu-admin-ingredients:${context.tenantId}`])
+  await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`xmartmenu-admin-menus:${context.tenantId}`])
   if (mutation.kind === 'create') {
     const patch = ingredientPatch(mutation.body, true)
     const position = await query('SELECT coalesce(max(position)::bigint,-1)+1 AS next FROM public.ingredients WHERE tenant_id=$1', [context.tenantId])
