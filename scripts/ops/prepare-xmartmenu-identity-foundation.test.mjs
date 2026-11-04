@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
-import { buildFoundationSql, captureReview, CONTROL_SQL, FOUNDATION_PRELUDE, foundationTransaction, identitySourceEvidence, migrationSources, nativeIdentityMigrationSql, preservedManifestSql, REVIEWED_ENGAGEMENT_TABLES, validateReview } from './prepare-xmartmenu-identity-foundation.mjs'
+import { buildFoundationSql, captureReview, CONTROL_SQL, FOUNDATION_PRELUDE, foundationTransaction, identitySourceEvidence, migrationSources, nativeIdentityMigrationSql, nativeIdentityProjection, preservedManifestSql, REVIEWED_ENGAGEMENT_TABLES, validateReview } from './prepare-xmartmenu-identity-foundation.mjs'
 import { SEQUENCES, SOURCE_PROJECT, TABLES } from './xmartmenu-source-protocol.mjs'
 
 function fixture() {
@@ -174,4 +174,15 @@ test('native projection preserves canonical migration files and never creates br
   }
   assert.deepEqual(sources, before)
   assert.throws(() => nativeIdentityMigrationSql({ ...sources[0], sql: sources[0].sql+'\n' }))
+})
+
+test('execution projection hash is distinct source provenance and grants only the four new tables', async () => {
+  const sources = await migrationSources(), projection = nativeIdentityProjection(sources), { manifest } = fixture()
+  assert.match(projection.sha256, /^[a-f0-9]{64}$/)
+  for (const row of projection.sourceMigrations) assert.notEqual(row.sha256, projection.sha256)
+  assert.match(projection.sql, /GRANT SELECT,INSERT,UPDATE,DELETE ON public\.app_accounts, public\.app_identity_bindings, public\.app_sessions, public\.app_identity_challenges TO xmartmenu_runtime/)
+  assert.match(projection.sql, /GRANT SELECT ON public\.app_accounts, public\.app_identity_bindings, public\.app_sessions, public\.app_identity_challenges TO xmartmenu_staging_reader/)
+  assert.doesNotMatch(projection.sql, /ALTER DEFAULT PRIVILEGES|CREATE ROLE|ALTER ROLE|DROP ROLE/i)
+  assert.match(await buildFoundationSql(manifest), new RegExp(`xmartmenu-native-projection-sha256:${projection.sha256}`))
+  assert.throws(() => nativeIdentityProjection(sources.toReversed()))
 })

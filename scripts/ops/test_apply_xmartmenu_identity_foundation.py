@@ -81,18 +81,26 @@ class RunnerTests(unittest.TestCase):
         captured = subject.validate_review(review, baseline)
         rows = sorted([{'id': r['id'], 'disabledAt': captured if r['disabled'] else None, 'sessionVersion': 0} for r in review['users']], key=lambda row: row['id'])
         proof = {'oid': subject.DATABASE_OID, 'owner': 'xmartmenu_owner', 'tables': 51, 'ledger': 95,
-                 'migrations': subject.MIGRATIONS, 'accounts': rows, 'bindings': 0, 'sessions': 0,
+                 'migrations': subject.MIGRATIONS,
+                 'executionProjections': {version: 'xmartmenu-native-projection-sha256:' + subject.PROJECTION_SHA for version in subject.MIGRATIONS},
+                 'accounts': rows, 'bindings': 0, 'sessions': 0,
                  'challenges': 0, 'dormant': 3, 'activeNativeSessions': 0, 'ownedRls': 4}
         module = Mock(); module.manifest.return_value = baseline; module.sql.return_value = json.dumps(proof)
         with patch.object(subject, 'role_state', return_value=['unchanged']):
             result = subject.postcheck(module, review, baseline, 'pinned query', ['unchanged'])
             self.assertEqual(result['accounts'], 7); self.assertFalse(result['runtimeLoginEnabled'])
             self.assertFalse(result['applicationCutover'])
+            self.assertEqual(result['executionProjectionSha256'], subject.PROJECTION_SHA)
+            self.assertEqual(result['sourceMigrationHashesMatched'], 3)
             for key, value in [('oid', 'different'), ('dormant', 2), ('bindings', 1), ('ledger', 94), ('ownedRls', 3)]:
                 changed = dict(proof); changed[key] = value; module.sql.return_value = json.dumps(changed)
                 with self.assertRaises(ValueError):
                     subject.postcheck(module, review, baseline, 'pinned query', ['unchanged'])
             changed = json.loads(json.dumps(proof)); changed['accounts'][0]['sessionVersion'] = 1
+            module.sql.return_value = json.dumps(changed)
+            with self.assertRaises(ValueError):
+                subject.postcheck(module, review, baseline, 'pinned query', ['unchanged'])
+            changed = json.loads(json.dumps(proof)); changed['executionProjections']['20261103190000'] = 'wrong projection'
             module.sql.return_value = json.dumps(changed)
             with self.assertRaises(ValueError):
                 subject.postcheck(module, review, baseline, 'pinned query', ['unchanged'])

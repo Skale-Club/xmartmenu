@@ -30,15 +30,21 @@ two REVOKE statements. A prepared native projection replaces only those two
 statements with PUBLIC/authenticated revocation and conditional anon revocation
 when that role exists. authenticated/service_role stay required before DDL.
 It never creates/alters/drops a cluster role. The source files and canonical
-statement provenance in the three ledger rows remain unchanged; the compiler
-hash identifies the executable native permission projection. The postproof uses
-to_regrole/coalesce to deny any existing anon privilege while allowing absence.
+statement provenance in the three ledger rows remain unchanged. A separate
+static execution-projection SHA256 identifies the native revokes plus four-table
+owned grants. Each new ledger created_by records that projection hash, and the
+runner verifies it separately from all three canonical source hashes. The
+postproof uses to_regrole/coalesce to deny any existing anon privilege while
+allowing absence.
 
 All three run in one transaction as xmartmenu_owner, appending only three ledger
 records and resulting in 51 public tables/95 ledger rows. No historical migration
 repair/replay, cluster role, password, default privilege, provider, service or app
-environment change occurs. New-table runtime DML/reader SELECT must come from
-the previously reviewed owner default privileges. Browser roles must have no
+environment change occurs. A later live probe found no table default ACLs for
+xmartmenu_owner: only the existing 47 tables had runtime DML/reader SELECT.
+The operation therefore explicitly grants runtime SELECT/INSERT/UPDATE/DELETE
+and reader SELECT on only the four new identity tables, inside the same
+transaction. It does not broaden owner defaults. Browser roles must have no
 access, and RLS must be enabled. Existing identity tables cause refusal.
 
 The canonical manifest is compared before/after DDL under table locks. The post
@@ -147,11 +153,14 @@ and postchecking independently verifies the exact seven account controls,
 Six mocked policy tests passed locally and on Linux, including missing/wrong-size
 recovery-key rejection before SQL or file-content reads. The reviewed runner
 source SHA256 for the prepared native compatibility fix is
-c1824d9505f63bbf7f2bf86f8687b71cebf747b9f7308169fc67fdb14110bd2e.
+37ca34c5435ef4c747a70ad5971acea2491503e7d5999056f3f8cf23ad31391d.
 Compiler SHA256 is
-4450caada3660b39c0533805cbabac492ed22aafddf07aedcf8f7fb03a376327.
-Only optional-anon permission handling changes executable migration SQL; table
-definitions/account insertion/preservation logic remain. Public prelude and
+91e2ed9683bbbd6c3f8a0a0d2d41dc6630fd557a3b32d5a27e7edc4d00a7e1c5.
+Static native execution-projection SHA256 is
+bcb353494fa1d45f722a1d2be6e4881b5e86b449310bef389e5c905733148bda.
+Only optional-anon handling and explicit four-table grants change executable
+migration SQL; table definitions/account insertion/preservation logic remain.
+Public prelude and
 preserved-manifest query hashes remain a5453557... and 582e959d..., respectively.
 
 The latest preparation CI passed five real PostgreSQL cases plus checks and E2E.
@@ -179,7 +188,12 @@ no COMMIT: OID 30227, 47 original tables, 92 original ledger rows, zero identity
 tables, all original digests/sequence states unchanged, three roles NOLOGIN/
 password NULL, zero native sessions and the original authenticated backup valid.
 Read-only role inventory found anon absent, making the canonical revokes
-non-executable. The prepared compatibility fix needs new CI and SQL-body review;
+non-executable. A subsequent default-ACL probe found zero owner table defaults,
+runtime default DML false and reader default SELECT false, while all 47 existing
+tables had the required grants. The earlier fixture incorrectly supplied default
+grants and did not mirror the live cluster. It now uses only existing-table grants
+and verifies defaults stay empty after success. The compatibility fix needs new
+CI and SQL-body review;
 there is no blind retry, reset, source write, login enablement or app activation.
 Engagement data must be retained and fully reconciled in the final DB-enforced
 writer freeze/cutover. Browser REST writes and privileged RPC/Auth triggers must
@@ -209,7 +223,7 @@ reconciliation also remain necessary before complete Supabase exit.
 
 ## Tests
 
-Fourteen offline tests cover review rejection, source-control scope, migration pins,
+Fifteen offline tests cover review rejection, source-control scope, migration pins,
 no-execute defaults and generated preservation/bootstrap contracts. Five CI
 PostgreSQL cases run first on a fresh service with no anon role, covering missing
 public transaction, baseline rollback, post-DDL privilege failure rollback,

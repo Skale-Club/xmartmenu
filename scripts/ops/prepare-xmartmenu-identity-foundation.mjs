@@ -146,6 +146,16 @@ DO $optional_anon$ BEGIN
 END $optional_anon$;`)
 }
 
+export function nativeIdentityProjection(sources) {
+  if (!Array.isArray(sources) || sources.map(row => row.version).join() !== MIGRATIONS.map(row => row[0]).join()) throw Error('Exact identity projection required')
+  const tables = IDENTITY_TABLES.map(name => `public.${name}`).join(', ')
+  const sql = sources.map(nativeIdentityMigrationSql).join('\n') + `
+GRANT SELECT,INSERT,UPDATE,DELETE ON ${tables} TO xmartmenu_runtime;
+GRANT SELECT ON ${tables} TO xmartmenu_staging_reader;
+`
+  return { sql, sha256: sha256(sql), sourceMigrations: MIGRATIONS.map(([version, , hash]) => ({ version, sha256: hash })) }
+}
+
 // Preserve the original 47-table/92-ledger comparison after the additions.
 // No other predicate or historical migration is silently changed.
 export function preservedManifestSql() {
@@ -162,6 +172,7 @@ export async function buildFoundationSql(manifest, review = null, now = Date.now
   assertManifest(manifest)
   if (review) validateReview(review, manifest, now)
   const sources = await migrationSources()
+  const projection = nativeIdentityProjection(sources)
   const baseline = literal(JSON.stringify(manifest))
   const newNames = IDENTITY_TABLES.map(literal).join(',')
   const roles = `SELECT jsonb_agg(to_jsonb(r)-'rolpassword' ORDER BY r.rolname) FROM pg_roles r`
@@ -191,9 +202,9 @@ CREATE TEMP TABLE identity_before ON COMMIT DROP AS ${MANIFEST_SQL};
 CREATE TEMP TABLE identity_roles ON COMMIT DROP AS ${roles};
 DO $guard$ BEGIN IF (SELECT manifest FROM identity_before)<>${baseline}::jsonb THEN RAISE EXCEPTION 'Candidate business baseline changed'; END IF; END $guard$;
 SET LOCAL ROLE xmartmenu_owner;
-${sources.map(nativeIdentityMigrationSql).join('\n')}
+${projection.sql}
 RESET ROLE;
-${sources.map(({ version, name, sql }) => `INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES(${literal(version)},${literal(name)},ARRAY[${literal(sql)}]);`).join('\n')}
+${sources.map(({ version, name, sql }) => `INSERT INTO supabase_migrations.schema_migrations(version,name,statements,created_by) VALUES(${literal(version)},${literal(name)},ARRAY[${literal(sql)}],${literal(`xmartmenu-native-projection-sha256:${projection.sha256}`)});`).join('\n')}
 ${review ? `CREATE TEMP TABLE identity_review ON COMMIT DROP AS SELECT ${literal(JSON.stringify(review))}::jsonb AS payload;
 DO $guard$ BEGIN
  IF (SELECT (payload->>'capturedAt')::timestamptz FROM identity_review)<clock_timestamp()-interval '5 minutes'

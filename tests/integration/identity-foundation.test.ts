@@ -37,7 +37,7 @@ before(async () => {
   await db.connect()
   await db.query('SET SESSION AUTHORIZATION xmail_owner')
   await db.query("SET timezone='UTC'; SET datestyle='ISO, YMD'; SET extra_float_digits=3; SET bytea_output='hex'")
-  await db.query('GRANT USAGE ON SCHEMA public TO xmartmenu_runtime,xmartmenu_staging_reader; ALTER DEFAULT PRIVILEGES FOR ROLE xmartmenu_owner IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO xmartmenu_runtime; ALTER DEFAULT PRIVILEGES FOR ROLE xmartmenu_owner IN SCHEMA public GRANT SELECT ON TABLES TO xmartmenu_staging_reader')
+  await db.query('GRANT USAGE ON SCHEMA public TO xmartmenu_runtime,xmartmenu_staging_reader')
   await db.query('SET ROLE xmartmenu_owner')
   const columns: Record<string, string> = {
     ai_usage_events: 'id bigserial PRIMARY KEY, marker text', audit_events: 'id bigserial PRIMARY KEY, marker text',
@@ -58,6 +58,8 @@ before(async () => {
   for (let index = 0; index < 6; index++) await db.query('INSERT INTO public.order_items VALUES($1,$2,$3)', [randomUUID(), orderIds[index % 2], product])
   for (let index = 0; index < 92; index++) await db.query('INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES($1,$2,$3)', [index === 91 ? '20261027097000' : `20260000${String(index).padStart(6, '0')}`, 'synthetic', ['SELECT 1']])
   await db.query("CREATE FUNCTION public.synthetic_helper() RETURNS integer LANGUAGE sql AS 'SELECT 1'")
+  // Match LIVE: existing-table grants only, with no table default ACLs.
+  await db.query('GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO xmartmenu_runtime; GRANT SELECT ON ALL TABLES IN SCHEMA public TO xmartmenu_staging_reader')
   await db.query('RESET ROLE')
 })
 
@@ -103,6 +105,7 @@ test('new-table privilege failure rolls back all migrations and bootstrap', asyn
 
 test('fresh seven exact accounts commit without anon and preserve UUIDs, controls and roles', async () => {
   const state = await manifest(), review = fresh(state)
+  assert.equal((await db.query("SELECT count(*)::int n FROM pg_default_acl WHERE defaclrole='xmartmenu_owner'::regrole AND defaclobjtype='r'")).rows[0].n, 0)
   const parts = await foundationTransaction(state, review)
   await db.query(parts.publicPrelude)
   await db.query(parts.privateSql)
@@ -113,6 +116,8 @@ test('fresh seven exact accounts commit without anon and preserve UUIDs, control
   assert.equal((await db.query('SELECT count(*)::int n FROM public.app_sessions')).rows[0].n, 0)
   assert.equal((await db.query("SELECT count(*)::int n FROM pg_authid WHERE rolname IN ('xmartmenu_runtime','xmartmenu_staging_reader') AND NOT rolcanlogin AND rolpassword IS NULL")).rows[0].n, 2)
   assert.equal((await db.query("SELECT count(*)::int n FROM pg_roles WHERE rolname='anon'")).rows[0].n, 0)
+  assert.equal((await db.query("SELECT count(*)::int n FROM pg_default_acl WHERE defaclrole='xmartmenu_owner'::regrole AND defaclobjtype='r'")).rows[0].n, 0)
+  assert.equal((await db.query("SELECT count(*)::int n FROM pg_tables WHERE schemaname='public' AND tablename IN ('app_accounts','app_identity_bindings','app_sessions','app_identity_challenges') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'SELECT') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'INSERT') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'UPDATE') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'DELETE') AND has_table_privilege('xmartmenu_staging_reader',('public.'||tablename)::regclass,'SELECT')")).rows[0].n, 4)
 })
 
 test('retry refuses existing foundation instead of replaying migrations or enabling accounts', async () => {

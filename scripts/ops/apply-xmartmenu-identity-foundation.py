@@ -13,7 +13,8 @@ import sys
 
 sys.dont_write_bytecode = True
 BACKUP_SOURCE_SHA = 'cc9b692f82daee9d0862e8f1367b7060c36c289f0f8323ac2ff462fa9c3bf255'
-COMPILER_SHA = '4450caada3660b39c0533805cbabac492ed22aafddf07aedcf8f7fb03a376327'
+COMPILER_SHA = '91e2ed9683bbbd6c3f8a0a0d2d41dc6630fd557a3b32d5a27e7edc4d00a7e1c5'
+PROJECTION_SHA = 'bcb353494fa1d45f722a1d2be6e4881b5e86b449310bef389e5c905733148bda'
 PRELUDE_SHA = 'a5453557b08928c83cadb24fea9e074751ec6204409d4ea5f59e7cd39d2c77d7'
 PRESERVED_QUERY_SHA = '582e959d30f127ce0d518b8b6428be3a9a40ccaea6a4936d538b28036c42e41b'
 BACKUP = Path('/opt/xmartmenu/backups/identity-20261104T161702Z-3a8d70dc23a3989e')
@@ -116,6 +117,7 @@ SELECT json_build_object(
  'tables',(SELECT count(*) FROM pg_tables WHERE schemaname='public'),
  'ledger',(SELECT count(*) FROM supabase_migrations.schema_migrations),
  'migrations',(SELECT jsonb_object_agg(version,encode(sha256(convert_to(statements[1],'UTF8')),'hex')) FROM supabase_migrations.schema_migrations WHERE version IN ('20261103190000','20261103200000','20261103210000') AND cardinality(statements)=1),
+ 'executionProjections',(SELECT jsonb_object_agg(version,created_by) FROM supabase_migrations.schema_migrations WHERE version IN ('20261103190000','20261103200000','20261103210000')),
  'accounts',(SELECT json_agg(json_build_object('id',id,'disabledAt',extract(epoch from disabled_at)::bigint,'sessionVersion',session_version) ORDER BY id) FROM public.app_accounts),
  'bindings',(SELECT count(*) FROM public.app_identity_bindings), 'sessions',(SELECT count(*) FROM public.app_sessions),
  'challenges',(SELECT count(*) FROM public.app_identity_challenges),
@@ -129,18 +131,21 @@ ROLLBACK;"""))
     captured = int(dt.datetime.fromisoformat(review['capturedAt'].replace('Z', '+00:00')).timestamp())
     expected = sorted([{'id': row['id'], 'disabledAt': captured if row['disabled'] else None, 'sessionVersion': 0} for row in review['users']], key=lambda row: row['id'])
     require(result == {'oid': DATABASE_OID, 'owner': 'xmartmenu_owner', 'tables': 51, 'ledger': 95,
-                       'migrations': MIGRATIONS, 'accounts': expected, 'bindings': 0, 'sessions': 0,
+                       'migrations': MIGRATIONS, 'executionProjections': {version: 'xmartmenu-native-projection-sha256:' + PROJECTION_SHA for version in MIGRATIONS},
+                       'accounts': expected, 'bindings': 0, 'sessions': 0,
                        'challenges': 0, 'dormant': 3, 'activeNativeSessions': 0, 'ownedRls': 4})
     return {'foundationApplied': True, 'businessTableDigestsMatched': 47, 'originalLedgerRowsPreserved': 92,
             'publicTables': 51, 'ledgerRows': 95, 'accounts': 7, 'disabledAccounts': sum(row['disabled'] for row in review['users']),
             'bindings': 0, 'sessions': 0, 'challenges': 0, 'rolesUnchangedNoLogin': True,
+            'executionProjectionSha256': PROJECTION_SHA, 'sourceMigrationHashesMatched': 3,
             'backupPreserved': True, 'runtimeLoginEnabled': False, 'applicationCutover': False}
 
 
 def execute(expected_operator, expected_sql, packet):
     module = load_backup_operator(expected_operator)
-    require(isinstance(packet, dict) and set(packet) == {'compilerSha256', 'manifestSql', 'preservedManifestSql', 'review', 'publicPrelude', 'privateSql'}
+    require(isinstance(packet, dict) and set(packet) == {'compilerSha256', 'executionProjectionSha256', 'manifestSql', 'preservedManifestSql', 'review', 'publicPrelude', 'privateSql'}
             and packet['compilerSha256'] == COMPILER_SHA
+            and packet['executionProjectionSha256'] == PROJECTION_SHA
             and digest(packet['manifestSql'].encode()) == module.QUERY_SHA
             and digest(packet['preservedManifestSql'].encode()) == PRESERVED_QUERY_SHA
             and digest(packet['publicPrelude'].encode()) == PRELUDE_SHA
