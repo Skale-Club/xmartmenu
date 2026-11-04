@@ -7,10 +7,10 @@ import { ArrowDownAZ, Building2, Calendar, ChevronDown, Filter, LogIn, Mail, Rot
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { getInitials } from '@/lib/utils'
 
-interface TenantOption { id: string; name: string; slug: string }
-interface UserRow {
+export interface TenantOption { id: string; name: string; slug: string }
+export interface UserRow {
   id: string
-  email: string | undefined
+  email: string | null | undefined
   full_name: string | null
   role: string | null
   tenant_id: string | null
@@ -35,10 +35,11 @@ function formatDate(date: string | null) {
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(date))
 }
 
-export default function UsersClient({ users: initial, tenants, currentUserId }: {
+export default function UsersClient({ users: initial, tenants, currentUserId,native = false }: {
   users: UserRow[]
   tenants: TenantOption[]
   currentUserId: string | null
+  native?: boolean
 }) {
   const [users, setUsers] = useState(initial)
   const [loading, setLoading] = useState<string | null>(null)
@@ -111,8 +112,8 @@ export default function UsersClient({ users: initial, tenants, currentUserId }: 
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:p-6 lg:p-8">
-      <ConfirmDialog open={!!confirmId} title="Delete user"
-        message={`Delete “${confirmEmail}”? This user will lose access to every associated restaurant.`}
+      <ConfirmDialog open={!!confirmId} title={native ? 'Disable local account' : 'Delete user'}
+        message={native ? `Disable “${confirmEmail}”? Local sessions and application access will be revoked. Account history and the real phone/Google provider account remain intact.` : `Delete “${confirmEmail}”? This user will lose access to every associated restaurant.`}
         onConfirm={confirmDelete} onCancel={() => setConfirmId(null)} />
 
       <header className="mb-6">
@@ -172,7 +173,7 @@ export default function UsersClient({ users: initial, tenants, currentUserId }: 
 
       <section aria-label="User accounts" className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <AnimatePresence initial={false} mode="popLayout">
-          {filteredUsers.map(user => <UserCard key={user.id} user={user} tenants={tenants} loading={loading === user.id}
+          {filteredUsers.map(user => <UserCard key={user.id} native={native} user={user} tenants={tenants} loading={loading === user.id}
             isCurrentUser={user.id === currentUserId} onAssign={handleAssign}
             onDeleteRequest={(id, email) => { setConfirmId(id); setConfirmEmail(email ?? '') }} />)}
         </AnimatePresence>
@@ -194,10 +195,11 @@ function FilterSelect({ label, value, onChange, children }: { label: string; val
   </label>
 }
 
-function UserCard({ user, tenants, loading, isCurrentUser, onAssign, onDeleteRequest }: {
+function UserCard({ user, tenants, loading, isCurrentUser, onAssign, onDeleteRequest,native }: {
   user: UserRow; tenants: TenantOption[]; loading: boolean; isCurrentUser: boolean
+  native: boolean
   onAssign: (userId: string, tenantId: string, role: string) => void
-  onDeleteRequest: (id: string, email: string | undefined) => void
+  onDeleteRequest: (id: string, email: string | null | undefined) => void
 }) {
   const [tenant, setTenant] = useState(user.tenant_id ?? '')
   const [role, setRole] = useState(user.role ?? '')
@@ -209,7 +211,7 @@ function UserCard({ user, tenants, loading, isCurrentUser, onAssign, onDeleteReq
     className="border-b border-zinc-100 p-4 last:border-b-0 sm:p-5">
     <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
       <div className="flex min-w-0 flex-1 items-start gap-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-xs font-black text-indigo-600">{getInitials(user.full_name || user.email)}</span>
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 text-xs font-black text-indigo-600">{getInitials(user.full_name || user.email || undefined)}</span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2"><h2 className="truncate text-sm font-bold text-zinc-950 sm:text-base">{user.full_name || 'Unnamed user'}</h2>
             {isCurrentUser && <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-indigo-700">You</span>}
@@ -225,7 +227,8 @@ function UserCard({ user, tenants, loading, isCurrentUser, onAssign, onDeleteReq
       <div className="grid min-w-0 gap-2 border-t border-zinc-100 pt-4 sm:grid-cols-[minmax(120px,.8fr)_minmax(160px,1.2fr)_auto] lg:w-[570px] lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
         <ControlSelect label="Role" icon={<Shield className="size-4" aria-hidden="true" />} value={role} disabled={isCurrentUser}
           onChange={nextRole => { setRole(nextRole); if (!roleNeedsTenant(nextRole)) setTenant('') }}>
-          {roleOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+          {native&&<option value="" disabled>Choose a role</option>}
+          {roleOptions.filter(option=>!native||option.value).map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
         </ControlSelect>
         <ControlSelect label="Restaurant" icon={<Building2 className="size-4" aria-hidden="true" />} value={tenant}
           disabled={isCurrentUser || !needsTenant} invalid={missingRequiredTenant} onChange={setTenant}>
@@ -237,15 +240,16 @@ function UserCard({ user, tenants, loading, isCurrentUser, onAssign, onDeleteReq
             className="flex min-h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 text-xs font-bold text-white transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-zinc-100 disabled:text-zinc-400 sm:flex-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2">
             {loading ? <span className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Save className="size-4" aria-hidden="true" />}{loading ? 'Saving' : 'Save'}
           </motion.button>
-          <button type="button" onClick={() => onDeleteRequest(user.id, user.email)} disabled={isCurrentUser}
-            aria-label={isCurrentUser ? 'You cannot delete your own account' : `Delete ${user.full_name || user.email || 'user'}`}
-            title={isCurrentUser ? 'You cannot delete your own account' : 'Delete user'}
+          <button type="button" onClick={() => onDeleteRequest(user.id, user.full_name||user.email||user.id)} disabled={isCurrentUser}
+            aria-label={isCurrentUser ? 'You cannot change your own account' : `${native?'Disable':'Delete'} ${user.full_name || user.email || 'user'}`}
+            title={isCurrentUser ? 'You cannot change your own account' : native ? 'Disable local account' : 'Delete user'}
             className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200 text-zinc-500 transition-[border-color,color,background-color] hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:border-zinc-100 disabled:text-zinc-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500">
             <Trash2 className="size-4" aria-hidden="true" />
           </button>
         </div>
       </div>
     </div>
+    {native&&<p className="mt-3 text-xs text-zinc-500">Verified account ID: <code className="select-all break-all">{user.id}</code></p>}
     {missingRequiredTenant && <p className="mt-2 text-right text-xs font-medium text-red-600">Choose a restaurant before saving this role.</p>}
   </motion.article>
 }

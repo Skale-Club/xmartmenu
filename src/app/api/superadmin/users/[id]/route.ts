@@ -3,11 +3,15 @@ import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { accountAdministrationSelected } from '@/lib/data/account-administration'
+import { ownedAccountsHttp } from '@/lib/admin/owned-account-administration-http'
 
 async function handlePATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) return ownedAccountsHttp(request,(await params).id)
   const { id } = await params
   const authorization = await assertSuperadmin()
   if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -71,6 +75,7 @@ async function handleDELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) return ownedAccountsHttp(_req,(await params).id)
   const { id } = await params
   const authorization = await assertSuperadmin()
   if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
