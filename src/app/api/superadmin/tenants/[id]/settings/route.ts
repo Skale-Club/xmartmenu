@@ -1,3 +1,6 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
+import { ownedTenantAdministrationHttp } from '@/lib/admin/owned-tenant-administration-http'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
@@ -11,6 +14,7 @@ async function handleGET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('settings',_req,(await params).id)
   const { id } = await params
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -25,6 +29,7 @@ async function handlePATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('settings',request,(await params).id)
   const { id } = await params
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

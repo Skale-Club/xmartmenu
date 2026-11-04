@@ -25,6 +25,7 @@ import {
   Users,
   XCircle,
 } from 'lucide-react'
+import OwnedStaffManagement from '@/components/admin/OwnedStaffManagement'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { getInitials, slugify } from '@/lib/utils'
 
@@ -115,7 +116,7 @@ async function getResponseError(response: Response, fallback: string) {
   return typeof data?.error === 'string' ? data.error : fallback
 }
 
-export default function TenantDirectoryClient({ clients: initialClients, plans }: { clients: ClientRow[]; plans: PlanOption[] }) {
+export default function TenantDirectoryClient({ clients: initialClients, plans, native = false }: { clients: ClientRow[]; plans: PlanOption[]; native?: boolean }) {
   const router = useRouter()
   const [clients, setClients] = useState(initialClients)
   const [error, setError] = useState<string | null>(null)
@@ -215,7 +216,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
       const response = await fetch('/api/superadmin/tenants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(createForm),
+        body: JSON.stringify(native ? { name:createForm.name,slug:createForm.slug,plan_id:createForm.plan_id,owner_user_id:createForm.email } : createForm),
       })
       const data = await response.json().catch(() => null)
       if (!response.ok) throw new Error(data?.error ?? 'Failed to create restaurant')
@@ -233,11 +234,11 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
         created_at: data.tenant.created_at,
         logo_url: data.tenant.logo_url ?? null,
         user_id: data.owner_id ?? null,
-        email: createForm.email,
+        email: native ? null : createForm.email,
         full_name: null,
-        provider: 'email',
+        provider: native ? 'verified account' : 'email',
       }
-      setClients(current => [client, ...current])
+      setClients(current => [client, ...current.filter(item => !native || item.user_id !== data.owner_id)])
       setCreateForm({ name: '', slug: '', email: '', plan_id: plans[0]?.id ?? '' })
       setShowCreate(false)
       setNewCredentials(data.credentials ?? null)
@@ -478,8 +479,8 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
     <div className="w-full p-8">
       <ConfirmDialog
         open={!!deleteTarget}
-        title="Delete client"
-        message={`Delete "${deleteTarget?.name ?? deleteTarget?.email}"? This action cannot be undone.`}
+        title={native && !deleteTarget?.id ? 'Disable local account' : 'Delete restaurant'}
+        message={native ? (deleteTarget?.id ? `Delete the unused local restaurant shell "${deleteTarget.name}"? Content, billing or external dependencies prevent deletion. Use Deactivate to preserve it.` : 'Disable this local account and revoke its local sessions? Its profile, provider sign-ins and history are preserved.') : `Delete "${deleteTarget?.name ?? deleteTarget?.email}"? This action cannot be undone.`}
         onConfirm={handleDelete}
         onCancel={() => { if (!deleteLoading) setDeleteTarget(null) }}
         loading={deleteLoading}
@@ -537,6 +538,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
         </div>
       )}
 
+      {native && <p className="mb-4 text-sm text-zinc-600">Owners first register and verify their phone or Google account at /staff-access. Paste their exact account ID below. CRM sync remains pending.</p>}
       {showCreate && (
         <form onSubmit={handleCreate} className="mb-8 grid max-w-2xl grid-cols-1 gap-5 rounded-2xl border border-zinc-200 bg-white p-4 shadow-xl shadow-zinc-100 sm:p-6 md:grid-cols-2 lg:rounded-3xl lg:p-8">
           <div className="md:col-span-2 flex items-center justify-between">
@@ -546,8 +548,8 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
           <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Restaurant name
             <input required value={createForm.name} onChange={event => setCreateForm(current => ({ ...current, name: event.target.value, slug: slugify(event.target.value) }))} className="mt-2 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-normal normal-case" />
           </label>
-          <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">Admin email
-            <input required type="email" value={createForm.email} onChange={event => setCreateForm(current => ({ ...current, email: event.target.value }))} className="mt-2 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-normal normal-case" />
+          <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">{native ? 'Verified owner account ID' : 'Admin email'}
+            <input required type={native ? "text" : "email"} placeholder={native ? "Exact account UUID from /staff-access" : undefined} value={createForm.email} onChange={event => setCreateForm(current => ({ ...current, email: event.target.value }))} className="mt-2 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-normal normal-case" />
           </label>
           <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">URL slug
             <input required value={createForm.slug} onChange={event => setCreateForm(current => ({ ...current, slug: slugify(event.target.value) }))} className="mt-2 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm font-normal normal-case" />
@@ -667,7 +669,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
                       </h2>
                       <div className="mt-1 grid min-w-0 gap-1 text-xs text-zinc-500 sm:grid-cols-2 sm:gap-x-4">
                         <span className="flex min-w-0 items-center gap-1"><Globe className="h-3 w-3 flex-shrink-0" /><span className="truncate">/{client.slug}</span></span>
-                        <span className="flex min-w-0 items-center gap-1" title={client.email ?? 'No administrator'}><Mail className="h-3 w-3 flex-shrink-0" /><span className="truncate">{client.email ?? 'No administrator'}</span></span>
+                        <span className="flex min-w-0 items-center gap-1" title={client.email ?? (native ? client.user_id : null) ?? 'No administrator'}><Mail className="h-3 w-3 flex-shrink-0" /><span className="truncate">{client.email ?? (native ? client.user_id : null) ?? 'No administrator'}</span></span>
                       </div>
                     </div>
                   </div>
@@ -720,7 +722,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
                       <div className="flex gap-1 border-b border-zinc-100 bg-zinc-50 px-5 pt-2">
                         {(['staff', 'menus'] as const).map(item => <button key={item} onClick={() => setExpandedTab(current => ({ ...current, [tenantId]: item }))} className={`border-b-2 px-4 py-3 text-xs font-bold capitalize ${tab === item ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-400'}`}>{item} ({item === 'staff' ? data?.staff.length ?? 0 : data?.menus.length ?? 0})</button>)}
                       </div>
-                      {tab === 'staff' ? (
+                      {tab === 'staff' && native ? <div className="p-4 sm:p-6"><OwnedStaffManagement tenantId={tenantId} /></div> : tab === 'staff' ? (
                         <div className="space-y-5 p-4 sm:p-6">
                           {data?.staffError && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">{data.staffError}</div>}
                           {data?.credentials && <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-xs text-green-800"><p className="mb-2 font-bold">Credentials for {data.credentials.owner}</p><p className="font-mono">{data.credentials.email} · {data.credentials.password}</p><button onClick={() => copyCredentials(`Email: ${data.credentials!.email}\nPassword: ${data.credentials!.password}`)} className="mt-3 font-bold underline">{copied ? 'Copied!' : 'Copy credentials'}</button></div>}
@@ -753,7 +755,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans }
         <section className="mt-12">
           <h2 className="mb-4 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-zinc-400"><Shield className="h-5 w-5 text-amber-500" />Pending Assignment</h2>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {pendingUsers.map(user => <div key={user.user_id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-100 bg-white p-4"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 font-bold text-amber-600">{(user.full_name ?? user.email ?? '?')[0].toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{user.email}</p><p className="text-xs text-zinc-400">{user.full_name ?? 'Anonymous user'}</p></div>{user.provider === 'google' && <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600">Google</span>}<button onClick={() => setDeleteTarget(user)} className="flex size-10 items-center justify-center text-zinc-300 hover:text-red-600" aria-label={`Delete ${user.email}`}><Trash2 className="h-4 w-4" /></button><div className="basis-full flex flex-col gap-2 border-t border-amber-50 pt-3 sm:flex-row"><select value={user.user_id ? assignmentTenant[user.user_id] ?? '' : ''} onChange={event => user.user_id && setAssignmentTenant(current => ({ ...current, [user.user_id!]: event.target.value }))} className="min-h-11 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs"><option value="">Choose restaurant…</option>{restaurants.map(tenant => <option key={tenant.id} value={tenant.id!}>{tenant.name}</option>)}</select><button onClick={() => handleAssign(user)} disabled={!user.user_id || !assignmentTenant[user.user_id] || assignmentLoading === user.user_id} className="min-h-11 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{assignmentLoading === user.user_id ? 'Assigning…' : 'Assign'}</button></div></div>)}
+            {pendingUsers.map(user => <div key={user.user_id} className="flex flex-wrap items-center gap-3 rounded-2xl border border-amber-100 bg-white p-4"><div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-50 font-bold text-amber-600">{(user.full_name ?? user.email ?? '?')[0].toUpperCase()}</div><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold">{user.email ?? user.user_id}</p><p className="text-xs text-zinc-400">{user.full_name ?? 'Anonymous user'}</p></div>{user.provider === 'google' && <span className="rounded-full bg-blue-50 px-2 py-1 text-xs font-bold text-blue-600">Google</span>}<button onClick={() => setDeleteTarget(user)} className="flex size-10 items-center justify-center text-zinc-300 hover:text-red-600" aria-label={`${native ? 'Disable local account' : 'Delete'} ${user.email ?? user.user_id}`}><Trash2 className="h-4 w-4" /></button><div className="basis-full flex flex-col gap-2 border-t border-amber-50 pt-3 sm:flex-row"><select value={user.user_id ? assignmentTenant[user.user_id] ?? '' : ''} onChange={event => user.user_id && setAssignmentTenant(current => ({ ...current, [user.user_id!]: event.target.value }))} className="min-h-11 min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs"><option value="">Choose restaurant…</option>{restaurants.map(tenant => <option key={tenant.id} value={tenant.id!}>{tenant.name}</option>)}</select><button onClick={() => handleAssign(user)} disabled={!user.user_id || !assignmentTenant[user.user_id] || assignmentLoading === user.user_id} className="min-h-11 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-white disabled:opacity-50">{assignmentLoading === user.user_id ? 'Assigning…' : 'Assign'}</button></div></div>)}
           </div>
         </section>
       )}

@@ -1,3 +1,6 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
+import { ownedTenantAdministrationHttp } from '@/lib/admin/owned-tenant-administration-http'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
@@ -7,6 +10,7 @@ import { log } from '@/lib/observability/log'
 interface Props { params: Promise<{ id: string; menuId: string }> }
 
 async function handleGET(req: Request, { params }: Props) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('products',req,(await params).id,(await params).menuId)
   const { id: tenantId, menuId } = await params
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

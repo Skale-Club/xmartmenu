@@ -1,9 +1,13 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
+import { ownedPlansPage } from '@/lib/data/tenant-administration-runtime'
 import { createClient } from '@/lib/supabase/server'
 import PlansClient from './PlansClient'
 
 export const dynamic = 'force-dynamic'
 
 async function getPlans() {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedPlansPage()
   const supabase = await createClient()
   const { data, error } = await supabase
     .from('plans')
