@@ -23,6 +23,8 @@ interface Props {
   tenantSlug?: string
   /** What the plan sells and what is switched on (getTenantCapabilities). */
   capabilities: TenantCapabilities
+  /** Store and service settings are read and written by the owned PostgreSQL repository. */
+  ownedSource: boolean
 }
 
 const CURRENCIES = [
@@ -150,7 +152,7 @@ function ToggleRow({ title, description, checked, onChange }: { title: string; d
   )
 }
 
-export default function StoreClient({ settings, tenantId, tenantSlug, stripeConnection, tenant, capabilities }: Props) {
+export default function StoreClient({ settings, tenantId, tenantSlug, stripeConnection, tenant, capabilities, ownedSource }: Props) {
   const [caps, setCaps] = useState(capabilities)
   const hours = (settings?.business_hours ?? {}) as Record<string, string>
 
@@ -353,7 +355,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
     feature_not_available: { type: 'error', message: 'Stripe Connect requires the Menu + Payments plan.' },
   }
 
-  const supabase = createClient()
+  const supabase = ownedSource ? null : createClient()
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
@@ -375,10 +377,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
     const { tip_percentage_1, tip_percentage_2, tip_percentage_3, ...regionalAndContact } = form
     const tipPresets = caps.plan.payments ? { tip_percentage_1, tip_percentage_2, tip_percentage_3 } : {}
 
-    const { error: err } = await supabase
-      .from('tenant_settings')
-      .upsert({
-        tenant_id: tenantId,
+    const payload = {
         ...regionalAndContact,
         ...tipPresets,
         // Coerce local-SEO fields: empty strings → null, coordinates → number.
@@ -390,10 +389,24 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
         latitude: parseCoord(form.latitude),
         longitude: parseCoord(form.longitude),
         business_hours: Object.keys(filteredHours).length > 0 ? filteredHours : null,
-      }, { onConflict: 'tenant_id' })
+      }
 
-    if (err) setError(err.message)
-    else { setSaved(true); notifyPublicMenuChanged(); setTimeout(() => setSaved(false), 2500) }
+    if (ownedSource) {
+      const response = await fetch('/api/admin/store-settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const data = await response.json().catch(() => ({})) as { error?: string }
+      if (!response.ok) setError(data.error ?? 'Could not save settings')
+      else { setSaved(true); notifyPublicMenuChanged(); setTimeout(() => setSaved(false), 2500) }
+    } else {
+      const { error: err } = await supabase!
+        .from('tenant_settings')
+        .upsert({ tenant_id: tenantId, ...payload }, { onConflict: 'tenant_id' })
+      if (err) setError(err.message)
+      else { setSaved(true); notifyPublicMenuChanged(); setTimeout(() => setSaved(false), 2500) }
+    }
     setLoading(false)
   }
 
