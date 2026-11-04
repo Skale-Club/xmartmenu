@@ -41,7 +41,13 @@ beforeEach(async () => {
   await admin.query('UPDATE public.app_accounts SET disabled_at=NULL'); await admin.query("UPDATE public.profiles SET role='store-admin',tenant_id=$2,must_change_password=false WHERE id=$1", [actor, a])
   await admin.query('UPDATE public.chat_addon_settings SET enabled=true,text_enabled=true,audio_enabled=true,rate_limit_per_phone_per_day=20')
 })
-after(async () => { await pool.end(); await admin.end() })
+after(async () => {
+  await pool.end()
+  // Node orders files alphabetically. identity-store deliberately applies the
+  // canonical identity migration on a pristine schema after this projection.
+  try { await admin.query('DROP TABLE IF EXISTS public.chat_messages,public.chat_conversations,public.chat_blocked_phones,public.chat_addon_settings,public.tenant_subscriptions,public.plans,public.profiles,public.app_accounts,public.tenants CASCADE') }
+  finally { await admin.end() }
+})
 test('settings projections omit both keys and whitelist upserts preserve credentials/tenant scope and clamp limits', async () => {
   const before = await run(false, query => readAdminChatSettings(query, context))
   assert.equal(before.status.enabled, true); assert.ok(before.settings); assert.equal('openrouter_api_key' in before.settings, false); assert.equal('audio_api_key' in before.settings, false)
