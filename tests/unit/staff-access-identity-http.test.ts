@@ -30,7 +30,7 @@ describe('staff ownership handoff uses existing verified identity infrastructure
  })
  it('rejects wrong project, stale factor, absent binding, another signed-in UID, preview, demo, wrong browser nonce and role/tenant injection',async()=>{
   for(const kind of ['project','stale','unbound','other','preview','demo','nonce','inject'] as const){
-   const f=fixture();let headers:Record<string,string>={},patch:Record<string,unknown>={}
+   const f=fixture(),headers:Record<string,string>={};let patch:Record<string,unknown>={}
    if(kind==='project')f.state.project='wrong-project';if(kind==='stale')f.state.authAt-=301;if(kind==='unbound')f.state.owner=''
    if(kind==='other'){f.state.current={userId:'another-id',authenticatedAt:new Date()};headers.cookie=`__Host-xm_identity=${f.old}; __Host-xm_identity_challenge=${f.challenge}`}
    if(kind==='preview'||kind==='demo')headers.cookie=`__Host-xm_identity_challenge=${f.challenge}; ${kind==='preview'?'preview_tenant_id':'xm_demo'}=1`
