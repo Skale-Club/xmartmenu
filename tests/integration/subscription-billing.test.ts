@@ -117,6 +117,12 @@ test('a different plan expires the old open checkout before creating its replace
   await change({ mode: 'checkout', planId: second, cycle: 'annual' })
   assert.equal(sessions.get(before)?.status, 'expired'); assert.deepEqual(order, ['create','expire','create']); assert.equal(expires, 1)
 })
+test('non-financial admin notes do not expire or require Stripe access for an in-progress checkout', async () => {
+  await change({ mode: 'checkout', planId: first, cycle: 'monthly' })
+  const id = [...sessions.keys()][0], noProvider = { ...deps, gateway: { ...gateway, context: async () => { throw Error('Stripe is not configured') } } }
+  await change({ mode: 'admin', patch: { override_notes: 'Reviewed contract note' } }, superActor, noProvider)
+  assert.equal(sessions.get(id)?.status, 'open'); assert.equal(expires, 0); assert.equal(creates, 1)
+})
 test('completed checkout is remembered before webhook delivery so refresh cannot create a parallel subscription', async () => {
   await change({ mode: 'checkout', planId: first, cycle: 'monthly' }); complete([...sessions.keys()][0])
   const same = await change({ mode: 'checkout', planId: first, cycle: 'monthly' }); assert.equal(same.body.updated, true); assert.equal(same.body.changed, false)

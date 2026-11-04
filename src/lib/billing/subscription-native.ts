@@ -109,9 +109,12 @@ export async function changeNativeSubscription(context: SubscriptionActor, input
   const pending = await deps.database.run(false, query => readPendingSubscriptionRequest(query, context))
   let open = await deps.database.run(false, query => readOpenSubscriptionCheckout(query, context))
   const known = await deps.database.run(false, query => readCompletedSubscriptionCheckout(query, context))
+  const financialIntent = input.mode === 'checkout' || (input.mode === 'cycle' && input.cycle !== initial.subscription?.cycle)
+    || (input.mode === 'admin' && ((input.patch?.plan_id !== undefined && input.patch.plan_id !== initial.subscription?.planId) || (input.patch?.billing_cycle !== undefined && input.patch.billing_cycle !== initial.subscription?.cycle)))
   // Local-only billing preferences/overrides must remain usable when Stripe
   // is not configured; pending/provider-backed billing still takes priority.
   if (input.mode !== 'checkout' && !pending && !open && !known && !initial.subscription?.subscriptionId) return localChange(context, input, initial, deps)
+  if (input.mode !== 'checkout' && !financialIntent && !pending && !initial.subscription?.subscriptionId) return localChange(context, input, initial, deps)
   const provider = validContext(await deps.gateway.context())
   if (pending) {
     checkIntent(pending, input)
@@ -136,7 +139,7 @@ export async function changeNativeSubscription(context: SubscriptionActor, input
   const facts: ProviderObject = { mode: input.mode, tenantId: context.tenantId, actorId: context.actorId, baseline: baseline(initial.subscription), targetPlan: plan, cycle, requiresActivePlan: !!(input.planId || input.patch?.plan_id),
     localPatch: input.mode === 'admin' ? input.patch ?? null : null, patchBaseline: input.patch ? Object.fromEntries(Object.keys(input.patch).map(key => [key, initial.subscription?.raw[key] ?? null])) : null,
     slug: initial.slug, existing: !!initial.subscription, warning: false }
-  if (open) {
+  if (open && financialIntent) {
     if (!open.objectId || hashFacts(open.context) !== hashFacts(provider)) throw billingUnavailable()
     const session = parseCheckout(await deps.gateway.checkout(open.objectId), open.body, provider, open.objectId)
     if (session.status === 'open' && input.mode === 'checkout' && record(open.facts.targetPlan).id === plan.id && open.facts.cycle === cycle) {
