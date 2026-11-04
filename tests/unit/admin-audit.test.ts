@@ -51,7 +51,7 @@ describe('owned audit reads', () => {
   })
 
   it('requires the platform role and applies bounded platform filters', async () => {
-    const query = vi.fn(async (sql: string) => {
+    const query = vi.fn(async (sql: string, _values?: unknown[]) => {
       if (sql.includes('FROM public.audit_events')) return { rows: [{ id: '10', tenant_id: tenantId, actor_id: actorId }] as Record<string, unknown>[] }
       if (sql.includes('FROM public.tenants')) return { rows: [{ id: tenantId, name: 'Restaurant', slug: 'restaurant' }] as Record<string, unknown>[] }
       return { rows: [{ id: actorId, full_name: 'Admin', role: 'superadmin' }] as Record<string, unknown>[] }
