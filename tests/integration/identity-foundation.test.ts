@@ -21,11 +21,12 @@ let created = false
 before(async () => {
   await control.connect()
   assert.equal((await control.query("SELECT count(*)::int n FROM pg_database WHERE datname='xmartmenu'")).rows[0].n, 0)
+  assert.equal((await control.query("SELECT count(*)::int n FROM pg_roles WHERE rolname='anon'")).rows[0].n, 0, 'Run foundation first on the fresh disposable CI service')
   for (const [name, options] of [
     ['xmail_owner', 'SUPERUSER NOLOGIN'], ['xmartmenu_owner', 'NOSUPERUSER NOLOGIN'],
     ['xmartmenu_runtime', 'NOSUPERUSER NOLOGIN BYPASSRLS CONNECTION LIMIT 12'],
     ['xmartmenu_staging_reader', 'NOSUPERUSER NOLOGIN BYPASSRLS CONNECTION LIMIT 2'],
-    ['anon', 'NOSUPERUSER NOLOGIN'], ['authenticated', 'NOSUPERUSER NOLOGIN'], ['service_role', 'NOSUPERUSER NOLOGIN'],
+    ['authenticated', 'NOSUPERUSER NOLOGIN'], ['service_role', 'NOSUPERUSER NOLOGIN'],
   ]) {
     const exists = (await control.query('SELECT count(*)::int n FROM pg_roles WHERE rolname=$1', [name])).rows[0].n
     if (exists) {
@@ -89,16 +90,18 @@ test('wrong candidate baseline fails atomically without creating tables or ledge
 
 test('new-table privilege failure rolls back all migrations and bootstrap', async () => {
   const state = await manifest()
-  await db.query('GRANT CREATE ON SCHEMA public TO anon') // Existing role permission must not be widened by the operation.
+  // This fixture-only role is uncommitted and rolls back with the injected
+  // failure. The real operator never creates any cluster role.
+  await db.query('BEGIN; CREATE ROLE anon NOSUPERUSER NOLOGIN; GRANT CREATE ON SCHEMA public TO anon')
   const sql = (await buildFoundationSql(state, fresh(state))).replace('CREATE TEMP TABLE identity_after', 'GRANT SELECT ON public.app_accounts TO anon;\nCREATE TEMP TABLE identity_after')
   await assert.rejects(db.query(sql), /Identity foundation proof refused/)
   await db.query('ROLLBACK')
-  await db.query('REVOKE CREATE ON SCHEMA public FROM anon')
   assert.deepEqual(await manifest(), state)
+  assert.equal((await db.query("SELECT count(*)::int n FROM pg_roles WHERE rolname='anon'")).rows[0].n, 0)
   assert.equal((await db.query("SELECT count(*)::int n FROM pg_tables WHERE schemaname='public' AND tablename='app_accounts'")).rows[0].n, 0)
 })
 
-test('fresh seven exact accounts preserve UUIDs/disabled status and commit only additive schema/ledger', async () => {
+test('fresh seven exact accounts commit without anon and preserve UUIDs, controls and roles', async () => {
   const state = await manifest(), review = fresh(state)
   const parts = await foundationTransaction(state, review)
   await db.query(parts.publicPrelude)
@@ -109,6 +112,7 @@ test('fresh seven exact accounts preserve UUIDs/disabled status and commit only 
   assert.equal((await db.query('SELECT count(*)::int n FROM public.app_identity_bindings')).rows[0].n, 0)
   assert.equal((await db.query('SELECT count(*)::int n FROM public.app_sessions')).rows[0].n, 0)
   assert.equal((await db.query("SELECT count(*)::int n FROM pg_authid WHERE rolname IN ('xmartmenu_runtime','xmartmenu_staging_reader') AND NOT rolcanlogin AND rolpassword IS NULL")).rows[0].n, 2)
+  assert.equal((await db.query("SELECT count(*)::int n FROM pg_roles WHERE rolname='anon'")).rows[0].n, 0)
 })
 
 test('retry refuses existing foundation instead of replaying migrations or enabling accounts', async () => {

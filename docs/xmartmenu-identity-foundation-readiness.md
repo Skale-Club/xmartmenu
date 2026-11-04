@@ -1,11 +1,11 @@
 # Xmartmenu identity foundation preparation
 
-This change prepares private SQL; it cannot execute a production operation.
-The CLI accepts only the default/explicit offline plan. Source capture is an
-exported function for a future reviewed caller, never a CLI that prints accounts.
-No source capture, foundation DDL, account bootstrap or activation ran in
-preparation. A separately reviewed fresh backup/temporary restore then completed
-as recorded below; the foundation compiler still has no apply entrypoint.
+The SQL compiler accepts only an offline plan and returns private SQL to a
+reviewed caller. Separate hash-gated backup/apply operators default to plans.
+Source controls travel only through private memory/stdin; no CLI prints accounts.
+The reviewed backup/temporary restore completed. A later conditional foundation
+attempt reported failure and was independently verified not committed: original
+47-table data/92-ledger state, no identity tables and dormant roles remain.
 
 ## Candidate and additive scope
 
@@ -17,13 +17,22 @@ its real columns are version, statements[], name, created_by, idempotency_key an
 rollback[]. Compatibility auth.users stores only seven original UUIDs and
 cannot supply current source bans or deletion state.
 
-The compiler checks normalized-LF SHA256 pins and uses unchanged migration bodies:
+The compiler checks unchanged canonical migration files with normalized-LF SHA256 pins:
 
 |Version|Change|
 |---|---|
 |20261103190000|Accounts, bindings, hashed sessions; backend-only RLS/permissions|
 |20261103200000|Disabled bindings and session-to-binding provenance|
 |20261103210000|Single-use browser challenges and owned-session binding proof|
+
+The native cluster has no anon role. The canonical Supabase files refer to it in
+two REVOKE statements. A prepared native projection replaces only those two
+statements with PUBLIC/authenticated revocation and conditional anon revocation
+when that role exists. authenticated/service_role stay required before DDL.
+It never creates/alters/drops a cluster role. The source files and canonical
+statement provenance in the three ledger rows remain unchanged; the compiler
+hash identifies the executable native permission projection. The postproof uses
+to_regrole/coalesce to deny any existing anon privilege while allowing absence.
 
 All three run in one transaction as xmartmenu_owner, appending only three ledger
 records and resulting in 51 public tables/95 ledger rows. No historical migration
@@ -137,13 +146,13 @@ and postchecking independently verifies the exact seven account controls,
 51/95 table/ledger counts, zero bindings/sessions/challenges and dormant roles.
 Six mocked policy tests passed locally and on Linux, including missing/wrong-size
 recovery-key rejection before SQL or file-content reads. The reviewed runner
-source SHA256 is 6d0026b1ed523ab6bbf6beae2291ed19064ea4880b52a9e5266ccfd9f9e00979
-after updating only its matching compiler-source pin for the reviewed capture
-mode. Compiler SHA256 is
-76e7be15ab5f5e5fa713e9a158c193072559e175b3223795e581aa04c1deeec6.
-The DDL/postproof portion is byte-identical to the prior reviewed compiler;
-public prelude and preserved-manifest query hashes remain a5453557... and
-582e959d..., respectively.
+source SHA256 for the prepared native compatibility fix is
+c1824d9505f63bbf7f2bf86f8687b71cebf747b9f7308169fc67fdb14110bd2e.
+Compiler SHA256 is
+4450caada3660b39c0533805cbabac492ed22aafddf07aedcf8f7fb03a376327.
+Only optional-anon permission handling changes executable migration SQL; table
+definitions/account insertion/preservation logic remain. Public prelude and
+preserved-manifest query hashes remain a5453557... and 582e959d..., respectively.
 
 The latest preparation CI passed five real PostgreSQL cases plus checks and E2E.
 Actual main release 88bde8a/image d4e0fe28c2dab7a15b9c61bf37d7e058cde9661ab189f531ea90a84b453de05e
@@ -163,6 +172,15 @@ identity foundation preparation/apply. This is an opt-in capture option, never
 a generic source/candidate equivalence or cutover proof. It changes no DDL or
 candidate data: all 47 candidate digests must still match exactly before/after
 the transaction. Source account controls remain fresh within five minutes.
+After a fully green CI and repeated disabled-runtime admission, the restricted
+capture succeeded and wrote only three-table aggregate/hash evidence privately.
+The single foundation attempt returned failure. Independent inspection proved
+no COMMIT: OID 30227, 47 original tables, 92 original ledger rows, zero identity
+tables, all original digests/sequence states unchanged, three roles NOLOGIN/
+password NULL, zero native sessions and the original authenticated backup valid.
+Read-only role inventory found anon absent, making the canonical revokes
+non-executable. The prepared compatibility fix needs new CI and SQL-body review;
+there is no blind retry, reset, source write, login enablement or app activation.
 Engagement data must be retained and fully reconciled in the final DB-enforced
 writer freeze/cutover. Browser REST writes and privileged RPC/Auth triggers must
 also be frozen; merely stopping the app container cannot freeze those writers.
@@ -191,10 +209,14 @@ reconciliation also remain necessary before complete Supabase exit.
 
 ## Tests
 
-Thirteen offline tests cover review rejection, source-control scope, migration pins,
+Fourteen offline tests cover review rejection, source-control scope, migration pins,
 no-execute defaults and generated preservation/bootstrap contracts. Five CI
-PostgreSQL cases cover missing public transaction, baseline rollback, post-DDL privilege failure rollback,
+PostgreSQL cases run first on a fresh service with no anon role, covering missing
+public transaction, baseline rollback, post-DDL privilege failure rollback,
 exact seven-account bootstrap and retry refusal. The existing identity-store
 suite continues to cover browser isolation, competing bindings, revocation,
 disabled accounts/bindings and session provenance. All fixtures are synthetic;
 no live DB is selected and local Docker Desktop is never used.
+The privilege-failure case creates a synthetic anon role only inside its failed
+test transaction and proves it disappears on rollback. The success case proves
+the role remains absent; no production operator contains role-creation SQL.

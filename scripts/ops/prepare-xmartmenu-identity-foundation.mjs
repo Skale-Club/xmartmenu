@@ -128,6 +128,24 @@ export async function migrationSources() {
   }))
 }
 
+// Canonical Supabase migration files stay immutable. Native PostgreSQL need
+// not have an anon role; revoke its new-table permissions only when it exists.
+// Existing authenticated/service_role remain required; no role is created.
+export function nativeIdentityMigrationSql({ version, sql }) {
+  const known = MIGRATIONS.find(row => row[0] === version)
+  if (!known || sha256(sql) !== known[2]) throw Error('Reviewed identity migration changed')
+  const tables = version === '20261103190000'
+    ? 'public.app_accounts, public.app_identity_bindings, public.app_sessions'
+    : version === '20261103210000' ? 'public.app_identity_challenges' : null
+  if (!tables) return sql
+  const original = `REVOKE ALL ON ${tables} FROM PUBLIC, anon, authenticated;`
+  if (sql.split(original).length !== 2) throw Error('Exact browser-role revoke required')
+  return sql.replace(original, `REVOKE ALL ON ${tables} FROM PUBLIC, authenticated;
+DO $optional_anon$ BEGIN
+ IF to_regrole('anon') IS NOT NULL THEN EXECUTE 'REVOKE ALL ON ${tables} FROM anon'; END IF;
+END $optional_anon$;`)
+}
+
 // Preserve the original 47-table/92-ledger comparison after the additions.
 // No other predicate or historical migration is silently changed.
 export function preservedManifestSql() {
@@ -161,6 +179,7 @@ LOCK TABLE auth.users,supabase_migrations.schema_migrations IN SHARE ROW EXCLUSI
 DO $guard$ BEGIN
  IF current_database()<>'xmartmenu' OR current_user<>'xmail_owner' OR session_user<>'xmail_owner'
  OR NOT (SELECT rolsuper FROM pg_roles WHERE rolname=current_user)
+ OR to_regrole('authenticated') IS NULL OR to_regrole('service_role') IS NULL
  OR (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=current_database())<>'xmartmenu_owner'
  OR EXISTS(SELECT FROM pg_tables WHERE schemaname='public' AND tablename IN (${newNames}))
  OR NOT EXISTS(SELECT FROM pg_authid WHERE rolname='xmartmenu_runtime' AND NOT rolcanlogin AND rolpassword IS NULL AND rolconnlimit=12)
@@ -172,7 +191,7 @@ CREATE TEMP TABLE identity_before ON COMMIT DROP AS ${MANIFEST_SQL};
 CREATE TEMP TABLE identity_roles ON COMMIT DROP AS ${roles};
 DO $guard$ BEGIN IF (SELECT manifest FROM identity_before)<>${baseline}::jsonb THEN RAISE EXCEPTION 'Candidate business baseline changed'; END IF; END $guard$;
 SET LOCAL ROLE xmartmenu_owner;
-${sources.map(({ sql }) => sql).join('\n')}
+${sources.map(nativeIdentityMigrationSql).join('\n')}
 RESET ROLE;
 ${sources.map(({ version, name, sql }) => `INSERT INTO supabase_migrations.schema_migrations(version,name,statements) VALUES(${literal(version)},${literal(name)},ARRAY[${literal(sql)}]);`).join('\n')}
 ${review ? `CREATE TEMP TABLE identity_review ON COMMIT DROP AS SELECT ${literal(JSON.stringify(review))}::jsonb AS payload;
@@ -198,7 +217,7 @@ DO $guard$ BEGIN
  OR EXISTS(SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
    WHERE n.nspname='public' AND c.relname IN (${newNames}) AND
     (NOT c.relrowsecurity OR pg_get_userbyid(c.relowner)<>'xmartmenu_owner'
-     OR has_table_privilege('anon',c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
+     OR coalesce(has_table_privilege(to_regrole('anon')::oid,c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE'),false)
      OR has_table_privilege('authenticated',c.oid,'SELECT,INSERT,UPDATE,DELETE,TRUNCATE')
      OR NOT (has_table_privilege('xmartmenu_runtime',c.oid,'SELECT')
        AND has_table_privilege('xmartmenu_runtime',c.oid,'INSERT')

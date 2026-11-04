@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
-import { buildFoundationSql, captureReview, CONTROL_SQL, FOUNDATION_PRELUDE, foundationTransaction, identitySourceEvidence, migrationSources, preservedManifestSql, REVIEWED_ENGAGEMENT_TABLES, validateReview } from './prepare-xmartmenu-identity-foundation.mjs'
+import { buildFoundationSql, captureReview, CONTROL_SQL, FOUNDATION_PRELUDE, foundationTransaction, identitySourceEvidence, migrationSources, nativeIdentityMigrationSql, preservedManifestSql, REVIEWED_ENGAGEMENT_TABLES, validateReview } from './prepare-xmartmenu-identity-foundation.mjs'
 import { SEQUENCES, SOURCE_PROJECT, TABLES } from './xmartmenu-source-protocol.mjs'
 
 function fixture() {
@@ -158,4 +158,20 @@ test('all six authority groups, roles, money, ledger, functions and sequence def
 test('reviewed capture requires a private evidence sink before reading env or contacting source', async () => {
   const { manifest } = fixture()
   await assert.rejects(captureReview('must-not-be-read.env', manifest, { allowReviewedEngagementDrift: true }), /evidence sink required/)
+})
+
+test('native projection preserves canonical migration files and never creates browser roles', async () => {
+  const sources = await migrationSources(), before = structuredClone(sources)
+  for (const row of sources) {
+    const sql = nativeIdentityMigrationSql(row)
+    assert.doesNotMatch(sql, /CREATE ROLE|ALTER ROLE|DROP ROLE/i)
+    if (row.version === '20261103200000') assert.equal(sql, row.sql)
+    else {
+      assert.match(sql, /IF to_regrole\('anon'\) IS NOT NULL THEN EXECUTE 'REVOKE ALL/)
+      assert.doesNotMatch(sql, /FROM PUBLIC, anon, authenticated/)
+      assert.match(sql, /FROM PUBLIC, authenticated/)
+    }
+  }
+  assert.deepEqual(sources, before)
+  assert.throws(() => nativeIdentityMigrationSql({ ...sources[0], sql: sources[0].sql+'\n' }))
 })
