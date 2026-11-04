@@ -24,7 +24,7 @@ export default async function StorePage() {
     const owned = await readOwnedStorePage({ tenantId, role: effective.role })
     settings = owned.settings
     tenant = owned.tenant
-    stripeConnection = null
+    stripeConnection = owned.stripeConnection
     capabilities = owned.capabilities
   } else {
     const supabase = await createClient()

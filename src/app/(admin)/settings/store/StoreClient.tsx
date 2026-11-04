@@ -391,23 +391,28 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
         business_hours: Object.keys(filteredHours).length > 0 ? filteredHours : null,
       }
 
-    if (ownedSource) {
-      const response = await fetch('/api/admin/store-settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      const data = await response.json().catch(() => ({})) as { error?: string }
-      if (!response.ok) setError(data.error ?? 'Could not save settings')
-      else { setSaved(true); notifyPublicMenuChanged(); setTimeout(() => setSaved(false), 2500) }
-    } else {
-      const { error: err } = await supabase!
-        .from('tenant_settings')
-        .upsert({ tenant_id: tenantId, ...payload }, { onConflict: 'tenant_id' })
-      if (err) setError(err.message)
-      else { setSaved(true); notifyPublicMenuChanged(); setTimeout(() => setSaved(false), 2500) }
+    try {
+      if (ownedSource) {
+        const response = await fetch('/api/admin/store-settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const data = await response.json().catch(() => ({})) as { error?: string }
+        if (!response.ok) setError(data.error ?? 'Could not save settings')
+        else { setSaved(true); notifyPublicMenuChanged(); setTimeout(() => setSaved(false), 2500) }
+      } else {
+        const { error: err } = await supabase!
+          .from('tenant_settings')
+          .upsert({ tenant_id: tenantId, ...payload }, { onConflict: 'tenant_id' })
+        if (err) setError(err.message)
+        else { setSaved(true); notifyPublicMenuChanged(); setTimeout(() => setSaved(false), 2500) }
+      }
+    } catch {
+      setError('Could not save settings. Check your connection and try again.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
