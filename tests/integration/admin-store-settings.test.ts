@@ -27,6 +27,10 @@ before(async () => {
     assert.ok(ddl, `Historical DDL missing: ${table}`)
     await admin.query(ddl)
   }
+  const stripeLifecycle = await readFile(new URL('032_orders_payments_fix.sql', directory), 'utf8')
+  const stripeLifecycleAlter = stripeLifecycle.match(/ALTER TABLE stripe_connections[\s\S]*?;/i)?.[0]
+  assert.ok(stripeLifecycleAlter, 'Historical Stripe lifecycle DDL missing')
+  await admin.query(stripeLifecycleAlter)
   await admin.query('ALTER TABLE public.tenants ADD COLUMN custom_domain TEXT UNIQUE, ADD COLUMN custom_domain_verified BOOLEAN NOT NULL DEFAULT false')
 
   const migrations = ['019_full_schema_sync.sql', '025_notes_and_realtime.sql', '026_ingredient_schema.sql', '027_kds_thresholds.sql', '034_order_types_tenant_settings.sql', '038_tip_system.sql', '043_tables_waiter.sql', '053_local_seo_address_geo.sql', '20261025140000_order_sequence_upsell.sql']
