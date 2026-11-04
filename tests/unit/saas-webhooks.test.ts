@@ -61,3 +61,10 @@ it('ambiguous subscription/price/account mapping and payment-intent misrouting f
   expect(duplicate.mock.calls.some(([sql]) => /^(INSERT|UPDATE|DELETE)/.test(sql))).toBe(false)
   const payment = vi.fn(); await expect(applySaasWebhook(payment, event('payment_intent.succeeded', {}))).rejects.toMatchObject({ status: 503 }); expect(payment).not.toHaveBeenCalled()
 })
+it('connected checkout/subscription/invoice events never enter the platform SQL repository or its receipt ledger', async () => {
+  for (const type of ['checkout.session.completed','customer.subscription.updated','customer.subscription.deleted','invoice.created','invoice.payment_failed']) {
+    const query = vi.fn()
+    expect(await applySaasWebhook(query, { ...event(type, { metadata }), account: 'acct_merchantfixture', livemode: false })).toEqual({ received: true })
+    expect(query).not.toHaveBeenCalled()
+  }
+})

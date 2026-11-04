@@ -48,6 +48,11 @@ it('failed/unknown claim commits and provider-context failures refuse before any
     expect(provider.create).not.toHaveBeenCalled(); expect(repository.finalize).not.toHaveBeenCalled()
   }
 })
+it('a signed invoice mode differing from the actual provider account refuses before claim or create', async () => {
+  const { repository, provider } = setup()
+  await expect(runNativeAiBilling({ tenantId, invoiceId: 'in_fixture', event: { id: 'evt_fixture', invoiceId: 'in_fixture', subscriptionId: 'sub_fixture', livemode: true } }, repository, provider)).rejects.toMatchObject({ status: 503 })
+  expect(repository.claim).not.toHaveBeenCalled(); expect(provider.create).not.toHaveBeenCalled()
+})
 it('a provider error marks reconciliation and never retries, releases usage or reports success', async () => {
   const { repository, provider } = setup()
   vi.mocked(provider.create).mockRejectedValue(new Error('delivery uncertain'))

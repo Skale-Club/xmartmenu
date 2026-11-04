@@ -73,6 +73,18 @@ test('tenant serialization permits the admin FK key-share insert while a webhook
     await writer.query('ROLLBACK').catch(() => {}); writer.release(); if (outcome) await outcome
   }
 })
+test('connected-account SaaS metadata is ignored without SQL, business changes or receipts', async () => {
+  const before = await subscription()
+  for (const type of ['checkout.session.completed','customer.subscription.updated','invoice.created']) {
+    let queries = 0
+    const result = await applySaasWebhook(async (sql, values) => { queries++; return admin.query(sql, values) }, {
+      ...event(type, { metadata: { ...metadata, plan_id: secondPlan }, id: 'sub_merchant', status: 'active' }), account: 'acct_merchantfixture', livemode: true,
+    }, now)
+    assert.equal(queries, 0); assert.deepEqual(result, { received: true })
+  }
+  assert.deepEqual(await subscription(), before)
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM public.processed_stripe_events')).rows[0].n, 0)
+})
 test('legacy null receipts skip, conflicting types refuse, and separate unknown events remain independent receipts', async () => {
   const input = event('unhandled.fixture', {})
   await admin.query('INSERT INTO public.processed_stripe_events VALUES($1,NULL,now())', [input.id]); assert.equal((await run(input)).skipped, true)

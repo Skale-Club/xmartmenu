@@ -3,7 +3,7 @@ import { reconcileNativeTenantPlan } from './tenant-plan'
 import type { SyncReason } from '../xphere/types'
 
 type Row = Record<string, unknown>
-export interface SaasWebhookEvent { id: string; type: string; data: { object: unknown } }
+export interface SaasWebhookEvent { id: string; type: string; account?: string | null; livemode?: boolean; data: { object: unknown } }
 export interface SaasWebhookResult {
   received: true; skipped?: true
   pendingSync?: { tenantId: string; reason: SyncReason; tags?: string[] }
@@ -12,6 +12,12 @@ export interface SaasWebhookResult {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const PAYMENT_TYPES = new Set(['payment_intent.succeeded', 'payment_intent.payment_failed', 'payment_intent.canceled'])
 const record = (value: unknown): Row => value && typeof value === 'object' && !Array.isArray(value) ? value as Row : {}
+/** A valid Connect signature authenticates its account, not platform SaaS metadata. */
+export function ignoreConnectedSaasEvent(event: SaasWebhookEvent): boolean {
+  if (event.account == null || PAYMENT_TYPES.has(event.type)) return false
+  if (event.type === 'account.updated') return typeof event.account !== 'string' || !event.account || record(event.data.object).id !== event.account
+  return true
+}
 function one(rows: Row[]) { if (rows.length > 1) throw new AdminMenuError(503, 'Webhook metadata is ambiguous'); return rows[0] }
 function tenantId(value: unknown): string { if (typeof value !== 'string' || !UUID.test(value)) throw new AdminMenuError(400, 'Invalid event tenant'); return value }
 function providerId(value: unknown): string { if (typeof value !== 'string' || !value || value.length > 255) throw new AdminMenuError(400, 'Invalid provider object'); return value }
@@ -40,6 +46,7 @@ async function subscriptionTenant(query: AdminMenuQuery, subscriptionId: string)
 
 /** Signature verification is the caller's prerequisite. No provider/API calls. */
 export async function applySaasWebhook(query: AdminMenuQuery, event: SaasWebhookEvent, now = new Date()): Promise<SaasWebhookResult> {
+  if (ignoreConnectedSaasEvent(event)) return { received: true }
   if (PAYMENT_TYPES.has(event.type)) throw new AdminMenuError(503, 'Payment event requires the payment repository')
   if (!/^evt_[A-Za-z0-9]+$/.test(event.id) || typeof event.type !== 'string' || !event.type || event.type.length > 160 || !Number.isFinite(now.getTime())) throw new AdminMenuError(400, 'Invalid webhook event')
   await query('SELECT pg_advisory_xact_lock(hashtextextended($1,190732))', [event.id])

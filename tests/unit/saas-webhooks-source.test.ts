@@ -53,3 +53,21 @@ it('native failure or required invoice billing returns retryable failure without
   expect(response.status).toBe(500); expect(await response.json()).toEqual({ error: 'Processing error' })
   expect(state.bill).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled(); expect(state.enqueue).not.toHaveBeenCalled()
 })
+it('a genuinely signed connected-account checkout cannot use foreign tenant metadata to mutate platform SaaS in either mode', async () => {
+  const connected = JSON.stringify({ ...JSON.parse(payload()), account: 'acct_merchantfixture', livemode: true,
+    data: { object: { metadata: { tenant_id: randomUUID(), kind: 'plan', plan_id: randomUUID() }, customer: 'cus_merchantfixture', subscription: 'sub_merchantfixture' } } })
+  for (const mode of ['true', 'false']) {
+    vi.stubEnv('OWNED_ADMIN_MENUS_ENABLED', mode)
+    const response = await POST(request(connected), undefined)
+    expect(response.status).toBe(200); expect(await response.json()).toEqual({ received: true })
+  }
+  expect(state.raw).toHaveBeenCalledTimes(2); expect(state.owned).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled()
+  expect(state.bill).not.toHaveBeenCalled(); expect(state.enqueue).not.toHaveBeenCalled(); expect(state.security).not.toHaveBeenCalled()
+})
+it('connected account.updated requires matching account/object scope and preserves signed account/mode fields', async () => {
+  const envelope = { ...JSON.parse(payload('account.updated')), account: 'acct_merchantfixture', livemode: true }
+  await POST(request(JSON.stringify({ ...envelope, data: { object: { id: 'acct_otherfixture', charges_enabled: false } } })), undefined)
+  expect(state.owned).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled()
+  await POST(request(JSON.stringify({ ...envelope, data: { object: { id: envelope.account, charges_enabled: false } } })), undefined)
+  expect(state.owned).toHaveBeenCalledWith(expect.objectContaining({ account: envelope.account, livemode: true, type: 'account.updated' }))
+})

@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import { AdminMenuError, type AdminMenuQuery } from './admin-menus'
-import { invoiceSubscriptionId, type SaasWebhookEvent } from './saas-webhooks'
+import { ignoreConnectedSaasEvent, invoiceSubscriptionId, type SaasWebhookEvent } from './saas-webhooks'
 import { BILLING_LEASE_MS, BILLING_RETRY_WINDOW_MS, BillingTenantMissingError, hashFacts, makeBillingBody, matchesBillingItem, unavailable, usageFacts, validContext, validId, type BillingProviderContext, type BillingRequestBody, type BillingUsage } from '../ai/native-billing-facts'
 import type { BillResult } from '../ai/billing'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 type Row = Record<string, unknown>
-export interface BillingEvent { id: string; invoiceId: string; subscriptionId: string }
+export interface BillingEvent { id: string; invoiceId: string; subscriptionId: string; livemode?: boolean }
 export interface NativeBillingOptions { tenantId: string; invoiceId?: string; currency?: string; now?: Date; event?: BillingEvent }
 export interface NativeBillingRequest {
   batchId: string; tenantId: string; body: BillingRequestBody; context: BillingProviderContext; requestHash: string; usageDigest: string
@@ -54,6 +54,7 @@ async function usage(query: AdminMenuQuery, tenantId: string, batch: string | nu
 /** Resolve only signed renewal events; no writes or provider calls. */
 export async function nativeInvoiceTarget(query: AdminMenuQuery, event: SaasWebhookEvent): Promise<NativeBillingOptions | null> {
   if (event.type !== 'invoice.created') return null
+  if (ignoreConnectedSaasEvent(event)) return null
   const completed = one((await query('SELECT event_type FROM public.processed_stripe_events WHERE event_id=$1', [event.id])).rows)
   if (completed) {
     if (completed.event_type !== null && completed.event_type !== event.type) throw unavailable()
@@ -69,7 +70,7 @@ export async function nativeInvoiceTarget(query: AdminMenuQuery, event: SaasWebh
   const row = one((await query('SELECT tenant_id FROM public.tenant_subscriptions WHERE stripe_subscription_id=$1 LIMIT 2', [subscriptionId])).rows)
   if (!row) { if (prior) throw unavailable(); return null }
   if (prior && (prior.tenant_id !== row.tenant_id || (prior.request_body as Row)?.invoice !== invoice.id)) throw unavailable()
-  return { tenantId: String(row.tenant_id), invoiceId: invoice.id, currency: typeof invoice.currency === 'string' ? invoice.currency : undefined, event: { id: event.id, invoiceId: invoice.id, subscriptionId } }
+  return { tenantId: String(row.tenant_id), invoiceId: invoice.id, currency: typeof invoice.currency === 'string' ? invoice.currency : undefined, event: { id: event.id, invoiceId: invoice.id, subscriptionId, livemode: event.livemode } }
 }
 
 /** Called only in a bounded write transaction. Context absence never claims usage. */

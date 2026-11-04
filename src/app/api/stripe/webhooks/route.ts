@@ -33,6 +33,7 @@ import { billAiUsage, subscriptionIdFromInvoice } from '@/lib/ai/billing'
 import { reconcileTenantSettings } from '@/lib/tenant-plan'
 import { adminMenusOwned } from '@/lib/data/admin-menus'
 import { processOwnedSaasWebhook } from '@/lib/data/saas-webhooks-runtime'
+import { ignoreConnectedSaasEvent } from '@/lib/data/saas-webhooks'
 
 type UpdateResult = { success: boolean; error?: string }
 
@@ -73,8 +74,12 @@ async function handlePOST(request: NextRequest) {
       const result=await withOwnedPayments(true,repo=>repo.event({id:event.id,type:event.type,data:{object:event.data.object as IntentFacts}}))
       return NextResponse.json(result)
     }
+    const saasEvent = { id: event.id, type: event.type, account: event.account, livemode: event.livemode, data: { object: event.data.object } }
+    // Connected accounts can choose their own checkout/subscription metadata.
+    // It is never authority to mutate platform SaaS, in either data mode.
+    if (ignoreConnectedSaasEvent(saasEvent)) return NextResponse.json({ received: true })
     if (adminMenusOwned()) {
-      const outcome = await processOwnedSaasWebhook({ id: event.id, type: event.type, data: { object: event.data.object } })
+      const outcome = await processOwnedSaasWebhook(saasEvent)
       if (outcome.disabledAccountId) captureSecurityEvent('Stripe Connect: charges disabled on connected account', { stripeAccountId: outcome.disabledAccountId })
       if (outcome.pendingSync) await enqueueXphereSync(outcome.pendingSync.tenantId, outcome.pendingSync.reason, { eventId: event.id, ...(outcome.pendingSync.tags ? { tags: outcome.pendingSync.tags } : {}) })
       return NextResponse.json(outcome.skipped ? { received: true, skipped: true } : { received: true })

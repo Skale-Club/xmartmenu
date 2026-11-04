@@ -2,6 +2,8 @@
 
 The existing signature verification remains before any SQL or side effect and uses the original raw body. Native order-payment dispatch remains separate. The admin-menu flag selects this repository before constructing Source clients; false retains the existing handler. No flags, credentials, provider resources, charges or production data are changed by preparation/tests.
 
+Signed top-level account/livemode fields are retained. Connected-account checkout/subscription/invoice events have no authority over platform SaaS: the route recognizes them with a200 response before native/Source SQL or receipt creation, and the native runtime/repository repeat the guard. account.updated is allowed only when its issuer account matches the account object ID (or when it is a platform event); payment intents retain their separate payment dispatch. Invoice billing also requires the signed mode to match the actual provider context before a financial attempt. Stripe documents both the originating account field and delivery of test/live events to production Connect endpoints in its [Connect webhook reference](https://docs.stripe.com/connect/webhooks).
+
 | Event | Preserved native behavior |
 | --- | --- |
 | checkout.session.completed, kind=plan | Activate/update the supplied tenant subscription, optional plan/customer/subscription IDs, clear period-end cancellation; plan-activated CRM intent. |

@@ -1,9 +1,10 @@
 import { ownedAdminTransaction } from './admin-menus-runtime'
-import { applySaasWebhook, type SaasWebhookEvent, type SaasWebhookResult } from './saas-webhooks'
+import { applySaasWebhook, ignoreConnectedSaasEvent, type SaasWebhookEvent, type SaasWebhookResult } from './saas-webhooks'
 import { nativeInvoiceTarget } from './ai-billing'
 import { billOwnedAiUsage } from '../ai/native-billing'
 
 export async function processOwnedSaasWebhook(event: SaasWebhookEvent): Promise<SaasWebhookResult> {
+  if (ignoreConnectedSaasEvent(event)) return { received: true }
   const prepared = await ownedAdminTransaction(true, async query => {
     const target = await nativeInvoiceTarget(query, event)
     return target ? { target } : { outcome: await applySaasWebhook(query, event) }

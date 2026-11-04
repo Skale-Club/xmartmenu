@@ -29,6 +29,7 @@ export async function runNativeAiBilling(options: NativeBillingOptions, reposito
   if (prepared.kind === 'done') return prepared
   let context: BillingProviderContext
   try { context = validContext(await provider.context(NATIVE_BILLING_PROVIDER_OPTIONS)) } catch { throw unavailable() }
+  if (options.event?.livemode !== undefined && options.event.livemode !== context.livemode) throw unavailable()
   if (prepared.kind === 'context') prepared = await repository.prepare(options, context)
   if (prepared.kind === 'done') return prepared
   if (prepared.kind !== 'request') throw unavailable()
