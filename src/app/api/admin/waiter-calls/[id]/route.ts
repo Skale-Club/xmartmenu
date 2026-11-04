@@ -8,10 +8,13 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { parseCallStatus } from '@/lib/waiter-calls'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { withApi } from '@/lib/observability/with-api'
+import { adminWaiterCallsOwned } from '@/lib/data/admin-waiter-calls'
+import { ownedWaiterCallsHttp } from '@/lib/admin/owned-waiter-calls-http'
 
 export const dynamic = 'force-dynamic'
 
 async function handlePATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (adminWaiterCallsOwned()) return ownedWaiterCallsHttp(request,(await params).id)
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const service = createServiceClient()
