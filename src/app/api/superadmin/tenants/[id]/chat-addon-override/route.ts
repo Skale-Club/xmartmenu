@@ -9,12 +9,23 @@ import { NextResponse } from 'next/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatError } from '@/lib/admin/chat-context'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
+import { writeOwnedChatAddonOverride } from '@/lib/data/chat-addon-billing-runtime'
 
 async function handlePOST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const ok = await assertSuperadmin()
   if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
+  if (adminMenusOwned()) {
+    try {
+      const body: unknown = JSON.parse(await readNativeAnalyticsBody(request))
+      const override = body && typeof body === 'object' && !Array.isArray(body) ? (body as { override?: unknown }).override : undefined
+      return NextResponse.json(await writeOwnedChatAddonOverride({ actorId: ok.principal.userId, role: 'superadmin', tenantId: id }, override))
+    } catch (error) { return adminChatError(error) }
+  }
   const { override } = await request.json() as { override: boolean | null }
   if (override !== true && override !== false && override !== null) {
     return NextResponse.json({ error: 'override must be true, false, or null' }, { status: 400 })
