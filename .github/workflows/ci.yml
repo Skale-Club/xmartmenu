@@ -89,7 +89,9 @@ jobs:
       # the local database: no production key is needed to validate a commit.
 
   e2e:
-    runs-on: ubuntu-latest
+    # Pin the browser system libraries; ubuntu-latest drifted to resolute and
+    # repeatedly timed out in apt/ffmpeg before any browser test could run.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     env:
       CI: 'true'
