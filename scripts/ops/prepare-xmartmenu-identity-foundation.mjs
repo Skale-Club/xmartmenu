@@ -13,6 +13,7 @@ export const IDENTITY_TABLES = ['app_accounts', 'app_identity_bindings', 'app_se
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const HEX = /^[0-9a-f]{64}$/
 const literal = value => `'${String(value).replaceAll("'", "''")}'`
+/** @typedef {{version:number,sourceProject:string,capturedAt:string,profilesDigest:string,authorityDigest:string,authIdsDigest:string,users:Array<{id:string,disabled:boolean}>,readOnlySnapshot:boolean}} IdentityReview */
 export const PLAN = 'PLAN ONLY: no source/SSH/SQL/filesystem mutation. Prepare three pinned additive migrations and optional exact-seven UUID/ban/reset bootstrap; no bindings, sessions, roles, runtime login, flags or provider calls. Application requires a separately reviewed backup/restore and host runner.\n'
 // Public prelude must execute BEFORE sending a private libpq batch. A psql
 // stdin caller executes these statements before parsing later private SQL.
@@ -112,6 +113,7 @@ export function preservedManifestSql() {
   return sql
 }
 
+/** @param {ReturnType<typeof assertManifest>} manifest @param {IdentityReview|null} [review] @param {number} [now] */
 export async function buildFoundationSql(manifest, review = null, now = Date.now()) {
   assertManifest(manifest)
   if (review) validateReview(review, manifest, now)
@@ -186,6 +188,7 @@ COMMIT;
 // Preferred API for a future programmatic executor: await the PUBLIC prelude
 // before submitting privateSql. Never send the combined string as one libpq
 // simple-query batch while connection logging is not yet disabled.
+/** @param {ReturnType<typeof assertManifest>} manifest @param {IdentityReview|null} [review] @param {number} [now] */
 export async function foundationTransaction(manifest, review = null, now = Date.now()) {
   const combined = await buildFoundationSql(manifest, review, now)
   return { publicPrelude: FOUNDATION_PRELUDE, privateSql: combined.slice(FOUNDATION_PRELUDE.length) }
