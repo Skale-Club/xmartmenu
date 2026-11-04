@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { cache } from 'react'
+import { LegacyIdentityBoundaryUnavailable, ownedAuthSelected } from '@/lib/auth/owned-principal'
 
 // Audit attribution (see src/lib/observability/context.ts and the
 // audit_row_change() trigger): inside a request, every PostgREST call carries
@@ -18,6 +19,7 @@ const auditedFetch: typeof fetch = (input, init) => {
 }
 
 const createClientUncached = async () => {
+  if (ownedAuthSelected()) throw new LegacyIdentityBoundaryUnavailable()
   const cookieStore = await cookies()
 
   return createServerClient(
@@ -46,6 +48,7 @@ export const createClient = cache(createClientUncached)
 
 // Service client uses the service key directly without cookie dependencies.
 export function createServiceClient() {
+  if (ownedAuthSelected()) throw new LegacyIdentityBoundaryUnavailable()
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,

@@ -1,56 +1,41 @@
-import { createClient, createServiceClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import { setRequestContext } from '@/lib/observability/context'
-import { normalizeRole, parseSuperadminEmails } from '@/lib/auth/role-utils'
-import { captureSecurityEvent } from '@/lib/observability'
+import { normalizeRole } from '@/lib/auth/role-utils'
+import { ownedAuthSelected, type OwnedPrincipal } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
 
 export async function isSuperadminRequest() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return false
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (normalizeRole(profile?.role) === 'superadmin') return true
-
-  const userEmail = user.email?.toLowerCase() ?? ''
-  const isConfiguredSuperadmin = parseSuperadminEmails().includes(userEmail)
-  if (!isConfiguredSuperadmin) return false
-
-  const service = await createServiceClient()
-  console.warn(`[security] superadmin auto-promotion via SUPERADMIN_EMAILS: ${userEmail}`)
-  captureSecurityEvent('Superadmin auto-promotion via SUPERADMIN_EMAILS', { email: userEmail, userId: user.id, source: 'isSuperadminRequest' })
-  await service.from('profiles').upsert({
-    id: user.id,
-    role: 'superadmin',
-    full_name: user.user_metadata?.full_name ?? null,
-  }, { onConflict: 'id' })
-
-  return true
+  return (await assertSuperadmin()) !== null
 }
 
 /**
  * SEC-03: Canonical superadmin auth guard for API routes.
- * Returns the Supabase client if the current user is a superadmin, null otherwise.
+ * Returns an explicit authorization context; data adapters are separate.
  *
  * Usage:
- *   const supabase = await assertSuperadmin()
- *   if (!supabase) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
- *   // use supabase if needed, or ignore and use createServiceClient() for service-role ops
+ *   const authorization = await assertSuperadmin()
+ *   if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
  */
-export async function assertSuperadmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+export type SuperadminAuthorization =
+  | { mode: 'owned'; principal: OwnedPrincipal }
+  | { mode: 'legacy'; principal: { userId: string; role: 'superadmin' }; legacyClient: Awaited<ReturnType<typeof createClient>> }
+
+export async function assertSuperadmin(): Promise<SuperadminAuthorization | null> {
+  if (ownedAuthSelected()) {
+    const principal = await getOwnedPrincipal()
+    if (!principal || principal.role !== 'superadmin' || principal.mustChangePassword) return null
+    setRequestContext({ actorId: principal.userId, role: 'superadmin' })
+    return { mode: 'owned', principal }
+  }
+  const legacyClient = await createClient()
+  const { data: { user } } = await legacyClient.auth.getUser()
   if (!user) return null
-  const { data: profile } = await supabase
+  const { data: profile } = await legacyClient
     .from('profiles')
     .select('role')
     .eq('id', user.id)
     .single()
   const isSuperadmin = normalizeRole(profile?.role) === 'superadmin'
   if (isSuperadmin) setRequestContext({ actorId: user.id, role: 'superadmin' })
-  return isSuperadmin ? supabase : null
+  return isSuperadmin ? { mode: 'legacy', principal: { userId: user.id, role: 'superadmin' }, legacyClient } : null
 }

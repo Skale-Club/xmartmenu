@@ -10,6 +10,12 @@ import { includedInPlan, quickStartPlan } from '@/components/admin/plan-views'
 import { lockedGroups } from '@/components/admin/plan-hint'
 import PlanHintCard from '@/components/admin/PlanHintCard'
 import Link from 'next/link'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
+import { getOwnedShellTenant, ownedShellRepository } from '@/lib/auth/owned-shell-runtime'
+import { activeAdminMenu } from '@/lib/data/admin-menus'
 import { 
   Utensils, 
   FolderTree, 
@@ -23,10 +29,19 @@ import {
   Check,
 } from 'lucide-react'
 
-export default async function DashboardPage() {
-  const supabase = await createClient()
-  const effective = await getEffectiveTenant()
+async function dashboardData(effective: Awaited<ReturnType<typeof getEffectiveTenant>>) {
   const tenantId = effective?.tenantId
+  if (ownedAuthSelected()) {
+    const principal = await getOwnedPrincipal()
+    if (!principal || !effective) redirect('/auth/login')
+    const [context, counts] = await Promise.all([
+      getOwnedShellTenant(principal, effective.tenantId), ownedShellRepository().dashboard(principal, effective.tenantId),
+    ])
+    return { publicMenus: context.menus.filter(menu => menu.is_active), totalProducts: counts.products,
+      totalCategories: counts.categories, scansToday: counts.scans, serviceSettings: context.settings,
+      plan: context.plan, activeMenu: activeAdminMenu(context.menus, (await cookies()).get('selected_menu_id')?.value) }
+  }
+  const supabase = await createClient()
   const activeMenu = tenantId ? await getActiveMenuForTenant(tenantId) : null
 
   const [
@@ -50,6 +65,12 @@ export default async function DashboardPage() {
       .maybeSingle(),
     tenantId ? getTenantPlan(tenantId).catch(() => null) : Promise.resolve(null),
   ])
+  return { publicMenus, totalProducts, totalCategories, scansToday, serviceSettings, plan, activeMenu }
+}
+
+export default async function DashboardPage() {
+  const effective = await getEffectiveTenant()
+  const { publicMenus, totalProducts, totalCategories, scansToday, serviceSettings, plan, activeMenu } = await dashboardData(effective)
 
   const capabilities = resolveTenantCapabilities(plan?.features, (serviceSettings ?? null) as ServiceSettings | null)
   const isOwner = effective?.role !== 'store-staff'

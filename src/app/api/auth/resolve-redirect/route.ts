@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
-import { normalizeRole, parseSuperadminEmails } from '@/lib/auth/role-utils'
+import { normalizeRole } from '@/lib/auth/role-utils'
+import { ownedAuthSelected, OwnedAuthenticationUnavailable } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
 
 function getSafeNext(value: unknown) {
   if (typeof value !== 'string') return '/'
-  if (!value.startsWith('/') || value.startsWith('//')) return '/'
+  if (!value.startsWith('/') || value.startsWith('//') || value.includes('\\') || /[\u0000-\u001f\u007f]/.test(value)) return '/'
   return value
 }
 
@@ -12,6 +14,17 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}))
     const next = getSafeNext(body?.next)
+
+    if (ownedAuthSelected()) {
+      const principal = await getOwnedPrincipal()
+      if (!principal) return NextResponse.json({ redirectTo: '/auth/login' }, { status: 401 })
+      const redirectTo = principal.mustChangePassword ? '/identity?recovery=required'
+        : next.startsWith('/oauth/consent') ? next
+        : principal.role === 'superadmin' ? '/overview'
+        : principal.role === 'customer' ? next
+        : principal.role === 'store-admin' && !principal.tenantId ? '/onboarding' : '/dashboard'
+      return NextResponse.json({ redirectTo })
+    }
 
     const supabase = await createClient()
     const {
@@ -38,20 +51,6 @@ export async function POST(request: Request) {
       .single()
 
     const role = normalizeRole(profile?.role)
-    const userEmail = user.email?.toLowerCase() ?? ''
-    const isConfiguredSuperadmin = parseSuperadminEmails().includes(userEmail)
-
-    if (isConfiguredSuperadmin && role !== 'superadmin') {
-      await service.from('profiles').upsert(
-        {
-          id: user.id,
-          role: 'superadmin',
-          full_name: user.user_metadata?.full_name ?? null,
-        },
-        { onConflict: 'id' }
-      )
-      return NextResponse.json({ redirectTo: '/overview' })
-    }
 
     if (role === 'superadmin') {
       return NextResponse.json({ redirectTo: '/overview' })
@@ -79,6 +78,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ redirectTo: '/dashboard' })
   } catch (err) {
+    if (err instanceof OwnedAuthenticationUnavailable) return NextResponse.json({ error: 'Authentication unavailable' }, { status: 503 })
     console.error('[resolve-redirect] failed', err)
     return NextResponse.json({ redirectTo: '/auth/login?error=auth_failed' }, { status: 500 })
   }

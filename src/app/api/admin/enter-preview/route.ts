@@ -2,14 +2,16 @@ import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { getSafePreviewDestination } from '@/lib/admin/tenant-management'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
+import { ownedPrincipalRepository } from '@/lib/auth/owned-principal-runtime'
 
 async function handleGET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const tenantId = searchParams.get('tenant')
   if (!tenantId) return NextResponse.redirect(`${origin}/tenants`)
 
-  const supabase = await assertSuperadmin()
-  if (!supabase) return NextResponse.redirect(`${origin}/auth/login`)
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.redirect(`${origin}/auth/login`)
+  if (authorization.mode === 'owned' && !await ownedPrincipalRepository().previewTenant(authorization.principal, tenantId)) return NextResponse.redirect(`${origin}/tenants`)
 
   const destination = getSafePreviewDestination(searchParams.get('next'))
   const response = NextResponse.redirect(`${origin}${destination}`)

@@ -6,10 +6,20 @@ import { isPendingTenantAssignment } from '@/lib/admin/tenant-management'
 import DashboardOverview from './DashboardOverview'
 import PlatformActivity from './PlatformActivity'
 import { normalizePlatformOverview } from '@/lib/analytics/engagement'
+import { redirect } from 'next/navigation'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
+import { ownedShellRepository } from '@/lib/auth/owned-shell-runtime'
 
 const ACTIVITY_DAYS = 30
 
-export default async function OverviewPage() {
+async function overviewData() {
+  if (ownedAuthSelected()) {
+    const principal = await getOwnedPrincipal()
+    if (!principal) redirect('/auth/login')
+    if (principal.role !== 'superadmin' || principal.mustChangePassword) redirect('/dashboard')
+    return ownedShellRepository().overview(principal)
+  }
   const service = await createServiceClient()
 
   // Today in UTC-3
@@ -31,9 +41,11 @@ export default async function OverviewPage() {
       p_ended_at: new Date().toISOString(),
     }),
   ])
+  return { tenants: tenants ?? [], profiles: profiles ?? [], users: allUsers, scans: scansToday ?? [], activity }
+}
 
-  const allTenants = tenants ?? []
-  const allProfiles = profiles ?? []
+export default async function OverviewPage() {
+  const { tenants: allTenants, profiles: allProfiles, users: allUsers, scans: scansToday, activity } = await overviewData()
 
   // Today's scans grouped by tenant
   const scanMap: Record<string, number> = {}

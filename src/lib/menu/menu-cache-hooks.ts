@@ -14,6 +14,7 @@
  */
 import { createServiceClient } from '@/lib/supabase/server'
 import { revalidateAllPublicMenus, revalidatePublicMenu } from './public-menu-cache'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
 
 export type MenuCacheAction =
   | { kind: 'all' }
@@ -49,6 +50,12 @@ export async function applyMenuCacheAction(action: MenuCacheAction | null, curre
     } else if (action.kind === 'current') {
       revalidatePublicMenu(currentSlug)
     } else {
+      if (ownedAuthSelected()) {
+        const { getIdentityServices } = await import('@/lib/auth/identity-services')
+        const { rows } = await getIdentityServices().pool.query<{ slug: string }>('SELECT slug FROM public.tenants WHERE id=$1', [action.tenantId])
+        revalidatePublicMenu(rows[0]?.slug)
+        return
+      }
       const { data } = await createServiceClient().from('tenants').select('slug').eq('id', action.tenantId).maybeSingle()
       revalidatePublicMenu(data?.slug)
     }

@@ -13,6 +13,8 @@ import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import type { ServiceSettings } from '@/lib/service-modes'
 import { ArrowLeft } from 'lucide-react'
 import { listAdminMenus } from '@/lib/admin/menu-data'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import OwnedAdminLayout from '@/components/admin/OwnedAdminLayout'
 
 type PanelSettings = ServiceSettings & { primary_color?: string | null; accent_color?: string | null }
 
@@ -30,6 +32,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
+  if (ownedAuthSelected()) return <OwnedAdminLayout>{children}</OwnedAdminLayout>
   const service = await createServiceClient()
   const { data: platformSettings } = await service.from('platform_settings').select('app_name, favicon_url').single()
   const appName = platformSettings?.app_name ?? 'XmartMenu'

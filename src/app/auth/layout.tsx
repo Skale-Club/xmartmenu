@@ -1,8 +1,9 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedShellPlatform } from '@/lib/auth/owned-shell-runtime'
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  const service = createServiceClient()
-  const { data: ps } = await service.from('platform_settings').select('favicon_url').single()
+  const ps = ownedAuthSelected() ? await getOwnedShellPlatform() : (await createServiceClient().from('platform_settings').select('favicon_url').single()).data
   const logoUrl = ps?.favicon_url ?? '/icon.png'
   return (
     <>

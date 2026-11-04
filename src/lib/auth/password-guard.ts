@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { ownedAuthSelected } from './owned-principal'
+import { getOwnedPrincipal, OwnedAuthenticationUnavailable } from './owned-principal-runtime'
 
 /**
  * SEC-02: Checks whether the currently authenticated user must change their password.
@@ -11,6 +13,17 @@ import { NextResponse } from 'next/server'
  *   if (guard) return guard
  */
 export async function checkPasswordChangeRequired(): Promise<NextResponse | null> {
+  if (ownedAuthSelected()) {
+    try {
+      const principal = await getOwnedPrincipal()
+      return principal?.mustChangePassword ? NextResponse.json(
+        { error: 'Account recovery is required before accessing this resource', code: 'ACCOUNT_RECOVERY_REQUIRED' }, { status: 403 },
+      ) : null
+    } catch (error) {
+      if (error instanceof OwnedAuthenticationUnavailable) return NextResponse.json({ error: 'Authentication is temporarily unavailable' }, { status: 503 })
+      throw error
+    }
+  }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return null
