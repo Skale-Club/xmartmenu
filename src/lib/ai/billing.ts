@@ -17,6 +17,10 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { log } from '@/lib/observability/log'
 import { loadPlatformAiSettings } from './access'
 import { invoiceAmountMinor } from './billing-rules'
+import { adminMenusOwned } from '../data/admin-menus'
+import { billOwnedAiUsage } from './native-billing'
+import { usageLineDescription } from './billing-description'
+export { usageLineDescription } from './billing-description'
 
 export interface BillResult {
   billed: boolean
@@ -42,13 +46,8 @@ export function subscriptionIdFromInvoice(invoice: {
   return fromLine?.parent?.subscription_item_details?.subscription ?? null
 }
 
-export function usageLineDescription(args: { events: number; costUsd: number; chargeUsd: number; amountMinor: number; currency: string; until: Date }): string {
-  const day = args.until.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
-  const money = (args.amountMinor / 100).toLocaleString('pt-BR', { style: 'currency', currency: args.currency.toUpperCase() })
-  return `Inteligência artificial — ${args.events} chamadas até ${day} (custo US$ ${args.costUsd.toFixed(4)}, com margem US$ ${args.chargeUsd.toFixed(4)}): ${money}`
-}
-
 export async function billAiUsage(opts: { tenantId: string; invoiceId?: string; currency?: string; now?: Date }): Promise<BillResult> {
+  if (adminMenusOwned()) return (await billOwnedAiUsage(opts)).result
   const service = createServiceClient()
   const now = opts.now ?? new Date()
   const { data: subscription } = await service

@@ -8,10 +8,13 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { activeCalls, CALL_STALE_MS, type WaiterCall } from '@/lib/waiter-calls'
 import { withApi } from '@/lib/observability/with-api'
+import { adminWaiterCallsOwned } from '@/lib/data/admin-waiter-calls'
+import { ownedWaiterCallsHttp } from '@/lib/admin/owned-waiter-calls-http'
 
 export const dynamic = 'force-dynamic'
 
-async function handleGET() {
+async function handleGET(request: Request) {
+  if (adminWaiterCallsOwned()) return ownedWaiterCallsHttp(request)
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const service = createServiceClient()
