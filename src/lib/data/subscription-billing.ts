@@ -84,7 +84,7 @@ export async function readSuperSubscription(query: AdminMenuQuery, context: Subs
 }
 async function joinedSubscription(query: AdminMenuQuery, subscription: SubscriptionRecord) {
   const row = one((await query('SELECT to_jsonb(p) AS plan FROM public.plans p WHERE id=$1 LIMIT 2', [subscription.planId])).rows)
-  return { ...subscription.raw, plan: row?.plan ?? null }
+  return { ...subscription.raw, id: subscription.id, plan: row?.plan ?? null }
 }
 export type SubscriptionPatch = { plan_id?: string; billing_cycle?: BillingCycle; status?: string; override_monthly_price?: number | null; override_annual_price?: number | null; override_transaction_fee_pct?: number | null; override_notes?: string | null }
 export function validateSubscriptionPatch(body: unknown): SubscriptionPatch {
