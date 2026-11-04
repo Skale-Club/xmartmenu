@@ -5,8 +5,12 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { notFound } from 'next/navigation'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
+import { ownedCatalogEnabled } from '@/lib/data/admin-ingredients'
+import { readOwnedProductDetailPage } from '@/lib/data/admin-product-detail-runtime'
+import { AdminMenuError } from '@/lib/data/admin-menus'
+import { cookies } from 'next/headers'
 import { isShowcasePlan } from '@/components/admin/plan-views'
-import type { ProductOptionGroup, ProductOption, Ingredient, ProductIngredient } from '@/types/database'
+import type { ProductOptionGroup, ProductOption, Ingredient, ProductIngredient, Product } from '@/types/database'
 import ProductDetailClient from './ProductDetailClient'
 import type { UpsellCandidate } from './ProductUpsellCard'
 
@@ -20,12 +24,40 @@ export default async function ProductDetailPage({
   params: Promise<{ id: string }>
 }) {
   const { id } = await params
-  const supabase = await createClient()
   const effective = await getEffectiveTenant()
   if (!effective) notFound()
 
   const tenantId = effective.tenantId
   const canManage = effective.role !== 'store-staff'
+  if (ownedCatalogEnabled()) {
+    const cookieStore = await cookies()
+    const selectedMenuId = cookieStore.get('selected_menu_id')?.value
+    const data = await readOwnedProductDetailPage({ tenantId, role: effective.role }, id, selectedMenuId).catch(error => {
+      if (error instanceof AdminMenuError && error.status === 404) notFound()
+      throw error
+    })
+    const capabilities = await getTenantCapabilities(tenantId)
+    return (
+      <ProductDetailClient
+        product={data.product as Product & { category: { id: string; name: string } | null }}
+        initialGroups={data.groups}
+        tenantId={tenantId}
+        currency={data.settings.currency}
+        canManage={canManage}
+        ingredientCustomizationEnabled={data.settings.ingredient_customization_enabled}
+        allIngredients={data.ingredients}
+        initialProductIngredients={data.productIngredients}
+        baseLanguage={data.menu?.language ?? 'en'}
+        supportedLanguages={data.menu?.supported_languages?.length ? data.menu.supported_languages : [data.menu?.language ?? 'en']}
+        upsellCandidates={data.upsellCandidates}
+        showcase={isShowcasePlan(capabilities.plan)}
+        upsellAvailable={capabilities.plan.payments}
+        ownedSource
+      />
+    )
+  }
+
+  const supabase = await createClient()
 
   const [{ data: product }, { data: groups }, { data: settings }, { data: ingredients }, { data: productIngredients }, capabilities] = await Promise.all([
     supabase

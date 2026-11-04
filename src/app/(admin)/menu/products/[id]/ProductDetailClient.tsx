@@ -42,6 +42,18 @@ interface Props {
   showcase?: boolean
   /** The plan includes guest ordering, the only place "Complete your order" works. */
   upsellAvailable?: boolean
+  ownedSource?: boolean
+}
+
+async function catalogRequest<T>(productId: string, payload: Record<string, unknown>): Promise<T> {
+  const response = await fetch(`/api/admin/products/${encodeURIComponent(productId)}/catalog`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const result = await response.json().catch(() => ({})) as { error?: string }
+  if (!response.ok) throw new Error(result.error || 'Catalog update failed')
+  return result as T
 }
 
 function OptionGroupForm({
@@ -291,6 +303,7 @@ export default function ProductDetailClient({
   upsellCandidates = [],
   showcase = false,
   upsellAvailable = true,
+  ownedSource = false,
 }: Props) {
   // Product fields form state
   const [productForm, setProductForm] = useState({
@@ -321,7 +334,6 @@ export default function ProductDetailClient({
   const [confirmGroupId, setConfirmGroupId] = useState<string | null>(null)
   const [confirmOptionId, setConfirmOptionId] = useState<{ groupId: string; optionId: string } | null>(null)
 
-  const supabase = createClient()
   const router = useRouter()
 
   // Tab state
@@ -331,6 +343,9 @@ export default function ProductDetailClient({
   const [productIngredients, setProductIngredients] = useState<ProductIngredient[]>(initialProductIngredients)
   const [ingredientSearch, setIngredientSearch] = useState('')
   const [ingLoading, setIngLoading] = useState<string | null>(null)
+
+  let supabaseClient: ReturnType<typeof createClient> | undefined
+  const legacyClient = () => (supabaseClient ??= createClient())
 
   function updateGroupOptions(groupId: string, updater: (opts: ProductOption[]) => ProductOption[]) {
     setGroups(prev => prev.map(g =>
@@ -342,18 +357,32 @@ export default function ProductDetailClient({
     e.preventDefault()
     setProductSaving(true)
     setProductError(null)
-    const { error } = await supabase
+    const values = {
+      name: productForm.name,
+      description: productForm.description || null,
+      price: parseFloat(productForm.price),
+      original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
+      category_id: productForm.category_id || null,
+      is_featured: productForm.is_featured,
+      show_in_feed: productForm.show_in_feed,
+      tags: productForm.tags,
+    }
+    if (ownedSource) {
+      try {
+        const response = await fetch(`/api/admin/products/${encodeURIComponent(product.id)}`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(values),
+        })
+        const result = await response.json().catch(() => ({})) as { error?: string }
+        if (!response.ok) throw new Error(result.error || 'Failed to save product')
+        notifyPublicMenuChanged()
+      } catch (error) {
+        setProductError(error instanceof Error ? error.message : 'Failed to save product')
+      } finally { setProductSaving(false) }
+      return
+    }
+    const { error } = await legacyClient()
       .from('products')
-      .update({
-        name: productForm.name,
-        description: productForm.description || null,
-        price: parseFloat(productForm.price),
-        original_price: productForm.original_price ? parseFloat(productForm.original_price) : null,
-        category_id: productForm.category_id || null,
-        is_featured: productForm.is_featured,
-        show_in_feed: productForm.show_in_feed,
-        tags: productForm.tags,
-      })
+      .update(values)
       .eq('id', product.id)
     if (error) setProductError(error.message)
     else notifyPublicMenuChanged()
@@ -361,16 +390,33 @@ export default function ProductDetailClient({
   }
 
   async function toggleOptionAvailability(groupId: string, optionId: string, current: boolean) {
-    const { error } = await supabase.from('product_options').update({ is_available: !current }).eq('id', optionId)
-    if (!error) notifyPublicMenuChanged()
-    updateGroupOptions(groupId, opts =>
-      opts.map(o => o.id === optionId ? { ...o, is_available: !current } : o)
-    )
+    if (ownedSource) {
+      try {
+        const result = await catalogRequest<GroupWithOptions[]>(product.id, { entity: 'options', action: 'patch', id: optionId, groupId, values: { is_available: !current } })
+        setGroups(result)
+        notifyPublicMenuChanged()
+      } catch (error) { setProductError(error instanceof Error ? error.message : 'Failed to update option') }
+      return
+    }
+    const { error } = await legacyClient().from('product_options').update({ is_available: !current }).eq('id', optionId)
+    if (!error) {
+      notifyPublicMenuChanged()
+      updateGroupOptions(groupId, opts => opts.map(o => o.id === optionId ? { ...o, is_available: !current } : o))
+    }
   }
 
   async function confirmDeleteGroup() {
     if (!confirmGroupId) return
-    const { error } = await supabase.from('product_option_groups').delete().eq('id', confirmGroupId)
+    if (ownedSource) {
+      try {
+        const result = await catalogRequest<GroupWithOptions[]>(product.id, { entity: 'groups', action: 'delete', id: confirmGroupId })
+        setGroups(result)
+        notifyPublicMenuChanged()
+        setConfirmGroupId(null)
+      } catch (error) { setProductError(error instanceof Error ? error.message : 'Failed to delete group') }
+      return
+    }
+    const { error } = await legacyClient().from('product_option_groups').delete().eq('id', confirmGroupId)
     if (!error) notifyPublicMenuChanged()
     setGroups(prev => prev.filter(g => g.id !== confirmGroupId))
     setConfirmGroupId(null)
@@ -378,7 +424,16 @@ export default function ProductDetailClient({
 
   async function confirmDeleteOption() {
     if (!confirmOptionId) return
-    const { error } = await supabase.from('product_options').delete().eq('id', confirmOptionId.optionId)
+    if (ownedSource) {
+      try {
+        const result = await catalogRequest<GroupWithOptions[]>(product.id, { entity: 'options', action: 'delete', id: confirmOptionId.optionId, groupId: confirmOptionId.groupId })
+        setGroups(result)
+        notifyPublicMenuChanged()
+        setConfirmOptionId(null)
+      } catch (error) { setProductError(error instanceof Error ? error.message : 'Failed to delete option') }
+      return
+    }
+    const { error } = await legacyClient().from('product_options').delete().eq('id', confirmOptionId.optionId)
     if (!error) notifyPublicMenuChanged()
     updateGroupOptions(confirmOptionId.groupId, opts =>
       opts.filter(o => o.id !== confirmOptionId!.optionId)
@@ -398,8 +453,19 @@ export default function ProductDetailClient({
     onSuccess: () => void,
     onError: (msg: string) => void
   ) {
+    if (ownedSource) {
+      try {
+        const result = await catalogRequest<GroupWithOptions[]>(product.id, {
+          entity: 'groups', action: editingId ? 'patch' : 'create', ...(editingId ? { id: editingId } : {}), values: data,
+        })
+        setGroups(result)
+        notifyPublicMenuChanged()
+        onSuccess()
+      } catch (error) { onError(error instanceof Error ? error.message : 'Failed to save group') }
+      return
+    }
     if (editingId) {
-      const { error } = await supabase
+      const { error } = await legacyClient()
         .from('product_option_groups')
         .update({ name: data.name, type: data.type, required: data.required, min_selections: data.min_selections, max_selections: data.max_selections })
         .eq('id', editingId)
@@ -409,7 +475,7 @@ export default function ProductDetailClient({
         g.id === editingId ? { ...g, ...data } : g
       ))
     } else {
-      const { data: inserted, error } = await supabase
+      const { data: inserted, error } = await legacyClient()
         .from('product_option_groups')
         .insert({
           product_id: product.id,
@@ -440,6 +506,18 @@ export default function ProductDetailClient({
     const swap = groups[swapIdx]
     const prevGroups = groups
 
+    if (ownedSource) {
+      setReorderInFlight(true)
+      try {
+        setGroups(await catalogRequest<GroupWithOptions[]>(product.id, { entity: 'groups', action: 'reorder', firstId: current.id, secondId: swap.id }))
+        notifyPublicMenuChanged()
+      } catch (error) {
+        setGroups(prevGroups)
+        setProductError(error instanceof Error ? error.message : 'Failed to reorder groups')
+      } finally { setReorderInFlight(false) }
+      return
+    }
+
     // Optimistic update
     const reordered = groups
       .map(g => {
@@ -453,8 +531,8 @@ export default function ProductDetailClient({
 
     try {
       const results = await Promise.all([
-        supabase.from('product_option_groups').update({ position: swap.position }).eq('id', current.id),
-        supabase.from('product_option_groups').update({ position: current.position }).eq('id', swap.id),
+        legacyClient().from('product_option_groups').update({ position: swap.position }).eq('id', current.id),
+        legacyClient().from('product_option_groups').update({ position: current.position }).eq('id', swap.id),
       ])
       if (results.every(r => !r.error)) notifyPublicMenuChanged()
     } catch {
@@ -477,8 +555,19 @@ export default function ProductDetailClient({
     onSuccess: () => void,
     onError: (msg: string) => void
   ) {
+    if (ownedSource) {
+      try {
+        const result = await catalogRequest<GroupWithOptions[]>(product.id, {
+          entity: 'options', action: editingId ? 'patch' : 'create', ...(editingId ? { id: editingId } : {}), groupId, values: data,
+        })
+        setGroups(result)
+        notifyPublicMenuChanged()
+        onSuccess()
+      } catch (error) { onError(error instanceof Error ? error.message : 'Failed to save option') }
+      return
+    }
     if (editingId) {
-      const { error } = await supabase
+      const { error } = await legacyClient()
         .from('product_options')
         .update({ name: data.name, base_price: data.base_price, price_modifier: data.price_modifier, is_available: data.is_available })
         .eq('id', editingId)
@@ -489,7 +578,7 @@ export default function ProductDetailClient({
       )
     } else {
       const group = groups.find(g => g.id === groupId)
-      const { data: inserted, error } = await supabase
+      const { data: inserted, error } = await legacyClient()
         .from('product_options')
         .insert({
           group_id: groupId,
@@ -521,6 +610,18 @@ export default function ProductDetailClient({
     const swap = opts[swapIdx]
     const prevGroups = groups
 
+    if (ownedSource) {
+      setReorderInFlight(true)
+      try {
+        setGroups(await catalogRequest<GroupWithOptions[]>(product.id, { entity: 'options', action: 'reorder', groupId, firstId: current.id, secondId: swap.id }))
+        notifyPublicMenuChanged()
+      } catch (error) {
+        setGroups(prevGroups)
+        setProductError(error instanceof Error ? error.message : 'Failed to reorder options')
+      } finally { setReorderInFlight(false) }
+      return
+    }
+
     // Optimistic update
     const reorderedOpts = opts
       .map(o => {
@@ -534,8 +635,8 @@ export default function ProductDetailClient({
 
     try {
       const results = await Promise.all([
-        supabase.from('product_options').update({ position: swap.position }).eq('id', current.id),
-        supabase.from('product_options').update({ position: current.position }).eq('id', swap.id),
+        legacyClient().from('product_options').update({ position: swap.position }).eq('id', current.id),
+        legacyClient().from('product_options').update({ position: current.position }).eq('id', swap.id),
       ])
       if (results.every(r => !r.error)) notifyPublicMenuChanged()
     } catch {
@@ -548,7 +649,15 @@ export default function ProductDetailClient({
 
   async function handleAddIngredient(ingredientId: string) {
     setIngLoading(ingredientId)
-    const { data, error } = await supabase
+    if (ownedSource) {
+      try {
+        setProductIngredients(await catalogRequest<ProductIngredient[]>(product.id, { entity: 'ingredients', action: 'create', ingredientId, values: { is_default: false, extra_price_override: null, add_price_override: null } }))
+        notifyPublicMenuChanged()
+      } catch (error) { setProductError(error instanceof Error ? error.message : 'Failed to add ingredient') }
+      finally { setIngLoading(null) }
+      return
+    }
+    const { data, error } = await legacyClient()
       .from('product_ingredients')
       .insert({
         product_id: product.id,
@@ -570,7 +679,15 @@ export default function ProductDetailClient({
 
   async function handleRemoveIngredient(ingredientId: string) {
     setIngLoading(ingredientId)
-    const { error } = await supabase
+    if (ownedSource) {
+      try {
+        setProductIngredients(await catalogRequest<ProductIngredient[]>(product.id, { entity: 'ingredients', action: 'delete', ingredientId }))
+        notifyPublicMenuChanged()
+      } catch (error) { setProductError(error instanceof Error ? error.message : 'Failed to remove ingredient') }
+      finally { setIngLoading(null) }
+      return
+    }
+    const { error } = await legacyClient()
       .from('product_ingredients')
       .delete()
       .eq('product_id', product.id)
@@ -585,8 +702,17 @@ export default function ProductDetailClient({
   async function handleUpdateProductIngredient(
     ingredientId: string,
     patch: Partial<Pick<ProductIngredient, 'is_default' | 'extra_price_override' | 'add_price_override'>>
-  ) {
-    const { error } = await supabase
+  ): Promise<boolean> {
+    if (ownedSource) {
+      setIngLoading(ingredientId)
+      try {
+        setProductIngredients(await catalogRequest<ProductIngredient[]>(product.id, { entity: 'ingredients', action: 'patch', ingredientId, values: patch }))
+        notifyPublicMenuChanged()
+      } catch (error) { setProductError(error instanceof Error ? error.message : 'Failed to update ingredient') }
+      finally { setIngLoading(null) }
+      return false
+    }
+    const { error } = await legacyClient()
       .from('product_ingredients')
       .update(patch)
       .eq('product_id', product.id)
@@ -597,6 +723,7 @@ export default function ProductDetailClient({
         prev.map(pi => pi.ingredient_id === ingredientId ? { ...pi, ...patch } : pi)
       )
     }
+    return !error
   }
 
   return (
@@ -675,7 +802,7 @@ export default function ProductDetailClient({
         >
           Media
         </button>
-        <button
+        {!ownedSource && <button
           onClick={() => setActiveTab('translations')}
           className={`px-4 py-2 text-sm font-medium transition-colors rounded-t-lg ${
             activeTab === 'translations'
@@ -684,8 +811,12 @@ export default function ProductDetailClient({
           }`}
         >
           Translations
-        </button>
+        </button>}
       </div>
+
+      {productError && activeTab !== 'details' && (
+        <p role="alert" className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{productError}</p>
+      )}
 
       {/* Product fields card shown only on Details tab */}
       {activeTab === 'details' && (
@@ -786,7 +917,7 @@ export default function ProductDetailClient({
       </div>
       )}
 
-      {activeTab === 'details' && upsellAvailable && (
+      {activeTab === 'details' && !ownedSource && upsellAvailable && (
         <ProductUpsellCard
           productId={product.id}
           initialIds={product.upsell_product_ids ?? []}
@@ -1136,11 +1267,13 @@ export default function ProductDetailClient({
                               disabled={!canManage}
                               defaultValue={pi.extra_price_override !== null ? String(pi.extra_price_override) : ''}
                               placeholder={`Default: ${(CURRENCY_SYMBOL[currency] ?? currency)}${ing.default_extra_price.toFixed(2)}`}
-                              onBlur={e => {
-                                const val = e.target.value
-                                handleUpdateProductIngredient(pi.ingredient_id, {
+                              onBlur={async e => {
+                                const input = e.currentTarget
+                                const val = input.value
+                                const saved = await handleUpdateProductIngredient(pi.ingredient_id, {
                                   extra_price_override: val !== '' ? parseFloat(val) : null,
                                 })
+                                if (!saved) input.value = pi.extra_price_override !== null ? String(pi.extra_price_override) : ''
                               }}
                               className="flex-1 px-3 py-2 text-sm focus:outline-none"
                             />
@@ -1160,11 +1293,13 @@ export default function ProductDetailClient({
                               disabled={!canManage}
                               defaultValue={pi.add_price_override !== null ? String(pi.add_price_override) : ''}
                               placeholder={`Default: ${(CURRENCY_SYMBOL[currency] ?? currency)}${ing.default_add_price.toFixed(2)}`}
-                              onBlur={e => {
-                                const val = e.target.value
-                                handleUpdateProductIngredient(pi.ingredient_id, {
+                              onBlur={async e => {
+                                const input = e.currentTarget
+                                const val = input.value
+                                const saved = await handleUpdateProductIngredient(pi.ingredient_id, {
                                   add_price_override: val !== '' ? parseFloat(val) : null,
                                 })
+                                if (!saved) input.value = pi.add_price_override !== null ? String(pi.add_price_override) : ''
                               }}
                               className="flex-1 px-3 py-2 text-sm focus:outline-none"
                             />
@@ -1189,11 +1324,11 @@ export default function ProductDetailClient({
 
       {/* Media tab */}
       {activeTab === 'media' && (
-        <ProductMediaTab productId={product.id} tenantId={_tenantId} />
+        <ProductMediaTab productId={product.id} tenantId={_tenantId} ownedSource={ownedSource} canManage={canManage} />
       )}
 
       {/* Translations tab */}
-      {activeTab === 'translations' && (
+      {activeTab === 'translations' && !ownedSource && (
         <ProductTranslationsTab
           product={{ ...product, name: productForm.name, description: productForm.description, translations: productTranslations }}
           groups={groups}

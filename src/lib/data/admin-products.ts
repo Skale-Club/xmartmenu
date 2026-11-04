@@ -52,7 +52,8 @@ export function productPatch(input: unknown, creating = false) {
   if ('tags' in patch && (!Array.isArray(patch.tags) || patch.tags.length > 50 || patch.tags.some(tag => typeof tag !== 'string' || tag.length > 100))) throw new AdminMenuError(400, 'Invalid product tags')
   return patch
 }
-async function findProduct(query: AdminMenuQuery, context: AdminMenuContext, id: string, lock = false) {
+export async function findAdminProduct(query: AdminMenuQuery, context: AdminMenuContext, id: string, lock = false) {
+  scope(context, lock)
   if (!uuid.test(id)) throw new AdminMenuError(404, 'Product not found')
   const product = resultRows(await query(`SELECT ${projection} FROM public.products p ${categoryJoin}
     WHERE p.tenant_id=$1 AND p.id=$2${lock ? ' FOR UPDATE OF p' : ''}`, [context.tenantId, id]))[0]
@@ -77,7 +78,8 @@ export async function readProductsPage(query: AdminMenuQuery, context: AdminMenu
     custom_tags: Array.isArray(settings?.custom_tags) ? settings.custom_tags.filter((tag): tag is string => typeof tag === 'string') : [],
   } }
 }
-async function guardProductDeletion(query: AdminMenuQuery, context: AdminMenuContext, id: string) {
+export async function guardProductDeletion(query: AdminMenuQuery, context: AdminMenuContext, id: string) {
+  scope(context, true)
   await query('LOCK TABLE public.products,public.product_option_groups,public.product_options,public.product_ingredients,public.product_media,public.menu_events IN ROW EXCLUSIVE MODE')
   const reviewed = new Set(['product_option_groups:product_id:products:id:c', 'product_ingredients:product_id:products:id:c',
     'product_media:product_id:products:id:c', 'menu_events:product_id:products:id:n', 'product_options:group_id:product_option_groups:id:c'])
@@ -120,9 +122,9 @@ export async function mutateAdminProduct(query: AdminMenuQuery, context: AdminMe
     const created = await query(`INSERT INTO public.products(tenant_id,menu_id,position,${columns.join(',')}) VALUES($1,$2,$3,${values.map((_, i) => `$${i + 4}`).join(',')}) RETURNING id`, [context.tenantId, menu.id, position, ...values])
     const id = created.rows[0]?.id
     if (typeof id !== 'string') throw new Error('Product insert failed')
-    return findProduct(query, context, id)
+    return findAdminProduct(query, context, id)
   }
-  const current = await findProduct(query, context, mutation.id, true)
+  const current = await findAdminProduct(query, context, mutation.id, true)
   if (mutation.kind === 'delete') {
     await guardProductDeletion(query, context, mutation.id)
     await query('DELETE FROM public.products WHERE tenant_id=$1 AND id=$2', [context.tenantId, mutation.id])
@@ -133,5 +135,5 @@ export async function mutateAdminProduct(query: AdminMenuQuery, context: AdminMe
   const entries = Object.entries(patch)
   if (entries.length) await query(`UPDATE public.products SET ${entries.map(([key], index) => `${key}=$${index + 3}`).join(',')},updated_at=now()
     WHERE tenant_id=$1 AND id=$2`, [context.tenantId, mutation.id, ...entries.map(([, value]) => value)])
-  return findProduct(query, context, mutation.id)
+  return findAdminProduct(query, context, mutation.id)
 }

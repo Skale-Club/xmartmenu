@@ -7,6 +7,9 @@ import pg from 'pg'
 import { createAdminMenusPool, adminMenuTransaction } from '../../src/lib/data/admin-menus-runtime'
 import { mutateAdminProduct, readProductsPage, type AdminProduct, type ProductMutation } from '../../src/lib/data/admin-products'
 import { PUBLIC_MENU_COLUMNS } from '../../src/lib/data/public-menu'
+import { mutateProductDetail, readProductDetailPage, type DetailOperation } from '../../src/lib/data/admin-product-detail'
+import type { ProductMedia } from '../../src/types/database'
+import type { GroupWithOptions } from '../../src/app/(admin)/menu/products/[id]/page'
 
 const raw = process.env.IDENTITY_TEST_DATABASE_URL
 if (!raw) throw new Error('Explicit disposable CI database required')
@@ -20,6 +23,7 @@ const category = randomUUID(), otherCategory = randomUUID(), product = randomUUI
 const context = { tenantId: a, role: 'store-admin' as const }
 const mutate = (input: ProductMutation, role: 'store-admin' | 'store-staff' = 'store-admin') => adminMenuTransaction(pool, true, query => mutateAdminProduct(query, { tenantId: a, role }, input))
 const page = (selected?: string) => adminMenuTransaction(pool, false, query => readProductsPage(query, context, selected))
+const detail = (productId: string, operation: DetailOperation, role: 'store-admin' | 'store-staff' = 'store-admin') => adminMenuTransaction(pool, operation.action !== 'list', query => mutateProductDetail(query, { tenantId: a, role }, productId, operation))
 before(async () => {
   const tables: Array<[string, string, keyof typeof PUBLIC_MENU_COLUMNS | null]> = [
     ['tenants', '001_initial_schema.sql', null], ['tenant_settings', '001_initial_schema.sql', null], ['menus', '009_multiple_menus.sql', 'menu'],
@@ -129,4 +133,83 @@ test('unreviewed cascading schema changes refuse deletion before any row is chan
   try { await assert.rejects(mutate({ kind: 'delete', id: own.id }), { status: 409 }) }
   finally { await admin.query('DROP TABLE public.product_extra_dependency') }
   assert.equal((await page()).products[0].id, own.id)
+})
+test('detail reads and option mutations retain group semantics and signed numeric modifiers', async () => {
+  const own = (await page()).products[0]
+  const data = await adminMenuTransaction(pool, false, query => readProductDetailPage(query, context, own.id))
+  assert.equal(data.product.id, own.id)
+  assert.equal(data.menu?.id, menu)
+  assert.equal(data.settings.currency, 'BRL')
+  let groups = await detail(own.id, { entity: 'groups', action: 'create', values: { name: 'Extras', type: 'multiple', required: false, min_selections: 0, max_selections: null } }) as GroupWithOptions[]
+  const extras = groups.find(group => group.name === 'Extras')!
+  assert.equal(extras.price_rule, 'max')
+  groups = await detail(own.id, { entity: 'options', action: 'create', groupId: extras.id,
+    values: { name: 'Discount', base_price: null, price_modifier: -2.25, is_available: true } }) as GroupWithOptions[]
+  const discount = groups.find(group => group.id === extras.id)!.options[0]
+  assert.equal(discount.price_modifier, -2.25)
+  assert.equal(discount.base_price, null)
+  groups = await detail(own.id, { entity: 'options', action: 'patch', id: discount.id, values: { is_available: false } }) as GroupWithOptions[]
+  assert.equal(groups[0].options[0].is_available, false)
+  await assert.rejects(detail(own.id, { entity: 'options', action: 'patch', id: discount.id, values: { price_modifier: 1 } }, 'store-staff'), { status: 403 })
+})
+test('option ownership follows the product and tenant; reorder uses current database positions', async () => {
+  const own = (await page()).products[0]
+  let groups = await detail(own.id, { entity: 'groups', action: 'create', values: { name: 'Size', type: 'single' } }) as GroupWithOptions[]
+  const size = groups.find(group => group.name === 'Size')!, extras = groups.find(group => group.name === 'Extras')!
+  groups = await detail(own.id, { entity: 'options', action: 'create', groupId: size.id, values: { name: 'Small', base_price: 8, price_modifier: 0 } }) as GroupWithOptions[]
+  groups = await detail(own.id, { entity: 'options', action: 'create', groupId: size.id, values: { name: 'Large', base_price: 12.5, price_modifier: 0 } }) as GroupWithOptions[]
+  const options = groups.find(group => group.id === size.id)!.options
+  await assert.rejects(detail(own.id, { entity: 'options', action: 'reorder', groupId: size.id, firstId: options[0].id, secondId: extras.options[0].id }), { status: 404 })
+  groups = await detail(own.id, { entity: 'options', action: 'reorder', groupId: size.id, firstId: options[0].id, secondId: options[1].id }) as GroupWithOptions[]
+  assert.deepEqual(groups.find(group => group.id === size.id)!.options.map(option => option.id), [options[1].id, options[0].id])
+  groups = await detail(own.id, { entity: 'groups', action: 'reorder', firstId: size.id, secondId: extras.id }) as GroupWithOptions[]
+  assert.equal(groups[0].id, size.id)
+  const otherGroup = randomUUID(), otherOption = randomUUID()
+  await admin.query("INSERT INTO public.product_option_groups(id,product_id,tenant_id,name,type) VALUES($1,$2,$3,'Foreign','single')", [otherGroup, foreignProduct, b])
+  await admin.query("INSERT INTO public.product_options(id,group_id,tenant_id,name) VALUES($1,$2,$3,'Foreign')", [otherOption, otherGroup, b])
+  await assert.rejects(detail(own.id, { entity: 'options', action: 'patch', id: otherOption, values: { price_modifier: 1 } }), { status: 404 })
+})
+test('ingredient associations require both parents, preserve overrides on repeated create and reject corrupt scopes', async () => {
+  const own = (await page()).products[0], other = randomUUID()
+  await admin.query("INSERT INTO public.ingredients(id,tenant_id,name) VALUES($1,$2,'Foreign')", [other, b])
+  await assert.rejects(detail(own.id, { entity: 'ingredients', action: 'create', ingredientId: other, values: {} }), { status: 404 })
+  await detail(own.id, { entity: 'ingredients', action: 'create', ingredientId: ingredient, values: {} })
+  await detail(own.id, { entity: 'ingredients', action: 'patch', ingredientId: ingredient, values: { is_default: true, extra_price_override: 1.75 } })
+  await detail(own.id, { entity: 'ingredients', action: 'create', ingredientId: ingredient, values: {} })
+  const row = (await admin.query('SELECT is_default,extra_price_override FROM public.product_ingredients WHERE product_id=$1 AND ingredient_id=$2', [own.id, ingredient])).rows[0]
+  assert.equal(row.is_default, true); assert.equal(row.extra_price_override, '1.75')
+  await admin.query('UPDATE public.product_ingredients SET tenant_id=$1 WHERE product_id=$2 AND ingredient_id=$3', [b, own.id, ingredient])
+  await assert.rejects(detail(own.id, { entity: 'ingredients', action: 'delete', ingredientId: ingredient }), { status: 409 })
+  await admin.query('UPDATE public.product_ingredients SET tenant_id=$1 WHERE product_id=$2 AND ingredient_id=$3', [a, own.id, ingredient])
+  assert.deepEqual(await detail(own.id, { entity: 'ingredients', action: 'delete', ingredientId: ingredient }), [])
+})
+test('gallery metadata syncs primary image atomically, retains video-only legacy image and clears only the last deleted image', async () => {
+  const own = (await page()).products[0]
+  await admin.query('UPDATE public.products SET image_url=$1 WHERE id=$2', ['https://media.example.test/legacy.webp', own.id])
+  let media = await detail(own.id, { entity: 'media', action: 'create', values: [{ type: 'video', url: 'https://media.example.test/video.mp4' }] }) as ProductMedia[]
+  const primary = async () => (await admin.query('SELECT image_url FROM public.products WHERE id=$1', [own.id])).rows[0].image_url
+  assert.equal(await primary(), 'https://media.example.test/legacy.webp')
+  media = await detail(own.id, { entity: 'media', action: 'create', values: [{ type: 'image', url: 'https://media.example.test/a.webp' }, { type: 'image', url: 'https://media.example.test/b.webp' }] }) as ProductMedia[]
+  const first = media.find(item => item.url.endsWith('/a.webp'))!, second = media.find(item => item.url.endsWith('/b.webp'))!
+  assert.equal(await primary(), first.url)
+  await detail(own.id, { entity: 'media', action: 'reorder', firstId: first.id, secondId: second.id })
+  assert.equal(await primary(), second.url)
+  await detail(own.id, { entity: 'media', action: 'delete', id: second.id })
+  assert.equal(await primary(), first.url)
+  await detail(own.id, { entity: 'media', action: 'delete', id: first.id })
+  assert.equal(await primary(), null)
+  assert.equal((await detail(own.id, { entity: 'media', action: 'list' }, 'store-staff') as ProductMedia[]).length, 1)
+  await assert.rejects(detail(own.id, { entity: 'media', action: 'create', values: [{ type: 'image', url: 'https://media.example.test/valid.webp' }, { type: 'video', url: 'javascript:bad' }] }), { status: 400 })
+  assert.equal((await detail(own.id, { entity: 'media', action: 'list' }) as ProductMedia[]).length, 1)
+})
+test('deleting a group keeps the reviewed cascade while refusing unreviewed child schema', async () => {
+  const own = (await page()).products[0]
+  const data = await adminMenuTransaction(pool, false, query => readProductDetailPage(query, context, own.id))
+  const targetGroup = data.groups.find(group => group.name === 'Size')!
+  await admin.query('CREATE TABLE public.option_group_extra_dependency(id uuid PRIMARY KEY,group_id uuid REFERENCES public.product_option_groups(id) ON DELETE CASCADE)')
+  try { await assert.rejects(detail(own.id, { entity: 'groups', action: 'delete', id: targetGroup.id }), { status: 409 }) }
+  finally { await admin.query('DROP TABLE public.option_group_extra_dependency') }
+  const groups = await detail(own.id, { entity: 'groups', action: 'delete', id: targetGroup.id }) as GroupWithOptions[]
+  assert.equal(groups.some(group => group.id === targetGroup.id), false)
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM public.product_options WHERE group_id=$1', [targetGroup.id])).rows[0].n, 0)
 })
