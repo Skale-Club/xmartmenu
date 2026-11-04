@@ -10,8 +10,11 @@ import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { stripe } from '@/lib/stripe'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { stopOwnedStripeConnect } from '@/lib/billing/stripe-connect-native'
 
 async function handlePOST() {
+  if (adminMenusOwned()) return stopOwnedStripeConnect()
   // 1. Authenticate and get tenant (cookie client, used only for the
   // identity check).
   const supabase = await createClient()

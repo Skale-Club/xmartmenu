@@ -12,12 +12,15 @@ import { verifyOAuthState } from '@/lib/stripe-oauth-state'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { finishOwnedStripeConnect } from '@/lib/billing/stripe-connect-native'
 
 function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 }
 
 async function handleGET(request: Request) {
+  if (adminMenusOwned()) return finishOwnedStripeConnect(request)
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
   const error = searchParams.get('error')

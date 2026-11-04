@@ -1005,7 +1005,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                       <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
                       <span className="text-sm font-black text-zinc-950 uppercase tracking-tight">System Online</span>
                     </div>
-                    <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Linked: {new Date(stripeConnection.connected_at).toLocaleDateString()}</span>
+                    {stripeConnection.connected_at && <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Linked: {new Date(stripeConnection.connected_at).toLocaleDateString()}</span>}
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-zinc-100">
                     <p className="text-[10px] font-black uppercase tracking-widest text-zinc-400 mb-1">Stripe Account ID</p>
