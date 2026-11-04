@@ -13,6 +13,9 @@ import { getClientIp, rateLimit } from '@/lib/rate-limit'
 import { parseTableParam } from '@/lib/service-modes'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned, AdminMenuError } from '@/lib/data/admin-menus'
+import { createOwnedPublicWaiterCall } from '@/lib/data/public-waiter-calls-runtime'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,10 +25,26 @@ async function handlePOST(request: Request, { params }: { params: Promise<{ slug
   const limited = await rateLimit('waiter-call', ip, 10, '10 m')
   if (!limited.ok) return NextResponse.json({ error: 'Too many requests. The staff has been notified already.' }, { status: 429 })
 
-  const body = (await request.json().catch(() => null)) as { table_id?: unknown; reason?: unknown } | null
+  const owned = adminMenusOwned()
+  let body: { table_id?: unknown; reason?: unknown } | null
+  try {
+    body = owned ? JSON.parse(await readNativeAnalyticsBody(request)) : await request.json()
+  } catch (error) {
+    if (owned && error instanceof AdminMenuError) return NextResponse.json({ error: 'Invalid call request' }, { status: error.status })
+    body = null
+  }
   const tableId = parseTableParam(typeof body?.table_id === 'string' ? body.table_id : undefined)
   if (!tableId) return NextResponse.json({ error: 'Unknown table' }, { status: 400 })
   const reason = parseCallReason(body?.reason)
+
+  if (owned) {
+    try {
+      const result = await createOwnedPublicWaiterCall(slug, tableId, reason)
+      return NextResponse.json(result.body, { status: result.status })
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof AdminMenuError ? error.message : 'Could not call the waiter' }, { status: error instanceof AdminMenuError ? error.status : 503 })
+    }
+  }
 
   const service = createServiceClient()
   const { data: tenant } = await service
