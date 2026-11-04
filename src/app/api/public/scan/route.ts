@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
+import { adminMenusOwned, AdminMenuError } from '@/lib/data/admin-menus'
+import { recordOwnedPublicScan } from '@/lib/data/public-scans-runtime'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
+
+export const runtime = 'nodejs'
 
 /**
  * POST /api/public/scan
@@ -20,10 +25,14 @@ export async function POST(request: Request) {
     const rl = await rateLimit('public-scan', getClientIp(request), 30, '1 m')
     if (!rl.ok) return NextResponse.json({ ok: false }, { status: 429 })
 
-    const { tenant_id } = (await request.json()) as { tenant_id?: string }
+    const owned = adminMenusOwned()
+    const { tenant_id } = (owned
+      ? JSON.parse(await readNativeAnalyticsBody(request))
+      : await request.json()) as { tenant_id?: string }
     if (!tenant_id || typeof tenant_id !== 'string') {
       return NextResponse.json({ ok: false }, { status: 400 })
     }
+    if (owned) return NextResponse.json(await recordOwnedPublicScan(tenant_id))
     const service = await createServiceClient()
     // Confirm the tenant is real before inserting — drops random UUID spam.
     const { data: tenant } = await service
@@ -37,7 +46,8 @@ export async function POST(request: Request) {
     }
     await service.from('scan_events').insert({ tenant_id })
     return NextResponse.json({ ok: true })
-  } catch {
+  } catch (error) {
+    if (error instanceof AdminMenuError) return NextResponse.json({ ok: false }, { status: error.status })
     return NextResponse.json({ ok: false }, { status: 500 })
   }
 }
