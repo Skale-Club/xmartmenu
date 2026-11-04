@@ -74,6 +74,10 @@ jobs:
           bash scripts/ops/xmartmenu-database-rehearsal.sh --plan
           node --test scripts/ops/import-xmartmenu-private-candidate.test.mjs
           node --test scripts/ops/xmartmenu-database-rehearsal.test.mjs
+          python3 -B scripts/ops/test_xmartmenu_private_transport.py
+          python3 -B scripts/ops/test_install_xmartmenu_private_transport.py
+          python3 -B scripts/ops/test_xmartmenu_pg_stdio.py
+          python3 -B scripts/ops/test_upgrade_xmartmenu_pg_stdio.py
 
       - name: Xphere contract checks
         run: npm run xphere:check:all
