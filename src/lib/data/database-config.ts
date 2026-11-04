@@ -1,7 +1,7 @@
 import { assertConnectionQuery, developmentConfig } from '../../../scripts/lib/database-target.mjs'
 
 /** Runtime repositories never inherit legacy production SQL aliases. */
-export function postgresRuntimeConfig(env: Record<string, string | undefined>, prefix: 'IDENTITY' | 'PLATFORM_APPEARANCE' | 'PUBLIC_MENU' | 'ADMIN_MENUS' | 'ORDERS') {
+export function postgresRuntimeConfig(env: Record<string, string | undefined>, prefix: 'IDENTITY' | 'PLATFORM_APPEARANCE' | 'PUBLIC_MENU' | 'ADMIN_MENUS' | 'ORDERS' | 'PAYMENTS') {
   let connectionString: string
   let ssl: false | { rejectUnauthorized: true }
   if (env.NODE_ENV !== 'production') {

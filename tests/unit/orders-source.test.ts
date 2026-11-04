@@ -31,6 +31,7 @@ const GET = () => GETRoute(new Request('http://localhost/api/orders'), undefined
 
 beforeEach(() => {
   vi.stubEnv('OWNED_ORDER_DATA_ENABLED','true')
+  vi.stubEnv('OWNED_PAYMENT_DATA_ENABLED','true')
   mocks.rate.mockResolvedValue({ ok: true }); mocks.effective.mockResolvedValue(null)
   mocks.cookie.mockResolvedValue({ auth: { getUser: async () => ({ data: { user: null } }) } })
   mocks.legacy.mockImplementation(() => { throw Error('Legacy order data must not be used') })
@@ -67,6 +68,12 @@ describe('owned orders route source selection', () => {
     repository.products.mockResolvedValue(result([{ id: productId, name: 'Dish', price: 10, is_available: true, menus: { id: menuId, is_active: true, is_private: true } }]))
     expect((await POST(input)).status).toBe(403)
     expect(repository.create).toHaveBeenCalledTimes(1)
+  })
+  it('refuses Stripe-required owned orders until the matching payment store is enabled',async()=>{
+    vi.stubEnv('OWNED_PAYMENT_DATA_ENABLED','false')
+    repository.stripeEnabled.mockResolvedValue(true)
+    expect((await POST(input)).status).toBe(503)
+    expect(repository.create).not.toHaveBeenCalled();expect(mocks.legacy).not.toHaveBeenCalled()
   })
   it('refuses ambiguous overlapping delivery fees instead of depending on restore row ordering', async () => {
     repository.capabilities.mockResolvedValue({ ...caps,delivery: true })

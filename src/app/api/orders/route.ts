@@ -14,6 +14,7 @@ import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 import { ordersDataOwned, OrderDataError, assertUnambiguousOrderOptionPricing, type OrderPriceGroup, type OwnedOrderRepository } from '@/lib/data/orders'
 import { withOwnedOrders } from '@/lib/data/orders-runtime'
+import { paymentsDataOwned } from '@/lib/data/payments'
 
 // KDS query bounds (shared intent with orders/page.tsx). A kitchen board only
 // needs recent orders; older history lives elsewhere.
@@ -268,6 +269,7 @@ async function handlePOST(request: Request) {
       if (orderType !== 'dine_in') tableName = null
 
       const requiresPayment = !isStaffOrder && (owned ? await owned.stripeEnabled() : await isStripeEnabled(tenant_id, service))
+      if(owned&&requiresPayment&&!paymentsDataOwned())throw new OrderDataError(503,'Independent payments must be enabled before accepting online-payment orders')
       const initialStatus = requiresPayment ? 'awaiting_payment' : 'pending'
 
       // ── Catalog, from the database only (P2-07 / EX-03) ───────────────────────

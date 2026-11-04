@@ -14,6 +14,8 @@
  * A database error is returned (ok: false) so the webhook answers 500 and
  * Stripe retries; the event is only marked processed after success.
  */
+import { paymentsDataOwned, PaymentDataError } from '@/lib/data/payments'
+import { withOwnedPayments } from '@/lib/data/payments-runtime'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getTenantCurrency, toStripeAmount } from '@/lib/stripe'
 import { recordTrustedOrderAnalyticsEvent } from '@/lib/analytics/server'
@@ -61,10 +63,12 @@ async function recordDivergence(
 }
 
 export async function applyPaymentSignal(
-  supabase: SupabaseClient,
+  supabase: SupabaseClient | undefined,
   intent: IntentFacts,
   signal: PaymentSignal,
 ): Promise<PaymentSyncResult> {
+  if (paymentsDataOwned()) return withOwnedPayments(true,repo=>repo.applySignal(intent,signal))
+  if (!supabase) throw new PaymentDataError(503,'Payment source is unavailable')
   const orderId = intent.metadata?.order_id
   if (!orderId) return { ok: true, changed: false }
 
