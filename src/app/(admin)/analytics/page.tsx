@@ -14,8 +14,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
-import { createServiceClient } from '@/lib/supabase/server'
-import { getTenantCapabilities } from '@/lib/tenant-plan'
+import { loadAdminAnalytics } from '@/lib/admin/analytics-data'
 import { analyticsView } from '@/components/admin/plan-views'
 import PlanHintCard from '@/components/admin/PlanHintCard'
 import { lockedGroup } from '@/components/admin/plan-hint'
@@ -53,66 +52,34 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
   const endedAt = new Date()
   const startedAt = new Date(endedAt.getTime() - days * 86_400_000)
   const previousStartedAt = new Date(startedAt.getTime() - days * 86_400_000)
-  const service = createServiceClient()
-  const rpcParams = {
-    p_tenant_id: effective.tenantId,
-    p_started_at: startedAt.toISOString(),
-    p_ended_at: endedAt.toISOString(),
-    p_menu_id: menuId,
-    p_location_id: locationId,
-  }
-  const previousRpcParams = {
-    ...rpcParams,
-    p_started_at: previousStartedAt.toISOString(),
-    p_ended_at: startedAt.toISOString(),
-  }
-
-  const [
-    overviewResult,
-    previousOverviewResult,
-    productsResult,
-    menusResult,
-    locationsResult,
-    settingsResult,
-    upsellResult,
-    attributionResult,
-    capabilities,
-  ] = await Promise.all([
-    service.rpc('get_menu_analytics_overview', rpcParams),
-    service.rpc('get_menu_analytics_overview', previousRpcParams),
-    service.rpc('get_menu_product_analytics', rpcParams),
-    service.from('menus').select('id, name').eq('tenant_id', effective.tenantId).order('position'),
-    service.from('locations').select('id, name').eq('tenant_id', effective.tenantId).eq('is_active', true).order('name'),
-    service.from('tenant_settings').select('currency, country, region, analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos').eq('tenant_id', effective.tenantId).maybeSingle(),
-    service.rpc('get_menu_upsell_analytics', rpcParams),
-    service.rpc('get_order_attribution', { p_tenant_id: rpcParams.p_tenant_id, p_started_at: rpcParams.p_started_at, p_ended_at: rpcParams.p_ended_at, p_location_id: rpcParams.p_location_id }),
-    getTenantCapabilities(effective.tenantId),
-  ])
+  const data = await loadAdminAnalytics({ tenantId: effective.tenantId,role: effective.role }, {
+    startedAt: startedAt.toISOString(),endedAt: endedAt.toISOString(),previousStartedAt: previousStartedAt.toISOString(),menuId,locationId,
+  })
+  const capabilities = data.capabilities
   // What this plan can show: no orders, no order metrics; no guest carts, no cart stages.
   const view = analyticsView(capabilities)
 
-  const overview = normalizeOverview(overviewResult.data?.[0] ?? EMPTY_ANALYTICS_OVERVIEW)
-  const previous = normalizeOverview(previousOverviewResult.data?.[0] ?? EMPTY_ANALYTICS_OVERVIEW)
-  const rawProducts: unknown[] = Array.isArray(productsResult.data) ? productsResult.data : []
+  const overview = normalizeOverview(data.overview ?? EMPTY_ANALYTICS_OVERVIEW)
+  const previous = normalizeOverview(data.previousOverview ?? EMPTY_ANALYTICS_OVERVIEW)
+  const rawProducts: unknown[] = Array.isArray(data.products) ? data.products : []
   const products = rawProducts
     .map((row: unknown) => normalizeProductAnalytics(row))
     .filter((row): row is ProductAnalyticsRow => row !== null)
     .map(row => enrichProductAnalytics(row))
   const recommendations = buildRecommendations(products)
-  const currency = settingsResult.data?.currency ?? 'USD'
+  const currency = data.settings?.currency ?? 'USD'
   const settings: AnalyticsExperienceSettings = {
-    analytics_enabled: settingsResult.data?.analytics_enabled ?? true,
-    visual_feed_enabled: settingsResult.data?.visual_feed_enabled ?? true,
-    menu_default_view: settingsResult.data?.menu_default_view === 'feed' ? 'feed' : 'list',
-    feed_autoplay_videos: settingsResult.data?.feed_autoplay_videos ?? true,
+    analytics_enabled: data.settings?.analytics_enabled ?? true,
+    visual_feed_enabled: data.settings?.visual_feed_enabled ?? true,
+    menu_default_view: data.settings?.menu_default_view === 'feed' ? 'feed' : 'list',
+    feed_autoplay_videos: data.settings?.feed_autoplay_videos ?? true,
   }
-  const unavailable = Boolean(overviewResult.error || productsResult.error)
-  const upsell = normalizeUpsellAnalytics(upsellResult.data)
-  const attribution = normalizeOrderAttribution(attributionResult.data)
+  const unavailable = data.unavailable
+  const upsell = normalizeUpsellAnalytics(data.upsell)
+  const attribution = normalizeOrderAttribution(data.attribution)
   // Hours are shown in the restaurant's own time zone.
-  const timeZone = resolveTimeZone({ country: settingsResult.data?.country, region: settingsResult.data?.region, currency: settingsResult.data?.currency }) ?? 'UTC'
-  const engagementResult = await service.rpc('get_menu_engagement', { ...rpcParams, p_time_zone: timeZone })
-  const engagement = normalizeEngagement(engagementResult.data)
+  const timeZone = resolveTimeZone({ country: data.settings?.country, region: data.settings?.region, currency: data.settings?.currency }) ?? 'UTC'
+  const engagement = normalizeEngagement(data.engagement)
 
   const engagementKpis: Kpi[] = [
     { label: 'Menu sessions', value: compact(overview.sessions), previous: previous.sessions, current: overview.sessions, icon: Users, help: 'Anonymous menu visits started in this period.' },
@@ -161,8 +128,8 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Se
         </div>
         <form className="grid grid-cols-3 gap-2" aria-label="Analytics filters">
           <Select name="days" defaultValue={String(days)} label="Period" options={[['7', '7 days'], ['30', '30 days'], ['90', '90 days']]} />
-          <Select name="menu" defaultValue={menuId ?? ''} label="Menu" options={[['', 'All menus'], ...(menusResult.data ?? []).map(row => [row.id, row.name] as [string, string])]} />
-          <Select name="location" defaultValue={locationId ?? ''} label="Location" options={[['', 'All locations'], ...(locationsResult.data ?? []).map(row => [row.id, row.name] as [string, string])]} />
+          <Select name="menu" defaultValue={menuId ?? ''} label="Menu" options={[['', 'All menus'], ...(data.menus ?? []).map(row => [row.id, row.name] as [string, string])]} />
+          <Select name="location" defaultValue={locationId ?? ''} label="Location" options={[['', 'All locations'], ...(data.locations ?? []).map(row => [row.id, row.name] as [string, string])]} />
           <button type="submit" className="col-span-3 min-h-10 rounded-xl bg-zinc-950 px-4 text-xs font-black uppercase tracking-widest text-white hover:bg-zinc-800">Apply filters</button>
         </form>
       </header>
