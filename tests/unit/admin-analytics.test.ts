@@ -15,6 +15,13 @@ describe('native analytics contracts',()=>{
    expect(body).toBeDefined();expect(createHash('sha256').update(body!).digest('hex')).toBe(definition.bodySha256)
    expect(definition.sql).not.toMatch(/\b(?:GRANT|ALTER|INSERT|UPDATE|DELETE)\b/);expect(definition.sql).not.toContain(definition.functionName)
    expect(definition.sql).toContain('$1::uuid');expect(definition.sql).toMatch(/public\.(menu_sessions|orders)/)
+   if(definition.table){
+    const declared=fn?.match(/RETURNS TABLE\s*\(([\s\S]*?)\)\s*LANGUAGE/i)?.[1]
+    for(const column of declared!.split(',')){
+     const [name,type]=column.trim().split(/\s+/)
+     expect(definition.sql).toContain(`aggregate_row.${name}::${type.toLowerCase()} AS ${name}`)
+    }
+   }
   }
  })
  it('denies customer/unknown tenant and invalid windows before touching SQL',async()=>{

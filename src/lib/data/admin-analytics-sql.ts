@@ -1,7 +1,7 @@
-// Static SELECT translations of the canonical SQL functions. No RPC execution or grants.
+// Static SELECT translations of canonical SQL bodies and declared output types. No RPC execution or grants.
 export const ANALYTICS_SQL = {
   overview: { source: "20261009010100_visual_feed_and_analytics_dashboard.sql", functionName: "get_menu_analytics_overview", bodySha256: "8dc876588f41e1f554d997ab30de4808376a853e5c4d720f31f63d00fee36fea", table: true, sql: String.raw`
-SELECT coalesce(jsonb_agg(to_jsonb(aggregate_row)),'[]'::jsonb) AS data FROM (WITH scoped_sessions AS (
+SELECT coalesce(jsonb_agg(to_jsonb(typed_row)),'[]'::jsonb) AS data FROM (SELECT aggregate_row.sessions::bigint AS sessions, aggregate_row.engaged_sessions::bigint AS engaged_sessions, aggregate_row.detail_sessions::bigint AS detail_sessions, aggregate_row.cart_sessions::bigint AS cart_sessions, aggregate_row.checkout_sessions::bigint AS checkout_sessions, aggregate_row.completed_orders::bigint AS completed_orders, aggregate_row.cancelled_orders::bigint AS cancelled_orders, aggregate_row.revenue::numeric AS revenue, aggregate_row.avg_order_value::numeric AS avg_order_value, aggregate_row.revenue_per_session::numeric AS revenue_per_session, aggregate_row.median_time_to_order_seconds::numeric AS median_time_to_order_seconds FROM (WITH scoped_sessions AS (
     SELECT id, started_at
     FROM public.menu_sessions
     WHERE tenant_id = $1::uuid
@@ -65,10 +65,10 @@ SELECT coalesce(jsonb_agg(to_jsonb(aggregate_row)),'[]'::jsonb) AS data FROM (WI
     CASE WHEN session_totals.sessions > 0
       THEN event_totals.revenue / session_totals.sessions ELSE 0 END,
     COALESCE(time_to_order.seconds, 0)
-  FROM session_totals CROSS JOIN event_totals CROSS JOIN time_to_order) aggregate_row
+  FROM session_totals CROSS JOIN event_totals CROSS JOIN time_to_order) AS aggregate_row(sessions,engaged_sessions,detail_sessions,cart_sessions,checkout_sessions,completed_orders,cancelled_orders,revenue,avg_order_value,revenue_per_session,median_time_to_order_seconds)) typed_row
 ` },
   products: { source: "20261009010100_visual_feed_and_analytics_dashboard.sql", functionName: "get_menu_product_analytics", bodySha256: "c6b9e835c6ad2d3967d0b79eba985d4228d256b93c9775762366743ad2b849f5", table: true, sql: String.raw`
-SELECT coalesce(jsonb_agg(to_jsonb(aggregate_row)),'[]'::jsonb) AS data FROM (WITH scoped_sessions AS (
+SELECT coalesce(jsonb_agg(to_jsonb(typed_row)),'[]'::jsonb) AS data FROM (SELECT aggregate_row.product_id::uuid AS product_id, aggregate_row.product_name::text AS product_name, aggregate_row.impression_sessions::bigint AS impression_sessions, aggregate_row.engaged_sessions::bigint AS engaged_sessions, aggregate_row.detail_sessions::bigint AS detail_sessions, aggregate_row.add_sessions::bigint AS add_sessions, aggregate_row.remove_sessions::bigint AS remove_sessions, aggregate_row.attention_ms::bigint AS attention_ms, aggregate_row.purchased_sessions::bigint AS purchased_sessions, aggregate_row.purchased_quantity::bigint AS purchased_quantity, aggregate_row.revenue::numeric AS revenue FROM (WITH scoped_sessions AS (
     SELECT id
     FROM public.menu_sessions
     WHERE tenant_id = $1::uuid
@@ -142,7 +142,7 @@ SELECT coalesce(jsonb_agg(to_jsonb(aggregate_row)),'[]'::jsonb) AS data FROM (WI
   LEFT JOIN event_metrics e ON e.product_id = p.id
   LEFT JOIN purchase_metrics pm ON pm.product_id = p.id
   WHERE e.product_id IS NOT NULL OR pm.product_id IS NOT NULL
-  ORDER BY COALESCE(pm.revenue, 0) DESC, COALESCE(e.impression_sessions, 0) DESC) aggregate_row
+  ORDER BY COALESCE(pm.revenue, 0) DESC, COALESCE(e.impression_sessions, 0) DESC) AS aggregate_row(product_id,product_name,impression_sessions,engaged_sessions,detail_sessions,add_sessions,remove_sessions,attention_ms,purchased_sessions,purchased_quantity,revenue)) typed_row
 ` },
   upsell: { source: "20261025140000_order_sequence_upsell.sql", functionName: "get_menu_upsell_analytics", bodySha256: "fe654eeb665f561bfc57cbbfdaa6c8f01741318bd56ec8c589cd23aada35f0d8", table: false, sql: String.raw`
 SELECT (WITH scoped_sessions AS (
