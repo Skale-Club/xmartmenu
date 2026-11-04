@@ -11,6 +11,17 @@ import type { ProductMedia } from '@/types/database'
 interface Props {
   productId: string
   tenantId: string
+  ownedSource?: boolean
+  canManage?: boolean
+}
+
+async function ownedMediaRequest(productId: string, payload: Record<string, unknown>): Promise<ProductMedia[]> {
+  const response = await fetch(`/api/admin/products/${encodeURIComponent(productId)}/catalog`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  })
+  const result = await response.json().catch(() => ({})) as ProductMedia[] & { error?: string }
+  if (!response.ok) throw new Error(result.error || 'Media update failed')
+  return result as ProductMedia[]
 }
 
 function isYouTube(url: string) {
@@ -36,8 +47,9 @@ function VideoThumbnail({ url }: { url: string }) {
   )
 }
 
-export default function ProductMediaTab({ productId, tenantId }: Props) {
-  const supabase = createClient()
+export default function ProductMediaTab({ productId, tenantId, ownedSource = false, canManage = true }: Props) {
+  let supabaseClient: ReturnType<typeof createClient> | undefined
+  const legacyClient = () => (supabaseClient ??= createClient())
   const [media, setMedia] = useState<ProductMedia[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -51,7 +63,13 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
 
   async function load() {
     setLoading(true)
-    const { data } = await supabase
+    if (ownedSource) {
+      try { setMedia(await ownedMediaRequest(productId, { entity: 'media', action: 'list' })) }
+      catch (loadError) { setError(loadError instanceof Error ? loadError.message : 'Failed to load media') }
+      finally { setLoading(false) }
+      return
+    }
+    const { data } = await legacyClient()
       .from('product_media')
       .select('*')
       .eq('product_id', productId)
@@ -63,10 +81,10 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
   useEffect(() => {
     load()
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productId])
+  }, [productId, ownedSource])
 
   async function handleUpload(files: FileList | null) {
-    if (!files || files.length === 0) return
+    if (!canManage || !files || files.length === 0) return
     setUploading(true)
     setError(null)
 
@@ -86,47 +104,57 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
         continue
       }
       const { url } = await res.json()
-      const { data: inserted } = await supabase
-        .from('product_media')
-        .insert({ product_id: productId, tenant_id: tenantId, type: 'image', url, display_order: nextOrder++ })
-        .select()
-        .single()
-      if (inserted) {
-        wrote = true
-        setMedia(prev => [...prev, inserted as ProductMedia])
+      if (ownedSource) {
+        try {
+          setMedia(await ownedMediaRequest(productId, { entity: 'media', action: 'create', values: [{ type: 'image', url }] }))
+          wrote = true
+        } catch (insertError) {
+          setError(insertError instanceof Error ? insertError.message : 'Failed to save image')
+          break
+        }
+      } else {
+        const { data: inserted } = await legacyClient().from('product_media')
+          .insert({ product_id: productId, tenant_id: tenantId, type: 'image', url, display_order: nextOrder++ })
+          .select().single()
+        if (inserted) {
+          wrote = true
+          setMedia(prev => [...prev, inserted as ProductMedia])
+        }
       }
     }
     setUploading(false)
     // Sync products.image_url to the lowest display_order image
-    await syncPrimaryImage()
+    if (!ownedSource) await syncPrimaryImage()
     if (wrote) notifyPublicMenuChanged()
   }
 
   async function handleAddVideo() {
-    if (!videoUrl.trim()) return
+    if (!canManage || !videoUrl.trim()) return
     setSavingVideo(true)
     setError(null)
-    const nextOrder = media.length > 0 ? Math.max(...media.map(m => m.display_order)) + 1 : 0
-    const { data: inserted } = await supabase
-      .from('product_media')
-      .insert({ product_id: productId, tenant_id: tenantId, type: 'video', url: videoUrl.trim(), display_order: nextOrder })
-      .select()
-      .single()
-    if (inserted) {
+    try {
+      if (ownedSource) setMedia(await ownedMediaRequest(productId, { entity: 'media', action: 'create', values: [{ type: 'video', url: videoUrl.trim() }] }))
+      else {
+        const nextOrder = media.length > 0 ? Math.max(...media.map(m => m.display_order)) + 1 : 0
+        const { data: inserted } = await legacyClient().from('product_media')
+          .insert({ product_id: productId, tenant_id: tenantId, type: 'video', url: videoUrl.trim(), display_order: nextOrder }).select().single()
+        if (!inserted) throw new Error('Failed to save video')
+        setMedia(prev => [...prev, inserted as ProductMedia])
+      }
       notifyPublicMenuChanged()
-      setMedia(prev => [...prev, inserted as ProductMedia])
       setVideoUrl('')
       setAddingVideo(false)
-    } else {
-      setError('Failed to save video')
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Failed to save video')
+    } finally {
+      setSavingVideo(false)
     }
-    setSavingVideo(false)
   }
 
   // A video file is re-encoded on the server (720p MP4, no audio) and gets a
   // poster frame, which also becomes the dish photo when it has none.
   async function handleVideoFile(file: File | undefined) {
-    if (!file) return
+    if (!canManage || !file) return
     setSavingVideo(true)
     setError(null)
     setVideoNote(null)
@@ -139,32 +167,48 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
       setSavingVideo(false)
       return
     }
-    let nextOrder = media.length > 0 ? Math.max(...media.map(m => m.display_order)) + 1 : 0
-    const rows: Array<Record<string, unknown>> = []
-    if (json.poster_url && imageCount === 0) rows.push({ product_id: productId, tenant_id: tenantId, type: 'image', url: json.poster_url, display_order: nextOrder++ })
-    rows.push({ product_id: productId, tenant_id: tenantId, type: 'video', url: json.url, display_order: nextOrder })
-    const { data: inserted, error: insertError } = await supabase.from('product_media').insert(rows).select()
-    if (insertError) setError('Failed to save video')
-    else {
-      setMedia(prev => [...prev, ...((inserted ?? []) as ProductMedia[])])
+    try {
+      if (ownedSource) {
+        const values = []
+        if (json.poster_url && imageCount === 0) values.push({ type: 'image', url: json.poster_url })
+        values.push({ type: 'video', url: json.url })
+        setMedia(await ownedMediaRequest(productId, { entity: 'media', action: 'create', values }))
+      } else {
+        let nextOrder = media.length > 0 ? Math.max(...media.map(m => m.display_order)) + 1 : 0
+        const rows: Array<Record<string, unknown>> = []
+        if (json.poster_url && imageCount === 0) rows.push({ product_id: productId, tenant_id: tenantId, type: 'image', url: json.poster_url, display_order: nextOrder++ })
+        rows.push({ product_id: productId, tenant_id: tenantId, type: 'video', url: json.url, display_order: nextOrder })
+        const { data: inserted, error: insertError } = await legacyClient().from('product_media').insert(rows).select()
+        if (insertError) throw new Error('Failed to save video')
+        setMedia(prev => [...prev, ...((inserted ?? []) as ProductMedia[])])
+        if (json.poster_url && imageCount === 0) await syncPrimaryImage()
+      }
       if (json.bytes && json.original_bytes && json.bytes < json.original_bytes) {
         setVideoNote(`Video compressed from ${(json.original_bytes / 1024 / 1024).toFixed(1)} MB to ${(json.bytes / 1024 / 1024).toFixed(1)} MB.`)
       }
-      if (json.poster_url && imageCount === 0) await syncPrimaryImage()
       notifyPublicMenuChanged()
+    } catch (insertError) {
+      setError(insertError instanceof Error ? insertError.message : 'Failed to save video')
     }
     setSavingVideo(false)
   }
 
   async function handleDelete(item: ProductMedia) {
-    const { error: delError } = await supabase.from('product_media').delete().eq('id', item.id)
-    if (delError) { setError(delError.message); return }
-    setMedia(prev => prev.filter(m => m.id !== item.id))
-    await syncPrimaryImage({ clearWhenNone: item.type === 'image' })
-    notifyPublicMenuChanged()
+    if (!canManage) return
+    try {
+      if (ownedSource) setMedia(await ownedMediaRequest(productId, { entity: 'media', action: 'delete', id: item.id }))
+      else {
+        const { error: delError } = await legacyClient().from('product_media').delete().eq('id', item.id)
+        if (delError) throw new Error(delError.message)
+        setMedia(prev => prev.filter(m => m.id !== item.id))
+        await syncPrimaryImage({ clearWhenNone: item.type === 'image' })
+      }
+      notifyPublicMenuChanged()
+    } catch (deleteError) { setError(deleteError instanceof Error ? deleteError.message : 'Failed to delete media') }
   }
 
   async function handleMove(item: ProductMedia, direction: 'up' | 'down') {
+    if (!canManage) return
     const sorted = [...media].sort((a, b) => a.display_order - b.display_order)
     const idx = sorted.findIndex(m => m.id === item.id)
     const swapIdx = direction === 'up' ? idx - 1 : idx + 1
@@ -172,12 +216,19 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
 
     const current = sorted[idx]
     const swap = sorted[swapIdx]
+    if (ownedSource) {
+      try {
+        setMedia(await ownedMediaRequest(productId, { entity: 'media', action: 'reorder', firstId: current.id, secondId: swap.id }))
+        notifyPublicMenuChanged()
+      } catch (moveError) { setError(moveError instanceof Error ? moveError.message : 'Failed to reorder media') }
+      return
+    }
     const newOrder = current.display_order
     const swapOrder = swap.display_order
 
     const results = await Promise.all([
-      supabase.from('product_media').update({ display_order: swapOrder }).eq('id', current.id),
-      supabase.from('product_media').update({ display_order: newOrder }).eq('id', swap.id),
+      legacyClient().from('product_media').update({ display_order: swapOrder }).eq('id', current.id),
+      legacyClient().from('product_media').update({ display_order: newOrder }).eq('id', swap.id),
     ])
     setMedia(prev =>
       prev.map(m => {
@@ -195,7 +246,8 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
   // Without gallery images the existing image_url is kept, unless the last
   // image was just deleted.
   async function syncPrimaryImage({ clearWhenNone = false } = {}) {
-    const { data } = await supabase
+    if (ownedSource) return
+    const { data } = await legacyClient()
       .from('product_media')
       .select('url')
       .eq('product_id', productId)
@@ -204,7 +256,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
       .limit(1)
     const primary = data?.[0]?.url ?? null
     if (!primary && !clearWhenNone) return
-    await supabase.from('products').update({ image_url: primary }).eq('id', productId)
+    await legacyClient().from('products').update({ image_url: primary }).eq('id', productId)
   }
 
   const sorted = [...media].sort((a, b) => a.display_order - b.display_order)
@@ -218,15 +270,15 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
           <p className="text-xs text-zinc-500 mt-0.5">Up to 8 images. Videos: upload a file (compressed automatically) or paste a YouTube/Vimeo link.</p>
         </div>
         <div className="flex gap-2">
-          <button
+          {canManage && <button
             type="button"
             onClick={() => setAddingVideo(v => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 rounded-lg hover:bg-zinc-50 transition-colors"
           >
             <Plus className="w-4 h-4" />
             Video link
-          </button>
-          <button
+          </button>}
+          {canManage && <button
             type="button"
             disabled={savingVideo}
             onClick={() => videoInputRef.current?.click()}
@@ -234,7 +286,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
           >
             <Film className="w-4 h-4" />
             {savingVideo ? 'Processing video…' : 'Upload video'}
-          </button>
+          </button>}
           <input
             ref={videoInputRef}
             type="file"
@@ -242,7 +294,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
             className="hidden"
             onChange={e => { void handleVideoFile(e.target.files?.[0]); e.target.value = '' }}
           />
-          <button
+          {canManage && <button
             type="button"
             disabled={uploading || imageCount >= 8}
             onClick={() => fileInputRef.current?.click()}
@@ -250,7 +302,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
           >
             <Upload className="w-4 h-4" />
             {uploading ? 'Uploading…' : 'Upload image'}
-          </button>
+          </button>}
           <input
             ref={fileInputRef}
             type="file"
@@ -274,14 +326,14 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
               className="w-full px-3 py-2 border border-zinc-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
             />
           </div>
-          <button
+              {canManage && <button
             type="button"
             disabled={savingVideo || !videoUrl.trim()}
             onClick={handleAddVideo}
             className="px-4 py-2 bg-zinc-900 text-white text-sm font-medium rounded-lg hover:bg-zinc-800 disabled:opacity-50"
           >
             {savingVideo ? 'Saving…' : 'Save'}
-          </button>
+              </button>}
           <button
             type="button"
             onClick={() => setAddingVideo(false)}
@@ -330,7 +382,7 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
                 <p className="text-xs text-zinc-500 truncate mt-0.5">{item.url}</p>
               </div>
               <div className="flex items-center gap-1 flex-shrink-0">
-                <button
+                {canManage && <button
                   type="button"
                   disabled={idx === 0}
                   onClick={() => handleMove(item, 'up')}
@@ -338,8 +390,8 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
                   aria-label="Move up"
                 >
                   <ChevronUp className="w-4 h-4 text-zinc-600" />
-                </button>
-                <button
+                </button>}
+                {canManage && <button
                   type="button"
                   disabled={idx === sorted.length - 1}
                   onClick={() => handleMove(item, 'down')}
@@ -347,15 +399,15 @@ export default function ProductMediaTab({ productId, tenantId }: Props) {
                   aria-label="Move down"
                 >
                   <ChevronDown className="w-4 h-4 text-zinc-600" />
-                </button>
-                <button
+                </button>}
+                {canManage && <button
                   type="button"
                   onClick={() => handleDelete(item)}
                   className="p-1.5 rounded hover:bg-red-100 text-zinc-400 hover:text-red-600 transition-colors"
                   aria-label="Delete"
                 >
                   <Trash2 className="w-4 h-4" />
-                </button>
+                </button>}
               </div>
             </div>
           ))}

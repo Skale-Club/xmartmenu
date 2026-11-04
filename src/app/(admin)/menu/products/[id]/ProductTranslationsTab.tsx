@@ -21,6 +21,7 @@ export default function ProductTranslationsTab({
   baseLanguage,
   supportedLanguages,
   canManage,
+  ownedSource = false,
   onSaved,
 }: {
   product: Product
@@ -28,6 +29,7 @@ export default function ProductTranslationsTab({
   baseLanguage: string
   supportedLanguages: string[]
   canManage: boolean
+  ownedSource?: boolean
   onSaved: (update: { product: TextTranslations; groups: Record<string, TextTranslations>; options: Record<string, TextTranslations> }) => void
 }) {
   const languages = supportedLanguages.filter(lang => lang !== baseLanguage)
@@ -54,7 +56,6 @@ export default function ProductTranslationsTab({
   const [values, setValues] = useState<TranslationValues>(initialValues)
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<{ kind: 'error' | 'ok'; text: string } | null>(null)
-  const supabase = createClient()
 
   if (!languages.length) {
     return (
@@ -72,9 +73,10 @@ export default function ProductTranslationsTab({
     setSaving(true)
     setStatus(null)
     try {
+      const supabase = ownedSource ? null : createClient()
       const productTranslations = pickTranslations(values, { name: 'name', description: 'description' })
       const writes: PromiseLike<{ error: { message: string } | null }>[] = []
-      if (!same(productTranslations, product.translations)) {
+      if (supabase && !same(productTranslations, product.translations)) {
         writes.push(supabase.from('products').update({ translations: productTranslations }).eq('id', product.id))
       }
       const groupUpdates: Record<string, TextTranslations> = {}
@@ -82,23 +84,30 @@ export default function ProductTranslationsTab({
       for (const group of groups) {
         const next = pickTranslations(values, { name: groupKey(group.id) })
         groupUpdates[group.id] = next
-        if (!same(next, group.translations)) {
+        if (supabase && !same(next, group.translations)) {
           writes.push(supabase.from('product_option_groups').update({ translations: next }).eq('id', group.id))
         }
         for (const option of group.options) {
           const nextOption = pickTranslations(values, { name: optionKey(option.id) })
           optionUpdates[option.id] = nextOption
-          if (!same(nextOption, option.translations)) {
+          if (supabase && !same(nextOption, option.translations)) {
             writes.push(supabase.from('product_options').update({ translations: nextOption }).eq('id', option.id))
           }
         }
       }
+      if (ownedSource) {
+        const response = await fetch(`/api/admin/products/${product.id}/catalog`, { method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ entity: 'translations', action: 'patch',
+            values: { product: productTranslations, groups: groupUpdates, options: optionUpdates } }) })
+        const result = await response.json()
+        if (!response.ok) throw new Error(result.error ?? 'Could not save the translations')
+      }
       const results = await Promise.all(writes)
       const failed = results.find(r => r.error)
       if (failed?.error) throw new Error(failed.error.message)
-      if (writes.length) notifyPublicMenuChanged()
+      if (ownedSource || writes.length) notifyPublicMenuChanged()
       onSaved({ product: productTranslations, groups: groupUpdates, options: optionUpdates })
-      setStatus({ kind: 'ok', text: writes.length ? 'Translations saved.' : 'Nothing changed.' })
+      setStatus({ kind: 'ok', text: ownedSource || writes.length ? 'Translations saved.' : 'Nothing changed.' })
     } catch (error) {
       setStatus({ kind: 'error', text: error instanceof Error ? error.message : 'Could not save the translations' })
     } finally {

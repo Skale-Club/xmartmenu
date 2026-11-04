@@ -45,9 +45,24 @@ interface Props {
   availableTags?: string[]
   currency?: string
   canManage: boolean
+  ownedSource: boolean
 }
 
-export default function ProductsClient({ products: initial, categories, tenantId, menuId, activeMenuName, availableTags, currency = 'USD', canManage }: Props) {
+async function ownedProductRequest<T>(url: string, method: string, body?: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method,
+    cache: 'no-store',
+    ...(body === undefined ? {} : {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  })
+  const result = await response.json().catch(() => null) as { error?: unknown } | null
+  if (!response.ok) throw new Error(typeof result?.error === 'string' ? result.error : 'Product request failed.')
+  return result as T
+}
+
+export default function ProductsClient({ products: initial, categories, tenantId, menuId, activeMenuName, availableTags, currency = 'USD', canManage, ownedSource }: Props) {
   const TAGS = availableTags?.length ? availableTags : DEFAULT_TAGS
   const [products, setProducts] = useState(initial)
   const [showForm, setShowForm] = useState(false)
@@ -72,7 +87,6 @@ export default function ProductsClient({ products: initial, categories, tenantId
     tags: [] as string[],
   })
 
-  const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
@@ -210,6 +224,39 @@ export default function ProductsClient({ products: initial, categories, tenantId
       return rest
     })()
 
+    if (ownedSource) {
+      const ownedPayload = {
+        name: payload.name,
+        description: payload.description,
+        price: payload.price,
+        original_price: payload.original_price,
+        category_id: payload.category_id,
+        image_url: payload.image_url,
+        image_urls: payload.image_urls,
+        is_featured: payload.is_featured,
+        show_in_feed: payload.show_in_feed,
+        tags: payload.tags,
+      }
+      try {
+        const saved = await ownedProductRequest<ProductWithCategory>(
+          editingId ? `/api/admin/products/${encodeURIComponent(editingId)}` : '/api/admin/products',
+          editingId ? 'PATCH' : 'POST',
+          editingId ? ownedPayload : { ...ownedPayload, expectedMenuId: menuId },
+        )
+        if (editingId) setProducts(prev => prev.map(product => product.id === editingId ? saved : product))
+        else setProducts(prev => [...prev, saved])
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : 'Could not save product.')
+        setLoading(false)
+        return
+      }
+      notifyPublicMenuChanged()
+      resetForm()
+      setLoading(false)
+      return
+    }
+
+    const supabase = createClient()
     if (editingId) {
       let { data, error } = await supabase
         .from('products')
@@ -255,6 +302,19 @@ export default function ProductsClient({ products: initial, categories, tenantId
     // Only reflect the toggle locally if the write actually succeeded — a
     // swallowed RLS/network error would otherwise show the admin an availability
     // state that never reached the DB (and the public menu keeps the old value).
+    if (ownedSource) {
+      try {
+        await ownedProductRequest<ProductWithCategory>(`/api/admin/products/${encodeURIComponent(id)}`, 'PATCH', { is_available: !current })
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : 'Could not update product availability.')
+        return
+      }
+      notifyPublicMenuChanged()
+      setProducts(prev => prev.map(product => product.id === id ? { ...product, is_available: !current } : product))
+      return
+    }
+
+    const supabase = createClient()
     const { error } = await supabase.from('products').update({ is_available: !current }).eq('id', id)
     if (error) { setFormError(error.message); return }
     notifyPublicMenuChanged()
@@ -263,6 +323,21 @@ export default function ProductsClient({ products: initial, categories, tenantId
 
   async function confirmDelete() {
     if (!confirmId) return
+    if (ownedSource) {
+      try {
+        await ownedProductRequest<{ ok: true }>(`/api/admin/products/${encodeURIComponent(confirmId)}`, 'DELETE')
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : 'Could not delete product.')
+        setConfirmId(null)
+        return
+      }
+      notifyPublicMenuChanged()
+      setProducts(prev => prev.filter(product => product.id !== confirmId))
+      setConfirmId(null)
+      return
+    }
+
+    const supabase = createClient()
     const { error } = await supabase.from('products').delete().eq('id', confirmId)
     if (error) { setFormError(error.message); setConfirmId(null); return }
     notifyPublicMenuChanged()
