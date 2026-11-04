@@ -11,12 +11,15 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { signOAuthState } from '@/lib/stripe-oauth-state'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { startOwnedStripeConnect } from '@/lib/billing/stripe-connect-native'
 
 function getBaseUrl(): string {
   return process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
 }
 
 async function handleGET() {
+  if (adminMenusOwned()) return startOwnedStripeConnect()
   // 1. Authenticate and get tenant
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

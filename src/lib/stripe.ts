@@ -14,6 +14,8 @@ import { paymentsDataOwned, PaymentDataError } from '@/lib/data/payments'
 import { currencyMinorFactor, toStripeAmount } from '@/lib/orders/payment-money'
 export { currencyMinorFactor, toStripeAmount } from '@/lib/orders/payment-money'
 import type { OwnedPaymentGateway } from '@/lib/orders/owned-payment-intent'
+import { adminMenusOwned } from './data/admin-menus'
+import { readOwnedStripeAvailability, readOwnedStripeConnection, readOwnedStripeCurrency, readOwnedStripeFeature } from './data/stripe-connect-runtime'
 
 let stripeClient: Stripe | null = null
 
@@ -55,6 +57,7 @@ function ownedGateway():OwnedPaymentGateway {
 // this currency, so the PaymentIntent MUST match it). Defaults to USD to align
 // with the English-first product default; falls back gracefully if unset.
 export async function getTenantCurrency(tenantId: string, client?: SupabaseClient): Promise<string> {
+  if (adminMenusOwned()) return readOwnedStripeCurrency(tenantId)
   const supabase = client ?? createServiceClient()
   const { data } = await supabase
     .from('tenant_settings')
@@ -71,11 +74,11 @@ export interface StripeConnection {
   tenant_id: string
   stripe_account_id: string
   scope: string
-  connected_at: string
+  connected_at: string | null
   is_active: boolean
   disconnected_at: string | null
-  created_at: string
-  updated_at: string
+  created_at: string | null
+  updated_at: string | null
 }
 
 /**
@@ -91,6 +94,7 @@ export interface StripeConnection {
  * @returns true if Stripe payments are available and configured
  */
 export async function isStripeEnabled(tenantId: string, client?: SupabaseClient): Promise<boolean> {
+  if (adminMenusOwned()) { const state = await readOwnedStripeAvailability(tenantId); return state.feature && !!state.connection }
   const supabase = client ?? createServiceClient()
   const plan = await getTenantPlan(tenantId, supabase)
 
@@ -116,6 +120,7 @@ export async function isStripeEnabled(tenantId: string, client?: SupabaseClient)
  * @returns StripeConnection or null if not connected
  */
 export async function getStripeConnection(tenantId: string, client?: SupabaseClient): Promise<StripeConnection | null> {
+  if (adminMenusOwned()) return readOwnedStripeConnection(tenantId)
   const supabase = client ?? createServiceClient()
   const { data } = await supabase
     .from('stripe_connections')
@@ -134,6 +139,7 @@ export async function getStripeConnection(tenantId: string, client?: SupabaseCli
  * @returns true if plan includes stripe-connect feature
  */
 export async function hasStripeConnectFeature(tenantId: string, client?: SupabaseClient): Promise<boolean> {
+  if (adminMenusOwned()) return readOwnedStripeFeature(tenantId)
   const plan = await getTenantPlan(tenantId, client ?? createServiceClient())
   if (!plan) return false
   return planCeiling(plan.features).stripe
