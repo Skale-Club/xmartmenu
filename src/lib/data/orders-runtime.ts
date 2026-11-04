@@ -1,6 +1,6 @@
 import pg from 'pg'
 import { postgresRuntimeConfig } from './database-config'
-import { OrderDataError, OwnedOrderRepository, type OrderQuery } from './orders'
+import { OrderDataError, OwnedOrderRepository, type OrderContext, type OrderQuery } from './orders'
 
 let pool: pg.Pool | undefined, configuration: string | undefined
 export function createOrdersPool(env: Record<string, string | undefined>) {
@@ -46,3 +46,9 @@ export async function orderTransaction<T>(source: Pick<pg.Pool, 'connect'>, writ
 }
 export const withOwnedOrders = <T>(tenantId: string, write: boolean, operation: (repository: OwnedOrderRepository) => Promise<T>) =>
   orderTransaction(ownedPool(), write, query => operation(new OwnedOrderRepository(query, tenantId)))
+
+/** One repeatable-read snapshot for the initial server-rendered kitchen board. */
+export function readOwnedOrdersKdsPage(context: OrderContext) {
+  const cutoff = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+  return withOwnedOrders(context.tenantId, false, repository => repository.kdsBootstrap(context, cutoff))
+}
