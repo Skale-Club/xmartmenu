@@ -9,7 +9,7 @@ const sameId = (left: string,right: string) => left.toLowerCase() === right.toLo
 const roleColumn = "CASE WHEN p.role='admin' THEN 'store-admin' WHEN p.role='super-admin' THEN 'superadmin' ELSE p.role END"
 export const accessCodeHash = (code: string) => createHash('sha256').update(code).digest('hex')
 export const accountAdministrationSelected = (env: Record<string,string|undefined> = process.env) => env.OWNED_ACCOUNT_ADMIN_ENABLED === 'true'
-const denied = (status = 403, message = 'Current account authority is required'): never => { throw new AdminMenuError(status,message) }
+function denied(status = 403, message = 'Current account authority is required'): never { throw new AdminMenuError(status,message) }
 const one = (rows: Record<string,unknown>[]) => rows.length === 1 ? rows[0] : null
 const date = (value: unknown) => { const parsed = value instanceof Date ? value : new Date(String(value)); if (!Number.isFinite(parsed.getTime())) denied(503,'Account information is unavailable'); return parsed.toISOString() }
 
