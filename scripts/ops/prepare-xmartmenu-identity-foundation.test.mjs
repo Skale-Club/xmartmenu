@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
 import { test } from 'node:test'
-import { buildFoundationSql, CONTROL_SQL, FOUNDATION_PRELUDE, foundationTransaction, migrationSources, preservedManifestSql, validateReview } from './prepare-xmartmenu-identity-foundation.mjs'
+import { buildFoundationSql, captureReview, CONTROL_SQL, FOUNDATION_PRELUDE, foundationTransaction, identitySourceEvidence, migrationSources, preservedManifestSql, REVIEWED_ENGAGEMENT_TABLES, validateReview } from './prepare-xmartmenu-identity-foundation.mjs'
 import { SEQUENCES, SOURCE_PROJECT, TABLES } from './xmartmenu-source-protocol.mjs'
 
 function fixture() {
@@ -99,4 +99,63 @@ test('public quiet prelude is separated before private libpq SQL and rejects unr
   assert.match(parts.publicPrelude, /identity_foundation_prepared.*ON COMMIT DROP/)
   assert.ok(parts.privateSql.indexOf('Public identity prelude transaction required') < parts.privateSql.indexOf('LOCK TABLE'))
   assert.ok(parts.privateSql.endsWith('COMMIT;\n'))
+})
+
+function engagementDrift(manifest) {
+  const source = structuredClone(manifest)
+  for (const name of REVIEWED_ENGAGEMENT_TABLES) { source.counts[name] += 3; source.digests[name] = 'b'.repeat(64) }
+  return source
+}
+
+test('strict source comparison remains the default even for only engagement drift', () => {
+  const { manifest } = fixture(), source = engagementDrift(manifest)
+  assert.throws(() => identitySourceEvidence(source, manifest), /require reconciliation/)
+  assert.throws(() => identitySourceEvidence(source, manifest, 'true'), /require reconciliation/)
+})
+
+test('explicit identity-only mode admits exactly three engagement tables and emits private aggregate/hash evidence', () => {
+  const { manifest } = fixture(), source = engagementDrift(manifest), before = structuredClone({ manifest, source })
+  const proof = identitySourceEvidence(source, manifest, true)
+  assert.equal(proof.purpose, 'identity-foundation-only')
+  assert.equal(proof.allOtherTableDigestsMatched, 44); assert.equal(proof.criticalGroupsMatched, 6)
+  assert.equal(proof.finalFullReconciliationRequired, true)
+  assert.deepEqual(proof.tables.map(row => row.name), ['menu_events', 'menu_sessions', 'scan_events'])
+  for (const row of proof.tables) { assert.equal(row.sourceCount, row.candidateCount+3); assert.match(row.sourceDigest, /^[a-f0-9]{64}$/) }
+  assert.match(proof.sourceManifestSha256, /^[a-f0-9]{64}$/)
+  assert.notEqual(proof.sourceManifestSha256, proof.candidateManifestSha256)
+  assert.doesNotMatch(JSON.stringify(proof), /email|phone|password|userId|authToken/)
+  assert.deepEqual({ manifest, source }, before)
+})
+
+test('all44 other complete table digests and counts remain exact in reviewed mode', () => {
+  const { manifest } = fixture()
+  for (const name of TABLES.filter(name => !REVIEWED_ENGAGEMENT_TABLES.includes(name))) {
+    for (const field of ['digests', 'counts']) {
+      const source = engagementDrift(manifest)
+      source[field][name] = field === 'digests' ? 'c'.repeat(64) : source.counts[name]+1
+      assert.throws(() => identitySourceEvidence(source, manifest, true), `${field}.${name}`)
+    }
+  }
+})
+
+test('all six authority groups, roles, money, ledger, functions and sequence definitions/states stay exact', () => {
+  const { manifest } = fixture()
+  const mutations = [
+    ...Object.keys(manifest.criticalDigests).map(name => value => { value.criticalDigests[name] = 'c'.repeat(64) }),
+    value => { value.roles.superadmin = 2 }, value => { value.orderTotals[0].total = '248.00' },
+    value => { value.functionDigest = 'c'.repeat(64) }, value => { value.ledgerDigest = 'c'.repeat(64) },
+    value => { value.ledgerCount++ }, value => { value.authIdCount-- }, value => { value.orphanProfiles++ },
+    value => { value.sequences.audit_events_id_seq.lastValue = '2' },
+    value => { value.sequences.audit_events_id_seq.isCalled = true },
+    value => { value.sequences.audit_events_id_seq.increment = '2' },
+  ]
+  for (const mutate of mutations) {
+    const source = engagementDrift(manifest); mutate(source)
+    assert.throws(() => identitySourceEvidence(source, manifest, true))
+  }
+})
+
+test('reviewed capture requires a private evidence sink before reading env or contacting source', async () => {
+  const { manifest } = fixture()
+  await assert.rejects(captureReview('must-not-be-read.env', manifest, { allowReviewedEngagementDrift: true }), /evidence sink required/)
 })

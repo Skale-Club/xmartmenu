@@ -58,8 +58,32 @@ export const CONTROL_SQL = `SELECT p.id::text AS id,a.id IS NOT NULL AS present,
    OR coalesce(p.must_change_password,false)) AS disabled
  FROM public.profiles p LEFT JOIN auth.users a ON a.id=p.id ORDER BY p.id LIMIT 8`
 
+export const REVIEWED_ENGAGEMENT_TABLES = Object.freeze(['menu_events', 'menu_sessions', 'scan_events'])
+
+/** Identity foundation only: never a final-refresh/cutover equivalence proof. */
+export function identitySourceEvidence(source, candidate, allowReviewedEngagementDrift = false) {
+  assertManifest(source); assertManifest(candidate)
+  const compared = structuredClone(source)
+  if (allowReviewedEngagementDrift === true) {
+    for (const name of REVIEWED_ENGAGEMENT_TABLES) {
+      compared.counts[name] = candidate.counts[name]
+      compared.digests[name] = candidate.digests[name]
+    }
+  }
+  if (JSON.stringify(canonical(compared)) !== JSON.stringify(canonical(candidate))) throw Error('Source and candidate require reconciliation')
+  return {
+    purpose: 'identity-foundation-only', reviewedEngagementDriftAllowed: allowReviewedEngagementDrift === true,
+    sourceManifestSha256: sha256(JSON.stringify(canonical(source))), candidateManifestSha256: sha256(JSON.stringify(canonical(candidate))),
+    tables: REVIEWED_ENGAGEMENT_TABLES.map(name => ({ name, candidateCount: candidate.counts[name], sourceCount: source.counts[name],
+      candidateDigest: candidate.digests[name], sourceDigest: source.digests[name] })),
+    allOtherTableDigestsMatched: 44, criticalGroupsMatched: 6, finalFullReconciliationRequired: true,
+  }
+}
+
 export async function captureReview(envPath, manifest, dependencies = {}) {
   assertManifest(manifest)
+  const allowEngagement = dependencies.allowReviewedEngagementDrift === true
+  if (allowEngagement && typeof dependencies.recordSourceEvidence !== 'function') throw Error('Private reviewed engagement evidence sink required')
   const [{ default: dotenv }, { default: pg }] = await Promise.all([import('dotenv'), import('pg')])
   const env = dotenv.parse(await readFile(envPath, 'utf8'))
   if (process.env.NODE_TLS_REJECT_UNAUTHORIZED === '0') throw Error('Verified source TLS required')
@@ -78,15 +102,17 @@ export async function captureReview(envPath, manifest, dependencies = {}) {
     await client.query("SET LOCAL statement_timeout=8000; SET LOCAL lock_timeout=500; SET LOCAL idle_in_transaction_session_timeout=15000; SET LOCAL timezone='UTC'; SET LOCAL datestyle='ISO, YMD'; SET LOCAL extra_float_digits=3; SET LOCAL bytea_output='hex'")
     const { rows: [state] } = await client.query("SELECT current_setting('transaction_read_only') AS ro,date_trunc('second',transaction_timestamp()) AS captured,(SELECT count(*)::int FROM auth.users) AS users")
     const source = assertManifest((await client.query(MANIFEST_SQL)).rows[0]?.manifest)
-    // The source is still live. Any full business divergence requires a fresh
-    // freeze/refresh, never bootstrap against different customer/profile data.
-    if (JSON.stringify(canonical(source)) !== JSON.stringify(canonical(manifest))) throw Error('Source and candidate require reconciliation')
+    // Only the separately reviewed identity-preparation mode admits ongoing
+    // engagement drift. Every other count/digest/authority/ledger/sequence field
+    // stays exact; neither source nor candidate data is refreshed or modified.
+    const evidence = identitySourceEvidence(source, manifest, allowEngagement)
     const { rows } = await client.query(CONTROL_SQL)
     if (state.ro !== 'on' || state.users !== 7 || rows.length !== 7 || rows.some(row => row.present !== true || typeof row.disabled !== 'boolean')) throw Error('Complete source identity controls required')
     const review = validateReview({ version: 1, sourceProject: SOURCE_PROJECT, capturedAt: state.captured.toISOString(),
       profilesDigest: source.digests.profiles, authorityDigest: source.criticalDigests.profile_authority,
       authIdsDigest: source.criticalDigests.auth_ids, users: rows.map(({ id, disabled }) => ({ id, disabled })), readOnlySnapshot: true }, manifest)
     await client.query('ROLLBACK'); open = false
+    if (allowEngagement) await dependencies.recordSourceEvidence({ capturedAt: state.captured.toISOString(), ...evidence })
     return review // PRIVATE return value. Never log, persist or expose in CI.
   } finally {
     if (open) await client.query('ROLLBACK').catch(() => {})

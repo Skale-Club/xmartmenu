@@ -54,9 +54,17 @@ The compiler can leave all four tables empty or include an independently
 reviewed exact-ID bootstrap in the same transaction. A source REPEATABLE READ
 READ ONLY snapshot uses existing sourceConfig/publicCa pins for project
 ktogbpqookfcqilqvici and parses only an explicitly supplied env file in memory.
-It compares the entire business manifest to the candidate before returning
-seven UUID/disabled booleans privately. Any divergence requires reconciliation
-or refresh first. Review freshness is five minutes; unknown keys, duplicate or
+By default it compares the entire business manifest to the candidate before
+returning seven UUID/disabled booleans privately. A separately reviewed explicit
+identity-foundation-only option permits drift in counts/digests of menu_events,
+menu_sessions and scan_events only. All other 44 complete row digests/counts and
+all six UUID/authority groups, profile/auth/tenant sets, role distribution,
+order totals, functions, old ledger and sequence definitions/state stay exact.
+The option requires a private evidence sink recording source/candidate counts
+and hashes for those three tables, both manifest hashes and snapshot time; it
+cannot silently skip recording. No raw row, account/contact value or credential
+is included. Any other divergence still requires reconciliation or refresh.
+Review freshness is five minutes; unknown keys, duplicate or
 malformed IDs, wrong authority/profile/auth-ID digests and nonboolean state fail.
 
 No password/hash, email, phone or provider-token/identity payload is selected or
@@ -129,7 +137,13 @@ and postchecking independently verifies the exact seven account controls,
 51/95 table/ledger counts, zero bindings/sessions/challenges and dormant roles.
 Six mocked policy tests passed locally and on Linux, including missing/wrong-size
 recovery-key rejection before SQL or file-content reads. The reviewed runner
-source SHA256 is f8685cd502ce31797ddc6e68000244a1ff8309e67739af9cae7cd305e2011234.
+source SHA256 is 6d0026b1ed523ab6bbf6beae2291ed19064ea4880b52a9e5266ccfd9f9e00979
+after updating only its matching compiler-source pin for the reviewed capture
+mode. Compiler SHA256 is
+76e7be15ab5f5e5fa713e9a158c193072559e175b3223795e581aa04c1deeec6.
+The DDL/postproof portion is byte-identical to the prior reviewed compiler;
+public prelude and preserved-manifest query hashes remain a5453557... and
+582e959d..., respectively.
 
 The latest preparation CI passed five real PostgreSQL cases plus checks and E2E.
 Actual main release 88bde8a/image d4e0fe28c2dab7a15b9c61bf37d7e058cde9661ab189f531ea90a84b453de05e
@@ -144,11 +158,17 @@ digests, all six critical UUID/authority groups, role distribution, order totals
 function bodies, original ledger and both sequences were identical. Those counts
 are an observation, not a new accepted baseline. No gate was widened implicitly,
 no source refresh/reset ran, and candidate business data stayed unchanged.
-An explicit decision and reviewed source-comparison change or a coordinated
-final refresh is required before proceeding. Engagement data must be retained
-and reconciled in the final writer-freeze/cutover, even if an additive identity
-preparation is separately admitted. Off-host private R2 restore/scheduling/
-retention remain cutover gates.
+The coordinator then explicitly admitted only those three engagement tables for
+identity foundation preparation/apply. This is an opt-in capture option, never
+a generic source/candidate equivalence or cutover proof. It changes no DDL or
+candidate data: all 47 candidate digests must still match exactly before/after
+the transaction. Source account controls remain fresh within five minutes.
+Engagement data must be retained and fully reconciled in the final DB-enforced
+writer freeze/cutover. Browser REST writes and privileged RPC/Auth triggers must
+also be frozen; merely stopping the app container cannot freeze those writers.
+That later barrier needs a saved exact reversal while legacy Auth proof remains
+available for late linking. No such freeze or source write is part of foundation.
+Off-host private R2 restore/scheduling/retention remain cutover gates.
 
 ## Existing pilot and remaining login work
 
@@ -171,7 +191,7 @@ reconciliation also remain necessary before complete Supabase exit.
 
 ## Tests
 
-Eight offline tests cover review rejection, source-control scope, migration pins,
+Thirteen offline tests cover review rejection, source-control scope, migration pins,
 no-execute defaults and generated preservation/bootstrap contracts. Five CI
 PostgreSQL cases cover missing public transaction, baseline rollback, post-DDL privilege failure rollback,
 exact seven-account bootstrap and retry refusal. The existing identity-store
