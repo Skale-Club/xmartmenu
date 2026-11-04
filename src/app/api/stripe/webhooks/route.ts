@@ -31,6 +31,8 @@ import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 import { billAiUsage, subscriptionIdFromInvoice } from '@/lib/ai/billing'
 import { reconcileTenantSettings } from '@/lib/tenant-plan'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { processOwnedSaasWebhook } from '@/lib/data/saas-webhooks-runtime'
 
 type UpdateResult = { success: boolean; error?: string }
 
@@ -70,6 +72,12 @@ async function handlePOST(request: NextRequest) {
     if(paymentsDataOwned()&&['payment_intent.succeeded','payment_intent.payment_failed','payment_intent.canceled'].includes(event.type)) {
       const result=await withOwnedPayments(true,repo=>repo.event({id:event.id,type:event.type,data:{object:event.data.object as IntentFacts}}))
       return NextResponse.json(result)
+    }
+    if (adminMenusOwned()) {
+      const outcome = await processOwnedSaasWebhook({ id: event.id, type: event.type, data: { object: event.data.object } })
+      if (outcome.disabledAccountId) captureSecurityEvent('Stripe Connect: charges disabled on connected account', { stripeAccountId: outcome.disabledAccountId })
+      if (outcome.pendingSync) await enqueueXphereSync(outcome.pendingSync.tenantId, outcome.pendingSync.reason, { eventId: event.id, ...(outcome.pendingSync.tags ? { tags: outcome.pendingSync.tags } : {}) })
+      return NextResponse.json(outcome.skipped ? { received: true, skipped: true } : { received: true })
     }
     // Webhook requests have no cookies; the service client bypasses RLS to write
     // orders, tenant_subscriptions, stripe_connections, and processed_stripe_events.
