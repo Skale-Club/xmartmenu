@@ -5,7 +5,7 @@ import { createIdentityHttp, type IdentityHttpDependencies } from '@/lib/auth/id
 const opaque = () => randomBytes(32).toString('base64url')
 const origin = 'https://identity.example.test'
 function fixture() {
-  const state = { enabled: true, permitted: true, revoked: false, unavailable: false, configValid: true, legacyOwner: 'original-app-id', boundOwner: 'original-app-id', linked: '', proof: '', revokedUser: '', authTime: Math.floor(Date.now() / 1000), projectId: 'skaleclub' }
+  const state = { enabled: true, permitted: true, revoked: false, unavailable: false, configValid: true, legacyOwner: 'original-app-id', passwordOwner: 'original-app-id', eligible: true, passwordCalls: 0, boundOwner: 'original-app-id', linked: '', proof: '', revokedUser: '', authTime: Math.floor(Date.now() / 1000), projectId: 'skaleclub' }
   const challenges = new Map<string, number>()
   const sessions = new Map<string, { userId: string; authenticatedAt: Date }>()
   const cookies = new Map<string, string>()
@@ -19,6 +19,8 @@ function fixture() {
       return { projectId: state.projectId, subject: 'new-provider-subject', provider: 'phone', phone: '+15551234567', authenticatedAt: state.authTime }
     },
     legacyOwner: async token => token === 'legacy-proof' ? state.legacyOwner : null,
+    legacyPasswordOwner: async (email,password) => { state.passwordCalls++; return email === 'old@example.test' && password === 'fixture-password' ? state.passwordOwner : null },
+    eligibleOwner: async () => state.eligible,
     store: {
       issueChallenge: async () => { const value = opaque(); challenges.set(value, Date.now() + 120_000); return value },
       consumeChallenge: async token => {
@@ -57,6 +59,45 @@ function fixture() {
 }
 
 describe('owned identity HTTP pilot', () => {
+  it('links previous-password proof to the exact existing account without issuing an application session or changing authority', async () => {
+    const f = fixture()
+    const body = { challenge: await f.challenge(),idToken: 'signed-proof',email: 'old@example.test',password: 'fixture-password' }
+    const result = await f.request('existing-account-link',body)
+    expect(result.status).toBe(200); expect(await result.json()).toEqual({ linked: true })
+    expect(f.state.linked).toBe('original-app-id'); expect(f.state.proof).toBe('legacy-session')
+    expect(f.sessions.size).toBe(0); expect(f.cookies.has('__Host-xm_identity')).toBe(false)
+    expect((await f.request('existing-account-link',body)).status).toBe(403)
+    expect(f.state.passwordCalls).toBe(1)
+  })
+
+  it('denies wrong password, unknown/disabled/recovery profile and ownership conflicts without binding', async () => {
+    for (const mode of ['wrong-password','ineligible','bound-other','session-other'] as const) {
+      const f = fixture()
+      if (mode === 'ineligible') f.state.eligible = false
+      if (mode === 'bound-other') f.state.boundOwner = 'foreign-app-id'
+      if (mode === 'session-other') { await f.login(); f.state.passwordOwner = 'foreign-app-id' }
+      const result = await f.request('existing-account-link',{ challenge: await f.challenge(),idToken: 'signed-proof',email: 'old@example.test',password: mode === 'wrong-password' ? 'wrong' : 'fixture-password' })
+      expect([403,409]).toContain(result.status); expect(f.state.linked).toBe('')
+    }
+  })
+
+  it('rejects preview, demo, forged UID and invalid challenge before any password grant', async () => {
+    for (const mode of ['preview','demo','caller-uid','challenge','cross-origin','invalid-native'] as const) {
+      const f = fixture(), challenge = await f.challenge()
+      if (mode === 'preview') f.cookies.set('preview_tenant_id','foreign')
+      if (mode === 'demo') f.cookies.set('xm_demo','1')
+      if (mode === 'invalid-native') f.cookies.set('__Host-xm_identity',opaque())
+      const result = await f.request('existing-account-link',{ challenge: mode === 'challenge' ? opaque() : challenge,idToken: 'signed-proof',email: 'old@example.test',password: 'fixture-password',...(mode === 'caller-uid' ? { userId: 'victim' } : {}) },mode === 'cross-origin' ? { origin: 'https://foreign.test' } : undefined)
+      expect(result.status).toBeGreaterThanOrEqual(400); expect(f.state.passwordCalls).toBe(0); expect(f.state.linked).toBe('')
+    }
+  })
+
+  it('requires recent verified provider authentication and explicit dependencies before previous-password proof', async () => {
+    const f = fixture(); f.state.authTime -= 301
+    const result = await f.request('existing-account-link',{ challenge: await f.challenge(),idToken: 'signed-proof',email: 'old@example.test',password: 'fixture-password' })
+    expect(result.status).toBe(401); expect(f.state.passwordCalls).toBe(0)
+  })
+
   it('is off by default, restricted to the canonical host and never cached', async () => {
     const f = fixture(); f.state.enabled = false
     expect((await f.request('config')).status).toBe(404)
