@@ -107,7 +107,9 @@ export async function mutateAdminCategory(query: AdminMenuQuery, context: AdminM
     if (requestedMenu !== undefined && requestedMenu !== null && (typeof requestedMenu !== 'string' || !UUID.test(requestedMenu))) throw new AdminMenuError(400, 'Invalid menu')
     const menu = requestedMenu ? menus.find(item => item.id === requestedMenu) ?? null : activeAdminMenu(menus, mutation.selectedMenuId)
     if (!menu) throw new AdminMenuError(400, 'No menu selected')
-    const patch = categoryFields({ ...body, translations: translationsForMenu(body.translations, menu) }, true)
+    const editable: Record<string, unknown> = { ...body, translations: translationsForMenu(body.translations, menu) }
+    delete editable.menu_id
+    const patch = categoryFields(editable, true)
     const positionResult = await query('SELECT coalesce(max(position)::bigint,-1)+1 AS next FROM public.categories WHERE tenant_id=$1 AND menu_id=$2', [context.tenantId, menu.id])
     const position = Number(positionResult.rows[0]?.next)
     if (!Number.isInteger(position) || position < -2147483648 || position > 2147483647) throw new AdminMenuError(409, 'Category position is unavailable')

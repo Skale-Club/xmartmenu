@@ -50,7 +50,7 @@ test('page selects only the requested tenant menu with explicit category project
 })
 
 test('create derives tenant/menu/position and preserves translations and course', async () => {
-  const created = await mutate({ kind: 'create', selectedMenuId: menuA, body: { name: '  Drinks  ', description: 'cold', translations: { fr: { name: 'Boissons' }, pt: { name: 'Bebidas' } }, course: 'drink', position: 700 } }) as Category
+  const created = await mutate({ kind: 'create', selectedMenuId: menuA, body: { name: '  Drinks  ', description: 'cold', translations: { fr: { name: 'Boissons' }, pt: { name: 'Bebidas' } }, course: 'drink', position: 700, menu_id: menuA } }) as Category
   assert.equal(created.tenant_id, a)
   assert.equal(created.menu_id, menuA)
   assert.equal(created.position, 2)
