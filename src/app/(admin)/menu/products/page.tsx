@@ -1,15 +1,43 @@
 export const dynamic = 'force-dynamic'
 
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { ownedCatalogEnabled } from '@/lib/data/admin-ingredients'
+import { readOwnedProductsPage } from '@/lib/data/admin-products-runtime'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
+import { notFound } from 'next/navigation'
 import ProductsClient from './ProductsClient'
 
 export default async function ProductsPage() {
-  const supabase = await createClient()
   const effective = await getEffectiveTenant()
-  const tenantId = effective!.tenantId
-  const canManage = effective!.role !== 'store-staff'
+  if (!effective) notFound()
+  const tenantId = effective.tenantId
+  const canManage = effective.role !== 'store-staff'
+
+  if (ownedCatalogEnabled()) {
+    const cookieStore = await cookies()
+    const selectedMenuId = cookieStore.get('selected_menu_id')?.value
+    const { products, categories, menu, settings } = await readOwnedProductsPage(
+      { tenantId, role: effective.role },
+      selectedMenuId,
+    )
+    return (
+      <ProductsClient
+        products={products}
+        categories={categories}
+        tenantId={tenantId}
+        menuId={menu?.id ?? null}
+        activeMenuName={menu?.name ?? null}
+        availableTags={settings.custom_tags}
+        currency={settings.currency ?? 'USD'}
+        canManage={canManage}
+        ownedSource
+      />
+    )
+  }
+
+  const supabase = await createClient()
   const activeMenu = await getActiveMenuForTenant(tenantId)
 
   if (!activeMenu) {
@@ -21,6 +49,7 @@ export default async function ProductsPage() {
         menuId={null}
         activeMenuName={null}
         canManage={canManage}
+        ownedSource={false}
       />
     )
   }
@@ -56,6 +85,7 @@ export default async function ProductsPage() {
       availableTags={settings?.custom_tags ?? undefined}
       currency={settings?.currency ?? 'USD'}
       canManage={canManage}
+      ownedSource={false}
     />
   )
 }
