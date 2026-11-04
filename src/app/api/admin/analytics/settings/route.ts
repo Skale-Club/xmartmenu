@@ -5,6 +5,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned, AdminMenuError } from '@/lib/data/admin-menus'
+import { mutateOwnedDisplaySettings } from '@/lib/data/admin-display-settings-runtime'
+import { hasSameOriginAdminMutation } from '@/lib/data/admin-display-settings'
 
 const settingsSchema = z.strictObject({
   analytics_enabled: z.boolean(),
@@ -28,6 +31,7 @@ async function handlePATCH(request: Request) {
   if (effective.role === 'store-staff') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
+  if (adminMenusOwned() && !hasSameOriginAdminMutation(request)) return NextResponse.json({ error: 'Origin mismatch' }, { status: 403 })
 
   const parsed = settingsSchema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) {
@@ -37,9 +41,11 @@ async function handlePATCH(request: Request) {
     )
   }
 
-  const service = createServiceClient()
-  if (parsed.data.upsell_enabled === true) {
+  const ownedSettings = adminMenusOwned()
+  let service: ReturnType<typeof createServiceClient> | undefined
+  if (!ownedSettings && parsed.data.upsell_enabled === true) {
     // Only the plan matters here (settings don't change the ceiling).
+    service = createServiceClient()
     const capabilities = await getTenantCapabilities(effective.tenantId, null, service)
     if (!capabilities.plan.payments) {
       return NextResponse.json(
@@ -48,6 +54,19 @@ async function handlePATCH(request: Request) {
       )
     }
   }
+
+  if (ownedSettings) {
+    try {
+      const data = await mutateOwnedDisplaySettings({ tenantId: effective.tenantId, role: effective.role }, 'menu-display', parsed.data)
+      return NextResponse.json({ settings: data })
+    } catch (error) {
+      if (error instanceof AdminMenuError) return NextResponse.json({ error: error.message }, { status: error.status })
+      log.error('PATCH /api/admin/analytics/settings', { err: error })
+      return NextResponse.json({ error: 'Could not save settings' }, { status: 500 })
+    }
+  }
+
+  service ??= createServiceClient()
 
   const { data, error } = await service
     .from('tenant_settings')
