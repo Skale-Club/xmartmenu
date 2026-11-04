@@ -20,12 +20,12 @@ Execution requires exact code review, static files already transferred and an ad
 `
 const CODE_FILES = ['xmartmenu-database-rehearsal.sh', 'xmartmenu-archive-crypto.mjs', 'xmartmenu-source-protocol.mjs']
 export function sshEnvironment(env = process.env) {
-  const allowed = ['PATH','Path','HOME','USERPROFILE','HOMEDRIVE','HOMEPATH','SystemRoot','SYSTEMROOT','WINDIR','TEMP','TMP','SSH_AUTH_SOCK','SSH_AGENT_PID','LANG','LC_ALL']
-  return Object.fromEntries(allowed.filter(key => typeof env[key] === 'string').map(key => [key, env[key]]))
+  const allowed = new Set(['PATH','HOME','USERPROFILE','HOMEDRIVE','HOMEPATH','SYSTEMROOT','WINDIR','PROGRAMDATA','TEMP','TMP','SSH_AUTH_SOCK','SSH_AGENT_PID','LANG','LC_ALL'].map(key => key.toLowerCase()))
+  return Object.fromEntries(Object.entries(env).filter(([key, value]) => allowed.has(key.toLowerCase()) && typeof value === 'string'))
 }
 async function verifyRemoteCode() {
   const expected = await Promise.all(CODE_FILES.map(async name => [name, sha256(await readFile(new URL(name, import.meta.url)))]))
-  const response = spawnSync('ssh', [...SSH_OPTIONS, SSH_HOST, 'sha256sum', ...CODE_FILES.map(name => `${REMOTE_DIR}/${name}`)], { encoding: 'utf8', env: sshEnvironment(), timeout: 20000, maxBuffer: 8192 })
+  const response = spawnSync('ssh', [...SSH_OPTIONS, SSH_HOST, 'sha256sum', ...CODE_FILES.map(name => `${REMOTE_DIR}/${name}`)], { encoding: 'utf8', env: sshEnvironment(), windowsHide: true, timeout: 20000, maxBuffer: 8192 })
   if (response.status !== 0) throw Error('Remote code refused')
   const lines = response.stdout.trim().split('\n')
   if (lines.length !== expected.length || expected.some(([name, digest], index) => lines[index] !== `${digest}  ${REMOTE_DIR}/${name}`)) throw Error('Remote code refused')
@@ -75,7 +75,7 @@ export async function executeRehearsal(envPath) {
     const manifest = assertManifest((await client.query(MANIFEST_SQL)).rows[0]?.manifest)
     const authIds = (await client.query('SELECT id::text FROM auth.users ORDER BY id')).rows.map(row => row.id)
     const packet = assertPacket({ ca, environment: config.environment, snapshot: snapshot.id, manifest, authIds })
-    child = spawn('ssh', [...SSH_OPTIONS, SSH_HOST, 'bash', `${REMOTE_DIR}/xmartmenu-database-rehearsal.sh`, '--execute-reviewed-rehearsal'], { stdio: ['pipe', 'pipe', 'pipe'], env: sshEnvironment() })
+    child = spawn('ssh', [...SSH_OPTIONS, SSH_HOST, 'bash', `${REMOTE_DIR}/xmartmenu-database-rehearsal.sh`, '--execute-reviewed-rehearsal'], { stdio: ['pipe', 'pipe', 'pipe'], env: sshEnvironment(), windowsHide: true })
     child.stderr.resume(); child.stdin.on('error', () => {})
     const completed = new Promise((resolve, reject) => { child.once('error', reject); child.once('close', code => resolve(code)) })
     overallTimer = setTimeout(abort, 420000)

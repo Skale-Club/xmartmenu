@@ -76,7 +76,7 @@ mount -t tmpfs -o size=67108864,mode=0700,nosuid,nodev,noexec tmpfs "$work" > /d
 run_helper() {
   local duration=45s
   [[ $1 != encrypt ]] || duration=155s
-  timeout --kill-after=5s "$duration" docker run --rm --pull=never --name "$helper" --label "$label_key=$nonce" --log-driver=none \
+  timeout --kill-after=5s "$duration" docker run -i --rm --pull=never --name "$helper" --label "$label_key=$nonce" --log-driver=none \
     --network none --read-only --user 0:0 --memory 128m --memory-swap 128m --cpus 0.25 --pids-limit 32 \
     --cap-drop ALL --security-opt no-new-privileges --tmpfs /tmp:rw,nosuid,nodev,size=8388608 \
     --mount "type=bind,src=$code_dir,dst=/ops,readonly" --mount "type=bind,src=$work,dst=/private" \
@@ -106,7 +106,7 @@ printf 'SNAPSHOT_DUMP_COMPLETE\n'
 IFS= read -r -t 15 source_status; [[ $source_status == SOURCE_RELEASED ]] || exit 2
 stage=toc-validation
 offline_client() {
-  timeout --kill-after=5s 45s docker run --rm --pull=never --name "$client" --label "$label_key=$nonce" --log-driver=none \
+  timeout --kill-after=5s 45s docker run -i --rm --pull=never --name "$client" --label "$label_key=$nonce" --log-driver=none \
     --network none --read-only --memory 128m --memory-swap 128m --cpus 0.5 --pids-limit 64 --cap-drop ALL --security-opt no-new-privileges \
     --tmpfs /tmp:rw,nosuid,nodev,size=8388608 --tmpfs /var/lib/postgresql/data:rw,nosuid,nodev,size=1048576 "$image" "$@"
 }

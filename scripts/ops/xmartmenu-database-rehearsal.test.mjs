@@ -46,8 +46,9 @@ test('source guard forces session5432/verified TLS and ignores legacy aliases or
   assert.equal(new URL(config.url).port, '5432'); assert.equal(new URL(config.url).search, '')
   assert.match(config.environment, /PGSSLMODE=verify-full/); assert.match(config.environment, /default_transaction_read_only=on/)
   for (const patch of [{ SUPABASE_PROJECT_REF: 'other' }, { NODE_TLS_REJECT_UNAUTHORIZED: '0' }, { DATABASE_URL: env.DATABASE_URL + '&sslmode=disable' }, { DATABASE_URL: env.DATABASE_URL + '&host=other' }, { DATABASE_URL: env.DATABASE_URL.replace('/postgres?', '/other?') }]) assert.throws(() => sourceConfig({ ...env, ...patch }))
-  const sanitized = sshEnvironment({ PATH: '/bin', SSH_AUTH_SOCK: 'existing-agent', DATABASE_URL: 'private', GOOGLE_APPLICATION_CREDENTIALS: 'private', COOLIFY_TOKEN: 'private' })
-  assert.deepEqual(sanitized, { PATH: '/bin', SSH_AUTH_SOCK: 'existing-agent' })
+  const sanitized = sshEnvironment({ PATH: '/bin', SSH_AUTH_SOCK: 'existing-agent', ProgramData: 'C:/ProgramData', DATABASE_URL: 'private', GOOGLE_APPLICATION_CREDENTIALS: 'private', COOLIFY_TOKEN: 'private' })
+  assert.deepEqual(sanitized, { PATH: '/bin', SSH_AUTH_SOCK: 'existing-agent', ProgramData: 'C:/ProgramData' })
+  assert.deepEqual(sshEnvironment({ PROGRAMDATA: 'C:/ProgramData', Path: '/bin', database_url: 'private' }), { PROGRAMDATA: 'C:/ProgramData', Path: '/bin' })
 })
 test('packet admission pins the public CA and refuses added env aliases, weakened TLS or changed UUID shape', () => {
   const ca = readFileSync(new URL('fixtures/supabase-prod-ca.crt', import.meta.url), 'utf8')
@@ -121,6 +122,21 @@ test('timeout preamble filter preserves SQL/COPY bodies and refuses changed pg_r
   assert.equal(filtered.stdout, '-- Name: untouched\nCOPY fixture FROM stdin;\nSET statement_timeout = 0;\n\\.\n')
   writeFileSync(fixture, 'SET statement_timeout = 0;\n-- Name: untouched\n')
   assert.equal(run('awk "$1" "$2"', [filter, fixture]).status, 2)
+})
+test('Docker crypto and TOC adapters explicitly keep stdin open for their private pipelines', () => {
+  const source = readFileSync(runner, 'utf8').replace(/\r\n/g, '\n')
+  const helper = source.slice(source.indexOf('run_helper() {'), source.indexOf('\nIFS= read -r -t 30 packet'))
+  const client = source.slice(source.indexOf('offline_client() {'), source.indexOf('\n# This separate client'))
+  const result = run(`set -Eeuo pipefail
+helper=synthetic; client=synthetic; label_key=synthetic; nonce=synthetic; code_dir=/synthetic; work=/synthetic; helper_image=synthetic; image=synthetic
+timeout() { shift 2; "$@"; }
+docker() { local interactive=false; for arg in "$@"; do if [[ $arg == -i || $arg == --interactive ]]; then interactive=true; fi; done; [[ $interactive == true ]] || return 2; cat; }
+${helper}
+${client}
+printf 'synthetic-private-input' | run_helper encrypt
+printf 'synthetic-archive-input' | offline_client pg_restore --list`)
+  assert.equal(result.status, 0, result.stderr)
+  assert.equal(result.stdout, 'synthetic-private-inputsynthetic-archive-input')
 })
 test('cleanup removes only matching run labels and exact tmpfs, never existing candidates/volumes/backups', () => {
   const source = readFileSync(runner, 'utf8').replace(/\r\n/g, '\n')
