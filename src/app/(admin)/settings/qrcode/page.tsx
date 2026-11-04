@@ -5,19 +5,30 @@ import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getActiveMenuForTenant } from '@/lib/get-active-menu'
 import QRCodeClient from './QRCodeClient'
+import { redirect } from 'next/navigation'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { readOwnedQrCodes } from '@/lib/data/admin-store-operations-runtime'
+import type { QRCode } from '@/types/database'
 
 export default async function QRCodePage() {
-  const supabase = await createClient()
   const effective = await getEffectiveTenant()
-  const { tenantId, slug, name, role } = effective!
+  if (!effective) redirect('/auth/login')
+  const { tenantId, slug, name, role } = effective
   const canManage = role !== 'store-staff'
   const activeMenu = await getActiveMenuForTenant(tenantId)
 
-  const { data: qrcodes } = await supabase
-    .from('qr_codes')
-    .select('*')
-    .eq('tenant_id', tenantId)
-    .order('created_at', { ascending: false })
+  let qrcodes: QRCode[]
+  if (adminMenusOwned()) {
+    qrcodes = await readOwnedQrCodes({ tenantId, role })
+  } else {
+    const supabase = await createClient()
+    const { data } = await supabase
+      .from('qr_codes')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('created_at', { ascending: false })
+    qrcodes = (data ?? []) as QRCode[]
+  }
 
   const headersList = await headers()
   const host = headersList.get('host') ?? ''
@@ -26,7 +37,7 @@ export default async function QRCodePage() {
   const menuPath = `/${slug}${activeMenu && !activeMenu.is_default ? `/${activeMenu.slug}` : ''}`
   const menuUrl = `${baseUrl}${menuPath}`
   const normalizedMenuPath = menuPath.replace(/\/+$/, '') || '/'
-  const filteredQRCodes = (qrcodes ?? []).filter((qr) => {
+  const filteredQRCodes = qrcodes.filter((qr) => {
     try {
       const targetPath = new URL(qr.target_url, baseUrl).pathname.replace(/\/+$/, '') || '/'
       return targetPath === normalizedMenuPath
@@ -43,6 +54,7 @@ export default async function QRCodePage() {
       tenantName={name}
       activeMenuName={activeMenu?.name ?? null}
       canManage={canManage}
+      ownedSource={adminMenusOwned()}
     />
   )
 }

@@ -12,9 +12,11 @@ interface Props {
   tenantSlug?: string
   /** Guests can order from table links (self-service plan). */
   tableLinksEnabled?: boolean
+  /** Table catalog is served by the owned admin SQL API. */
+  ownedSource?: boolean
 }
 
-export default function TablesSection({ tenantId, tenantSlug, tableLinksEnabled = false }: Props) {
+export default function TablesSection({ tenantId, tenantSlug, tableLinksEnabled = false, ownedSource = false }: Props) {
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   // The table's own menu link: printed as a QR code or written to an NFC tag.
@@ -42,7 +44,7 @@ export default function TablesSection({ tenantId, tenantSlug, tableLinksEnabled 
     a.download = `${table.name.replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'table'}-qr.png`
     a.click()
   }
-const supabase = createClient()
+  const supabase = ownedSource ? null : createClient()
   const [tables, setTables] = useState<RestaurantTable[]>([])
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState('')
@@ -50,13 +52,26 @@ const supabase = createClient()
   const [error, setError] = useState<string | null>(null)
 
   async function load() {
-    const { data } = await supabase
-      .from('restaurant_tables')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .order('position')
-    setTables((data ?? []) as RestaurantTable[])
-    setLoading(false)
+    try {
+      if (ownedSource) {
+        const response = await fetch('/api/admin/restaurant-tables', { cache: 'no-store' })
+        const data = await response.json().catch(() => []) as RestaurantTable[] | { error?: string }
+        if (!response.ok || !Array.isArray(data)) throw new Error()
+        setTables(data)
+      } else {
+        const { data, error: loadError } = await supabase!
+          .from('restaurant_tables')
+          .select('*')
+          .eq('tenant_id', tenantId)
+          .order('position')
+        if (loadError) throw new Error()
+        setTables((data ?? []) as RestaurantTable[])
+      }
+    } catch {
+      setError('Could not load tables. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
@@ -68,24 +83,50 @@ const supabase = createClient()
     if (!newName.trim()) return
     setAdding(true)
     setError(null)
-    const nextPos = tables.length > 0 ? Math.max(...tables.map(t => t.position)) + 1 : 0
-    const { data: inserted, error: err } = await supabase
-      .from('restaurant_tables')
-      .insert({ tenant_id: tenantId, name: newName.trim(), position: nextPos })
-      .select()
-      .single()
-    if (err) { setError(err.message) } else if (inserted) {
-      notifyPublicMenuChanged()
-      setTables(prev => [...prev, inserted as RestaurantTable])
-      setNewName('')
+    try {
+      let inserted: RestaurantTable | null = null
+      if (ownedSource) {
+        const response = await fetch('/api/admin/restaurant-tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName.trim() }) })
+        const data = await response.json().catch(() => ({})) as RestaurantTable & { error?: string }
+        if (!response.ok) throw new Error(data.error ?? 'Could not add table')
+        inserted = data
+      } else {
+        const nextPos = tables.length > 0 ? Math.max(...tables.map(t => t.position)) + 1 : 0
+        const { data, error: err } = await supabase!
+          .from('restaurant_tables')
+          .insert({ tenant_id: tenantId, name: newName.trim(), position: nextPos })
+          .select()
+          .single()
+        if (err) throw new Error()
+        inserted = data as RestaurantTable | null
+      }
+      if (inserted) {
+        notifyPublicMenuChanged()
+        setTables(prev => [...prev, inserted!])
+        setNewName('')
+      }
+    } catch {
+      setError('Could not add table. Please try again.')
+    } finally {
+      setAdding(false)
     }
-    setAdding(false)
   }
 
   async function handleDelete(id: string) {
-    const { error: delError } = await supabase.from('restaurant_tables').delete().eq('id', id)
-    if (!delError) notifyPublicMenuChanged()
-    setTables(prev => prev.filter(t => t.id !== id))
+    setError(null)
+    try {
+      if (ownedSource) {
+        const response = await fetch(`/api/admin/restaurant-tables/${id}`, { method: 'DELETE' })
+        if (!response.ok) throw new Error()
+      } else {
+        const { error: delError } = await supabase!.from('restaurant_tables').delete().eq('id', id)
+        if (delError) throw new Error()
+      }
+      notifyPublicMenuChanged()
+      setTables(prev => prev.filter(t => t.id !== id))
+    } catch {
+      setError('Could not delete table. Please try again.')
+    }
   }
 
   async function handleMove(table: RestaurantTable, direction: 'up' | 'down') {
@@ -95,18 +136,32 @@ const supabase = createClient()
     if (swapIdx < 0 || swapIdx >= sorted.length) return
     const current = sorted[idx]
     const swap = sorted[swapIdx]
-    const results = await Promise.all([
-      supabase.from('restaurant_tables').update({ position: swap.position }).eq('id', current.id),
-      supabase.from('restaurant_tables').update({ position: current.position }).eq('id', swap.id),
-    ])
-    if (results.every(r => !r.error)) notifyPublicMenuChanged()
-    setTables(prev =>
-      prev.map(t => {
-        if (t.id === current.id) return { ...t, position: swap.position }
-        if (t.id === swap.id) return { ...t, position: current.position }
-        return t
-      })
-    )
+    setError(null)
+    try {
+      if (ownedSource) {
+        const response = await fetch('/api/admin/restaurant-tables', {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ firstId: current.id, secondId: swap.id }),
+        })
+        const data = await response.json().catch(() => ({})) as { tables?: RestaurantTable[] }
+        if (!response.ok || !Array.isArray(data.tables)) throw new Error()
+        setTables(data.tables)
+      } else {
+        const results = await Promise.all([
+          supabase!.from('restaurant_tables').update({ position: swap.position }).eq('id', current.id),
+          supabase!.from('restaurant_tables').update({ position: current.position }).eq('id', swap.id),
+        ])
+        if (results.some(r => r.error)) throw new Error()
+        setTables(prev => prev.map(t => {
+          if (t.id === current.id) return { ...t, position: swap.position }
+          if (t.id === swap.id) return { ...t, position: current.position }
+          return t
+        }))
+      }
+      notifyPublicMenuChanged()
+    } catch {
+      setError('Could not reorder tables. Please try again.')
+    }
   }
 
   const sorted = [...tables].sort((a, b) => a.position - b.position)
