@@ -15,11 +15,18 @@ import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned, AdminMenuError } from '@/lib/data/admin-menus'
+import { adminChatContext, adminChatError } from '@/lib/admin/chat-context'
+import { createOwnedChatAddonCheckout } from '@/lib/billing/chat-addon-native'
 
 async function createSession() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await createOwnedChatAddonCheckout(await adminChatContext(effective))) }
+    catch (error) { if (error instanceof AdminMenuError) return adminChatError(error); throw error }
+  }
 
   // Only plans that offer the add-on may buy it.
   const addon = await getChatAddonStatus(effective.tenantId)
@@ -78,7 +85,7 @@ async function handleGET() {
   // <a href="/api/admin/chat-addon/billing/checkout"> in the upgrade banner.
   const r = await createSession()
   if (!(r instanceof Response)) return r
-  const data = await r.json().catch(() => null)
+  const data = await r.clone().json().catch(() => null)
   if (data?.url) return NextResponse.redirect(data.url, { status: 303 })
   return r
 }

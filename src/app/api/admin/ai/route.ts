@@ -10,6 +10,11 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
 import { loadPlatformAiSettings, loadTenantAiSettings } from '@/lib/ai/access'
 import { maskedOrEmpty, nextStoredKey, startOfMonthIso, usageByTenant, verifyOpenRouterKey } from '@/lib/ai/settings-service'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatContext, adminChatError } from '@/lib/admin/chat-context'
+import { assertOwnedAiActor, writeOwnedAiTenantSettings } from '@/lib/data/ai-panel-runtime'
+import { nativeAiTenantPayload } from '@/lib/ai/native-panel'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +22,7 @@ async function owner() {
   const effective = await getEffectiveTenant()
   if (!effective) return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
   if (effective.role === 'store-staff') return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
-  return { tenantId: effective.tenantId }
+  return { tenantId: effective.tenantId, effective }
 }
 
 async function payload(tenantId: string) {
@@ -40,12 +45,25 @@ async function payload(tenantId: string) {
 async function handleGET() {
   const who = await owner()
   if ('error' in who && who.error) return who.error
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await nativeAiTenantPayload(await adminChatContext(who.effective!), false)) }
+    catch (error) { return adminChatError(error) }
+  }
   return NextResponse.json(await payload(who.tenantId!))
 }
 
 async function handlePUT(request: Request) {
   const who = await owner()
   if ('error' in who && who.error) return who.error
+  if (adminMenusOwned()) {
+    try {
+      const context = await adminChatContext(who.effective!)
+      let body: unknown
+      try { body = JSON.parse(await readNativeAnalyticsBody(request)) } catch (error) { if (error instanceof SyntaxError) body = {}; else throw error }
+      await writeOwnedAiTenantSettings(context, body, true)
+      return NextResponse.json(await nativeAiTenantPayload(context, false))
+    } catch (error) { return adminChatError(error) }
+  }
   const body = (await request.json().catch(() => ({}))) as { openrouter_api_key?: unknown }
   const key = nextStoredKey(body.openrouter_api_key)
   if (key === undefined) return NextResponse.json(await payload(who.tenantId!))
@@ -65,6 +83,10 @@ async function handlePUT(request: Request) {
 async function handlePOST(request: Request) {
   const who = await owner()
   if ('error' in who && who.error) return who.error
+  if (adminMenusOwned()) {
+    try { await assertOwnedAiActor(await adminChatContext(who.effective!)) }
+    catch (error) { return adminChatError(error) }
+  }
   const body = (await request.json().catch(() => ({}))) as { action?: string; api_key?: string }
   if (body.action !== 'test') return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
   const candidate = body.api_key?.trim() && !body.api_key.includes('••') ? body.api_key.trim() : (await loadTenantAiSettings(who.tenantId!)).key

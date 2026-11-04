@@ -10,11 +10,18 @@ import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
+import { adminMenusOwned, AdminMenuError } from '@/lib/data/admin-menus'
+import { adminChatContext, adminChatError } from '@/lib/admin/chat-context'
+import { cancelOwnedChatAddon } from '@/lib/billing/chat-addon-native'
 
 async function handlePOST() {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await cancelOwnedChatAddon(await adminChatContext(effective))) }
+    catch (error) { if (error instanceof AdminMenuError) return adminChatError(error); throw error }
+  }
 
   const supabase = createServiceClient()
   const { data: sub } = await supabase
