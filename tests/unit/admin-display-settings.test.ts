@@ -37,12 +37,28 @@ describe('owned tenant display settings SQL', () => {
     expect(values).toEqual([context.tenantId, true, false, 'list', true])
   })
 
-  it('rejects staff and authority or cross-screen columns before querying', async () => {
-    const query = vi.fn()
-    await expect(readAdminDisplaySettings(query, { ...context, role: 'store-staff' }, 'seo')).rejects.toMatchObject({ status: 403 })
+  it('preserves staff reads while rejecting writes and authority or cross-screen columns', async () => {
+    const query = vi.fn(async (_sql: string, _values?: unknown[]) => {
+      void _sql; void _values
+      return { rows: [{ seo_title: null }] }
+    })
+    await expect(readAdminDisplaySettings(query, { ...context, role: 'store-staff' }, 'seo')).resolves.toEqual({ seo_title: null })
+    query.mockClear()
+    await expect(mutateAdminDisplaySettings(query, { ...context, role: 'store-staff' }, 'seo', { seo_title: null })).rejects.toMatchObject({ status: 403 })
     await expect(mutateAdminDisplaySettings(query, context, 'branding', { tenant_id: randomUUID(), logo_url: null })).rejects.toBeInstanceOf(AdminMenuError)
     await expect(mutateAdminDisplaySettings(query, context, 'seo', { primary_color: '#fff' })).rejects.toBeInstanceOf(AdminMenuError)
     expect(query).not.toHaveBeenCalled()
+  })
+
+  it('checks cancelled payment entitlement under row locks before writing upsell', async () => {
+    const query = vi.fn(async (_sql: string, _values?: unknown[]) => {
+      void _values
+      if (_sql.includes('tenant_subscriptions')) return { rows: [{ status: 'cancelled', features: ['payments'] }] }
+      return { rows: [] }
+    })
+    await expect(mutateAdminDisplaySettings(query, context, 'menu-display', { upsell_enabled: true })).rejects.toMatchObject({ status: 403 })
+    expect(query.mock.calls[1]?.[0]).toContain('FOR SHARE OF s,p')
+    expect(query.mock.calls.some(([sql]) => sql.includes('INSERT INTO public.tenant_settings'))).toBe(false)
   })
 
   it('requires an exact Origin match for owned mutations', () => {

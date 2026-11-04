@@ -41,8 +41,9 @@ async function handlePATCH(request: Request) {
     )
   }
 
+  const ownedSettings = adminMenusOwned()
   let service: ReturnType<typeof createServiceClient> | undefined
-  if (parsed.data.upsell_enabled === true) {
+  if (!ownedSettings && parsed.data.upsell_enabled === true) {
     // Only the plan matters here (settings don't change the ceiling).
     service = createServiceClient()
     const capabilities = await getTenantCapabilities(effective.tenantId, null, service)
@@ -54,7 +55,7 @@ async function handlePATCH(request: Request) {
     }
   }
 
-  if (adminMenusOwned()) {
+  if (ownedSettings) {
     try {
       const data = await mutateOwnedDisplaySettings({ tenantId: effective.tenantId, role: effective.role }, 'menu-display', parsed.data)
       return NextResponse.json({ settings: data })

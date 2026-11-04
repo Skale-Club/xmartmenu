@@ -1,5 +1,6 @@
 import type { AdminMenuContext, AdminMenuQuery } from './admin-menus'
 import { AdminMenuError } from './admin-menus'
+import { planCeiling } from '../service-modes'
 
 export type DisplaySettingsView = 'branding' | 'seo' | 'menu-display'
 
@@ -21,11 +22,11 @@ const WRITABLE_COLUMNS: Record<DisplaySettingsView, readonly string[]> = {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
-function assertContext(context: AdminMenuContext) {
+function assertContext(context: AdminMenuContext, write = false) {
   if (!UUID.test(context.tenantId) || !['superadmin', 'store-admin', 'store-staff'].includes(context.role)) {
     throw new AdminMenuError(403, 'Forbidden')
   }
-  if (context.role === 'store-staff') throw new AdminMenuError(403, 'Forbidden')
+  if (write && context.role === 'store-staff') throw new AdminMenuError(403, 'Forbidden')
 }
 
 function columns(view: DisplaySettingsView) {
@@ -59,6 +60,23 @@ export async function readAdminSeoSettingsPage(query: AdminMenuQuery, context: A
   }
 }
 
+async function paymentsEntitlement(query: AdminMenuQuery, tenantId: string, lock = false) {
+  const result = await query(`SELECT s.status,p.features FROM public.tenant_subscriptions s
+    JOIN public.plans p ON p.id=s.plan_id WHERE s.tenant_id=$1 LIMIT 2${lock ? ' FOR SHARE OF s,p' : ''}`, [tenantId])
+  if (result.rows.length > 1) throw new AdminMenuError(503, 'Plan information is unavailable')
+  const row = result.rows[0]
+  if (!row || !['active', 'trial'].includes(String(row.status))) return false
+  if (!Array.isArray(row.features) || row.features.some(feature => typeof feature !== 'string')) throw new AdminMenuError(503, 'Plan information is unavailable')
+  return planCeiling(row.features).payments
+}
+
+export async function readAdminMenuDisplayPage(query: AdminMenuQuery, context: AdminMenuContext) {
+  assertContext(context)
+  const settings = await readAdminDisplaySettings(query, context, 'menu-display')
+  const upsellAvailable = await paymentsEntitlement(query, context.tenantId)
+  return { settings, upsellAvailable }
+}
+
 /** Writes only the fixed settings columns used by the three owner settings screens. */
 export async function mutateAdminDisplaySettings(
   query: AdminMenuQuery,
@@ -66,12 +84,15 @@ export async function mutateAdminDisplaySettings(
   view: DisplaySettingsView,
   input: Record<string, unknown>,
 ) {
-  assertContext(context)
+  assertContext(context, true)
   const allowed = WRITABLE_COLUMNS[view]
   const entries = Object.entries(input)
   if (!entries.length || entries.some(([key]) => !allowed.includes(key))) throw new AdminMenuError(400, 'Invalid settings')
 
   await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`xmartmenu-display-settings:${context.tenantId}`])
+  if (view === 'menu-display' && input.upsell_enabled === true && !(await paymentsEntitlement(query, context.tenantId, true))) {
+    throw new AdminMenuError(403, 'Order suggestions are part of the Menu + Payments plan')
+  }
   const fields = entries.map(([key]) => key)
   const values = entries.map(([, value]) => value)
   const insertColumns = ['tenant_id', ...fields, 'updated_at']
