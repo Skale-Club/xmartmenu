@@ -22,6 +22,9 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { EffectivePlan, Plan } from '@/types/database'
 import { initialSettingsForPlan, liveFeatures, ORDERS_ONLY_SETTINGS, PAYMENTS_ONLY_SETTINGS, settingsPatchForPlan } from '@/lib/plan-settings'
 import { resolveServiceCapabilities, resolveTenantCapabilities, type ServiceCapabilities, type ServiceSettings, type TenantCapabilities } from '@/lib/service-modes'
+import { resolveEffectivePlan } from './tenant-plan-model'
+import { adminMenusOwned } from './data/admin-menus'
+import { readOwnedTenantPlan, readOwnedTenantCapabilities, reconcileOwnedSettings, reconcileOwnedTenantPlan } from './data/tenant-plan-runtime'
 
 interface SubscriptionWithPlan {
   tenant_id: string
@@ -48,6 +51,7 @@ export async function getTenantPlan(
   tenantId: string,
   client?: SupabaseClient,
 ): Promise<EffectivePlan | null> {
+  if (adminMenusOwned()) return readOwnedTenantPlan(tenantId)
   const supabase = client ?? createServiceClient()
 
   const { data: subscription, error } = await supabase
@@ -92,32 +96,7 @@ export async function getTenantPlan(
     return null
   }
 
-  // Only a live subscription grants access to paid features. A cancelled or
-  // past_due tenant keeps its plan record (name/prices remain visible for the
-  // billing UI and re-activation) but its features are revoked, so every gate
-  // that checks `plan.features` (isStripeEnabled, tenantHasFeature, payment
-  // creation, order gating) fails closed. Without this, a tenant that cancels
-  // keeps taking payments and using every feature indefinitely for free.
-  const isLive = subscription.status === 'active' || subscription.status === 'trial'
-
-  // Resolve override pattern: NULL = use plan value, non-NULL = override
-  const effectivePlan: EffectivePlan = {
-    id: plan.id,
-    name: plan.name,
-    slug: plan.slug,
-    description: plan.description,
-    // Apply overrides: use override value if present, otherwise use plan base value
-    monthly_price: subscription.override_monthly_price ?? plan.monthly_price,
-    annual_price: subscription.override_annual_price ?? plan.annual_price,
-    transaction_fee_pct: subscription.override_transaction_fee_pct ?? plan.transaction_fee_pct,
-    features: isLive ? plan.features : [],
-    billing_cycle: subscription.billing_cycle,
-    status: subscription.status,
-    // Check if grandfathered (has override_notes indicating grandfather status)
-    is_grandfathered: subscription.override_notes?.includes('grandfathered') ?? false,
-  }
-
-  return effectivePlan
+  return resolveEffectivePlan(plan, subscriptionData)
 }
 
 /**
@@ -187,6 +166,7 @@ export async function getTenantCapabilities(
   settings?: ServiceSettings | null,
   client?: SupabaseClient,
 ): Promise<TenantCapabilities> {
+  if (adminMenusOwned()) return readOwnedTenantCapabilities(tenantId, settings)
   const supabase = client ?? createServiceClient()
   const [plan, resolvedSettings] = await Promise.all([
     getTenantPlan(tenantId, supabase).catch(() => null),
@@ -225,6 +205,10 @@ export async function reconcileSettingsWithPlan(
 ): Promise<{ ok: boolean; patch: Record<string, false>; error?: string }> {
   const patch = settingsPatchForPlan(features)
   if (Object.keys(patch).length === 0) return { ok: true, patch }
+  if (adminMenusOwned()) {
+    try { return await reconcileOwnedSettings(tenantId, features) }
+    catch { return { ok: false, patch, error: 'Service settings are unavailable' } }
+  }
   const supabase = client ?? createServiceClient()
   const { error } = await supabase.from('tenant_settings').update(patch).eq('tenant_id', tenantId)
   if (error) return { ok: false, patch, error: error.message }
@@ -240,6 +224,10 @@ export async function reconcileTenantSettings(
   tenantId: string,
   client?: SupabaseClient,
 ): Promise<{ ok: boolean; patch: Record<string, false>; error?: string }> {
+  if (adminMenusOwned()) {
+    try { return await reconcileOwnedTenantPlan(tenantId) }
+    catch { return { ok: false, patch: {}, error: 'Subscription information is unavailable' } }
+  }
   const supabase = client ?? createServiceClient()
   // Read the row directly (not getTenantPlan): a failed read must NOT look like
   // "no plan" and switch a paying restaurant's features off.
