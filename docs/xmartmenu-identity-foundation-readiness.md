@@ -3,9 +3,49 @@
 The SQL compiler accepts only an offline plan and returns private SQL to a
 reviewed caller. Separate hash-gated backup/apply operators default to plans.
 Source controls travel only through private memory/stdin; no CLI prints accounts.
-The reviewed backup/temporary restore completed. A later conditional foundation
-attempt reported failure and was independently verified not committed: original
-47-table data/92-ledger state, no identity tables and dormant roles remain.
+The reviewed foundation transaction completed after the compatibility fixes:
+51 public tables, 95 migration rows and seven original account controls (one
+disabled), with no bindings/sessions/challenges. A separate SSH postcheck matched
+all 47 original business-table digests and dormant roles. App/login flags remain
+disabled. Earlier refused/rolled-back attempts are recorded below.
+
+## Completed foundation receipt
+
+The coordinator explicitly reviewed compiler source
+91e2ed9683bbbd6c3f8a0a0d2d41dc6630fd557a3b32d5a27e7edc4d00a7e1c5, host runner
+37ca34c5435ef4c747a70ad5971acea2491503e7d5999056f3f8cf23ad31391d and execution
+projection bcb353494fa1d45f722a1d2be6e4881b5e86b449310bef389e5c905733148bda.
+HEAD 63268fb2a9e9042863f6d6bc9b4e33ef5797068f CI run 41876596110 had every
+checks/PostgreSQL/E2E step, including Complete job, completed success. GitHub's
+aggregate job/run status remained inconsistently in_progress; the coordinator
+independently verified the real steps and explicitly accepted that evidence.
+The operation records ciStepsCompletedSuccess=true/ciAggregateStatusStale=true,
+not a nominal successful badge or a test/security override.
+
+One fresh READ ONLY source capture matched 44 full business-table digests and
+all six UUID/authority groups; only the three reviewed engagement tables could
+differ. Seven fresh UUID/disabled controls travelled through private pipes.
+Before the single transaction, the caller rechecked the exact disabled main88
+runtime image/mount/driver/flags, fixed target OID 30227, original backup and
+current capacity. The transaction committed and a new SSH invocation verified:
+
+- 51 public tables, 95 ledger rows, seven exact account controls, one disabled;
+- zero identity bindings, application sessions and browser challenges;
+- all 47 original candidate full-row digests and 92 original ledger rows intact;
+- all three canonical migration-source hashes plus the distinct execution
+  projection marker in the new ledger rows matched;
+- original role metadata unchanged, all three own roles NOLOGIN/password NULL,
+  no runtime login, app flag, provider binding or application cutover activated.
+
+Private engagement evidence is retained root-only at
+`/opt/xmartmenu/backups/identity-20261104T161702Z-3a8d70dc23a3989e/identity-engagement-source-d3c464b30093ab27.json`,
+SHA256 e27f39e61927d5ca31e27f5ffa0c44ac50a380fadcbc0b4fc5f17fa2a28ae3e9.
+It contains only counts/hashes/snapshot time, not account UUIDs or source Auth
+records. Minimal UUID/status controls were intentionally copied to app_accounts;
+raw source Auth records/passwords/tokens/contact payloads were not persisted.
+The authenticated recovery backup remains intact. Full engagement reconciliation
+and DB-enforced writer freeze remain necessary before data cutover. Do not apply
+the foundation again; existing identity tables intentionally refuse replay.
 
 ## Candidate and additive scope
 
