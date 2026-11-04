@@ -28,7 +28,7 @@ export function invoiceSubscriptionId(invoice: Row): string | null {
   for (const line of lines) { const value = record(record(record(line).parent).subscription_item_details).subscription; if (typeof value === 'string') return value }
   return null
 }
-async function lockTenant(query: AdminMenuQuery, id: string) { await query('SELECT id FROM public.tenants WHERE id=$1 FOR UPDATE', [id]) }
+async function lockTenant(query: AdminMenuQuery, id: string) { await query('SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE', [id]) }
 async function updateSubscription(query: AdminMenuQuery, id: string, patch: Row) {
   const keys = Object.keys(patch)
   await query(`UPDATE public.tenant_subscriptions SET ${keys.map((key, index) => `${key}=$${index + 2}`).join(',')} WHERE tenant_id=$1`, [id, ...Object.values(patch)])

@@ -37,7 +37,7 @@ export async function readNativeTenantCapabilities(query: AdminMenuQuery, tenant
 }
 async function tenantLock(query: AdminMenuQuery, tenantId: string) {
   if (!UUID.test(tenantId)) throw new AdminMenuError(400, 'Invalid tenant')
-  await query('SELECT id FROM public.tenants WHERE id=$1 FOR UPDATE', [tenantId])
+  await query('SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE', [tenantId])
 }
 async function applyPatch(query: AdminMenuQuery, tenantId: string, features: readonly string[] | null | undefined) {
   const patch = settingsPatchForPlan(features), keys = Object.keys(patch)

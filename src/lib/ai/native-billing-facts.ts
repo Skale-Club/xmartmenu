@@ -9,6 +9,9 @@ export interface BillingUsage { id: string; cost_usd: string; charge_usd: string
 export const BILLING_RETRY_WINDOW_MS = 20 * 60 * 60 * 1000
 export const BILLING_LEASE_MS = 30000
 export const unavailable = () => new AdminMenuError(503, 'AI billing requires reconciliation')
+export class BillingTenantMissingError extends AdminMenuError {
+  constructor() { super(503, 'AI billing requires reconciliation') }
+}
 export const validId = (value: unknown): value is string => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,255}$/.test(value)
 export function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`

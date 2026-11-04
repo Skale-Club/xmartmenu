@@ -1,7 +1,7 @@
 import { stripe } from '../stripe'
 import { ownedAiBillingRepository } from '../data/ai-billing-runtime'
 import type { BillingPreparation, NativeBillingOptions, NativeBillingRequest } from '../data/ai-billing'
-import { matchesBillingItem, unavailable, validContext, type BillingProviderContext, type BillingRequestBody } from './native-billing-facts'
+import { BillingTenantMissingError, matchesBillingItem, unavailable, validContext, type BillingProviderContext, type BillingRequestBody } from './native-billing-facts'
 import type { BillResult } from './billing'
 
 export const NATIVE_BILLING_PROVIDER_OPTIONS = Object.freeze({ timeout: 6000, maxNetworkRetries: 0, apiVersion: '2026-04-22.dahlia' })
@@ -46,6 +46,10 @@ export async function runNativeAiBilling(options: NativeBillingOptions, reposito
     await repository.refuse(claimed.request, claimed.token)
     throw unavailable()
   }
-  return { result: await repository.finalize(claimed.request, claimed.token, item, options, clock()) }
+  try { return { result: await repository.finalize(claimed.request, claimed.token, item, options, clock()) } }
+  catch (error) {
+    if (error instanceof BillingTenantMissingError) await repository.refuse(claimed.request, claimed.token)
+    throw error
+  }
 }
 export const billOwnedAiUsage = (options: NativeBillingOptions) => runNativeAiBilling(options, ownedAiBillingRepository, gateway)

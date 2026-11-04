@@ -30,7 +30,7 @@ it('unknown/malformed tenants return no plan and ambiguous/corrupt native facts 
 it('reconciliation uses only the canonical downgrade switches and never changes fees, harmless modes or other tenants', async () => {
   const query = vi.fn().mockResolvedValue({ rows: [] }), patch = settingsPatchForPlan([])
   expect(await reconcileNativeSettings(query, tenantId, [])).toEqual({ ok: true, patch })
-  expect(query.mock.calls[0]).toEqual(['SELECT id FROM public.tenants WHERE id=$1 FOR UPDATE', [tenantId]])
+  expect(query.mock.calls[0]).toEqual(['SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE', [tenantId]])
   const [sql, values] = query.mock.calls[1]; expect(values).toEqual([tenantId]); expect(sql).not.toMatch(/delivery_fee_cents|pickup_eta_minutes|dine_in_enabled|pickup_enabled|DELETE/)
   for (const key of Object.keys(patch)) expect(sql).toContain(`${key}=false`)
 })

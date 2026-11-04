@@ -12,7 +12,9 @@ DO $guard$ BEGIN
 END $guard$;
 CREATE TABLE public.ai_billing_requests (
  batch_id uuid PRIMARY KEY,
- tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE RESTRICT,
+ -- Keep the existing tenant-delete behavior. The immutable request metadata
+ -- retains/validates the original UUID; an orphan cannot claim or retry.
+ tenant_id uuid REFERENCES public.tenants(id) ON DELETE SET NULL,
  created_at timestamptz NOT NULL,
  cutoff_at timestamptz NOT NULL,
  request_body jsonb NOT NULL CHECK(jsonb_typeof(request_body)='object'

@@ -10,11 +10,11 @@ One `public.ai_billing_requests` table, owned by the existing owner, RLS enabled
 
 | Columns | Purpose |
 | --- | --- |
-| `batch_id uuid PRIMARY KEY`, `tenant_id uuid NOT NULL REFERENCES tenants(id) ON DELETE RESTRICT` | Link the existing usage batch to its immutable request and tenant. No rewrite of usage history. |
+| `batch_id uuid PRIMARY KEY`, nullable `tenant_id uuid REFERENCES tenants(id) ON DELETE SET NULL` | Link the existing usage batch to its current tenant while preserving existing tenant deletion. The original UUID remains immutable in the request body/hash; orphaned requests cannot initiate/retry a financial call. No rewrite of usage history. |
 | `created_at`, `cutoff_at timestamptz NOT NULL` | Original claim/description cutoff. |
-| `stripe_customer_id`, `stripe_invoice_id NULL`, `currency`, `amount_minor bigint`, `description`, `metadata jsonb` | Exact allowlisted Stripe create body. Amount is positive, safe integer; metadata is fixed server-generated strings. |
-| `cost_usd numeric`, `charge_usd numeric`, `usd_to_brl numeric`, `events integer`, `max_event_id bigint`, `usage_digest text` | Original totals, membership/facts digest and result projection. Digest covers sorted ID/cost/charge tuples; no provider key or personal contact information. |
-| `request_hash text`, `stripe_account_id text`, `livemode boolean`, `api_version text` | Pin serialized request and provider account/environment/version; credentials never persist. |
+| `request_body jsonb` | Exact fixed Stripe create body: customer, optional invoice, currency, positive safe-integer amount, description and server-generated string metadata. Runtime cannot update this column. |
+| `cost_usd numeric`, `charge_usd numeric`, `event_count integer`, `max_event_id bigint`, `usage_digest text` | Original totals, membership/facts digest and result projection; FX remains fixed in body metadata. Digest covers sorted ID/cost/charge tuples; no provider key or personal contact information. |
+| `request_hash text`, `provider_context jsonb`, optional unique `source_event_id text` | Pin serialized body and account/environment/version; bind renewal delivery. Credentials never persist. |
 | `state`, `attempt_token uuid NULL`, `lease_until NULL`, `first_attempt_at NULL`, `stripe_invoice_item_id NULL UNIQUE`, `confirmed_at NULL` | CAS attempt ownership and recovery. States: prepared, requesting, confirmed, reconcile_required. State consistency enforced with CHECKs. |
 
 Use partial unique `(tenant_id) WHERE state <> 'confirmed'` to prevent a second open batch while an earlier one needs reconciliation. Invoice-item IDs are unique when set. Existing `billing_batch` remains only the usage membership link, not a store for request data. Explicit parameterized SQL targets fixed columns; no JSON-supplied SQL or destination.

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { expect, it, vi } from 'vitest'
 import { runNativeAiBilling, NATIVE_BILLING_PROVIDER_OPTIONS, type NativeBillingRepository, type NativeBillingGateway } from '@/lib/ai/native-billing'
-import { hashFacts, makeBillingBody, matchesBillingItem, usageFacts, type BillingProviderContext } from '@/lib/ai/native-billing-facts'
+import { BillingTenantMissingError, hashFacts, makeBillingBody, matchesBillingItem, usageFacts, type BillingProviderContext } from '@/lib/ai/native-billing-facts'
 import type { NativeBillingRequest } from '@/lib/data/ai-billing'
 const tenantId = randomUUID(), batchId = randomUUID(), cutoff = new Date('2026-11-01T12:00:00Z')
 const context: BillingProviderContext = { accountId: 'acct_fixture', livemode: false, apiVersion: '2026-04-22.dahlia' }
@@ -68,6 +68,11 @@ it('a failed local finalize propagates and keeps immutable request recovery inst
   const { repository, provider } = setup(); vi.mocked(repository.finalize).mockRejectedValue(new Error('unknown commit'))
   await expect(runNativeAiBilling({ tenantId }, repository, provider)).rejects.toBeTruthy()
   expect(provider.create).toHaveBeenCalledOnce(); expect(repository.refuse).not.toHaveBeenCalled()
+})
+it('a tenant deleted after the remote effect is marked for reconciliation without a successful result', async () => {
+  const { repository, provider } = setup(); vi.mocked(repository.finalize).mockRejectedValue(new BillingTenantMissingError())
+  await expect(runNativeAiBilling({ tenantId }, repository, provider)).rejects.toMatchObject({ status: 503 })
+  expect(provider.create).toHaveBeenCalledOnce(); expect(repository.refuse).toHaveBeenCalledOnce()
 })
 it('request hashing is stable across JSONB key order and binds every provider context fact', () => {
   expect(hashFacts({ context, body })).toBe(request.requestHash)

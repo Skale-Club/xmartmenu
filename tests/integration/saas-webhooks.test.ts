@@ -50,6 +50,29 @@ test('concurrent redelivery atomically activates one plan, creates one ledger ro
   const row = await subscription(); assert.equal(row.plan_id, secondPlan); assert.equal(row.stripe_customer_id, 'new-customer-fixture'); assert.equal(row.stripe_subscription_id, 'new-subscription-fixture'); assert.equal(row.status, 'active'); assert.equal(Number(row.override_monthly_price), 0)
   assert.equal((await admin.query('SELECT count(*)::int AS n FROM public.processed_stripe_events')).rows[0].n, 1)
 })
+test('tenant serialization permits the admin FK key-share insert while a webhook waits on its subscription', async () => {
+  await admin.query('DELETE FROM public.tenant_settings WHERE tenant_id=$1', [a])
+  const writer = await admin.connect()
+  let signal!: () => void
+  const waiting = new Promise<void>(resolve => { signal = resolve })
+  let outcome: Promise<{ error?: unknown }> | undefined
+  try {
+    await writer.query('BEGIN')
+    await writer.query('SELECT tenant_id FROM public.tenant_subscriptions WHERE tenant_id=$1 FOR SHARE', [a])
+    outcome = adminMenuTransaction(pool, true, query => applySaasWebhook(async (sql, values) => {
+      const pending = query(sql, values)
+      if (sql.startsWith('SELECT plan_id FROM public.tenant_subscriptions')) signal()
+      return pending
+    }, event('customer.subscription.deleted', { id: subId, metadata, status: 'canceled' }), now)).then(() => ({}), error => ({ error }))
+    await Promise.race([waiting, outcome.then(() => { throw Error('Webhook finished before the subscription wait') })])
+    await writer.query("INSERT INTO public.tenant_settings(tenant_id,delivery_fee_cents,pickup_eta_minutes,whatsapp) VALUES($1,250,20,'12025550101')", [a])
+    await writer.query('COMMIT')
+    const result = await outcome; assert.equal(result.error, undefined)
+    assert.equal((await subscription()).status, 'cancelled'); assert.equal((await settings()).direct_orders_enabled, false)
+  } finally {
+    await writer.query('ROLLBACK').catch(() => {}); writer.release(); if (outcome) await outcome
+  }
+})
 test('legacy null receipts skip, conflicting types refuse, and separate unknown events remain independent receipts', async () => {
   const input = event('unhandled.fixture', {})
   await admin.query('INSERT INTO public.processed_stripe_events VALUES($1,NULL,now())', [input.id]); assert.equal((await run(input)).skipped, true)

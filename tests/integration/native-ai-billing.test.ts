@@ -30,9 +30,9 @@ const requestRow = async () => (await admin.query('SELECT * FROM public.ai_billi
 before(async () => {
   await admin.query(`DROP TABLE IF EXISTS public.ai_billing_requests,public.ai_usage_events,public.processed_stripe_events,public.platform_ai_settings,public.tenant_subscriptions,public.tenants CASCADE;
     CREATE TABLE public.tenants(id uuid PRIMARY KEY);
-    CREATE TABLE public.tenant_subscriptions(tenant_id uuid PRIMARY KEY REFERENCES public.tenants(id),stripe_customer_id text,stripe_subscription_id text);
+    CREATE TABLE public.tenant_subscriptions(tenant_id uuid PRIMARY KEY REFERENCES public.tenants(id) ON DELETE CASCADE,stripe_customer_id text,stripe_subscription_id text);
     CREATE TABLE public.platform_ai_settings(id int PRIMARY KEY,usd_to_brl numeric);
-    CREATE TABLE public.ai_usage_events(id bigserial PRIMARY KEY,tenant_id uuid REFERENCES public.tenants(id),occurred_at timestamptz NOT NULL,billable boolean NOT NULL,cost_usd numeric(14,8) NOT NULL,charge_usd numeric(14,8) NOT NULL,billing_batch uuid,invoiced_at timestamptz,stripe_invoice_item_id text);
+    CREATE TABLE public.ai_usage_events(id bigserial PRIMARY KEY,tenant_id uuid REFERENCES public.tenants(id) ON DELETE SET NULL,occurred_at timestamptz NOT NULL,billable boolean NOT NULL,cost_usd numeric(14,8) NOT NULL,charge_usd numeric(14,8) NOT NULL,billing_batch uuid,invoiced_at timestamptz,stripe_invoice_item_id text);
     CREATE TABLE public.processed_stripe_events(event_id text PRIMARY KEY,event_type text,processed_at timestamptz);`)
   const proposal = await readFile(new URL('../../docs/proposals/native-ai-billing-owned-only.sql', import.meta.url), 'utf8')
   // Exact proposed table/index/RLS DDL, with host/role admission intentionally
@@ -49,6 +49,8 @@ before(async () => {
 })
 beforeEach(async () => {
   await admin.query('DELETE FROM public.processed_stripe_events; DELETE FROM public.ai_billing_requests; DELETE FROM public.ai_usage_events; UPDATE public.platform_ai_settings SET usd_to_brl=5')
+  await admin.query('INSERT INTO public.tenants VALUES($1),($2) ON CONFLICT DO NOTHING', [a, b])
+  await admin.query("INSERT INTO public.tenant_subscriptions VALUES($1,'cus_a','sub_a'),($2,'cus_b','sub_b') ON CONFLICT DO NOTHING", [a, b])
   await admin.query("UPDATE public.tenant_subscriptions SET stripe_customer_id=CASE WHEN tenant_id=$1 THEN 'cus_a' ELSE 'cus_b' END,stripe_subscription_id=CASE WHEN tenant_id=$1 THEN 'sub_a' ELSE 'sub_b' END", [a])
   await admin.query('INSERT INTO public.ai_usage_events(tenant_id,occurred_at,billable,cost_usd,charge_usd) VALUES($1,$3,true,0.1,0.13),($1,$3,true,0.2,0.26),($2,$3,true,1,2)', [a, b, now.toISOString()])
 })
@@ -175,4 +177,32 @@ test('the proposed runtime grants permit state advancement but forbid fact repla
       await assert.rejects(client.query(sql), (error: unknown) => (error as { code?: string }).code === '42501'); await client.query('ROLLBACK')
     }
   } finally { await client.query('ROLLBACK').catch(() => {}); client.release() }
+})
+test('tenant deletion after confirmation retains immutable history and allows no new financial attempt', async () => {
+  await runNativeAiBilling(options, repo, gateway(), () => now)
+  const before = await requestRow()
+  await admin.query('DELETE FROM public.tenants WHERE id=$1', [a])
+  const after = (await admin.query('SELECT * FROM public.ai_billing_requests WHERE batch_id=$1', [before.batch_id])).rows[0]
+  assert.equal(after.tenant_id, null); assert.equal(after.state, 'confirmed'); assert.equal(after.request_hash, before.request_hash); assert.deepEqual(after.request_body, before.request_body)
+  let calls = 0
+  const provider: NativeBillingGateway = { context: async () => { calls++; return context }, create: async body => { calls++; return item(body) } }
+  await assert.rejects(runNativeAiBilling(options, repo, provider, () => now), { status: 503 }); assert.equal(calls, 0)
+})
+test('deletion after preparation prevents the claim and any provider network call', async () => {
+  const req = await frozen()
+  await admin.query('DELETE FROM public.tenants WHERE id=$1', [a])
+  await assert.rejects(repo.claim(req, context, now), { status: 503 })
+  let calls = 0
+  await assert.rejects(runNativeAiBilling(options, repo, { context: async () => { calls++; return context }, create: async body => { calls++; return item(body) } }, () => now), { status: 503 })
+  assert.equal(calls, 0)
+})
+test('concurrent deletion after the external effect leaves an orphan requiring reconciliation and no success receipt', async () => {
+  const event = { id: `evt_${randomUUID().replaceAll('-', '')}`, invoiceId: 'in_fixture', subscriptionId: 'sub_a' }, opts = { ...options, invoiceId: event.invoiceId, event }
+  let creates = 0
+  const provider = gateway(async body => { creates++; await admin.query('DELETE FROM public.tenants WHERE id=$1', [a]); return item(body) })
+  await assert.rejects(runNativeAiBilling(opts, repo, provider, () => now), { status: 503 })
+  const orphan = (await admin.query("SELECT * FROM public.ai_billing_requests WHERE request_body->'metadata'->>'tenant_id'=$1", [a])).rows[0]
+  assert.equal(orphan.tenant_id, null); assert.equal(orphan.state, 'reconcile_required'); assert.equal(orphan.stripe_invoice_item_id, null)
+  assert.equal((await admin.query('SELECT count(*)::int AS n FROM public.processed_stripe_events')).rows[0].n, 0)
+  await assert.rejects(runNativeAiBilling(opts, repo, provider, () => new Date(now.getTime() + 31000)), { status: 503 }); assert.equal(creates, 1)
 })

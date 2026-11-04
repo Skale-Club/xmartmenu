@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { AdminMenuError, type AdminMenuQuery } from './admin-menus'
 import { invoiceSubscriptionId, type SaasWebhookEvent } from './saas-webhooks'
-import { BILLING_LEASE_MS, BILLING_RETRY_WINDOW_MS, hashFacts, makeBillingBody, matchesBillingItem, unavailable, usageFacts, validContext, validId, type BillingProviderContext, type BillingRequestBody, type BillingUsage } from '../ai/native-billing-facts'
+import { BILLING_LEASE_MS, BILLING_RETRY_WINDOW_MS, BillingTenantMissingError, hashFacts, makeBillingBody, matchesBillingItem, unavailable, usageFacts, validContext, validId, type BillingProviderContext, type BillingRequestBody, type BillingUsage } from '../ai/native-billing-facts'
 import type { BillResult } from '../ai/billing'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -28,7 +28,8 @@ function request(row: Row): NativeBillingRequest {
   return result
 }
 async function lockTenant(query: AdminMenuQuery, tenantId: string) {
-  if (!UUID.test(tenantId) || !(await query('SELECT id FROM public.tenants WHERE id=$1 FOR UPDATE', [tenantId])).rows.length) throw unavailable()
+  if (!UUID.test(tenantId)) throw unavailable()
+  if (!(await query('SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE', [tenantId])).rows.length) throw new BillingTenantMissingError()
 }
 async function eventSeen(query: AdminMenuQuery, event?: BillingEvent) {
   if (!event) return false
@@ -52,10 +53,16 @@ async function usage(query: AdminMenuQuery, tenantId: string, batch: string | nu
 
 /** Resolve only signed renewal events; no writes or provider calls. */
 export async function nativeInvoiceTarget(query: AdminMenuQuery, event: SaasWebhookEvent): Promise<NativeBillingOptions | null> {
-  if (event.type !== 'invoice.created' || !event.data.object || typeof event.data.object !== 'object') return null
+  if (event.type !== 'invoice.created') return null
+  const completed = one((await query('SELECT event_type FROM public.processed_stripe_events WHERE event_id=$1', [event.id])).rows)
+  if (completed) {
+    if (completed.event_type !== null && completed.event_type !== event.type) throw unavailable()
+    return null // The normal handler rechecks/locks and returns its duplicate receipt.
+  }
   // Once this event has a financial request, changing its subscription tuple
   // must not turn an unsettled delivery into a harmless/no-op success receipt.
   const prior = one((await query('SELECT tenant_id,request_body FROM public.ai_billing_requests WHERE source_event_id=$1 LIMIT 2', [event.id])).rows)
+  if (!event.data.object || typeof event.data.object !== 'object') { if (prior) throw unavailable(); return null }
   const invoice = event.data.object as Row, subscriptionId = invoiceSubscriptionId(invoice)
   if (invoice.status !== 'draft' || invoice.billing_reason !== 'subscription_cycle' || !subscriptionId) { if (prior) throw unavailable(); return null }
   if (!validId(invoice.id) || !validId(subscriptionId)) throw unavailable()
@@ -121,8 +128,12 @@ export async function claimNativeBilling(query: AdminMenuQuery, frozen: NativeBi
 
 /** Provider failure/mismatch stays blocked; never release claimed financial facts. */
 export async function refuseNativeBilling(query: AdminMenuQuery, frozen: NativeBillingRequest, token: string) {
-  await lockTenant(query, frozen.tenantId)
-  await query("UPDATE public.ai_billing_requests SET state='reconcile_required',attempt_token=NULL,lease_until=NULL WHERE tenant_id=$1 AND batch_id=$2 AND state='requesting' AND attempt_token=$3", [frozen.tenantId, frozen.batchId, token])
+  // A concurrent tenant deletion must still allow recording uncertainty on
+  // its orphaned request. Immutable origin/hash/token bind this state-only op.
+  await query('SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE', [frozen.tenantId])
+  await query(`UPDATE public.ai_billing_requests SET state='reconcile_required',attempt_token=NULL,lease_until=NULL
+    WHERE (tenant_id=$1 OR tenant_id IS NULL) AND batch_id=$2 AND state='requesting' AND attempt_token=$3
+    AND request_hash=$4 AND request_body->'metadata'->>'tenant_id'=$1::text`, [frozen.tenantId, frozen.batchId, token, frozen.requestHash])
 }
 export async function finalizeNativeBilling(query: AdminMenuQuery, frozen: NativeBillingRequest, token: string, item: unknown, options: NativeBillingOptions, now = new Date()): Promise<BillResult> {
   if (await eventSeen(query, options.event)) throw unavailable()
