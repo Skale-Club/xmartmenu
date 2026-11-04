@@ -16,15 +16,15 @@ async function post(operation: string, body: object, legacyToken?: string) {
   return result
 }
 
-export default function IdentityPilot({ config, continueToApp = false, existingAccountLink = false, next = '/' }: {
-  config: IdentityWebConfig; continueToApp?: boolean; existingAccountLink?: boolean; next?: string
+export default function IdentityPilot({ config, continueToApp = false, existingAccountLink = false, next = '/',customerFlow = false,linkCurrentAccount = false }: {
+  config: IdentityWebConfig; continueToApp?: boolean; existingAccountLink?: boolean; next?: string; customerFlow?: boolean; linkCurrentAccount?: boolean
 }) {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
   const [signedIn, setSignedIn] = useState(false)
-  const [link, setLink] = useState(false)
+  const [link, setLink] = useState(linkCurrentAccount)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [existingEmail, setExistingEmail] = useState('')
@@ -58,7 +58,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
   async function complete(idToken: string) {
     if (continueToApp) {
       try {
-        const destination = await completeOwnedLogin(idToken,{ next,link,
+        const destination = await completeOwnedLogin(idToken,{ next,link,customerFlow,
           ...(existingAccountLink ? { existing: { email: existingEmail.trim(),password: existingPassword } } : {}) })
         setSignedIn(true); window.location.assign(destination)
       } catch (error) { throw new IdentityRequestError(error instanceof Error ? error.message : 'Your access could not be confirmed.') }
@@ -91,7 +91,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
   }
 
   async function continueToDashboard() {
-    try { window.location.assign(await ownedLoginDestination(next)) }
+    try { window.location.assign(await ownedLoginDestination(next,fetch,customerFlow)) }
     catch { throw new IdentityRequestError('Your access could not be confirmed. Try again or contact support for reviewed recovery.') }
   }
 
@@ -138,7 +138,9 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         <input className="mt-1 accent-primary" type="checkbox" checked={link} onChange={event => setLink(event.target.checked)} disabled={busy} />
         Link this sign-in method to my existing signed-in account
       </label> : null}
-      {continueToApp && !existingAccountLink ? <Link className="mt-6 block text-sm font-semibold text-zinc-300 underline underline-offset-4" href="/auth/login?action=existing-account-link">Link an existing account with your previous password</Link> : null}
+      {continueToApp && !existingAccountLink ? <Link className="mt-6 block text-sm font-semibold text-zinc-300 underline underline-offset-4" href={`/auth/login?action=existing-account-link${customerFlow ? `&flow=customer&from=${encodeURIComponent(next)}` : ''}`}>Link an existing account with your previous password</Link> : null}
+      {continueToApp && linkCurrentAccount ? <Link className="mt-4 block text-sm font-semibold text-zinc-300 underline underline-offset-4"
+        href={`/auth/login?flow=customer&from=${encodeURIComponent(`/identity?action=link&flow=customer&from=${encodeURIComponent(next)}`)}`}>Sign in again before linking if your current sign-in is no longer recent</Link> : null}
       {continueToApp ? <p className="mt-4 text-xs leading-5 text-zinc-500">If your account requires recovery or no longer has access to its previous sign-in, contact support for reviewed recovery.</p> : null}
       {signedIn ? <div className="mt-6 space-y-3 border-t border-white/10 pt-5">
         {continueToApp ? <button className={button} disabled={busy} onClick={() => void run(continueToDashboard)}>Continue to your account</button> : null}

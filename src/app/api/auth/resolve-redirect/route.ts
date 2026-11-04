@@ -19,6 +19,7 @@ export async function POST(request: Request) {
       const principal = await getOwnedPrincipal()
       if (!principal) return NextResponse.json({ redirectTo: '/auth/login' }, { status: 401 })
       const redirectTo = principal.mustChangePassword ? '/identity?recovery=required'
+        : body?.purpose === 'customer' ? next
         : next.startsWith('/oauth/consent') ? next
         : principal.role === 'superadmin' ? '/overview'
         : principal.role === 'customer' ? next

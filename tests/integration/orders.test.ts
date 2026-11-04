@@ -6,6 +6,8 @@ import { readFile } from 'node:fs/promises'
 import pg from 'pg'
 import { assertOrderRpcCompatibility, assertUnambiguousOrderOptionPricing, OwnedOrderRepository, type OrderPriceGroup, type OrderQuery } from '../../src/lib/data/orders'
 import { createOrdersPool, orderTransaction } from '../../src/lib/data/orders-runtime'
+import { CustomerPanelRepository } from '../../src/lib/data/customer-panel'
+import type { OwnedCustomer } from '../../src/lib/auth/owned-customer'
 
 const raw = process.env.IDENTITY_TEST_DATABASE_URL
 if (!raw) throw Error('Explicit disposable CI target required')
@@ -231,4 +233,55 @@ test('trusted analytics is idempotent and a missing analytics table cannot roll 
   await admin.query('DROP TABLE public.menu_events')
   assert.equal((await run(true,r => r.move(context,created.id,'cancelled'))).status,'cancelled')
   assert.equal((await admin.query('SELECT status FROM public.orders WHERE id=$1',[created.id])).rows[0].status,'cancelled')
+})
+
+const customerUid = randomUUID(), foreignUid = randomUUID(), googleUid = randomUUID(), currentPhone = '+15551239999'
+const customerActor: OwnedCustomer = { userId: customerUid,authenticatedAt: new Date(),role: 'customer',tenantId: null,tenant: null,fullName: null,mustChangePassword: false,phoneE164: currentPhone }
+const panel = (actor = customerActor) => orderTransaction(pool,!!actor.phoneE164,query => new CustomerPanelRepository(query).panel(actor,'customer-fixture'))
+const insertCustomerOrder = async (tenantId: string,userId: string | null,phone: string) => {
+  const id=randomUUID();await admin.query("INSERT INTO public.orders(id,tenant_id,customer_name,customer_phone,customer_id,customer_phone_e164,status,total,order_type) VALUES($1,$2,'Fixture','typed',$3,$4,'pending',12.35,'pickup')",[id,tenantId,userId,phone]);return id
+}
+
+test('customer panel claims only anonymous exact-current-phone rows in the selected tenant and projects owned rows', async () => {
+  // Projection fixture with explicit customer FK; no live Auth schema/role changes.
+  await admin.query(`DROP TABLE IF EXISTS public.profiles,public.app_accounts CASCADE;
+    CREATE TABLE public.app_accounts(id uuid PRIMARY KEY,disabled_at timestamptz);
+    CREATE TABLE public.profiles(id uuid PRIMARY KEY REFERENCES public.app_accounts(id),role text,must_change_password boolean);
+    ALTER TABLE public.orders ADD CONSTRAINT fixture_customer_fk FOREIGN KEY(customer_id) REFERENCES public.app_accounts(id);
+    ALTER TABLE public.tenants ADD COLUMN slug text,ADD COLUMN name text;
+    ALTER TABLE public.tenant_settings ADD COLUMN primary_color text,ADD COLUMN accent_color text,ADD COLUMN address text,ADD COLUMN phone text,ADD COLUMN logo_url text`)
+  for(const id of [customerUid,foreignUid,googleUid]){await admin.query('INSERT INTO public.app_accounts VALUES($1,NULL)',[id]);await admin.query("INSERT INTO public.profiles VALUES($1,'customer',false)",[id])}
+  await admin.query("UPDATE public.tenants SET slug=CASE WHEN id=$1 THEN 'customer-fixture' ELSE 'foreign-fixture' END,name='Fixture'",[a])
+  const own=await insertCustomerOrder(a,customerUid,'+19999999999'),claim=await insertCustomerOrder(a,null,currentPhone)
+  const suffix=await insertCustomerOrder(a,null,'+44551239999'),otherTenant=await insertCustomerOrder(b,null,currentPhone),ownedOther=await insertCustomerOrder(a,foreignUid,currentPhone)
+  const result=await panel();assert.ok(result)
+  assert.deepEqual(new Set(result.orders.map(row=>row.id)),new Set([own,claim]));assert.equal(result.orders[0].total,12.35)
+  assert.equal('private_marker' in result.orders[0],false);assert.equal(result.linkingUnavailable,false)
+  for(const id of [suffix,otherTenant])assert.equal((await admin.query('SELECT customer_id FROM public.orders WHERE id=$1',[id])).rows[0].customer_id,null)
+  assert.equal((await admin.query('SELECT customer_id FROM public.orders WHERE id=$1',[ownedOther])).rows[0].customer_id,foreignUid)
+})
+
+test('Google-only UUID access lists its own orders without claiming any phone and changed phones do not reuse old claims', async () => {
+  const googleOwn=await insertCustomerOrder(a,googleUid,currentPhone),anonymous=await insertCustomerOrder(a,null,currentPhone)
+  const result=await panel({...customerActor,userId:googleUid,phoneE164:null});assert.deepEqual(result?.orders.map(row=>row.id),[googleOwn])
+  assert.equal((await admin.query('SELECT customer_id FROM public.orders WHERE id=$1',[anonymous])).rows[0].customer_id,null)
+  const changedPhone='+15550001111',fresh=await insertCustomerOrder(a,null,changedPhone)
+  const changed=await panel({...customerActor,phoneE164:changedPhone});assert.ok(changed?.orders.some(row=>row.id===fresh))
+  assert.equal((await admin.query('SELECT customer_id FROM public.orders WHERE id=$1',[anonymous])).rows[0].customer_id,null)
+})
+
+test('phone claim failure preserves existing UUID history with an explicit incomplete-link result', async () => {
+  await admin.query("ALTER TABLE public.orders ADD CONSTRAINT fixture_reject_phone_claim CHECK(customer_link_method IS DISTINCT FROM 'verified_phone') NOT VALID")
+  try {
+    const fresh=await insertCustomerOrder(a,null,currentPhone),result=await panel();assert.ok(result)
+    assert.equal(result.linkingUnavailable,true);assert.ok(result.orders.length>0)
+    assert.equal((await admin.query('SELECT customer_id FROM public.orders WHERE id=$1',[fresh])).rows[0].customer_id,null)
+  }finally{await admin.query('ALTER TABLE public.orders DROP CONSTRAINT fixture_reject_phone_claim')}
+})
+
+test('local disabled and recovery controls are rechecked inside the customer panel transaction', async () => {
+  await admin.query('UPDATE public.app_accounts SET disabled_at=now() WHERE id=$1',[customerUid])
+  await assert.rejects(panel(),{status:403});await admin.query('UPDATE public.app_accounts SET disabled_at=NULL WHERE id=$1',[customerUid])
+  await admin.query('UPDATE public.profiles SET must_change_password=true WHERE id=$1',[customerUid])
+  await assert.rejects(panel(),{status:403})
 })

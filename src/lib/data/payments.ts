@@ -1,5 +1,5 @@
 import { OwnedOrderRepository } from './orders'
-import { normalizeRole } from '../auth/role-utils'
+import { isTenantMemberRole, normalizeRole } from '../auth/role-utils'
 import { planCeiling } from '../service-modes'
 import { isOrderStatus, paymentTransition, type PaymentSignal } from '../orders/status-machine'
 import { currencyMinorFactor, toStripeAmount } from '../orders/payment-money'
@@ -64,7 +64,7 @@ export class OwnedPaymentRepository {
     if(!UUID.test(userId))throw new PaymentDataError(401,'Unauthorized')
     const order=await this.order(id);if(!order)return null
     const profile=(await this.query('SELECT role,tenant_id FROM public.profiles WHERE id=$1',[userId])).rows[0]
-    const role=normalizeRole(profile?.role),member=profile?.tenant_id===order.tenant_id,superadmin=role==='superadmin'
+    const role=normalizeRole(profile?.role),member=isTenantMemberRole(role)&&profile?.tenant_id===order.tenant_id,superadmin=role==='superadmin'
     if(!member&&!superadmin&&order.customer_id!==userId)return null
     if(order.payment_intent_id&&!member&&!superadmin)throw new PaymentDataError(403,'Forbidden')
     return order

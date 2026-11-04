@@ -6,6 +6,10 @@ import { sessionPhoneE164 } from '@/lib/phone'
 import { log } from '@/lib/observability/log'
 import PanelClient from './PanelClient'
 import type { Order, OrderItem } from '@/types/database'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedCustomer } from '@/lib/auth/owned-customer-runtime'
+import { readOwnedCustomerPanel } from '@/lib/data/customer-panel-runtime'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
 
 type OrderWithItems = Order & { order_items: OrderItem[] }
 
@@ -15,6 +19,20 @@ interface Props {
 
 export default async function CustomerPanelPage({ params }: Props) {
   const { slug } = await params
+
+  if (ownedAuthSelected()) {
+    const principal = await getOwnedPrincipal()
+    if (principal?.mustChangePassword) redirect('/identity?recovery=required')
+    const customer = await getOwnedCustomer()
+    if (!customer) redirect(`/auth/login?flow=customer&from=${encodeURIComponent(`/${slug}/me`)}`)
+    const panel = await readOwnedCustomerPanel(customer,slug)
+    if (!panel) notFound()
+    const { tenant,orders,linkingUnavailable } = panel, settings = tenant.settings
+    return <PanelClient tenant={{ name: tenant.name,slug: tenant.slug,settings: {
+      primary_color: settings.primary_color ?? '#F52323',accent_color: settings.accent_color ?? '#09090b',address: settings.address,
+      phone: settings.phone,currency: settings.currency ?? 'USD',logo_url: settings.logo_url } }} orders={orders}
+      customerPhone={customer.phoneE164 ?? ''} ownedAuth linkingUnavailable={linkingUnavailable} />
+  }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

@@ -1,8 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Phone, ArrowRight, KeyRound, ChevronLeft } from 'lucide-react'
+import { readLoginAuthority, requireLoginAuthority, type LoginAuthority } from '@/lib/auth/browser-login-authority'
+import Link from 'next/link'
 
 interface Props {
   slug: string
@@ -17,7 +19,20 @@ export default function LoginClient({ slug, primaryColor, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const supabase = createClient()
+  const [authority,setAuthority] = useState<LoginAuthority | 'unavailable' | null>(null)
+  const [nativeSession,setNativeSession] = useState(false)
+  useEffect(() => {
+    let active = true
+    void readLoginAuthority().then(async value => {
+      if (value === 'owned') {
+        const result = await fetch('/api/identity/session',{ credentials: 'same-origin',cache: 'no-store',redirect: 'error' })
+        if (![200,401].includes(result.status)) throw new Error('Sign-in unavailable')
+        if (active) setNativeSession(result.ok)
+      }
+      if (active) setAuthority(value)
+    }).catch(() => { if (active) setAuthority('unavailable') })
+    return () => { active = false }
+  },[])
 
   async function handleSendOTP() {
     const trimmed = phone.trim()
@@ -27,6 +42,9 @@ export default function LoginClient({ slug, primaryColor, onSuccess }: Props) {
     }
     setLoading(true)
     setError(null)
+    try { await requireLoginAuthority('legacy') }
+    catch { setError('Sign-in is unavailable or changed. Reload and try again.'); setLoading(false); return }
+    const supabase = createClient()
 
     const { error: authError } = await supabase.auth.signInWithOtp({
       phone: trimmed,
@@ -47,6 +65,9 @@ export default function LoginClient({ slug, primaryColor, onSuccess }: Props) {
   async function handleVerifyOTP() {
     setLoading(true)
     setError(null)
+    try { await requireLoginAuthority('legacy') }
+    catch { setError('Sign-in is unavailable or changed. Reload and try again.'); setLoading(false); return }
+    const supabase = createClient()
 
     const { data, error: verifyError } = await supabase.auth.verifyOtp({
       phone: phone.trim(),
@@ -76,6 +97,17 @@ export default function LoginClient({ slug, primaryColor, onSuccess }: Props) {
   }
 
   const btnStyle = { backgroundColor: primaryColor, color: '#09090b' }
+
+  if (authority !== 'legacy') {
+    const current = typeof window === 'undefined' ? `/${slug}` : `${window.location.pathname}${window.location.search}`
+    const href = `${nativeSession ? '/identity?action=link&' : '/auth/login?'}flow=customer&from=${encodeURIComponent(current)}`
+    return <div className="grid min-h-screen place-items-center bg-zinc-50 px-4"><section className="w-full max-w-sm rounded-2xl bg-white p-8 text-zinc-950 shadow-xl">
+      <h1 className="text-2xl font-black">{nativeSession ? 'Verify your phone' : 'Sign in to your account'}</h1>
+      {authority === 'owned' ? <><p className="mt-3 text-sm leading-6 text-zinc-500">{nativeSession ? 'Confirm a phone number for your current account. Your existing orders remain yours.' : 'Use your verified phone number or Google account. Phone-only menus require a verified phone.'}</p>
+        <Link href={href} className="mt-6 block rounded-full px-5 py-3 text-center font-bold" style={btnStyle}>Continue</Link></>
+        : <p role={authority === 'unavailable' ? 'alert' : 'status'} className="mt-4 text-sm text-zinc-500">{authority === 'unavailable' ? 'Sign-in is temporarily unavailable. Reload and try again.' : 'Checking sign-in availability…'}</p>}
+    </section></div>
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">

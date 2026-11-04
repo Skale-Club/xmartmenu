@@ -7,16 +7,16 @@ async function post(request: typeof fetch, path: string, body: object) {
   if (!response.ok) throw new Error(typeof result?.message === 'string' ? result.message : 'Your access could not be confirmed. Try again or contact support for reviewed recovery.')
   return result
 }
-export async function ownedLoginDestination(next = '/', request: typeof fetch = fetch): Promise<string> {
+export async function ownedLoginDestination(next = '/', request: typeof fetch = fetch, customerFlow = false): Promise<string> {
   await requireLoginAuthority('owned',request)
-  const result = await post(request,'/api/auth/resolve-redirect',{ next })
+  const result = await post(request,'/api/auth/resolve-redirect',{ next,...(customerFlow ? { purpose: 'customer' } : {}) })
   if (typeof result.redirectTo !== 'string' || !result.redirectTo.startsWith('/') || result.redirectTo.startsWith('//')
     || result.redirectTo.includes('\\') || /[\u0000-\u001f\u007f]/.test(result.redirectTo)) throw new Error('Your destination could not be confirmed.')
   return result.redirectTo
 }
 /** Native path only: an owned denial never initializes or falls back to legacy Auth. */
 export async function completeOwnedLogin(idToken: string, options: {
-  next?: string; link?: boolean; existing?: { email: string; password: string }
+  next?: string; link?: boolean; existing?: { email: string; password: string }; customerFlow?: boolean
 } = {}, request: typeof fetch = fetch) {
   await requireLoginAuthority('owned',request)
   const challenge = async () => {
@@ -33,5 +33,5 @@ export async function completeOwnedLogin(idToken: string, options: {
   }
   const result = await post(request,'/api/identity/login',{ idToken,challenge: await challenge() })
   if (result?.authenticated !== true) throw new Error('Sign-in could not be confirmed.')
-  return ownedLoginDestination(options.next,request)
+  return ownedLoginDestination(options.next,request,options.customerFlow)
 }

@@ -68,8 +68,8 @@ export function assertUnambiguousOrderOptionPricing(basePrice: number, editor: O
     }
   }
 }
-const ORDER_COLUMNS = 'id tenant_id customer_name customer_phone customer_phone_key customer_id customer_phone_e164 customer_linked_at customer_link_method status total subtotal currency delivery_fee_cents payment_intent_id order_type delivery_address delivery_street delivery_complement delivery_zipcode delivery_city delivery_notes delivery_zone_id location_id tip_cents table_name table_id analytics_session_id notes created_at updated_at'
-const ITEM_COLUMNS = 'id order_id product_id product_name quantity unit_price selected_options notes ingredient_modifications added_via'
+export const ORDER_COLUMNS = 'id tenant_id customer_name customer_phone customer_phone_key customer_id customer_phone_e164 customer_linked_at customer_link_method status total subtotal currency delivery_fee_cents payment_intent_id order_type delivery_address delivery_street delivery_complement delivery_zipcode delivery_city delivery_notes delivery_zone_id location_id tip_cents table_name table_id analytics_session_id notes created_at updated_at'
+export const ITEM_COLUMNS = 'id order_id product_id product_name quantity unit_price selected_options notes ingredient_modifications added_via'
 const SETTINGS_COLUMNS = 'orders_enabled direct_orders_enabled table_management_enabled whatsapp_orders_enabled whatsapp tips_enabled item_notes_enabled ingredient_customization_enabled dine_in_enabled pickup_enabled delivery_enabled upsell_enabled delivery_fee_cents currency country amber_threshold_minutes red_threshold_minutes'
 const orderFields = new Set(('tenant_id customer_name customer_phone customer_phone_key customer_id customer_phone_e164 status total subtotal currency delivery_fee_cents order_type delivery_address delivery_street delivery_complement delivery_zipcode delivery_city delivery_notes delivery_zone_id location_id tip_cents table_name table_id analytics_session_id idempotency_key request_fingerprint').split(' '))
 const itemFields = new Set('product_id product_name quantity unit_price notes selected_options ingredient_modifications added_via'.split(' '))

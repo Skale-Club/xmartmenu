@@ -7,5 +7,5 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   if (!ownedAuthSelected()) return <LegacyLogin />
   const params = await searchParams
   return <IdentityEntry continueToApp existingAccountLink={params.action === 'existing-account-link'}
-    next={typeof params.from === 'string' ? params.from : '/'} />
+    next={typeof params.from === 'string' ? params.from : '/'} customerFlow={params.flow === 'customer'} />
 }

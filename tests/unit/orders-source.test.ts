@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { OrderDataError } from '@/lib/data/orders'
+import { OwnedAuthenticationUnavailable } from '@/lib/auth/owned-principal'
 
 const mocks = vi.hoisted(() => ({ effective: vi.fn(), legacy: vi.fn(), cookie: vi.fn(), transaction: vi.fn(),
-  capabilities: vi.fn(), stripe: vi.fn(), analytics: vi.fn(), rate: vi.fn() }))
+  capabilities: vi.fn(), stripe: vi.fn(), analytics: vi.fn(), rate: vi.fn(),customer:vi.fn() }))
+vi.mock('@/lib/auth/owned-customer-runtime',()=>({getOwnedCustomer:mocks.customer}))
 vi.mock('@/lib/get-effective-tenant', () => ({ getEffectiveTenant: mocks.effective }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.cookie, createServiceClient: mocks.legacy }))
 vi.mock('@/lib/tenant-plan', () => ({ getTenantCapabilities: mocks.capabilities }))
@@ -50,6 +52,20 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks() })
 
 describe('owned orders route source selection', () => {
+  it('keeps native UUID order ownership while requiring current phone evidence for private menus',async()=>{
+    vi.stubEnv('OWNED_AUTH_ENABLED','true');mocks.customer.mockResolvedValue({userId:foreign,phoneE164:null})
+    expect((await POST(input)).status).toBe(200)
+    expect(repository.create.mock.calls[0][0].customer_id).toBe(foreign);expect(repository.create.mock.calls[0][2]).toBe(foreign)
+    repository.products.mockResolvedValue(result([{id:productId,tenant_id:tenantId,name:'Private',price:10,is_available:true,menu_id:menuId,menus:{id:menuId,is_active:true,is_private:true,price_multiplier:1.25}}]))
+    expect((await POST(input)).status).toBe(403)
+    mocks.customer.mockResolvedValue({userId:foreign,phoneE164:'+15551234567'})
+    expect((await POST(input)).status).toBe(200)
+    expect(mocks.cookie).not.toHaveBeenCalled();expect(mocks.legacy).not.toHaveBeenCalled()
+  })
+  it('does not downgrade unavailable native customer identity to anonymous checkout',async()=>{
+    vi.stubEnv('OWNED_AUTH_ENABLED','true');mocks.customer.mockRejectedValue(new OwnedAuthenticationUnavailable())
+    expect((await POST(input)).status).toBe(503);expect(repository.create).not.toHaveBeenCalled();expect(mocks.cookie).not.toHaveBeenCalled()
+  })
   it('keeps catalog pricing and atomic payload construction on the owned source without legacy data factories', async () => {
     const response = await POST(input)
     expect(response.status).toBe(200)

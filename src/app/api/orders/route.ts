@@ -15,6 +15,8 @@ import { log } from '@/lib/observability/log'
 import { ordersDataOwned, OrderDataError, assertUnambiguousOrderOptionPricing, type OrderPriceGroup, type OwnedOrderRepository } from '@/lib/data/orders'
 import { withOwnedOrders } from '@/lib/data/orders-runtime'
 import { paymentsDataOwned } from '@/lib/data/payments'
+import { ownedAuthSelected, OwnedAuthenticationUnavailable } from '@/lib/auth/owned-principal'
+import { getOwnedCustomer } from '@/lib/auth/owned-customer-runtime'
 
 // KDS query bounds (shared intent with orders/page.tsx). A kitchen board only
 // needs recent orders; older history lives elsewhere.
@@ -44,7 +46,11 @@ function allowedGuestOrderTypes(caps: TenantCapabilities): OrderType[] {
  * public menu page uses to render a private menu, and the identity an order
  * placed from it belongs to (EX-07).
  */
-async function phoneVerifiedUser(): Promise<{ id: string; phoneE164: string } | null> {
+async function verifiedOrderCustomer(): Promise<{ id: string; phoneE164: string | null } | null> {
+  if (ownedAuthSelected()) {
+    const principal = await getOwnedCustomer()
+    return principal ? { id: principal.userId,phoneE164: principal.phoneE164 } : null
+  }
   try {
     const cookieClient = await createClient()
     const { data: { user } } = await cookieClient.auth.getUser()
@@ -112,6 +118,7 @@ class OrderRejected extends Error {
 
 async function handlePOST(request: Request) {
   try {
+    if (ownedAuthSelected() && !ordersDataOwned()) return NextResponse.json({ error: 'Independent orders must be enabled' },{ status: 503 })
     const rl = await rateLimit('orders-create', getClientIp(request), 12, '1 m')
     if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
 
@@ -322,8 +329,8 @@ async function handlePOST(request: Request) {
       // phone-verified session, so a guest order on it must come from one. The
       // check follows the products' own menu, so leaving menu_id out of the
       // request cannot skip it. Staff orders may always use it.
-      const sessionCustomer = isStaffOrder ? null : await phoneVerifiedUser()
-      if (orderMenu.is_private === true && !isStaffOrder && !sessionCustomer) {
+      const sessionCustomer = isStaffOrder ? null : await verifiedOrderCustomer()
+      if (orderMenu.is_private === true && !isStaffOrder && !sessionCustomer?.phoneE164) {
         return NextResponse.json({ error: 'This menu requires signing in' }, { status: 403 })
       }
       const priceMultiplier = orderMenu.price_multiplier && Number(orderMenu.price_multiplier) > 0 ? Number(orderMenu.price_multiplier) : 1
@@ -513,6 +520,7 @@ async function handlePOST(request: Request) {
     }
     return ordersDataOwned() ? await withOwnedOrders(parsed.data.tenant_id, true, checkout) : await checkout()
   } catch (error) {
+    if (error instanceof OwnedAuthenticationUnavailable) return NextResponse.json({ error: error.message },{ status: 503 })
     if (error instanceof OrderDataError) return NextResponse.json({ error: error.message }, { status: error.status })
     log.error('orders.error', { err: error })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

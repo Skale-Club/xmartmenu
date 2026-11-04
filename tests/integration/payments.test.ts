@@ -47,6 +47,14 @@ before(async()=>{
  await admin.query('INSERT INTO public.menus VALUES($1,$2)',[menu,a]);await admin.query('INSERT INTO public.menu_sessions(id,tenant_id,menu_id) VALUES($1,$2,$3)',[session,a,menu])
 })
 after(async()=>{await pool.end();await admin.end()})
+
+test('a customer profile assigned to the restaurant does not inherit staff access to another customer order',async()=>{
+ const attacker=randomUUID(),id=await order()
+ await admin.query("INSERT INTO public.profiles VALUES($1,$2,'customer')",[attacker,a])
+ assert.equal(await run(false,r=>r.authorizedOrder(id,attacker)),null)
+ assert.equal((await run(false,r=>r.authorizedOrder(id,customer)))?.id,id)
+ assert.equal((await run(false,r=>r.authorizedOrder(id,staff)))?.id,id)
+})
 test('selected configuration preserves NULL currency and zero fee, with exact tenant scope',async()=>{
  const id=await order({tenant:b});const s=await run(false,r=>r.snapshot(id,b));assert.equal(s.order.currency,null);assert.equal(s.config.currency,'jpy');assert.equal(s.config.fee,0)
  await assert.rejects(run(false,r=>r.snapshot(id,a)),{status:404})

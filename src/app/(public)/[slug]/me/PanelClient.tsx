@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Clock, CheckCircle2, Package, UtensilsCrossed, Truck, LogOut, MapPin, Phone as PhoneIcon, RefreshCw } from 'lucide-react'
 import { formatPrice } from '@/lib/utils'
 import type { Order, OrderItem } from '@/types/database'
+import { useState } from 'react'
 
 type OrderWithItems = Order & { order_items: OrderItem[] }
 
@@ -51,6 +52,8 @@ interface Props {
   tenant: TenantInfo
   orders: OrderWithItems[]
   customerPhone: string
+  ownedAuth?: boolean
+  linkingUnavailable?: boolean
 }
 
 function OrderStatusBar({ order, primaryColor }: { order: OrderWithItems; primaryColor: string }) {
@@ -86,9 +89,10 @@ function OrderStatusBar({ order, primaryColor }: { order: OrderWithItems; primar
   )
 }
 
-export default function PanelClient({ tenant, orders, customerPhone }: Props) {
+export default function PanelClient({ tenant, orders, customerPhone,ownedAuth = false,linkingUnavailable = false }: Props) {
   const router = useRouter()
-  const supabase = createClient()
+  const supabase = ownedAuth ? null : createClient()
+  const [signoutError,setSignoutError] = useState('')
   const primaryColor = tenant.settings.primary_color
   const currency = tenant.settings.currency ?? 'USD'
 
@@ -100,7 +104,11 @@ export default function PanelClient({ tenant, orders, customerPhone }: Props) {
   )
 
   async function handleSignOut() {
-    await supabase.auth.signOut()
+    if (ownedAuth) {
+      const response = await fetch('/api/identity/logout',{ method: 'POST',credentials: 'same-origin',cache: 'no-store',redirect: 'error',headers: { 'Content-Type': 'application/json' },body: '{}' }).catch(() => null)
+      const result = response?.ok ? await response.json().catch(() => null) : null
+      if (result?.signedOut !== true) { setSignoutError('Sign out could not be confirmed. Try again.'); return }
+    } else await supabase!.auth.signOut()
     router.push(`/${tenant.slug}`)
   }
 
@@ -139,6 +147,9 @@ export default function PanelClient({ tenant, orders, customerPhone }: Props) {
       </div>
 
       <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+        {signoutError && <p role="alert" className="text-sm text-red-700">{signoutError}</p>}
+        {linkingUnavailable && <p role="status" className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">Some earlier orders could not be linked. Refresh to try again.</p>}
+        {ownedAuth && !customerPhone && <p className="rounded-xl bg-white p-4 text-sm text-zinc-600">Your account orders are shown here. <a href={`/identity?action=link&from=${encodeURIComponent(`/${tenant.slug}/me`)}&flow=customer`} className="font-bold underline">Verify your phone</a> to access phone-only menus and link earlier guest orders.</p>}
 
         {/* Active Orders */}
         {activeOrders.length > 0 && (

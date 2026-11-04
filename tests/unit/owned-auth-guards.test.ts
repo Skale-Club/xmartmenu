@@ -98,6 +98,16 @@ describe('owned core guards', () => {
     expect(state.service).not.toHaveBeenCalled(); expect(state.legacy).not.toHaveBeenCalled()
   })
 
+  it('returns to a safe customer surface without granting privileges or bypassing recovery',async()=>{
+    state.query.mockResolvedValue({rows:[profile('superadmin')]})
+    const {POST}=await import('@/app/api/auth/resolve-redirect/route')
+    const request=(next:string)=>new Request('https://xmartmenu.test/api/auth/resolve-redirect',{method:'POST',body:JSON.stringify({next,purpose:'customer'})})
+    expect(await (await POST(request('/fixture/me'))).json()).toEqual({redirectTo:'/fixture/me'})
+    expect(await (await POST(request('//outside.test'))).json()).toEqual({redirectTo:'/'})
+    state.query.mockResolvedValue({rows:[{...profile('superadmin'),must_change_password:true}]})
+    expect(await (await POST(request('/fixture/me'))).json()).toEqual({redirectTo:'/identity?recovery=required'})
+  })
+
   it('logs out only the native session, clears its cookies and rejects cross-origin POSTs', async () => {
     const { POST } = await import('@/app/api/auth/signout/route')
     const request = (origin: string) => new Request('https://xmartmenu.test/api/auth/signout', { method: 'POST',
