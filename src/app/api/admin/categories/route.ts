@@ -6,8 +6,10 @@ import { sanitizeTranslations } from '@/lib/menu-translations'
 import { parseCourse } from '@/components/menu/upsell'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
 
 async function handlePOST(request: Request) {
+  if (adminMenusOwned()) return (await import('@/lib/admin/owned-category-http')).ownedCategoryHttp(request, 'create')
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') {
