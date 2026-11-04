@@ -15,6 +15,8 @@ import { getLiveStripeSubscription, PlanChangeError, swapStripeSubscriptionPlan 
 import { z } from 'zod'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { nativeSubscriptionCycle, nativeSubscriptionGet } from '@/lib/billing/subscription-http'
 
 const BillingCycleSchema = z.object({
   billing_cycle: z.enum(['monthly', 'annual'])
@@ -25,6 +27,7 @@ const BillingCycleSchema = z.object({
  * Returns subscription details with effective plan and Stripe status
  */
 async function handleGET() {
+  if (adminMenusOwned()) return nativeSubscriptionGet()
   try {
     const effective = await getEffectiveTenant()
     if (!effective) {
@@ -99,6 +102,7 @@ async function handleGET() {
  * (answer: pending: true); a tenant without Stripe billing is updated directly.
  */
 async function handlePATCH(request: NextRequest) {
+  if (adminMenusOwned()) return nativeSubscriptionCycle(request)
   try {
     const effective = await getEffectiveTenant()
     if (!effective) {

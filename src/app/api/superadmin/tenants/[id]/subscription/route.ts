@@ -7,6 +7,8 @@ import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 import { reconcileTenantSettings } from '@/lib/tenant-plan'
 import { getLiveStripeSubscription, PlanChangeError, swapStripeSubscriptionPlan } from '@/lib/plan-billing'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { nativeSuperSubscriptionGet, nativeSuperSubscriptionPut } from '@/lib/billing/subscription-http'
 
 const SUBSCRIPTION_STATUSES = ['active', 'trial', 'past_due', 'cancelled'] as const
 type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number]
@@ -16,6 +18,7 @@ interface RouteParams {
 }
 
 async function handleGET(request: Request, { params }: RouteParams) {
+  if (adminMenusOwned()) return nativeSuperSubscriptionGet((await params).id)
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -58,6 +61,7 @@ async function handleGET(request: Request, { params }: RouteParams) {
 }
 
 async function handlePUT(request: Request, { params }: RouteParams) {
+  if (adminMenusOwned()) return nativeSuperSubscriptionPut((await params).id, request)
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

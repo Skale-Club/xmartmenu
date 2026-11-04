@@ -29,6 +29,8 @@ import { stripe } from '@/lib/stripe'
 import { createServiceClient } from '@/lib/supabase/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { nativeSubscriptionCheckout } from '@/lib/billing/subscription-http'
 import {
   getLiveStripeSubscription,
   PlanChangeError,
@@ -37,6 +39,7 @@ import {
 } from '@/lib/plan-billing'
 
 async function handlePOST(request: NextRequest) {
+  if (adminMenusOwned()) return nativeSubscriptionCheckout(request)
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
