@@ -8,6 +8,9 @@ import {
 } from '@/lib/analytics/contracts'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import {adminMenusOwned,AdminMenuError} from '@/lib/data/admin-menus'
+import {ingestOwnedPublicAnalytics} from '@/lib/data/public-analytics-runtime'
+import {readNativeAnalyticsBody} from '@/lib/data/public-analytics'
 
 export const runtime = 'nodejs'
 
@@ -48,7 +51,8 @@ async function handlePOST(request: Request) {
       return NextResponse.json({ ok: false }, { status: 413 })
     }
 
-    const rawBody = await request.text()
+    const owned=adminMenusOwned()
+    const rawBody = owned ? await readNativeAnalyticsBody(request) : await request.text()
     if (!rawBody || Buffer.byteLength(rawBody, 'utf8') > MAX_ANALYTICS_BODY_BYTES) {
       return NextResponse.json({ ok: false }, { status: rawBody ? 413 : 400 })
     }
@@ -66,6 +70,7 @@ async function handlePOST(request: Request) {
     }
 
     const { session, events } = parsed.data
+    if(owned)return NextResponse.json(await ingestOwnedPublicAnalytics(parsed.data))
     const service = await createServiceClient()
 
     const [{ data: tenant }, { data: menu }, { data: location }, { data: qrCode }, { data: tenantSettings }] = await Promise.all([
@@ -240,6 +245,7 @@ async function handlePOST(request: Request) {
 
     return NextResponse.json({ ok: true, received: events.length })
   } catch (error) {
+    if(error instanceof AdminMenuError)return NextResponse.json({ok:false},{status:error.status})
     log.error('analytics.ingest_error', { err: error })
     return NextResponse.json({ ok: false }, { status: 500 })
   }
