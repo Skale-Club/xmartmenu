@@ -10,6 +10,13 @@ CREATE TABLE public.app_tenant_effects (
 );
 ALTER TABLE public.app_tenant_effects ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.app_tenant_effects FROM PUBLIC;
+DO $$ DECLARE r text; BEGIN
+  FOREACH r IN ARRAY ARRAY['anon','authenticated'] LOOP
+    IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname=r) THEN
+      EXECUTE format('REVOKE ALL ON public.app_tenant_effects FROM %I',r);
+    END IF;
+  END LOOP;
+END $$;
 -- Separately grant SELECT,INSERT,UPDATE to the reviewed existing admin backend
 -- role; never grant browser/anon/authenticated access. No dispatcher is enabled.
 COMMIT;
