@@ -1,26 +1,15 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { summarizeChanges, TABLE_LABELS, VIA_LABELS } from '@/lib/observability/audit-format'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { getPlatformAuditPrincipal, readOwnedPlatformAuditPage } from '@/lib/data/admin-audit-runtime'
+import { PLATFORM_AUDIT_PAGE_SIZE, type AuditPerson, type AuditTenant, type PlatformAuditRow } from '@/lib/data/admin-audit'
 
 export const dynamic = 'force-dynamic'
 
-const PAGE_SIZE = 100
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 type Search = { tenant?: string; table?: string; actor?: string; request?: string; days?: string; before?: string }
-
-interface AuditRow {
-  id: number
-  occurred_at: string
-  tenant_id: string | null
-  actor_id: string | null
-  via: string
-  table_name: string
-  record_id: string | null
-  action: 'insert' | 'update' | 'delete'
-  changes: Record<string, unknown>
-  request_id: string | null
-}
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.trim() || undefined
 
@@ -36,33 +25,52 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   const actor = one(params.actor)
   const request = one(params.request)
   const days = [1, 7, 30, 90].includes(Number(one(params.days))) ? Number(one(params.days)) : 7
-  const before = Number(one(params.before)) || undefined
+  const before = one(params.before)
+  let rows: PlatformAuditRow[] = []
+  let tenants: AuditTenant[] = []
+  let people: AuditPerson[] = []
+  let error: { message: string } | null = null
+  if (adminMenusOwned()) {
+    try {
+      const principal = await getPlatformAuditPrincipal()
+      if (!principal || principal.mustChangePassword || principal.role !== 'superadmin') throw new Error('Forbidden')
+      const data = await readOwnedPlatformAuditPage({ tenant, table, actor, request, days, before })
+      rows = data.rows
+      tenants = data.tenants
+      people = data.people
+    } catch {
+      error = { message: 'Audit service is unavailable' }
+    }
+  } else {
+    const supabase = await createClient()
+    let query = supabase
+      .from('audit_events')
+      .select('id, occurred_at, tenant_id, actor_id, via, table_name, record_id, action, changes, request_id')
+      .gte('occurred_at', new Date(Date.now() - days * 86_400_000).toISOString())
+      .order('id', { ascending: false })
+      .limit(PLATFORM_AUDIT_PAGE_SIZE)
+    if (tenant && UUID.test(tenant)) query = query.eq('tenant_id', tenant)
+    if (table && Object.hasOwn(TABLE_LABELS, table)) query = query.eq('table_name', table)
+    if (actor && UUID.test(actor)) query = query.eq('actor_id', actor)
+    if (request) query = query.eq('request_id', request.slice(0, 128))
+    if (before && /^[1-9][0-9]{0,18}$/.test(before)) query = query.lt('id', Number(before))
 
-  const supabase = await createClient()
-  let query = supabase
-    .from('audit_events')
-    .select('id, occurred_at, tenant_id, actor_id, via, table_name, record_id, action, changes, request_id')
-    .gte('occurred_at', new Date(Date.now() - days * 86_400_000).toISOString())
-    .order('id', { ascending: false })
-    .limit(PAGE_SIZE)
-  if (tenant && UUID.test(tenant)) query = query.eq('tenant_id', tenant)
-  if (table && table in TABLE_LABELS) query = query.eq('table_name', table)
-  if (actor && UUID.test(actor)) query = query.eq('actor_id', actor)
-  if (request) query = query.eq('request_id', request.slice(0, 128))
-  if (before) query = query.lt('id', before)
+    const [{ data, error: queryError }, { data: tenantRows }] = await Promise.all([
+      query,
+      supabase.from('tenants').select('id, name, slug').order('name'),
+    ])
+    rows = (data ?? []) as unknown as PlatformAuditRow[]
+    tenants = (tenantRows ?? []) as AuditTenant[]
+    error = queryError
+    const actorIds = [...new Set(rows.map(row => row.actor_id).filter((id): id is string => !!id))]
+    const { data: peopleRows } = actorIds.length
+      ? await supabase.from('profiles').select('id, full_name, role').in('id', actorIds)
+      : { data: [] as Array<{ id: string; full_name: string | null; role: string }> }
+    people = (peopleRows ?? []) as AuditPerson[]
+  }
 
-  const [{ data, error }, { data: tenants }] = await Promise.all([
-    query,
-    supabase.from('tenants').select('id, name, slug').order('name'),
-  ])
-  const rows = (data ?? []) as AuditRow[]
-  const actorIds = [...new Set(rows.map(r => r.actor_id).filter((id): id is string => !!id))]
-  const { data: people } = actorIds.length
-    ? await supabase.from('profiles').select('id, full_name, role').in('id', actorIds)
-    : { data: [] as Array<{ id: string; full_name: string | null; role: string }> }
-
-  const tenantName = new Map((tenants ?? []).map(t => [t.id, t.name]))
-  const personName = new Map((people ?? []).map(p => [p.id, `${p.full_name || 'Unnamed'} · ${p.role}`]))
+  const tenantName = new Map(tenants.map(t => [t.id, t.name]))
+  const personName = new Map(people.map(p => [p.id, `${p.full_name || 'Unnamed'} · ${p.role}`]))
   const filterLink = (patch: Partial<Search>) => {
     const next = new URLSearchParams()
     const merged: Search = { tenant, table, actor, request, days: String(days), ...patch }
@@ -173,7 +181,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
         </div>
       )}
 
-      {rows.length === PAGE_SIZE && (
+      {rows.length === PLATFORM_AUDIT_PAGE_SIZE && (
         <Link href={filterLink({ before: String(rows[rows.length - 1].id) })} className="inline-flex text-sm font-semibold text-zinc-700 hover:underline">
           Older changes →
         </Link>
