@@ -4,10 +4,21 @@ import { redirect } from 'next/navigation'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import OrdersClient from './OrdersClient'
+import { ordersDataOwned } from '@/lib/data/orders'
+import { readOwnedOrdersKdsPage } from '@/lib/data/orders-runtime'
 
 export default async function OrdersPage() {
+  const effective = (await getEffectiveTenant())!
+  const { tenantId } = effective
+
+  if (ordersDataOwned()) {
+    const data = await readOwnedOrdersKdsPage({ tenantId, role: effective.role })
+    if (!data.capabilities.kds) redirect('/dashboard')
+    return <OrdersClient initialOrders={data.orders} tenantId={tenantId} amberThreshold={data.amberThreshold}
+      redThreshold={data.redThreshold} locations={data.locations} currency={data.currency} />
+  }
+
   const supabase = await createClient()
-  const { tenantId } = (await getEffectiveTenant())!
 
   // The sidebar already hides Orders on a plan without them; this covers a typed URL.
   const capabilities = await getTenantCapabilities(tenantId)

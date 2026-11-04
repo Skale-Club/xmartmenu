@@ -36,12 +36,13 @@ before(async () => {
     CREATE TABLE public.tenant_settings(tenant_id uuid PRIMARY KEY REFERENCES public.tenants(id),
       orders_enabled boolean,direct_orders_enabled boolean,table_management_enabled boolean,whatsapp_orders_enabled boolean,whatsapp text,
       tips_enabled boolean,item_notes_enabled boolean,ingredient_customization_enabled boolean,dine_in_enabled boolean,pickup_enabled boolean,
-      delivery_enabled boolean,upsell_enabled boolean,delivery_fee_cents integer,currency text,country text);
+      delivery_enabled boolean,upsell_enabled boolean,delivery_fee_cents integer,currency text,country text,
+      amber_threshold_minutes integer,red_threshold_minutes integer);
     CREATE TABLE public.plans(id uuid PRIMARY KEY,features jsonb NOT NULL);
     CREATE TABLE public.tenant_subscriptions(tenant_id uuid PRIMARY KEY,plan_id uuid REFERENCES public.plans(id),status text);
     CREATE TABLE public.stripe_connections(id uuid PRIMARY KEY,tenant_id uuid,is_active boolean,private_credential text);
     CREATE TABLE public.menus(id uuid PRIMARY KEY,tenant_id uuid REFERENCES public.tenants(id),is_active boolean,is_private boolean,price_multiplier numeric);
-    CREATE TABLE public.locations(id uuid PRIMARY KEY,tenant_id uuid,is_active boolean);
+    CREATE TABLE public.locations(id uuid PRIMARY KEY,tenant_id uuid,is_active boolean,name text,slug text,created_at timestamptz DEFAULT now(),private_marker text);
     CREATE TABLE public.restaurant_tables(id uuid PRIMARY KEY,tenant_id uuid,is_active boolean,name text);
     CREATE TABLE public.delivery_zones(id uuid PRIMARY KEY,tenant_id uuid,is_active boolean,fee_cents integer,zipcode_prefixes text[],created_at timestamptz DEFAULT now());
     CREATE TABLE public.products(id uuid PRIMARY KEY,tenant_id uuid,menu_id uuid REFERENCES public.menus(id),name text,price numeric,is_available boolean);
@@ -69,7 +70,7 @@ before(async () => {
   await admin.query(definition)
   await admin.query('REVOKE EXECUTE ON FUNCTION public.create_order_with_items(jsonb,jsonb) FROM PUBLIC')
   await admin.query('INSERT INTO public.tenants(id) VALUES($1),($2)',[a,b])
-  await admin.query('INSERT INTO public.tenant_settings(tenant_id,orders_enabled,direct_orders_enabled,table_management_enabled,currency,country) VALUES($1,true,true,true,NULL,\'US\')',[a])
+  await admin.query('INSERT INTO public.tenant_settings(tenant_id,orders_enabled,direct_orders_enabled,table_management_enabled,currency,country,amber_threshold_minutes,red_threshold_minutes) VALUES($1,true,true,true,NULL,\'US\',8,15)',[a])
   const plan = randomUUID()
   await admin.query('INSERT INTO public.plans(id,features) VALUES($1,$2)',[plan,JSON.stringify(['orders','payments','stripe-connect'])])
   await admin.query('INSERT INTO public.tenant_subscriptions(tenant_id,plan_id,status) VALUES($1,$2,\'active\')',[a,plan])
@@ -185,8 +186,25 @@ test('KDS projects tenant-only recent orders/items and does not expose new inter
   const found = await run(false,r => r.list(context,new Date(Date.now()-48*3600000).toISOString()))
   assert.ok(found.data.some(o => o.id===created.id))
   assert.ok(found.data.every(o => o.tenant_id===a && !Object.hasOwn(o,'private_marker') && !Object.hasOwn(o,'idempotency_key')))
-  assert.ok(found.data.every(o => (o.order_items as Array<Record<string,unknown>>).every(i => !Object.hasOwn(i,'private_marker'))))
+  assert.ok(found.data.every(o => o.order_items.every(i => !Object.hasOwn(i,'private_marker'))))
   await assert.rejects(run(false,r => r.list({ tenantId:a,role:'customer' },new Date().toISOString())),{ status:403 })
+})
+
+test('KDS SSR bootstrap reads orders, item details, thresholds, active locations and plan capability in one owned snapshot', async () => {
+  const created = await create()
+  const location = randomUUID(), inactive = randomUUID(), foreignLocation = randomUUID()
+  await admin.query(`INSERT INTO public.locations(id,tenant_id,is_active,name,slug,private_marker) VALUES
+    ($1,$2,true,'Kitchen','kitchen','hidden'),($3,$2,false,'Closed','closed','hidden'),($4,$5,true,'Foreign','foreign','hidden')`,
+  [location,a,inactive,foreignLocation,b])
+  const cutoff = new Date(Date.now()-48*3600000).toISOString()
+  const bootstrap = await run(false,repository => repository.kdsBootstrap(context,cutoff))
+  assert.equal(bootstrap.capabilities.kds,true)
+  assert.equal(bootstrap.amberThreshold,8)
+  assert.equal(bootstrap.redThreshold,15)
+  assert.equal(bootstrap.currency,'USD')
+  assert.deepEqual(bootstrap.locations,[{ id:location,name:'Kitchen',slug:'kitchen' }])
+  assert.equal(bootstrap.orders.find(order => order.id===created.id)?.order_items.length,1)
+  assert.equal(Object.hasOwn(bootstrap.locations[0] as object,'private_marker'),false)
 })
 
 test('kitchen mutations preserve ownership, payment state boundaries and compare-and-set races', async () => {
