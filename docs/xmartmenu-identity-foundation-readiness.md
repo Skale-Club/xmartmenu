@@ -44,7 +44,9 @@ and refuses unreviewed preload/audit modules. A programmatic libpq executor must
 use foundationTransaction() and await its publicPrelude before sending the
 privateSql batch; sending a combined batch could log private literals before a
 SET takes effect. A psql stdin executor parses the public prefix statements
-before the later private statements. No global logging setting is changed.
+before the later private statements. An ON COMMIT DROP temporary marker makes
+privateSql refuse before DDL when its public transaction was not opened or was
+already committed. No global logging setting is changed.
 
 ## Exact account bootstrap and proof
 
@@ -146,8 +148,8 @@ reconciliation also remain necessary before complete Supabase exit.
 ## Tests
 
 Eight offline tests cover review rejection, source-control scope, migration pins,
-no-execute defaults and generated preservation/bootstrap contracts. Four CI
-PostgreSQL cases cover baseline rollback, post-DDL privilege failure rollback,
+no-execute defaults and generated preservation/bootstrap contracts. Five CI
+PostgreSQL cases cover missing public transaction, baseline rollback, post-DDL privilege failure rollback,
 exact seven-account bootstrap and retry refusal. The existing identity-store
 suite continues to cover browser isolation, competing bindings, revocation,
 disabled accounts/bindings and session provenance. All fixtures are synthetic;

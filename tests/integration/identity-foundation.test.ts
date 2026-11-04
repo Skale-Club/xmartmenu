@@ -3,7 +3,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
-import { buildFoundationSql } from '../../scripts/ops/prepare-xmartmenu-identity-foundation.mjs'
+import { buildFoundationSql, foundationTransaction } from '../../scripts/ops/prepare-xmartmenu-identity-foundation.mjs'
 import { assertManifest, MANIFEST_SQL, SOURCE_PROJECT, TABLES } from '../../scripts/ops/xmartmenu-source-protocol.mjs'
 
 const raw = process.env.IDENTITY_TEST_DATABASE_URL
@@ -73,6 +73,13 @@ const fresh = (state: ReturnType<typeof assertManifest>) => ({ version: 1, sourc
   authorityDigest: state.criticalDigests.profile_authority, authIdsDigest: state.criticalDigests.auth_ids,
   users: ids.map((id, index) => ({ id, disabled: index === 0 })), readOnlySnapshot: true })
 
+test('private body without its public open transaction refuses before any DDL', async () => {
+  const state = await manifest(), parts = await foundationTransaction(state)
+  await assert.rejects(db.query(parts.privateSql), /Public identity prelude transaction required/)
+  await db.query('ROLLBACK')
+  assert.deepEqual(await manifest(), state)
+})
+
 test('wrong candidate baseline fails atomically without creating tables or ledger rows', async () => {
   const state = await manifest(), changed = structuredClone(state); changed.digests.products = 'a'.repeat(64)
   await assert.rejects(db.query(await buildFoundationSql(changed)), /Candidate business baseline changed/)
@@ -93,7 +100,9 @@ test('new-table privilege failure rolls back all migrations and bootstrap', asyn
 
 test('fresh seven exact accounts preserve UUIDs/disabled status and commit only additive schema/ledger', async () => {
   const state = await manifest(), review = fresh(state)
-  await db.query(await buildFoundationSql(state, review))
+  const parts = await foundationTransaction(state, review)
+  await db.query(parts.publicPrelude)
+  await db.query(parts.privateSql)
   const accounts = (await db.query('SELECT id,disabled_at IS NOT NULL disabled,session_version FROM public.app_accounts ORDER BY id')).rows
   assert.deepEqual(accounts, review.users.map(row => ({ ...row, session_version: 0 })).sort((a, b) => a.id.localeCompare(b.id)))
   assert.equal((await db.query('SELECT count(*)::int n FROM supabase_migrations.schema_migrations')).rows[0].n, 95)

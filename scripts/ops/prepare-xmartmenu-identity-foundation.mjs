@@ -28,6 +28,8 @@ DO $guard$ BEGIN
  OR current_setting('session_preload_libraries')<>'' OR current_setting('local_preload_libraries')<>''
  THEN RAISE EXCEPTION 'Unreviewed identity SQL audit module'; END IF;
 END $guard$;
+CREATE TEMP TABLE identity_foundation_prepared(marker boolean NOT NULL) ON COMMIT DROP;
+INSERT INTO identity_foundation_prepared VALUES(true);
 `
 
 export function validateReview(value, manifest, now = Date.now()) {
@@ -119,6 +121,10 @@ export async function buildFoundationSql(manifest, review = null, now = Date.now
   const roles = `SELECT jsonb_agg(to_jsonb(r)-'rolpassword' ORDER BY r.rolname) FROM pg_roles r`
   // Entire returned string is private when review is supplied. No stdout CLI.
   return `${FOUNDATION_PRELUDE}
+DO $guard$ BEGIN
+ IF to_regclass('pg_temp.identity_foundation_prepared') IS NULL
+ THEN RAISE EXCEPTION 'Public identity prelude transaction required'; END IF;
+END $guard$;
 SET LOCAL statement_timeout=15000; SET LOCAL lock_timeout=2000;
 SET LOCAL timezone='UTC'; SET LOCAL datestyle='ISO, YMD'; SET LOCAL extra_float_digits=3; SET LOCAL bytea_output='hex';
 SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-identity-foundation-v1',0));

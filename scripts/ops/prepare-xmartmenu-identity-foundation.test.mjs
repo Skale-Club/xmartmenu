@@ -96,5 +96,7 @@ test('public quiet prelude is separated before private libpq SQL and rejects unr
   assert.match(parts.publicPrelude, /log_statement='none'/)
   assert.match(parts.publicPrelude, /session_preload_libraries/)
   assert.match(parts.publicPrelude, /local_preload_libraries/)
+  assert.match(parts.publicPrelude, /identity_foundation_prepared.*ON COMMIT DROP/)
+  assert.ok(parts.privateSql.indexOf('Public identity prelude transaction required') < parts.privateSql.indexOf('LOCK TABLE'))
   assert.ok(parts.privateSql.endsWith('COMMIT;\n'))
 })
