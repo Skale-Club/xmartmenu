@@ -85,7 +85,7 @@ export async function ownedTenantDetail(id: string) {
     const s = subscriptions[0], plan = s ? (await query('SELECT * FROM public.plans WHERE id=$1',[s.plan_id])).rows[0] : undefined
     const plans = (await query('SELECT id,name,slug FROM public.plans WHERE is_active ORDER BY sort_order,id LIMIT 1001')).rows
     if (plans.length > 1000) throw new AdminMenuError(409,'Plan list exceeds the supported limit')
-    const switchValue = (key: string) => typeof settings?.[key] === 'boolean' ? settings[key] as boolean : null
+    const switchValue = (key: string) => { const value = settings?.[key]; return typeof value === 'boolean' ? value : null }
     return { tenant:{ id:String(t.id),name:String(t.name),slug:String(t.slug),plan:text(t.plan),is_active:t.is_active === true,created_at:date(t.created_at),logo_url:text(settings?.logo_url),
         xphere_account_id:text(t.xphere_account_id),xphere_contact_id:text(t.xphere_contact_id),xphere_opportunity_id:text(t.xphere_opportunity_id),xphere_synced_at:text(t.xphere_synced_at),xphere_sync_error:text(t.xphere_sync_error) },
       initialStaff:[],initialMenus:rows.map(row => ({ id:String(row.id),name:String(row.name),slug:String(row.slug),language:text(row.language),is_active:row.is_active === true,position:Number(row.position),created_at:date(row.created_at),supported_languages:Array.isArray(row.supported_languages) ? row.supported_languages.filter((item): item is string => typeof item === 'string') : [] })),

@@ -42,7 +42,8 @@ const PLAN_FIELDS = ['name','description','monthly_price','annual_price','transa
 export function validatePlan(input: unknown,current?: Record<string,unknown>) {
   const body = object(input,PLAN_FIELDS), result: Record<string,unknown> = { ...(current ?? {}),...body }
   if (typeof result.name !== 'string' || !result.name.trim() || result.name.length > 200) refuse(400,'A plan name is required')
-  result.name = result.name.trim()
+  const name = result.name.trim()
+  result.name = name
   if (result.description !== undefined && result.description !== null && (typeof result.description !== 'string' || result.description.length > 5000)) refuse(400,'Invalid description')
   result.description ??= null
   for (const key of ['monthly_price','annual_price','transaction_fee_pct']) {
@@ -55,7 +56,7 @@ export function validatePlan(input: unknown,current?: Record<string,unknown>) {
   result.features ??= []; result.is_active ??= true; result.sort_order ??= 0
   if (!Array.isArray(result.features) || result.features.length > 100 || result.features.some(item => typeof item !== 'string' || !item || item.length > 100)) refuse(400,'Invalid plan features')
   if (typeof result.is_active !== 'boolean' || !Number.isInteger(result.sort_order) || Math.abs(Number(result.sort_order)) > 2147483647) refuse(400,'Invalid plan availability or sort order')
-  result.slug = result.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
+  result.slug = name.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')
   if (!result.slug) refuse(400,'Choose a plan name with letters or numbers')
   return Object.fromEntries([...PLAN_FIELDS,'slug'].map(key => [key,result[key]]))
 }
@@ -195,6 +196,8 @@ export async function deleteTenant(query: AdminMenuQuery,context: TenantAdminCon
 }
 
 const EXTRA_SETTINGS = ['logo_url','primary_color','accent_color','banner_url','address','phone','instagram','business_hours','custom_tags','currency','language','business_type','tagline','about','tip_percentage_1','tip_percentage_2','tip_percentage_3']
+export function tenantSettings(query: AdminMenuQuery,context: TenantAdminContext,id: string): Promise<{ tenant:Record<string,unknown>; settings:Record<string,unknown>|null }>
+export function tenantSettings(query: AdminMenuQuery,context: TenantAdminContext,id: string,input: unknown): Promise<Record<string,unknown>>
 export async function tenantSettings(query: AdminMenuQuery,context: TenantAdminContext,id: string,input?: unknown) {
   await requireTenantAdministrator(query,context,input !== undefined)
   if (!UUID.test(id)) refuse(404,'Restaurant not found')
