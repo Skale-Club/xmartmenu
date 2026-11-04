@@ -4,31 +4,11 @@
  * OpenRouter, and usage summaries.
  */
 import { createServiceClient } from '@/lib/supabase/server'
-import { encryptApiKey, maskApiKey } from '@/lib/crypto'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { readOwnedAiUsageSummary, readOwnedAiUnbilledCharge } from '@/lib/data/ai-panel-runtime'
 import { OPENROUTER_BASE_URL } from './openrouter'
 
-/** Masked values (what the panel shows) mean "keep the stored key". */
-export function isMaskedKey(value: string): boolean {
-  return value.includes('••')
-}
-
-/**
- * The new stored value for a key field: undefined = leave as is, null =
- * remove, otherwise the encrypted new key.
- */
-export function nextStoredKey(input: unknown): string | null | undefined {
-  if (input === undefined) return undefined
-  if (input === null || input === '') return null
-  if (typeof input !== 'string') return undefined
-  const key = input.trim()
-  if (!key) return null
-  if (isMaskedKey(key)) return undefined
-  return encryptApiKey(key)
-}
-
-export function maskedOrEmpty(plain: string | null): string {
-  return plain ? maskApiKey(plain) : ''
-}
+export { isMaskedKey, nextStoredKey, maskedOrEmpty } from './settings-key'
 
 export interface KeyCheck {
   ok: boolean
@@ -64,6 +44,7 @@ export interface UsageSummary {
 
 /** Usage since a date, for one client or (tenantId undefined) per client. */
 export async function usageByTenant(sinceIso: string, tenantId?: string): Promise<Map<string | null, UsageSummary>> {
+  if (adminMenusOwned()) return readOwnedAiUsageSummary(sinceIso, tenantId)
   let query = createServiceClient()
     .from('ai_usage_events')
     .select('tenant_id, key_source, billable, cost_usd, charge_usd, invoiced_at')
@@ -88,6 +69,7 @@ export async function usageByTenant(sinceIso: string, tenantId?: string): Promis
 
 /** All unbilled billable usage of a client, whatever the date. */
 export async function unbilledChargeUsd(tenantId: string): Promise<number> {
+  if (adminMenusOwned()) return readOwnedAiUnbilledCharge(tenantId)
   const { data } = await createServiceClient()
     .from('ai_usage_events')
     .select('charge_usd')

@@ -10,6 +10,11 @@ import { loadPlatformAiSettings, loadTenantAiSettings } from '@/lib/ai/access'
 import { billAiUsage } from '@/lib/ai/billing'
 import { parseBillingMode, clampMarkup } from '@/lib/ai/billing-rules'
 import { maskedOrEmpty, nextStoredKey, startOfMonthIso, unbilledChargeUsd, usageByTenant, verifyOpenRouterKey } from '@/lib/ai/settings-service'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { adminChatError } from '@/lib/admin/chat-context'
+import { assertOwnedAiActor, writeOwnedAiTenantSettings } from '@/lib/data/ai-panel-runtime'
+import { nativeAiTenantPayload } from '@/lib/ai/native-panel'
+import { readNativeAnalyticsBody } from '@/lib/data/public-analytics'
 
 export const dynamic = 'force-dynamic'
 
@@ -40,14 +45,29 @@ export async function tenantAiPayload(tenantId: string) {
 }
 
 async function handleGET(_request: Request, { params }: Ctx) {
-  if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
+  if (adminMenusOwned()) {
+    try { return NextResponse.json(await nativeAiTenantPayload({ actorId: authorization.principal.userId, role: 'superadmin', tenantId: id }, true)) }
+    catch (error) { return adminChatError(error) }
+  }
   return NextResponse.json(await tenantAiPayload(id))
 }
 
 async function handlePUT(request: Request, { params }: Ctx) {
-  if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
+  if (adminMenusOwned()) {
+    try {
+      const context = { actorId: authorization.principal.userId, role: 'superadmin' as const, tenantId: id }
+      let body: unknown
+      try { body = JSON.parse(await readNativeAnalyticsBody(request)) } catch (error) { if (error instanceof SyntaxError) body = {}; else throw error }
+      await writeOwnedAiTenantSettings(context, body, false)
+      return NextResponse.json(await nativeAiTenantPayload(context, true))
+    } catch (error) { return adminChatError(error) }
+  }
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
   const row: Record<string, unknown> = { tenant_id: id, updated_at: new Date().toISOString() }
 
@@ -82,8 +102,13 @@ async function handlePUT(request: Request, { params }: Ctx) {
 
 /** { action: 'test', api_key? } | { action: 'bill' } */
 async function handlePOST(request: Request, { params }: Ctx) {
-  if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
+  if (adminMenusOwned()) {
+    try { await assertOwnedAiActor({ actorId: authorization.principal.userId, role: 'superadmin', tenantId: id }) }
+    catch (error) { return adminChatError(error) }
+  }
   const body = (await request.json().catch(() => ({}))) as { action?: string; api_key?: string }
   if (body.action === 'test') {
     const candidate = body.api_key?.trim() && !body.api_key.includes('••') ? body.api_key.trim() : (await loadTenantAiSettings(id)).key
