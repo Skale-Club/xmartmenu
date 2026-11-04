@@ -5,18 +5,21 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { getTenantCapabilities } from '@/lib/tenant-plan'
 import MenuDisplayClient from './MenuDisplayClient'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { readOwnedDisplaySettings } from '@/lib/data/admin-display-settings-runtime'
 
 export default async function MenuDisplayPage() {
   const effective = await getEffectiveTenant()
   if (!effective) redirect('/auth/login')
   if (effective.role === 'store-staff') redirect('/dashboard')
 
-  const service = createServiceClient()
-  const { data } = await service
-    .from('tenant_settings')
-    .select('analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos, upsell_enabled')
-    .eq('tenant_id', effective.tenantId)
-    .maybeSingle()
+  const data = adminMenusOwned()
+    ? await readOwnedDisplaySettings({ tenantId: effective.tenantId, role: effective.role }, 'menu-display')
+    : (await createServiceClient()
+      .from('tenant_settings')
+      .select('analytics_enabled, visual_feed_enabled, menu_default_view, feed_autoplay_videos, upsell_enabled')
+      .eq('tenant_id', effective.tenantId)
+      .maybeSingle()).data
 
   const capabilities = await getTenantCapabilities(effective.tenantId, null)
 

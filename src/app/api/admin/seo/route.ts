@@ -3,6 +3,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { adminMenusOwned, AdminMenuError } from '@/lib/data/admin-menus'
+import { mutateOwnedDisplaySettings } from '@/lib/data/admin-display-settings-runtime'
+import { hasSameOriginAdminMutation } from '@/lib/data/admin-display-settings'
 
 /**
  * PATCH /api/admin/seo
@@ -15,6 +18,7 @@ async function handlePATCH(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (adminMenusOwned() && !hasSameOriginAdminMutation(request)) return NextResponse.json({ error: 'Origin mismatch' }, { status: 403 })
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') {
@@ -44,6 +48,18 @@ async function handlePATCH(request: Request) {
     seo_keywords: str(body.seo_keywords, 300),
     seo_og_image_url: ogImage,
     seo_noindex: body.seo_noindex === true,
+  }
+
+  if (adminMenusOwned()) {
+    try {
+      const values = Object.fromEntries(Object.entries(update).filter(([key]) => key !== 'tenant_id'))
+      await mutateOwnedDisplaySettings({ tenantId: effective.tenantId, role: effective.role }, 'seo', values)
+      return NextResponse.json({ ok: true })
+    } catch (error) {
+      if (error instanceof AdminMenuError) return NextResponse.json({ error: error.message }, { status: error.status })
+      log.error('PATCH /api/admin/seo', { err: error })
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
   }
 
   const service = await createServiceClient()

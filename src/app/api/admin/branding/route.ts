@@ -4,6 +4,9 @@ import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 import { normalizeWhatsapp } from '@/lib/service-settings'
+import { adminMenusOwned, AdminMenuError } from '@/lib/data/admin-menus'
+import { mutateOwnedDisplaySettings } from '@/lib/data/admin-display-settings-runtime'
+import { hasSameOriginAdminMutation } from '@/lib/data/admin-display-settings'
 
 const HEX = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 
@@ -19,6 +22,7 @@ async function handlePATCH(request: Request) {
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (adminMenusOwned() && !hasSameOriginAdminMutation(request)) return NextResponse.json({ error: 'Origin mismatch' }, { status: 403 })
 
   const body = await request.json().catch(() => null)
   if (!body || typeof body !== 'object') {
@@ -63,6 +67,18 @@ async function handlePATCH(request: Request) {
       return NextResponse.json({ error: `Invalid ${key}` }, { status: 400 })
     }
     update[key] = val
+  }
+
+  if (adminMenusOwned()) {
+    try {
+      const values = Object.fromEntries(Object.entries(update).filter(([key]) => key !== 'tenant_id'))
+      await mutateOwnedDisplaySettings({ tenantId: effective.tenantId, role: effective.role }, 'branding', values)
+      return NextResponse.json({ ok: true })
+    } catch (error) {
+      if (error instanceof AdminMenuError) return NextResponse.json({ error: error.message }, { status: error.status })
+      log.error('PATCH /api/admin/branding', { err: error })
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
   }
 
   const service = await createServiceClient()
