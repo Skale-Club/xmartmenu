@@ -29,7 +29,12 @@ export async function readAiPanelTenants(query: AdminMenuQuery, context: AdminAc
   const result = await query(`SELECT t.id,t.name,t.slug,s.billing_mode,(s.openrouter_api_key IS NOT NULL AND s.openrouter_api_key<>'') AS has_key,
     s.markup_pct,s.last_key_error,s.last_key_error_at FROM public.tenants t LEFT JOIN public.tenant_ai_settings s ON s.tenant_id=t.id ORDER BY t.name LIMIT 10001`)
   if (result.rows.length > 10000) throw new AdminMenuError(503, 'Client list is unavailable')
-  return result.rows.map(row => ({ ...row, last_key_error_at: row.last_key_error_at instanceof Date ? row.last_key_error_at.toISOString() : row.last_key_error_at }))
+  return result.rows.map(row => {
+    if (typeof row.id !== 'string' || typeof row.name !== 'string' || typeof row.slug !== 'string') throw new AdminMenuError(503, 'Client list is unavailable')
+    return { id: row.id, name: row.name, slug: row.slug, billing_mode: row.billing_mode, has_key: row.has_key === true,
+      markup_pct: row.markup_pct, last_key_error: typeof row.last_key_error === 'string' ? row.last_key_error : null,
+      last_key_error_at: row.last_key_error_at instanceof Date ? row.last_key_error_at.toISOString() : typeof row.last_key_error_at === 'string' ? row.last_key_error_at : null }
+  })
 }
 export async function readAiBillingAvailability(query: AdminMenuQuery, context: AdminActorContext) {
   await authorizeAdminActor(query, context)
