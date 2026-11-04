@@ -13,7 +13,7 @@ export const OWNER_AUDIT_PAGE_SIZE = 50
 export const PLATFORM_AUDIT_PAGE_SIZE = 100
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const MAX_BIGINT = 9_223_372_036_854_775_807n
+const MAX_BIGINT = BigInt('9223372036854775807')
 
 export type AuditFilters = {
   table?: string

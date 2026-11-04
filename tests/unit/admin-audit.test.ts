@@ -7,14 +7,14 @@ const actorId = '1d8f5270-73e3-42ee-95f0-b849c26dbb4d'
 
 describe('owned audit reads', () => {
   it('requires an owner role and never issues SQL for staff', async () => {
-    const query = vi.fn(async () => ({ rows: [] }))
+    const query = vi.fn(async (_sql: string, _values?: unknown[]) => ({ rows: [] as Record<string, unknown>[] }))
     await expect(readOwnerAuditPage(query, { tenantId, role: 'store-staff' }, {})).rejects.toBeInstanceOf(AdminMenuError)
     expect(query).not.toHaveBeenCalled()
   })
 
   it('limits owner rows to their tenant and shows platform names without reading them', async () => {
     const row = { id: '81', actor_id: actorId, actor_name: null, actor_role: null, actor_external: true }
-    const query = vi.fn(async () => ({ rows: [row] }))
+    const query = vi.fn(async (_sql: string, _values?: unknown[]) => ({ rows: [row] as Record<string, unknown>[] }))
     const result = await readOwnerAuditPage(query, { tenantId, role: 'store-admin' }, {
       table: 'products', actor: actorId, days: 7, before: '90',
     })
@@ -39,22 +39,22 @@ describe('owned audit reads', () => {
   })
 
   it('ignores malformed owner filters and caps pagination to the default window', async () => {
-    const query = vi.fn(async () => ({ rows: [] }))
+    const query = vi.fn(async (_sql: string, _values?: unknown[]) => ({ rows: [] as Record<string, unknown>[] }))
     await readOwnerAuditPage(query, { tenantId, role: 'superadmin' }, { table: 'platform_settings', actor: 'bad', days: 365, before: '9223372036854775808' })
     const [sql, values] = query.mock.calls[0]!
     expect(sql).not.toContain('e.actor_id=')
     expect(sql).not.toContain('e.id <')
     expect(sql).not.toContain('e.table_name=$')
     expect(values?.[1]).toEqual(OWNER_AUDIT_TABLES)
-    expect(values?.at(-1)).toBe(50)
+    expect(values?.[values.length - 1]).toBe(50)
     expect(new Date(values?.[2] as Date).getTime()).toBeGreaterThan(Date.now() - 30 * 86_400_000 - 1000)
   })
 
   it('requires the platform role and applies bounded platform filters', async () => {
     const query = vi.fn(async (sql: string) => {
-      if (sql.includes('FROM public.audit_events')) return { rows: [{ id: '10', tenant_id: tenantId, actor_id: actorId }] }
-      if (sql.includes('FROM public.tenants')) return { rows: [{ id: tenantId, name: 'Restaurant', slug: 'restaurant' }] }
-      return { rows: [{ id: actorId, full_name: 'Admin', role: 'superadmin' }] }
+      if (sql.includes('FROM public.audit_events')) return { rows: [{ id: '10', tenant_id: tenantId, actor_id: actorId }] as Record<string, unknown>[] }
+      if (sql.includes('FROM public.tenants')) return { rows: [{ id: tenantId, name: 'Restaurant', slug: 'restaurant' }] as Record<string, unknown>[] }
+      return { rows: [{ id: actorId, full_name: 'Admin', role: 'superadmin' }] as Record<string, unknown>[] }
     })
     await expect(readPlatformAuditPage(query, { role: 'store-admin' }, {})).rejects.toBeInstanceOf(AdminMenuError)
     expect(query).not.toHaveBeenCalled()
@@ -72,6 +72,6 @@ describe('owned audit reads', () => {
     expect(sql).toContain('e.request_id=$5')
     expect(sql).toContain('e.id < $6::bigint')
     expect(values?.[4]).toBe('r'.repeat(128))
-    expect(values?.at(-1)).toBe(100)
+    expect(values?.[values.length - 1]).toBe(100)
   })
 })

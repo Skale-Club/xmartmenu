@@ -121,7 +121,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
           {rows.map(row => (
             <li key={row.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:gap-6">
               <div className="w-44 shrink-0 text-xs text-zinc-500">
-                <time dateTime={row.occurred_at} className="tabular-nums">{new Date(row.occurred_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</time>
+                <time dateTime={new Date(row.occurred_at).toISOString()} className="tabular-nums">{new Date(row.occurred_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' })}</time>
                 <span className="block font-semibold text-zinc-800">
                   {row.actor_id ? <Link href={link({ actor: row.actor_id, before: undefined })} className="hover:underline">{who(row)}</Link> : who(row)}
                 </span>
