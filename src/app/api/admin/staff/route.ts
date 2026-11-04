@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
 import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
 import { checkPasswordChangeRequired } from '@/lib/auth/password-guard'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { accountAdministrationSelected } from '@/lib/data/account-administration'
+import { ownedStaffAccountsHttp } from '@/lib/admin/owned-account-administration-http'
 
 async function assertStoreAdmin() {
   const supabase = await createClient()
@@ -21,7 +24,8 @@ import { generatePassword as generateStaffPassword } from '@/lib/auth/password-g
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 
-async function handleGET() {
+async function handleGET(request: Request) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) return ownedStaffAccountsHttp(request)
   const ctx = await assertStoreAdmin()
   if (!ctx) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -50,6 +54,7 @@ async function handleGET() {
 }
 
 async function handlePOST(request: Request) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) return ownedStaffAccountsHttp(request)
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   const ctx = await assertStoreAdmin()

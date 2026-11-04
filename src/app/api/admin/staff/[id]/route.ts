@@ -5,6 +5,9 @@ import { checkPasswordChangeRequired } from '@/lib/auth/password-guard'
 import { generatePassword } from '@/lib/auth/password-gen'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { accountAdministrationSelected } from '@/lib/data/account-administration'
+import { ownedStaffAccountsHttp } from '@/lib/admin/owned-account-administration-http'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -35,6 +38,7 @@ async function assertStaffOwnership(staffId: string) {
 }
 
 async function handlePATCH(_req: Request, { params }: Props) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) return ownedStaffAccountsHttp(_req,(await params).id)
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   const { id } = await params
@@ -85,6 +89,7 @@ async function handlePATCH(_req: Request, { params }: Props) {
 }
 
 async function handleDELETE(_req: Request, { params }: Props) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) return ownedStaffAccountsHttp(_req,(await params).id)
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   const { id } = await params
