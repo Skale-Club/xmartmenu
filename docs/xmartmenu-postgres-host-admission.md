@@ -134,6 +134,14 @@ and dependency metadata: no HTTP/net/vault/storage call was found. No external
 column types or extension-owned public objects were found; default/constraint
 expressions referenced only `auth` outside the selected schemas.
 
+A subsequent read-only sequence audit found two ordinary BIGINT serial
+sequences: `ai_usage_events_id_seq`→`ai_usage_events.id` and
+`audit_events_id_seq`→`audit_events.id`, both in public. Start/minimum/increment/
+cache are 1, maximum is 9223372036854775807 and cycle is false. Their definition,
+ownership, last value and called state must be preserved, not zeroed or removed.
+Sequence state is outside MVCC snapshot guarantees; a final writer freeze is
+required for cutover even when rehearsal state comparisons match.
+
 The database also has provider event triggers in `extensions` and the public
 `ensure_rls`/`rls_auto_enable` pair. A rehearsal must inspect the archive TOC and
 refuse unreviewed global/provider objects; it must not silently import vendor

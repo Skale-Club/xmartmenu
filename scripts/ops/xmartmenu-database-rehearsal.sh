@@ -12,6 +12,7 @@ Source and TOC phase: client128+crypto128+host tmpfs64 =320MiB worst budget.
 Restore phase: target256 (includes pg_restore/psql/data tmpfs)+crypto128+host tmpfs64 =448MiB.
 No separate client128 runs while target is resident. Host CLI margin also required.
 Source47 public tables via one exported READ ONLY RR snapshot with strict CA/TLS.
+Two reviewed BIGINT sequence definitions/states are compared; they are not MVCC snapshot state and need final writer freeze.
 PG* credentials memory/stdin, AES-GCM key memory/stdin, encrypted archive only in tmpfs.
 Target network none, no ports, no persistent volume; auth scaffold is NOT migrated login.
 Only the one CREATE SCHEMA public TOC entry is omitted; SQL/COPY bodies never rewritten.

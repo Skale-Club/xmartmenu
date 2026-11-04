@@ -39,9 +39,20 @@ is acknowledged.
 The source admission also verifies SELECT coverage and absence of RLS filtering,
 the reviewed four public→auth.users FKs, policy role names and the 21 reviewed
 public functions' dependency class. A changed table/authority/ledger baseline,
-public sequence, unexpected function dependency or external FK is a refusal,
+unreviewed sequence, unexpected function dependency or external FK is a refusal,
 not permission to update the baseline automatically. The local twelve missing
 historical ledger entries are not replayed or repaired.
+
+The source has exactly two BIGINT sequences: `ai_usage_events_id_seq` owned by
+`public.ai_usage_events.id`, and `audit_events_id_seq` owned by
+`public.audit_events.id`. Both use ordinary serial ownership, start/minimum 1,
+increment/cache 1, maximum 9223372036854775807 and no cycle. Only those two names
+and their exact definitions/ownership are admitted. The TOC preserves each
+SEQUENCE, SEQUENCE OWNED BY and SEQUENCE SET entry. The manifesto compares
+`last_value` and `is_called`, including the never-called state; no source nextval
+or setval is executed. Sequence state is not MVCC-snapshot-consistent: a concurrent
+advance may make this rehearsal refuse reconciliation, and final production
+cutover requires a writer freeze. Success explicitly reports that limitation.
 
 All public integration rows are preserved as opaque app data, including private
 configuration or encrypted credentials when present. They remain only inside

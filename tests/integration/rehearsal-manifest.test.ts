@@ -22,6 +22,8 @@ before(async () => {
   await client.connect()
   await client.query("SET timezone='UTC'; SET datestyle='ISO, YMD'; SET extra_float_digits=3; SET bytea_output='hex'")
   const columns: Record<string, string> = {
+    ai_usage_events: 'id bigserial PRIMARY KEY, marker text',
+    audit_events: 'id bigserial PRIMARY KEY, marker text',
     profiles: 'id uuid PRIMARY KEY, tenant_id uuid, role text',
     products: 'id uuid PRIMARY KEY, tenant_id uuid, menu_id uuid, marker text',
     orders: 'id uuid PRIMARY KEY, tenant_id uuid, customer_id uuid, currency text, status text, total numeric(10,2)',
@@ -37,6 +39,7 @@ before(async () => {
   for (let index = 0; index < 6; index++) await client.query('INSERT INTO public.order_items VALUES($1,$2,$3)', [randomUUID(), orderIds[index % 2], product])
   for (let index = 0; index < 92; index++) await client.query('INSERT INTO supabase_migrations.schema_migrations VALUES($1,$2,$3)', [index === 91 ? '20261027097000' : `20260000${String(index).padStart(6, '0')}`, 'synthetic', ['SELECT 1']])
   await client.query("INSERT INTO public.platform_ai_settings VALUES(gen_random_uuid(),'synthetic-private-fixture'); CREATE FUNCTION public.synthetic_helper() RETURNS integer LANGUAGE sql AS 'SELECT 1'")
+  await client.query("SELECT pg_catalog.setval('public.audit_events_id_seq',34,true)")
 })
 after(async () => { await client.end().catch(() => {}); if (created) await owner.query('DROP DATABASE xmartmenu_rehearsal_manifest_test'); await owner.end() })
 const manifest = async () => assertManifest((await client.query(MANIFEST_SQL)).rows[0].manifest)
@@ -50,6 +53,9 @@ test('canonical exported-snapshot manifest SQL runs on47 synthetic PostgreSQL ta
     assert.equal(report.fullPublicRowDigestsMatched, 47)
     assert.equal(report.nullableOrderTotals, 'matched')
     assert.equal(report.loginMigrated, false)
+    assert.equal(report.sequenceStatesMatched, 2)
+    assert.equal(source.sequences.audit_events_id_seq.lastValue, '34')
+    assert.equal(source.sequences.ai_usage_events_id_seq.isCalled, false)
   } finally { await client.query('ROLLBACK') }
 })
 test('full public row digest detects an opaque integration-value change despite unchanged row count', async () => {
@@ -82,4 +88,15 @@ test('ledger record/function-body changes and NULL-to-USD conversion all fail re
   assert.throws(() => compareManifests(source, functionChange))
   await client.query("CREATE OR REPLACE FUNCTION public.synthetic_helper() RETURNS integer LANGUAGE sql AS 'SELECT 1'; UPDATE public.orders SET currency='USD'")
   await assert.rejects(manifest())
+  await client.query('UPDATE public.orders SET currency=NULL')
+})
+test('reviewed sequence states retain ownership and setval restores both called and never-called states', async () => {
+  const source = await manifest()
+  await client.query("SELECT pg_catalog.setval('public.audit_events_id_seq',999,true); SELECT pg_catalog.setval('public.ai_usage_events_id_seq',777,true)")
+  const changed = await manifest()
+  assert.throws(() => compareManifests(source, changed))
+  for (const [name, state] of Object.entries(source.sequences) as Array<[string, { lastValue: string; isCalled: boolean }]>) {
+    await client.query('SELECT pg_catalog.setval($1::regclass,$2::bigint,$3::boolean)', [`public.${name}`, state.lastValue, state.isCalled])
+  }
+  assert.equal(compareManifests(source, await manifest()).sequenceStatesMatched, 2)
 })

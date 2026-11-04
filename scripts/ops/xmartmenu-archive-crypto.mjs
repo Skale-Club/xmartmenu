@@ -4,7 +4,7 @@ import { chmod, open, readFile, writeFile } from 'node:fs/promises'
 import { Readable, Transform, Writable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { pathToFileURL } from 'node:url'
-import { assertPacket, compareManifests, compatibilitySql, MANIFEST_SQL, TABLES } from './xmartmenu-source-protocol.mjs'
+import { assertPacket, compareManifests, compatibilitySql, MANIFEST_SQL, SEQUENCES, TABLES } from './xmartmenu-source-protocol.mjs'
 
 export const MAX_ARCHIVE_BYTES = 32 * 1024 * 1024
 const MAGIC = Buffer.from('XMRH0001')
@@ -63,6 +63,7 @@ export function reviewedToc(text) {
   if (typeof text !== 'string' || text.length > 1024 * 1024) throw Error('Archive TOC refused')
   let publicSchemas = 0, ledgers = 0
   const tables = []
+  const sequences = Object.fromEntries(Object.keys(SEQUENCES).map(name => [name, new Set()]))
   const allowed = new Set(['TABLE', 'TABLE DATA', 'FUNCTION', 'VIEW', 'DEFAULT', 'CONSTRAINT', 'FK CONSTRAINT', 'INDEX', 'TRIGGER', 'POLICY', 'ROW SECURITY'])
   const lines = text.split('\n').map(line => {
     if (!line.trim() || line.startsWith(';')) return line
@@ -72,11 +73,16 @@ export function reviewedToc(text) {
     if (kind === 'SCHEMA' && schema === '-' && /^public(?:\s|$)/.test(name)) { publicSchemas++; return `;${line}` }
     if (kind === 'SCHEMA' && schema === '-' && /^supabase_migrations(?:\s|$)/.test(name)) { ledgers++; return line }
     if (['ENCODING', 'STDSTRINGS', 'SEARCHPATH'].includes(kind) && schema === '-') return line
+    if (schema === 'public' && ['SEQUENCE','SEQUENCE OWNED BY','SEQUENCE SET'].includes(kind)) {
+      const reviewed = sequences[name.split(' ')[0]]
+      if (!reviewed || reviewed.has(kind)) throw Error('Archive sequence refused')
+      reviewed.add(kind); return line
+    }
     if (!['public', 'supabase_migrations'].includes(schema) || !allowed.has(kind)) throw Error('Archive TOC refused')
     if (kind === 'TABLE' && schema === 'public') tables.push(name.split(' ')[0])
     return line
   })
-  if (publicSchemas !== 1 || ledgers !== 1 || tables.sort().join('|') !== TABLES.join('|')) throw Error('Archive TOC baseline refused')
+  if (publicSchemas !== 1 || ledgers !== 1 || tables.sort().join('|') !== TABLES.join('|') || Object.values(sequences).some(kinds => kinds.size !== 3)) throw Error('Archive TOC baseline refused')
   return lines.join('\n')
 }
 async function readKey(input) {

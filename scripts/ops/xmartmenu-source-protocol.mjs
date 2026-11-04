@@ -5,6 +5,7 @@ export const SOURCE_CA_URL = 'https://supabase-downloads.s3-ap-southeast-1.amazo
 export const SOURCE_CA_SHA256 = '807025AD50D4ED219D2C9C7D299C004F824EB00CF7F65AFEF607D07B72E6CAFA'
 export const TABLES = ['ai_generation_logs','ai_jobs','ai_usage','ai_usage_events','audit_events','blog_generation_jobs','blog_post_feedback','blog_posts','blog_rss_items','blog_rss_sources','blog_settings','categories','chat_addon_settings','chat_blocked_phones','chat_conversations','chat_messages','customer_profiles','delivery_zones','ingredients','launch_checklist_items','locations','menu_events','menu_sessions','menus','order_items','orders','payment_divergences','plans','platform_ai_settings','platform_settings','processed_stripe_events','product_ingredients','product_media','product_option_groups','product_options','products','profiles','qr_codes','restaurant_tables','scan_events','stripe_connections','telegram_settings','tenant_ai_settings','tenant_settings','tenant_subscriptions','tenants','waiter_calls']
 const ID_GROUPS = ['auth_ids','order_items','orders','product_tenants','profile_authority','tenants']
+export const SEQUENCES = { ai_usage_events_id_seq: 'ai_usage_events', audit_events_id_seq: 'audit_events' }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const HEX = /^[a-f0-9]{64}$/
 export const canonical = value => value && typeof value === 'object' && !Array.isArray(value)
@@ -39,6 +40,13 @@ export const MANIFEST_SQL = `WITH relations AS MATERIALIZED (
  SELECT relname,((xpath('/row/n/text()',query_to_xml(format('SELECT count(*) AS n FROM public.%I',relname),false,true,'')))[1]::text)::bigint AS n FROM relations
 ), table_digests AS MATERIALIZED (
  SELECT relname,(xpath('/row/value/text()',query_to_xml(format($row_digest$SELECT encode(pg_catalog.sha256(convert_to(coalesce(string_agg(row_sha,'' ORDER BY row_sha COLLATE "C"),''),'UTF8')),'hex') AS value FROM (SELECT encode(pg_catalog.sha256(convert_to(to_jsonb(t)::text,'UTF8')),'hex') AS row_sha FROM public.%I t) source_rows$row_digest$,relname),false,true,'')))[1]::text AS value FROM relations
+), sequence_definitions AS MATERIALIZED (
+ SELECT c.relname,s.*,d.deptype AS ownership,tn.nspname AS table_schema,t.relname AS owned_table,a.attname AS owned_column,
+  query_to_xml(format('SELECT last_value::text AS last_value,is_called FROM public.%I',c.relname),false,true,'') AS state
+ FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace JOIN pg_sequence s ON s.seqrelid=c.oid
+ LEFT JOIN pg_depend d ON d.classid='pg_class'::regclass AND d.objid=c.oid AND d.deptype IN ('a','i')
+ LEFT JOIN pg_class t ON t.oid=d.refobjid LEFT JOIN pg_namespace tn ON tn.oid=t.relnamespace
+ LEFT JOIN pg_attribute a ON a.attrelid=t.oid AND a.attnum=d.refobjsubid WHERE n.nspname='public' AND c.relkind='S'
 ), critical_input AS (
  SELECT 'auth_ids'::text AS name,id::text AS key,jsonb_build_object('id',id)::text AS payload FROM auth.users
  UNION ALL SELECT 'profile_authority',id::text,jsonb_build_object('id',id,'tenant_id',tenant_id,'role',role)::text FROM public.profiles
@@ -66,13 +74,21 @@ SELECT jsonb_build_object('version',1,'publicTableCount',(SELECT count(*) FROM t
  'authWithoutProfile',(SELECT count(*) FROM auth.users u LEFT JOIN public.profiles p ON p.id=u.id WHERE p.id IS NULL),
  'roles',(SELECT jsonb_object_agg(role,n) FROM (SELECT role,count(*) AS n FROM public.profiles GROUP BY role) r),
  'orderTotals',(SELECT jsonb_agg(to_jsonb(t) ORDER BY status,currency NULLS FIRST) FROM totals t),
- 'sequenceCount',(SELECT count(*) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind='S'),
+ 'sequenceCount',(SELECT count(*) FROM sequence_definitions),
+ 'sequences',(SELECT jsonb_object_agg(relname,jsonb_build_object('type',format_type(seqtypid,NULL),'start',seqstart::text,'increment',seqincrement::text,'minimum',seqmin::text,'maximum',seqmax::text,'cache',seqcache::text,'cycle',seqcycle,
+   'ownership',ownership,'tableSchema',table_schema,'table',owned_table,'column',owned_column,'lastValue',(xpath('/row/last_value/text()',state))[1]::text,'isCalled',((xpath('/row/is_called/text()',state))[1]::text)::boolean)) FROM sequence_definitions),
  'ledgerCount',(SELECT count(*) FROM supabase_migrations.schema_migrations),'ledgerLatest',(SELECT max(version) FROM supabase_migrations.schema_migrations),
  'ledgerDigest',(SELECT encode(pg_catalog.sha256(convert_to(coalesce(string_agg(to_jsonb(t)::text,'' ORDER BY version COLLATE "C"),''),'UTF8')),'hex') FROM supabase_migrations.schema_migrations t)) AS manifest`
 
 export function assertManifest(manifest) {
-  const fields = ['version','publicTableCount','counts','digests','criticalDigests','functionDigest','authIdCount','orphanProfiles','authWithoutProfile','roles','orderTotals','sequenceCount','ledgerCount','ledgerLatest','ledgerDigest'].sort()
-  if (!manifest || Object.keys(manifest).sort().join('|') !== fields.join('|') || manifest.version !== 1 || manifest.publicTableCount !== 47 || manifest.authIdCount !== 7 || manifest.orphanProfiles !== 0 || manifest.authWithoutProfile !== 0 || manifest.sequenceCount !== 0 || manifest.ledgerCount !== 92 || manifest.ledgerLatest !== '20261027097000') throw Error('Manifest baseline refused')
+  const fields = ['version','publicTableCount','counts','digests','criticalDigests','functionDigest','authIdCount','orphanProfiles','authWithoutProfile','roles','orderTotals','sequenceCount','sequences','ledgerCount','ledgerLatest','ledgerDigest'].sort()
+  if (!manifest || Object.keys(manifest).sort().join('|') !== fields.join('|') || manifest.version !== 1 || manifest.publicTableCount !== 47 || manifest.authIdCount !== 7 || manifest.orphanProfiles !== 0 || manifest.authWithoutProfile !== 0 || manifest.sequenceCount !== 2 || manifest.ledgerCount !== 92 || manifest.ledgerLatest !== '20261027097000') throw Error('Manifest baseline refused')
+  if (!manifest.sequences || Object.keys(manifest.sequences).sort().join('|') !== Object.keys(SEQUENCES).join('|')) throw Error('Sequence baseline refused')
+  for (const [name, table] of Object.entries(SEQUENCES)) {
+    const sequence = manifest.sequences[name]
+    const expected = { type:'bigint',start:'1',increment:'1',minimum:'1',maximum:'9223372036854775807',cache:'1',cycle:false,ownership:'a',tableSchema:'public',table,column:'id',lastValue:sequence?.lastValue,isCalled:sequence?.isCalled }
+    if (!sequence || typeof sequence.lastValue !== 'string' || !/^[1-9][0-9]*$/.test(sequence.lastValue) || BigInt(sequence.lastValue) > 9223372036854775807n || typeof sequence.isCalled !== 'boolean' || JSON.stringify(canonical(sequence)) !== JSON.stringify(canonical(expected))) throw Error('Sequence baseline refused')
+  }
   if (!manifest.counts || Object.keys(manifest.counts).sort().join('|') !== TABLES.join('|') || !Object.values(manifest.counts).every(value => Number.isSafeInteger(value) && value >= 0)
     || manifest.counts.profiles !== 7 || manifest.counts.tenants !== 3 || manifest.counts.products !== 56 || manifest.counts.orders !== 2 || manifest.counts.order_items !== 6) throw Error('Manifest baseline refused')
   if (!manifest.digests || Object.keys(manifest.digests).sort().join('|') !== TABLES.join('|') || !Object.values(manifest.digests).every(value => typeof value === 'string' && HEX.test(value))
@@ -83,7 +99,7 @@ export function assertManifest(manifest) {
 export function compareManifests(source, target) {
   assertManifest(source); assertManifest(target)
   if (JSON.stringify(canonical(source)) !== JSON.stringify(canonical(target))) throw Error('Snapshot reconciliation refused')
-  return { rehearsal: 'passed', sourceProject: SOURCE_PROJECT, publicTableCountsMatched: 47, fullPublicRowDigestsMatched: 47, criticalIdGroupsMatched: 6, profiles: 7, tenants: 3, products: 56, orders: 2, orderItems: 6, originalUuidRelations: 'matched', roleDistribution: 'matched', nullableOrderTotals: 'matched', functionBodies: 'matched', ledgerRecords: 92, sourceSnapshot: 'exported_repeatable_read', sourceReadOnly: true, authStub: 'non_authenticating_uuid_fk_compatibility_only', loginMigrated: false, applicationCutover: false, temporaryResourcesRemoved: true }
+  return { rehearsal: 'passed', sourceProject: SOURCE_PROJECT, publicTableCountsMatched: 47, fullPublicRowDigestsMatched: 47, criticalIdGroupsMatched: 6, sequenceDefinitionsMatched:2,sequenceStatesMatched:2,sequenceSnapshotGuarantee:'not_mvcc_requires_final_writer_freeze',profiles: 7, tenants: 3, products: 56, orders: 2, orderItems: 6, originalUuidRelations: 'matched', roleDistribution: 'matched', nullableOrderTotals: 'matched', functionBodies: 'matched', ledgerRecords: 92, sourceSnapshot: 'exported_repeatable_read', sourceReadOnly: true, authStub: 'non_authenticating_uuid_fk_compatibility_only', loginMigrated: false, applicationCutover: false, temporaryResourcesRemoved: true }
 }
 export function assertPacket(packet) {
   if (!packet || Object.keys(packet).sort().join('|') !== ['authIds','ca','environment','manifest','snapshot'].sort().join('|') || JSON.stringify(packet).length > 131072) throw Error('Source packet refused')

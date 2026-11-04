@@ -13,7 +13,8 @@ Source: exact XmartMenu project ${SOURCE_PROJECT}; strict pinned CA/TLS; one exp
 Destination: temporary PG17 network-none container on ${SSH_HOST}; no persistent target or volume.
 Fresh capacity gate before each phase; source client128MiB, crypto128MiB, target256MiB/no extra swap.
 Only AES-256-GCM authenticated archive in bounded private tmpfs; key memory/stdin only.
-Compare47 table counts/full row digests,6 critical UUID/authority groups, functions, ledger and NULL order totals.
+Compare47 table counts/full row digests,6 critical UUID/authority groups,2 reviewed sequence definitions/states, functions, ledger and NULL order totals.
+Sequence state is not MVCC-snapshot-consistent; final cutover requires a writer freeze.
 Target auth UUID/FK scaffold is NOT migrated login; no private Auth sessions/provider refresh tokens/password hashes copied.
 No CI data/credentials/artifacts, production DDL, migration replay, app cutover, network change or API token.
 Execution requires exact code review, static files already transferred and an admitted host window.

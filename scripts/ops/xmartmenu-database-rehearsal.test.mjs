@@ -7,7 +7,7 @@ import { join, resolve } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { Readable, Writable } from 'node:stream'
 import { authenticateArchive, decryptArchive, encryptArchive, MAX_ARCHIVE_BYTES, reviewedToc } from './xmartmenu-archive-crypto.mjs'
-import { assertManifest, assertPacket, canonical, compareManifests, compatibilitySql, MANIFEST_SQL, publicCa, SOURCE_PROJECT, sourceConfig, TABLES } from './xmartmenu-source-protocol.mjs'
+import { assertManifest, assertPacket, canonical, compareManifests, compatibilitySql, MANIFEST_SQL, publicCa, SEQUENCES, SOURCE_PROJECT, sourceConfig, TABLES } from './xmartmenu-source-protocol.mjs'
 import { sshEnvironment } from './xmartmenu-database-rehearsal.mjs'
 
 const bash = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : 'bash'
@@ -25,7 +25,8 @@ export function syntheticManifest() {
   return { version: 1, publicTableCount: 47, counts, digests: Object.fromEntries(TABLES.map(name => [name, hash])),
     criticalDigests: Object.fromEntries(['auth_ids','order_items','orders','product_tenants','profile_authority','tenants'].map(name => [name, hash])),
     functionDigest: hash, authIdCount: 7, orphanProfiles: 0, authWithoutProfile: 0, roles: { superadmin: 1, 'store-admin': 3, customer: 3 },
-    orderTotals: [{ status: 'cancelled', currency: null, count: 1, total: '247.90' }, { status: 'pending', currency: null, count: 1, total: '77.90' }], sequenceCount: 0, ledgerCount: 92, ledgerLatest: '20261027097000', ledgerDigest: hash }
+    orderTotals: [{ status: 'cancelled', currency: null, count: 1, total: '247.90' }, { status: 'pending', currency: null, count: 1, total: '77.90' }], sequenceCount: 2,
+    sequences: Object.fromEntries(Object.entries(SEQUENCES).map(([name, table]) => [name,{type:'bigint',start:'1',increment:'1',minimum:'1',maximum:'9223372036854775807',cache:'1',cycle:false,ownership:'a',tableSchema:'public',table,column:'id',lastValue:name==='audit_events_id_seq'?'34':'1',isCalled:name==='audit_events_id_seq'}])),ledgerCount: 92, ledgerLatest: '20261027097000', ledgerDigest: hash }
 }
 test('both launchers default to offline plans and reject host/owner/image/source override attempts', () => {
   for (const [binary, script] of [[bash, runner], [process.execPath, driver]]) {
@@ -65,8 +66,10 @@ test('all47 row digests,6 UUID authority groups, NULL totals/functions/ledger mu
   const report = compareManifests(source, target)
   assert.equal(report.loginMigrated, false); assert.equal(report.temporaryResourcesRemoved, true)
   assert.equal(report.fullPublicRowDigestsMatched, 47)
+  assert.equal(report.sequenceStatesMatched, 2)
+  assert.equal(report.sequenceSnapshotGuarantee, 'not_mvcc_requires_final_writer_freeze')
   assert.equal(JSON.stringify(report).includes('a'.repeat(64)), false)
-  for (const change of [m => { m.digests.platform_ai_settings = 'b'.repeat(64) }, m => { m.criticalDigests.profile_authority = 'b'.repeat(64) }, m => { m.functionDigest = 'b'.repeat(64) }, m => { m.ledgerDigest = 'b'.repeat(64) }, m => { m.orderTotals[0].currency = 'USD' }, m => { m.roles.superadmin = 2 }, m => { m.sequenceCount = 1 }]) {
+  for (const change of [m => { m.digests.platform_ai_settings = 'b'.repeat(64) }, m => { m.criticalDigests.profile_authority = 'b'.repeat(64) }, m => { m.functionDigest = 'b'.repeat(64) }, m => { m.ledgerDigest = 'b'.repeat(64) }, m => { m.orderTotals[0].currency = 'USD' }, m => { m.roles.superadmin = 2 }, m => { m.sequenceCount = 1 },m=>{m.sequences.audit_events_id_seq.lastValue='35'},m=>{m.sequences.ai_usage_events_id_seq.isCalled=true},m=>{m.sequences.audit_events_id_seq.table='profiles'}]) {
     const changed = structuredClone(source); change(changed); assert.throws(() => compareManifests(source, changed))
   }
   assert.equal(JSON.stringify(canonical(source)), JSON.stringify(canonical(target)))
@@ -103,12 +106,13 @@ test('encrypted archive refuses overflow without allocating the whole archive', 
   await assert.rejects(encryptArchive(input, join(directory, 'oversized.gcm'), randomBytes(32).toString('hex')))
 })
 test('archive TOC skips exactly one public schema and rejects hosted/global objects or changed table shape', () => {
-  const fixture = ['; synthetic fixture','1; 2615 1 SCHEMA - public postgres','2; 2615 2 SCHEMA - supabase_migrations postgres', ...TABLES.map((name, i) => `${i + 3}; 1259 ${i + 3} TABLE public ${name} postgres`)].join('\n')
+  const fixture = ['; synthetic fixture','1; 2615 1 SCHEMA - public postgres','2; 2615 2 SCHEMA - supabase_migrations postgres', ...TABLES.map((name, i) => `${i + 3}; 1259 ${i + 3} TABLE public ${name} postgres`),...Object.keys(SEQUENCES).flatMap((name,i)=>['SEQUENCE','SEQUENCE OWNED BY','SEQUENCE SET'].map((kind,j)=>`${100+i*3+j}; 1259 ${100+i*3+j} ${kind} public ${name} postgres`))].join('\n')
   const list = reviewedToc(fixture)
   assert.match(list, /;1; 2615 1 SCHEMA - public/)
   assert.throws(() => reviewedToc(fixture + '\n999; 3466 99 EVENT TRIGGER - ensure_rls postgres'))
   assert.throws(() => reviewedToc(fixture + '\n999; 1259 99 TABLE auth sessions postgres'))
   assert.throws(() => reviewedToc(fixture.replace('TABLE public users', 'TABLE public other').replace('TABLE public profiles', 'TABLE public other')))
+  assert.throws(() => reviewedToc(fixture.replace('SEQUENCE SET public audit_events_id_seq','SEQUENCE SET public unreviewed_seq')))
 })
 test('timeout preamble filter preserves SQL/COPY bodies and refuses changed pg_restore preambles', () => {
   const script = readFileSync(runner, 'utf8').replace(/\r\n/g, '\n')
