@@ -186,7 +186,7 @@ test('KDS projects tenant-only recent orders/items and does not expose new inter
   const found = await run(false,r => r.list(context,new Date(Date.now()-48*3600000).toISOString()))
   assert.ok(found.data.some(o => o.id===created.id))
   assert.ok(found.data.every(o => o.tenant_id===a && !Object.hasOwn(o,'private_marker') && !Object.hasOwn(o,'idempotency_key')))
-  assert.ok(found.data.every(o => (o.order_items as Array<Record<string,unknown>>).every(i => !Object.hasOwn(i,'private_marker'))))
+  assert.ok(found.data.every(o => o.order_items.every(i => !Object.hasOwn(i,'private_marker'))))
   await assert.rejects(run(false,r => r.list({ tenantId:a,role:'customer' },new Date().toISOString())),{ status:403 })
 })
 
