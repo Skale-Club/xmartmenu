@@ -1,17 +1,35 @@
 export const dynamic = 'force-dynamic'
 
-import { createClient } from '@/lib/supabase/server'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
+import { ownedCatalogEnabled } from '@/lib/data/admin-ingredients'
+import { readOwnedIngredientsPage } from '@/lib/data/admin-ingredients-runtime'
+import { createClient } from '@/lib/supabase/server'
 import { notFound, redirect } from 'next/navigation'
 import IngredientsClient from './IngredientsClient'
 
 export default async function IngredientsPage() {
-  const supabase = await createClient()
   const effective = await getEffectiveTenant()
   if (!effective) notFound()
 
   const tenantId = effective.tenantId
   const canManage = effective.role !== 'store-staff'
+
+  if (ownedCatalogEnabled()) {
+    const { ingredients, settings } = await readOwnedIngredientsPage({ tenantId, role: effective.role })
+    if (!settings.ingredient_customization_enabled) redirect('/dashboard')
+
+    return (
+      <IngredientsClient
+        ingredients={ingredients}
+        tenantId={tenantId}
+        currency={settings.currency ?? 'USD'}
+        canManage={canManage}
+        ownedSource
+      />
+    )
+  }
+
+  const supabase = await createClient()
 
   const { data: settings } = await supabase
     .from('tenant_settings')
@@ -33,6 +51,7 @@ export default async function IngredientsPage() {
       tenantId={tenantId}
       currency={settings?.currency ?? 'USD'}
       canManage={canManage}
+      ownedSource={false}
     />
   )
 }

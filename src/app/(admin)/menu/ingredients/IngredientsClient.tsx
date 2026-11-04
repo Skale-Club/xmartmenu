@@ -18,9 +18,26 @@ interface Props {
   tenantId: string
   currency: string
   canManage: boolean
+  ownedSource: boolean
 }
 
-export default function IngredientsClient({ ingredients: initial, tenantId, currency, canManage }: Props) {
+async function ownedRequest<T>(url: string, method: string, body?: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method,
+    cache: 'no-store',
+    ...(body === undefined ? {} : {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  })
+  const result = await response.json().catch(() => null) as { error?: unknown } | null
+  if (!response.ok) {
+    throw new Error(typeof result?.error === 'string' ? result.error : 'Ingredient request failed.')
+  }
+  return result as T
+}
+
+export default function IngredientsClient({ ingredients: initial, tenantId, currency, canManage, ownedSource }: Props) {
   const [ingredients, setIngredients] = useState(initial)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -34,8 +51,6 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
     default_add_price: '',
     is_available: true,
   })
-  const supabase = createClient()
-
   function resetForm() {
     setForm({ name: '', default_extra_price: '', default_add_price: '', is_available: true })
     setEditingId(null)
@@ -65,6 +80,27 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
       default_add_price: parseFloat(form.default_add_price) || 0,
       is_available: form.is_available,
     }
+    if (ownedSource) {
+      try {
+        const saved = await ownedRequest<Ingredient>(
+          editingId ? `/api/admin/ingredients/${encodeURIComponent(editingId)}` : '/api/admin/ingredients',
+          editingId ? 'PATCH' : 'POST',
+          payload,
+        )
+        if (editingId) setIngredients(prev => prev.map(i => i.id === editingId ? saved : i))
+        else setIngredients(prev => [...prev, saved])
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : 'Could not save ingredient.')
+        setLoading(false)
+        return
+      }
+      notifyPublicMenuChanged()
+      resetForm()
+      setLoading(false)
+      return
+    }
+
+    const supabase = createClient()
     if (editingId) {
       const { data, error } = await supabase
         .from('ingredients')
@@ -90,6 +126,21 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
 
   async function confirmDelete() {
     if (!confirmId) return
+    if (ownedSource) {
+      try {
+        await ownedRequest<{ ok: true }>(`/api/admin/ingredients/${encodeURIComponent(confirmId)}`, 'DELETE')
+      } catch (error) {
+        setFormError(error instanceof Error ? error.message : 'Could not delete ingredient.')
+        return
+      }
+      notifyPublicMenuChanged()
+      setFormError(null)
+      setIngredients(prev => prev.filter(i => i.id !== confirmId))
+      setConfirmId(null)
+      return
+    }
+
+    const supabase = createClient()
     const { error } = await supabase.from('ingredients').delete().eq('id', confirmId)
     if (!error) notifyPublicMenuChanged()
     setIngredients(prev => prev.filter(i => i.id !== confirmId))
@@ -112,6 +163,25 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
       .sort((a, b) => a.position - b.position)
     setIngredients(reordered)
     setReorderInFlight(true)
+    if (ownedSource) {
+      try {
+        const updated = await ownedRequest<Ingredient[]>('/api/admin/ingredients/reorder', 'POST', {
+          firstId: current.id,
+          secondId: swap.id,
+        })
+        setIngredients(updated)
+        notifyPublicMenuChanged()
+        setFormError(null)
+      } catch (error) {
+        setIngredients(prev)
+        setFormError(error instanceof Error ? error.message : 'Could not reorder ingredients.')
+      } finally {
+        setReorderInFlight(false)
+      }
+      return
+    }
+
+    const supabase = createClient()
     try {
       const results = await Promise.all([
         supabase.from('ingredients').update({ position: swap.position }).eq('id', current.id),
@@ -225,6 +295,12 @@ export default function IngredientsClient({ ingredients: initial, tenantId, curr
           </button>
         )}
       </div>
+
+      {formError && !showForm && (
+        <p role="alert" className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          {formError}
+        </p>
+      )}
 
       {ingredients.length === 0 ? (
         <div className="text-center py-16 text-zinc-400">

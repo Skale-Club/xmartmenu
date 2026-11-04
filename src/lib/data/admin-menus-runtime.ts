@@ -48,3 +48,5 @@ export async function adminMenuTransaction<T>(source: Pick<pg.Pool, 'connect'>, 
 export const listOwnedAdminMenus = (context: AdminMenuContext) => adminMenuTransaction(ownedPool(), false, query => readAdminMenus(query, context))
 export const findOwnedAdminMenu = (context: AdminMenuContext, id: string) => adminMenuTransaction(ownedPool(), false, query => findAdminMenu(query, context, id))
 export const mutateOwnedAdminMenu = (context: AdminMenuContext, mutation: AdminMenuMutation) => adminMenuTransaction(ownedPool(), true, query => mutateAdminMenu(query, context, mutation))
+/** Other back-office repositories share this pool and its connection budget. */
+export const ownedAdminTransaction = <T>(write: boolean, operation: (query: AdminMenuQuery) => Promise<T>) => adminMenuTransaction(ownedPool(), write, operation)
