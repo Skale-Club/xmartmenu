@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { randomSuffix } from '@/lib/auth/password-gen'
 import { rateLimit, getClientIp } from '@/lib/rate-limit'
 import { getRequestOrigin } from '@/lib/site-url'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
 
 function getSafeRedirect(value: unknown) {
   if (typeof value !== 'string') return '/'
@@ -18,6 +19,8 @@ function generateCustomerCredentials() {
 }
 
 export async function POST(request: Request) {
+  // An owned denial must never create a Source Auth user through this route.
+  if (ownedAuthSelected()) return NextResponse.json({ error: 'Verify your phone or Google account on the registration page.' }, { status: 409 })
   const rl = await rateLimit('auth-register', getClientIp(request), 5, '10 m')
   if (!rl.ok) return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
 

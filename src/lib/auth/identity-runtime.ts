@@ -7,11 +7,14 @@ import { getClientIp, rateLimit } from '@/lib/rate-limit'
 import { getIdentityServices } from './identity-services'
 import { readLegacyPasswordOwner } from './legacy-password-proof'
 import { OwnedPrincipalRepository } from './owned-principal'
+import { ownedAuthSelected } from './owned-principal'
+import { NativeRegistration } from './native-registration'
 
 let handler: ReturnType<typeof createIdentityHttp> | undefined
 function runtime() {
   if (handler) return handler
-  const { config, store, pool } = getIdentityServices()
+  const { config, store, pool, customerAccount } = getIdentityServices()
+  const registration = new NativeRegistration(pool,config.web.projectId,customerAccount)
   handler = createIdentityHttp({
     enabled: () => process.env.GOOGLE_AUTH_ENABLED === 'true', origin: config.origin, config: config.web,
     verifyConfig: () => verifyPublicProject({ ...config.web, projectNumber: config.projectNumber, origin: config.origin }),
@@ -29,6 +32,10 @@ function runtime() {
       return !!principal && !principal.mustChangePassword
     },
     store,
+    register: async (identity,name,kind) => {
+      if (!ownedAuthSelected() || process.env.OWNED_REGISTRATION_ENABLED !== 'true') throw new Error('Native registration unavailable')
+      return registration.create(identity,name,kind)
+    },
   })
   return handler
 }
