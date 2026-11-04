@@ -25,6 +25,13 @@ services:
       - NODE_ENV=production
       - PORT=3000
       - HOSTNAME=0.0.0.0
+    volumes:
+      - type: bind
+        source: /opt/xmartmenu/google-identity-runtime
+        target: /run/secrets/xmartmenu-google-identity
+        read_only: true
+        bind:
+          create_host_path: false
     ports:
       - "3000"
     healthcheck:
