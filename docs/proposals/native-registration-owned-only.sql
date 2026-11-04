@@ -5,7 +5,7 @@ BEGIN;
 SET LOCAL lock_timeout='2s';
 SET LOCAL statement_timeout='15s';
 DO $guard$ BEGIN
- IF current_database()<>'xmartmenu' THEN RAISE EXCEPTION 'Owned candidate required'; END IF;
+ IF current_database()<>'xmartmenu' OR to_regrole('xmartmenu_runtime') IS NULL THEN RAISE EXCEPTION 'Owned candidate required'; END IF;
  IF NOT EXISTS (SELECT FROM pg_constraint WHERE conrelid='public.profiles'::regclass
    AND conname='profiles_id_fkey' AND contype='f' AND confrelid='auth.users'::regclass
    AND confdeltype='c' AND convalidated AND pg_get_constraintdef(oid)='FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE')
@@ -28,6 +28,9 @@ ALTER TABLE public.profiles DROP CONSTRAINT profiles_id_fkey;
 ALTER TABLE public.app_identity_bindings DROP CONSTRAINT app_identity_bindings_binding_proof_check;
 ALTER TABLE public.app_identity_bindings ADD CONSTRAINT app_identity_bindings_binding_proof_check
  CHECK(binding_proof IN('legacy-session','owned-session','google-subject','operator-recovery','native-registration'));
+-- Importer revokes public function execution and currently grants only orders.
+-- Give the existing runtime this exact onboarding function, no broad grant.
+GRANT EXECUTE ON FUNCTION public.complete_onboarding(uuid,jsonb) TO xmartmenu_runtime;
 DO $unchanged$ BEGIN
  IF (SELECT profiles FROM native_registration_before) IS DISTINCT FROM (SELECT md5(coalesce(jsonb_agg(to_jsonb(p) ORDER BY id)::text,'')) FROM public.profiles p)
  OR (SELECT accounts FROM native_registration_before) IS DISTINCT FROM (SELECT md5(coalesce(jsonb_agg(to_jsonb(a) ORDER BY id)::text,'')) FROM public.app_accounts a)

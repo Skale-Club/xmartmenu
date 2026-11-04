@@ -15,15 +15,17 @@ if (!['localhost','127.0.0.1'].includes(target.hostname) || target.pathname !== 
 const control = new pg.Pool({ connectionString: raw,max: 1 })
 const candidate = new URL(target); candidate.pathname = '/xmartmenu'
 const admin = new pg.Pool({ connectionString: candidate.href,max: 2,statement_timeout: 5000 })
+const backend = new pg.Pool({ connectionString: candidate.href,max: 2,statement_timeout: 5000,options: '-c role=xmartmenu_runtime' })
 const ids = Array.from({ length: 7 },() => randomUUID())
 let created = false
 const identity = (subject: string,phone?: string): VerifiedGoogleIdentity => ({ projectId: 'test-project',subject,provider: phone ? 'phone' : 'google.com',phone,authenticatedAt: Math.floor(Date.now()/1000) })
-const registration = new NativeRegistration(admin,'test-project',async id => ({ disabled: false,validSince: 0,phoneE164: id.phone ?? null }))
+const registration = new NativeRegistration(backend,'test-project',async id => ({ disabled: false,validSince: 0,phoneE164: id.phone ?? null }))
 const counts = async () => (await admin.query(`SELECT (SELECT count(*)::int FROM public.profiles) profiles,(SELECT count(*)::int FROM public.app_accounts) accounts,(SELECT count(*)::int FROM public.app_identity_bindings) bindings,(SELECT count(*)::int FROM public.app_sessions) sessions`)).rows[0]
 
 before(async () => {
   assert.equal((await control.query("SELECT count(*)::int n FROM pg_database WHERE datname='xmartmenu'")).rows[0].n,0,'Must not reuse an existing database')
   await control.query('CREATE DATABASE xmartmenu'); created = true
+  await control.query('CREATE ROLE xmartmenu_runtime NOLOGIN BYPASSRLS')
   await admin.query(`CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY);
     CREATE TABLE public.profiles(id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,role text NOT NULL DEFAULT 'store-admin',tenant_id uuid,full_name text,phone text,must_change_password boolean DEFAULT false);
     CREATE TABLE public.tenants(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),name text,slug text UNIQUE,plan text);
@@ -41,10 +43,12 @@ before(async () => {
     await admin.query('INSERT INTO public.profiles(id,role,full_name,phone) VALUES($1,$2,$3,$4)',[id,index === 0 ? 'superadmin' : 'customer','Synthetic',index === 1 ? '+1 (555) 000-0001' : null])
     await admin.query('INSERT INTO public.app_accounts(id,disabled_at) VALUES($1,$2)',[id,index === 6 ? new Date('2026-01-01') : null])
   }
+  await admin.query('GRANT USAGE ON SCHEMA public TO xmartmenu_runtime; GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO xmartmenu_runtime')
 })
 after(async () => {
+  await backend.end()
   await admin.end()
-  if (created) await control.query('DROP DATABASE xmartmenu')
+  if (created) { await control.query('DROP DATABASE xmartmenu'); await control.query('DROP ROLE xmartmenu_runtime') }
   await control.end()
 })
 
@@ -56,6 +60,7 @@ test('legacy FK blocks fresh UUID with full rollback; proposed owned SQL preserv
   await admin.query(await readFile(new URL('../../docs/proposals/native-registration-owned-only.sql',import.meta.url),'utf8'))
   assert.deepEqual((await admin.query('SELECT p.*,a.disabled_at,a.session_version FROM public.profiles p JOIN public.app_accounts a USING(id) ORDER BY id')).rows,snapshot)
   assert.equal((await admin.query('SELECT count(*)::int n FROM auth.users')).rows[0].n,7)
+  await assert.rejects(backend.query('SELECT * FROM auth.users'),{ code: '42501' })
 })
 test('fresh phone and Google get new server UUID, fixed roles, no tenant and hashed sessions',async () => {
   for (const [factor,kind] of [[identity('new-phone','+15550000002'),'customer'],[identity('new-google'),'business']] as const) {
@@ -92,7 +97,7 @@ test('canonical onboarding rolls back a missing entry plan then converges on ret
   const uid = (await admin.query("SELECT user_id FROM public.app_identity_bindings WHERE subject='new-google'")).rows[0].user_id
   const input = { company_name: 'Synthetic Restaurant',tenant_slug: 'synthetic',menu_name: 'Lunch',menu_slug: 'lunch',menu_purpose: 'restaurant',category_name: 'Food',product_name: 'Soup',product_price: 12,primary_color: '#F52323',accent_color: '#09090b' }
   const run = async () => {
-    const client = await admin.connect()
+    const client = await backend.connect()
     try { await client.query('BEGIN'); const result = await nativeOnboarding((sql,values) => client.query(sql,values),uid,input); await client.query('COMMIT'); return result }
     catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
   }
