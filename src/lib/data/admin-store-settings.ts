@@ -1,4 +1,4 @@
-import type { TenantSettings, Tenant, UserRole } from '@/types/database'
+import type { TenantSettings, Tenant, UserRole, StripeConnection } from '@/types/database'
 import { AdminMenuError, type AdminMenuQuery } from './admin-menus'
 import { planCeiling, resolveTenantCapabilities, type ServiceSettings } from '../service-modes'
 import { SERVICE_SETTINGS_KEYS, validateServiceSettingsPatch } from '../service-settings'
@@ -37,17 +37,21 @@ async function loadPlan(query: AdminMenuQuery, tenantId: string, lock = false) {
 
 export async function readAdminStorePage(query: AdminMenuQuery, context: AdminStoreContext) {
   assertContext(context)
-  const [settingsResult, tenantResult, features] = await Promise.all([
+  const [settingsResult, tenantResult, stripeResult, features] = await Promise.all([
     query(`SELECT ${STORE_COLUMNS} FROM public.tenant_settings WHERE tenant_id=$1 LIMIT 1`, [context.tenantId]),
     query('SELECT custom_domain,custom_domain_verified FROM public.tenants WHERE id=$1 LIMIT 1', [context.tenantId]),
+    query(`SELECT id,tenant_id,stripe_account_id,scope,connected_at,is_active,disconnected_at,created_at,updated_at
+      FROM public.stripe_connections WHERE tenant_id=$1 AND is_active=true ORDER BY connected_at DESC LIMIT 2`, [context.tenantId]),
     loadPlan(query, context.tenantId),
   ])
   const tenant = tenantResult.rows[0]
   if (!tenant) throw new AdminMenuError(404, 'Tenant not found')
+  if (stripeResult.rows.length > 1) throw new AdminMenuError(503, 'Store connection information is unavailable')
   const settings = (settingsResult.rows[0] ?? null) as unknown as TenantSettings | null
   return {
     settings,
     tenant: { custom_domain: tenant.custom_domain ?? null, custom_domain_verified: tenant.custom_domain_verified === true } as Pick<Tenant, 'custom_domain' | 'custom_domain_verified'>,
+    stripeConnection: (stripeResult.rows[0] ?? null) as unknown as StripeConnection | null,
     capabilities: resolveTenantCapabilities(features, settings as ServiceSettings | null),
   }
 }

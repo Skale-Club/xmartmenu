@@ -11,13 +11,16 @@ describe('owned store and service settings SQL', () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('tenant_subscriptions')) return { rows: [{ status: 'cancelled', features: ['payments', 'stripe-connect'] }] }
       if (sql.includes('FROM public.tenants')) return { rows: [{ custom_domain: null, custom_domain_verified: false }] }
+      if (sql.includes('FROM public.stripe_connections')) return { rows: [{ id: 'stripe-id', tenant_id: tenantId, stripe_account_id: 'acct_public_metadata', scope: 'read_write', connected_at: '2026-01-01T00:00:00.000Z', is_active: true, disconnected_at: null, created_at: '2026-01-01T00:00:00.000Z', updated_at: '2026-01-01T00:00:00.000Z' }] }
       return { rows: [{ currency: 'USD', language: 'en', orders_enabled: true }] }
     })
     const result = await readAdminStorePage(query, context)
     expect(result.settings).toMatchObject({ currency: 'USD', orders_enabled: true })
     expect(result.capabilities.plan.payments).toBe(false)
     expect(result.capabilities.plan.stripe).toBe(false)
+    expect(result.stripeConnection).toMatchObject({ stripe_account_id: 'acct_public_metadata', is_active: true })
     expect(query.mock.calls.some(([sql]) => sql.includes('s.status, p.features'))).toBe(true)
+    expect(query.mock.calls.some(([sql]) => sql.includes('FROM public.stripe_connections') && sql.includes('WHERE tenant_id=$1 AND is_active=true'))).toBe(true)
     expect(query.mock.calls.some(([sql]) => sql.includes('SELECT *'))).toBe(false)
   })
 
