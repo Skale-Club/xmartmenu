@@ -101,6 +101,8 @@ export async function createTenant(query: AdminMenuQuery,context: TenantAdminCon
   if (body.plan_id !== undefined && (typeof body.plan_id !== 'string' || !UUID.test(body.plan_id))) refuse(400,'Choose an active subscription plan')
   const plan = single((await query(`SELECT id,name,slug,features FROM public.plans WHERE ${body.plan_id ? 'id=$1' : "slug='menu'"} AND is_active FOR SHARE`,body.plan_id ? [body.plan_id] : [])).rows)
   if (!plan) refuse(400,'Choose an active subscription plan')
+  const count = (await query('SELECT count(*)::int AS count FROM (SELECT id FROM public.tenants LIMIT 1000) bounded')).rows[0]
+  if (!count || Number(count.count) >= 1000) refuse(409,'The supported restaurant limit has been reached')
   const owner = single((await query(`SELECT p.id,p.role,p.tenant_id,p.must_change_password,a.disabled_at FROM public.profiles p JOIN public.app_accounts a ON a.id=p.id WHERE p.id=$1 FOR UPDATE OF p,a`,[body.owner_user_id])).rows)
   if (!owner || owner.tenant_id || owner.must_change_password || owner.disabled_at || !['customer','store-admin','admin'].includes(String(owner.role))) refuse(409,'Choose an independent active verified account without existing company access')
   if (!(await query('SELECT user_id FROM public.app_identity_bindings WHERE user_id=$1 AND disabled_at IS NULL FOR SHARE',[owner.id])).rows.length) refuse(409,'The owner must first verify their own phone or Google account')
@@ -137,7 +139,9 @@ export async function updateTenant(query: AdminMenuQuery,context: TenantAdminCon
 export async function deleteTenant(query: AdminMenuQuery,context: TenantAdminContext,id: string) {
   await requireTenantAdministrator(query,context,true)
   if (!UUID.test(id)) refuse(404,'Restaurant not found')
-  await query('LOCK TABLE public.tenants,public.tenant_settings,public.menus,public.tenant_subscriptions IN SHARE ROW EXCLUSIVE MODE')
+  // Freeze FK-changing DDL while permitting unrelated tenant DML. A stronger
+  // table lock here would invert the ordinary tenant-row -> settings write order.
+  await query('LOCK TABLE public.tenants,public.tenant_settings,public.menus,public.tenant_subscriptions IN SHARE UPDATE EXCLUSIVE MODE')
   const tenant = single((await query('SELECT * FROM public.tenants WHERE id=$1 FOR UPDATE',[id])).rows)
   if (!tenant) refuse(404,'Restaurant not found')
   const archive = () => refuse(409,'This restaurant has content, history or external dependencies. Deactivate it instead; all records will be preserved.')
@@ -190,12 +194,12 @@ const EXTRA_SETTINGS = ['logo_url','primary_color','accent_color','banner_url','
 export async function tenantSettings(query: AdminMenuQuery,context: TenantAdminContext,id: string,input?: unknown) {
   await requireTenantAdministrator(query,context,input !== undefined)
   if (!UUID.test(id)) refuse(404,'Restaurant not found')
-  const tenant = single((await query(`SELECT * FROM public.tenants WHERE id=$1 ${input !== undefined ? 'FOR UPDATE' : ''}`,[id])).rows)
+  const tenant = single((await query(`SELECT * FROM public.tenants WHERE id=$1 ${input !== undefined ? 'FOR NO KEY UPDATE' : ''}`,[id])).rows)
   if (!tenant) refuse(404,'Restaurant not found')
+  const subscription = input === undefined ? null : single((await query('SELECT s.status,p.features FROM public.tenant_subscriptions s JOIN public.plans p ON p.id=s.plan_id WHERE s.tenant_id=$1 FOR SHARE OF s,p',[id])).rows)
   const current = single((await query(`SELECT * FROM public.tenant_settings WHERE tenant_id=$1 ${input !== undefined ? 'FOR UPDATE' : ''}`,[id])).rows)
   if (input === undefined) return { tenant:dto(tenant),settings:current ? dto(current) : null }
   const body = object(input,[...SERVICE_SETTINGS_KEYS,...EXTRA_SETTINGS])
-  const subscription = single((await query('SELECT s.status,p.features FROM public.tenant_subscriptions s JOIN public.plans p ON p.id=s.plan_id WHERE s.tenant_id=$1 FOR SHARE OF s,p',[id])).rows)
   const validation = validateServiceSettingsPatch(body,{ plan:planCeiling(liveFeatures(subscription?.status as string,subscription?.features as string[])) },current)
   if (validation.errors.length) refuse(400,validation.errors[0]); if (validation.locked.length) refuse(403,'The current subscription does not include these service settings')
   const values: Record<string,unknown> = { ...validation.patch }

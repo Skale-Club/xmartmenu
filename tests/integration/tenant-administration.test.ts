@@ -139,3 +139,15 @@ test('unknown financial FK, menu content, Stripe or domain dependency prevents c
  try{await assert.rejects(write(q=>deleteTenant(q,context,id)),{status:503})}finally{await admin.query('ALTER TABLE audit_events DROP CONSTRAINT reject_audit')}
  assert.deepEqual(await snapshot('profiles'),users);assert.deepEqual(await snapshot('app_accounts'),accounts);assert.equal((await admin.query('SELECT status FROM app_tenant_effects WHERE tenant_id=$1',[id])).rows[0].status,'pending')
 })
+
+test('delete metadata lock permits an existing tenant-first financial transaction to finish its settings write without lock inversion',async()=>{
+ const result=await write(q=>createTenant(q,context,input())),id=String(result.tenant.id),blocker=await admin.connect()
+ let reached=()=>{};const metadataLocked=new Promise<void>(resolve=>{reached=resolve})
+ try{
+  await blocker.query('BEGIN');await blocker.query('SELECT id FROM tenants WHERE id=$1 FOR NO KEY UPDATE',[id])
+  const deleting=write(q=>deleteTenant(async(sql,values)=>{const result=await q(sql,values);if(sql.startsWith('LOCK TABLE'))reached();return result},context,id))
+  await metadataLocked
+  await blocker.query('UPDATE tenant_settings SET orders_enabled=false WHERE tenant_id=$1',[id]);await blocker.query('COMMIT')
+  assert.equal((await deleting).deleted,true)
+ }finally{await blocker.query('ROLLBACK').catch(()=>{});blocker.release()}
+})
