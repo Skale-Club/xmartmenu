@@ -16,8 +16,8 @@ async function post(operation: string, body: object, legacyToken?: string) {
   return result
 }
 
-export default function IdentityPilot({ config, continueToApp = false, existingAccountLink = false, next = '/',customerFlow = false,linkCurrentAccount = false }: {
-  config: IdentityWebConfig; continueToApp?: boolean; existingAccountLink?: boolean; next?: string; customerFlow?: boolean; linkCurrentAccount?: boolean
+export default function IdentityPilot({ config, continueToApp = false, existingAccountLink = false, next = '/',customerFlow = false,linkCurrentAccount = false,staffAccess }: {
+  config: IdentityWebConfig; continueToApp?: boolean; existingAccountLink?: boolean; next?: string; customerFlow?: boolean; linkCurrentAccount?: boolean; staffAccess?: {kind:'invite'|'recovery';code:string}
 }) {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
@@ -56,6 +56,11 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
   }
 
   async function complete(idToken: string) {
+    if (staffAccess) {
+      const { challenge } = await post('challenge',{})
+      await post(staffAccess.kind === 'invite' ? 'accept-staff-invite' : 'recover-staff',{idToken,challenge,code:staffAccess.code})
+      setSignedIn(true);window.location.assign(await ownedLoginDestination('/dashboard'));return
+    }
     if (continueToApp) {
       try {
         const destination = await completeOwnedLogin(idToken,{ next,link,customerFlow,
@@ -134,16 +139,16 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         <button data-testid="identity-phone-submit" className={button} disabled={busy}>{busy ? 'Please wait…' : sent ? 'Verify and continue' : 'Send verification code'}</button>
       </form>
       <button className={`${button} mt-4 border border-white/15 bg-transparent text-white hover:bg-white/5`} disabled={busy || sent} onClick={() => void run(async () => { requireExistingCredentials(); await complete(await googleProof(config)) })}>Continue with Google</button>
-      {!existingAccountLink && (!continueToApp || signedIn) ? <label className="mt-6 flex items-start gap-3 text-sm leading-5 text-zinc-400">
+      {!staffAccess && !existingAccountLink && (!continueToApp || signedIn) ? <label className="mt-6 flex items-start gap-3 text-sm leading-5 text-zinc-400">
         <input className="mt-1 accent-primary" type="checkbox" checked={link} onChange={event => setLink(event.target.checked)} disabled={busy} />
         Link this sign-in method to my existing signed-in account
       </label> : null}
-      {continueToApp && !existingAccountLink ? <Link className="mt-6 block text-sm font-semibold text-zinc-300 underline underline-offset-4" href={`/auth/login?action=existing-account-link${customerFlow ? `&flow=customer&from=${encodeURIComponent(next)}` : ''}`}>Link an existing account with your previous password</Link> : null}
+      {!staffAccess && continueToApp && !existingAccountLink ? <Link className="mt-6 block text-sm font-semibold text-zinc-300 underline underline-offset-4" href={`/auth/login?action=existing-account-link${customerFlow ? `&flow=customer&from=${encodeURIComponent(next)}` : ''}`}>Link an existing account with your previous password</Link> : null}
       {continueToApp && linkCurrentAccount ? <Link className="mt-4 block text-sm font-semibold text-zinc-300 underline underline-offset-4"
         href={`/auth/login?flow=customer&from=${encodeURIComponent(`/identity?action=link&flow=customer&from=${encodeURIComponent(next)}`)}`}>Sign in again before linking if your current sign-in is no longer recent</Link> : null}
       {continueToApp ? <p className="mt-4 text-xs leading-5 text-zinc-500">If your account requires recovery or no longer has access to its previous sign-in, contact support for reviewed recovery.</p> : null}
       {signedIn ? <div className="mt-6 space-y-3 border-t border-white/10 pt-5">
-        {continueToApp ? <button className={button} disabled={busy} onClick={() => void run(continueToDashboard)}>Continue to your account</button> : null}
+        {continueToApp && !staffAccess ? <button className={button} disabled={busy} onClick={() => void run(continueToDashboard)}>Continue to your account</button> : null}
         <button className="w-full text-sm font-semibold text-zinc-300 hover:text-white disabled:opacity-50" disabled={busy} onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false); setMessage('You are signed out.') })}>Sign out</button>
         <button className="w-full text-sm font-semibold text-zinc-400 hover:text-white disabled:opacity-50" disabled={busy} onClick={() => void run(async () => { await post('revoke-all', {}); setSignedIn(false); setMessage('All your sessions have been signed out.') })}>Sign out all devices</button>
       </div> : null}

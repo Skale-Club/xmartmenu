@@ -9,6 +9,7 @@ import { readLegacyPasswordOwner } from './legacy-password-proof'
 import { OwnedPrincipalRepository } from './owned-principal'
 import { ownedAuthSelected } from './owned-principal'
 import { NativeRegistration } from './native-registration'
+import { completeOwnedStaffAccess } from '../data/account-administration-runtime'
 
 let handler: ReturnType<typeof createIdentityHttp> | undefined
 function runtime() {
@@ -32,6 +33,7 @@ function runtime() {
       return !!principal && !principal.mustChangePassword
     },
     store,
+    completeStaffAccess: completeOwnedStaffAccess,
     register: async (identity,name,kind) => {
       if (!ownedAuthSelected() || process.env.OWNED_REGISTRATION_ENABLED !== 'true') throw new Error('Native registration unavailable')
       return registration.create(identity,name,kind)

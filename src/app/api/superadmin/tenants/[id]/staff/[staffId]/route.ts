@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server'
 import { generatePassword } from '@/lib/auth/password-gen'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { accountAdministrationSelected } from '@/lib/data/account-administration'
+import { ownedStaffAccountsHttp } from '@/lib/admin/owned-account-administration-http'
 
 interface Props { params: Promise<{ id: string; staffId: string }> }
 
@@ -29,6 +32,10 @@ async function assertSuperadminAndStaff(tenantId: string, staffId: string) {
 }
 
 async function handlePATCH(_req: Request, { params }: Props) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) {
+    const { id,staffId } = await params
+    return ownedStaffAccountsHttp(_req,staffId,id)
+  }
   const { id: tenantId, staffId } = await params
   const ctx = await assertSuperadminAndStaff(tenantId, staffId)
   if ('error' in ctx && ctx.error) return ctx.error
@@ -73,6 +80,10 @@ async function handlePATCH(_req: Request, { params }: Props) {
 }
 
 async function handleDELETE(_req: Request, { params }: Props) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) {
+    const { id,staffId } = await params
+    return ownedStaffAccountsHttp(_req,staffId,id)
+  }
   const { id: tenantId, staffId } = await params
   const ctx = await assertSuperadminAndStaff(tenantId, staffId)
   if ('error' in ctx && ctx.error) return ctx.error

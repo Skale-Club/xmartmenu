@@ -4,12 +4,16 @@ import { checkPasswordChangeRequired } from '@/lib/auth/password-guard'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { accountAdministrationSelected } from '@/lib/data/account-administration'
+import { ownedStaffAccountsHttp } from '@/lib/admin/owned-account-administration-http'
 
 interface Props { params: Promise<{ id: string }> }
 
 const DEFAULT_STAFF_PASSWORD = process.env.DEFAULT_STAFF_PASSWORD?.trim() || 'Staff@12345'
 
 async function handleGET(_req: Request, { params }: Props) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) return ownedStaffAccountsHttp(_req,undefined,(await params).id)
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -36,6 +40,7 @@ async function handleGET(_req: Request, { params }: Props) {
 }
 
 async function handlePOST(request: Request, { params }: Props) {
+  if (ownedAuthSelected() || accountAdministrationSelected()) return ownedStaffAccountsHttp(request,undefined,(await params).id)
   const guard = await checkPasswordChangeRequired()
   if (guard) return guard
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

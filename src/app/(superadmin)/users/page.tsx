@@ -3,8 +3,16 @@ export const dynamic = 'force-dynamic'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
 import UsersClient from './UsersClient'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { accountAdministrationSelected } from '@/lib/data/account-administration'
+import { readOwnedAccountUsersPage } from '@/lib/data/account-administration-runtime'
+import type { UserRow,TenantOption } from './UsersClient'
 
 export default async function UsersPage() {
+  if (ownedAuthSelected() || accountAdministrationSelected()) {
+    const data = await readOwnedAccountUsersPage()
+    return <UsersClient native users={data.users as unknown as UserRow[]} tenants={data.tenants as unknown as TenantOption[]} currentUserId={data.currentUserId} />
+  }
   const service = await createServiceClient()
   const supabase = await createClient()
 

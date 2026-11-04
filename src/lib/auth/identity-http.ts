@@ -1,5 +1,6 @@
 import type { VerifiedGoogleIdentity } from './google-identity'
 import { RegistrationConflict, type RegistrationKind } from './native-registration'
+import { AdminMenuError } from '../data/admin-menus'
 
 const OPAQUE = /^[A-Za-z0-9_-]{43}$/
 const BODY_LIMIT = 20_000
@@ -15,6 +16,7 @@ export interface IdentityHttpDependencies {
   legacyPasswordOwner?: (email: unknown, password: unknown, signal?: AbortSignal) => Promise<string | null>
   eligibleOwner?: (userId: string) => Promise<boolean>
   register?: (identity: VerifiedGoogleIdentity, name: string, kind: RegistrationKind) => Promise<{ token: string; expiresAt: Date }>
+  completeStaffAccess?: (identity: VerifiedGoogleIdentity, code: string, kind: 'invite'|'recovery') => Promise<{ token:string; expiresAt:Date }>
   store: {
     issueChallenge: () => Promise<string>
     consumeChallenge: (token: string) => Promise<boolean>
@@ -96,8 +98,10 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
     if (request.headers.get('host')?.toLowerCase() !== origin.host.toLowerCase()) return reply({ message: 'Not found' }, 404)
     const method = ['config', 'session'].includes(operation) ? 'GET' : 'POST'
     const registration = operation === 'register-customer' || operation === 'register-business'
-    if (!['config', 'session', 'challenge', 'login', 'link', 'existing-account-link', 'logout', 'revoke-all'].includes(operation) && !registration) return reply({ message: 'Not found' }, 404)
+    const staffAccess = operation === 'accept-staff-invite' || operation === 'recover-staff'
+    if (!['config', 'session', 'challenge', 'login', 'link', 'existing-account-link', 'logout', 'revoke-all'].includes(operation) && !registration && !staffAccess) return reply({ message: 'Not found' }, 404)
     if (registration && !deps.register) return reply({ message: 'Registration is temporarily unavailable.' }, 503)
+    if (staffAccess && !deps.completeStaffAccess) return reply({ message:'Staff access is unavailable.' },503)
     if (request.method !== method) return reply({ message: 'Method not allowed' }, 405)
     if (request.headers.get('sec-fetch-site') === 'cross-site'
       || (method === 'POST' && request.headers.get('origin') !== origin.origin)) return reply({ message: 'Origin mismatch' }, 403)
@@ -139,6 +143,19 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
       const age = Date.now() / 1000 - identity.authenticatedAt
       if (identity.projectId !== deps.config.projectId || !Number.isSafeInteger(identity.authenticatedAt)
         || age < -5 || age > 300) return reply({ message: 'A recent verified phone or Google sign-in is required.' }, 401)
+      if (staffAccess) {
+        if (request.headers.has('authorization') || cookiePresent(request,'preview_tenant_id') || cookiePresent(request,'xm_demo')
+          || !OPAQUE.test(String(body.code)) || Object.keys(body).some(key => !['idToken','challenge','code'].includes(key))) return reply({ message:'Invalid staff access proof.' },403)
+        const current = await readSession(request),owner = await deps.store.owner(identity)
+        if (!owner || (current && current.userId !== owner)) return reply({ message:'Sign out and use the verified sign-in method already linked to the invited account.' },403)
+        if (!(await claimBrowser(request,body))) return reply({ message:'Invalid or expired browser challenge.' },403)
+        let next: { token:string;expiresAt:Date }
+        try { next = await deps.completeStaffAccess!(identity,String(body.code),operation === 'accept-staff-invite' ? 'invite' : 'recovery') }
+        catch (error) { if (error instanceof AdminMenuError && error.status < 500) return reply({ message:error.message },error.status); throw error }
+        const response = reply({ authenticated:true })
+        setCookie(response,sessionName,next.token,Math.max(0,Math.floor((next.expiresAt.getTime()-Date.now())/1000)))
+        setCookie(response,challengeName,'',0);return response
+      }
       if (registration) {
         if (request.headers.has('authorization') || cookiePresent(request, sessionName)
           || cookiePresent(request,'preview_tenant_id') || cookiePresent(request,'xm_demo')) return reply({ message: 'Sign out and leave preview or demo mode before creating an account.' },403)
