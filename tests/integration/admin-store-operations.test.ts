@@ -96,9 +96,9 @@ test('real 1000-item limits serialize concurrent last-slot creations and leave c
       SELECT $1,'Capacity fixture','https://menu.test/capacity' FROM generate_series(1,999)`,[capacityTenant])
     else await admin.query(`INSERT INTO public.restaurant_tables(tenant_id,name,position)
       SELECT $1,'Capacity fixture',n FROM generate_series(1,999) n`,[capacityTenant])
-    const create = (name: string, context = capacityOwner) => adminMenuTransaction(pool,true,query => kind === 'qr'
-      ? createAdminQrCode(query,context,name,'https://menu.test/capacity')
-      : mutateAdminRestaurantTable(query,context,{ kind: 'create',name }))
+    const create = (name: string, context = capacityOwner) => kind === 'qr'
+      ? adminMenuTransaction(pool,true,query => createAdminQrCode(query,context,name,'https://menu.test/capacity'))
+      : adminMenuTransaction(pool,true,query => mutateAdminRestaurantTable(query,context,{ kind: 'create',name }))
     const results = await Promise.allSettled([create('Concurrent A'),create('Concurrent B')])
     assert.equal(results.filter(result => result.status === 'fulfilled').length,1,`${kind}: exactly one last slot`)
     const rejected = results.find(result => result.status === 'rejected')
@@ -106,8 +106,9 @@ test('real 1000-item limits serialize concurrent last-slot creations and leave c
     assert.match(rejected.reason.message,/limit reached \(1000\)/)
     assert.equal((await admin.query(`SELECT count(*)::integer AS count FROM public.${table} WHERE tenant_id=$1`,[capacityTenant])).rows[0].count,1000)
     await assert.rejects(create('Item 1001'),{ status: 409 })
-    const rows = await adminMenuTransaction(pool,false,query => kind === 'qr'
-      ? readAdminQrCodes(query,capacityOwner) : readAdminRestaurantTables(query,capacityOwner))
+    const rows = kind === 'qr'
+      ? await adminMenuTransaction(pool,false,query => readAdminQrCodes(query,capacityOwner))
+      : await adminMenuTransaction(pool,false,query => readAdminRestaurantTables(query,capacityOwner))
     assert.equal(rows.length,1000,`${kind}: full catalog remains readable`)
     // A full catalog never consumes another tenant's capacity.
     await create('Other tenant still allowed',foreignOwner)
