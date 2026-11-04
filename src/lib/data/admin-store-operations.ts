@@ -52,7 +52,6 @@ export async function readAdminRestaurantTables(query: AdminMenuQuery, ctx: Stor
   if (result.rows.length > 1000) throw new AdminMenuError(409, 'Table list exceeds the supported limit')
   return result.rows as unknown as RestaurantTable[]
 }
-
 export async function mutateAdminRestaurantTable(query: AdminMenuQuery, ctx: StoreOperationsContext, mutation: RestaurantTableMutation): Promise<RestaurantTable[] | RestaurantTable | { ok: true }> {
   context(ctx, true)
   await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))', [`xmartmenu-restaurant-tables:${ctx.tenantId}`])
