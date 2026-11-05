@@ -1,0 +1,81 @@
+name: Final cutover (Supabase to own PostgreSQL)
+
+# One operation, only from main, started by hand. See docs/xmartmenu-final-cutover.md.
+#   plan      read only; prints counts
+#   apply     stop app, freeze Supabase, copy, SQL proposals, login, env, one deploy, verify
+#   rollback  only while the own database has no new writes
+# Secrets: COOLIFY_TOKEN, SUPABASE_SOURCE_DATABASE_URL, SUPABASE_SERVICE_ROLE_KEY,
+# CUTOVER_SSH_HOST, CUTOVER_SSH_KEY, CUTOVER_SSH_HOST_KEY. Variable: NEXT_PUBLIC_SUPABASE_URL.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: plan | apply | rollback
+        required: true
+        type: choice
+        options: [plan, apply, rollback]
+        default: plan
+      confirm_sha:
+        description: First 8 characters of the main commit (required for apply and rollback)
+        required: false
+        type: string
+      skip_google_subjects:
+        description: Accept going live without importing Google subjects (only while PR 68 is not merged)
+        required: false
+        type: boolean
+        default: false
+
+# Same group as the deploy: no build or deploy may overlap the window.
+concurrency:
+  group: build-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: read
+  actions: read
+
+jobs:
+  cutover:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Guard (apply and rollback)
+        if: inputs.mode != 'plan'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRM: ${{ inputs.confirm_sha }}
+          SHA: ${{ github.sha }}
+        run: |
+          [[ "${CONFIRM}" == "${SHA:0:8}" ]] || { echo "::error::confirm_sha must be ${SHA:0:8}"; exit 1; }
+          ok="$(gh run list --workflow ci.yml --branch main --commit "${SHA}" --status success --json databaseId --jq 'length')"
+          [[ "${ok}" != "0" ]] || { echo "::error::No successful CI run on main for ${SHA}."; exit 1; }
+
+      - name: Log in to GHCR
+        if: inputs.mode == 'apply'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: The image for this commit exists
+        if: inputs.mode == 'apply'
+        run: docker manifest inspect "ghcr.io/skale-club/xmartmenu:${{ github.sha }}" > /dev/null
+
+      - name: Run the operation
+        env:
+          COOLIFY_TOKEN: ${{ secrets.COOLIFY_TOKEN }}
+          SUPABASE_SOURCE_DATABASE_URL: ${{ secrets.SUPABASE_SOURCE_DATABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          CUTOVER_SSH_HOST: ${{ secrets.CUTOVER_SSH_HOST }}
+          CUTOVER_SSH_KEY: ${{ secrets.CUTOVER_SSH_KEY }}
+          CUTOVER_SSH_HOST_KEY: ${{ secrets.CUTOVER_SSH_HOST_KEY }}
+        run: bash scripts/ops/run-xmartmenu-final-cutover.sh "${{ inputs.mode }}" "${{ github.sha }}" "${{ inputs.skip_google_subjects }}"
