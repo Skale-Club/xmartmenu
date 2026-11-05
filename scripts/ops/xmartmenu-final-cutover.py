@@ -1136,6 +1136,14 @@ END $do$;""", role=c.owner)
             users += batch
             if len(batch) < 200:
                 break
+        def detail(uid):
+            r = urllib.request.Request(f'{base}/auth/v1/admin/users/{uid}', headers={'apikey': key, 'Authorization': 'Bearer ' + key})
+            try:
+                with OPENER.open(r, timeout=30) as resp:
+                    return json.loads(resp.read())
+            except (urllib.error.URLError, ValueError, OSError):
+                raise Refused('google-subjects-response')
+        users = enrich_google_users(users, detail)
         claims = plan_claims(users, set(self.tgt('SELECT id FROM public.app_accounts').split()))
         values = ','.join(f"('{s}','{a}')" for s, a in claims)
         if values:
@@ -1380,6 +1388,28 @@ INSERT INTO xmartmenu_cutover.markers(run_id, phase) VALUES ('{run}', 'completed
             return 4 if e.label == 'revert-incomplete' else 3
         say(phase='rollback', status='done')
         return 0
+
+def enrich_google_users(users, get_detail, max_details=100):
+    """The Admin API listing returns identities: [] for everyone; only /admin/users/{id} has them.
+    app_metadata.providers (in the listing) says who has Google, so only those details are fetched (GET)."""
+    uuid = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', re.I)
+    out, fetched = [], 0
+    for u in users:
+        meta = u.get('app_metadata') if isinstance(u.get('app_metadata'), dict) else {}
+        hinted = 'google' in (meta.get('providers') or [])
+        uid = u.get('id')
+        if not hinted or u.get('identities') or not (isinstance(uid, str) and uuid.match(uid)):
+            out.append(u)
+            continue
+        fetched += 1
+        if fetched > max_details:
+            raise Refused('google-subjects-too-many')
+        d = get_detail(uid)
+        if not isinstance(d, dict) or d.get('id') != uid:
+            raise Refused('google-subjects-response')
+        out.append({**u, 'identities': d.get('identities') or []})
+    return out
+
 
 def plan_claims(users, account_ids):
     uuid = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', re.I)
