@@ -39,7 +39,14 @@ PREFIXES = ['IDENTITY', 'PLATFORM_APPEARANCE', 'PUBLIC_MENU', 'ADMIN_MENUS', 'OR
 GOOGLE_STAGED = ['GOOGLE_AUTH_PROJECT_ID', 'GOOGLE_AUTH_PROJECT_NUMBER', 'GOOGLE_AUTH_WEB_API_KEY',
                  'GOOGLE_AUTH_ADC_FILE', 'GOOGLE_AUTH_ADC_AUDIENCE', 'GOOGLE_AUTH_ADC_SERVICE_ACCOUNT',
                  'GOOGLE_AUTH_ADC_SUBJECT']
-EPHEMERAL = ('app_sessions', 'app_identity_challenges')
+# Not business writes: login artifacts and public telemetry never block a rollback.
+EPHEMERAL = ('app_sessions', 'app_identity_challenges', 'menu_events', 'menu_sessions', 'scan_events')
+STORAGE_KEYS = ['STORAGE_S3_ACCESS_KEY_ID', 'STORAGE_S3_SECRET_ACCESS_KEY', 'STORAGE_S3_ENDPOINT', 'STORAGE_S3_REGION',
+                'STORAGE_S3_BUCKET_PRODUCT_IMAGES', 'STORAGE_S3_BUCKET_TENANT_ASSETS', 'STORAGE_S3_PUBLIC_URL_BASE']
+CLAIMS_FILE = '20261104090000_identity_google_claims.sql'
+BLOG_FILE = 'native-blog-operations-owned-only.sql'
+OPTIONAL_PROPOSALS = {'native-blog-operations'}  # only when the file is in the commit (PR 67)
+RUN_LOCK_ENV = 'XM_CUTOVER_ACTIVE'  # scripts/coolify-deploy.sh refuses while this exists
 SECRET_NAMES = ['COOLIFY_TOKEN', 'SUPABASE_SOURCE_DATABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY', 'NEXT_PUBLIC_SUPABASE_URL']
 
 # (name, file, sentinel). Order: effects -> dispatch -> operations -> the rest.
@@ -51,11 +58,13 @@ PROPOSALS = [
     ('native-customer-account-fks', 'native-customer-account-fks-owned-only.sql', "SELECT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='orders_customer_id_fkey' AND conrelid='public.orders'::regclass AND confrelid='public.app_accounts'::regclass)"),
     ('native-waiter-actor', 'native-waiter-actor-owned-only.sql', "SELECT EXISTS(SELECT 1 FROM pg_constraint WHERE conname='waiter_calls_acknowledged_by_fkey' AND conrelid='public.waiter_calls'::regclass AND confrelid='public.app_accounts'::regclass)"),
     ('native-registration', 'native-registration-owned-only.sql', "SELECT NOT EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid='public.profiles'::regclass AND conname='profiles_id_fkey')"),
+    ('identity-google-claims', CLAIMS_FILE, "SELECT to_regclass('public.identity_google_subject_claims') IS NOT NULL"),
     ('native-account-administration', 'native-account-administration-owned-only.sql', "SELECT to_regclass('public.app_staff_access_codes') IS NOT NULL"),
     ('native-subscription-billing', 'native-subscription-billing-owned-only.sql', "SELECT to_regclass('public.app_subscription_billing_requests') IS NOT NULL"),
     ('native-stripe-oauth', 'native-stripe-oauth-owned-only.sql', "SELECT to_regclass('public.app_stripe_oauth_attempts') IS NOT NULL"),
     ('native-ai-billing', 'native-ai-billing-owned-only.sql', "SELECT to_regclass('public.ai_billing_requests') IS NOT NULL"),
     ('native-mcp-oauth', 'native-mcp-oauth-owned-only.sql', "SELECT to_regclass('public.app_mcp_clients') IS NOT NULL"),
+    ('native-blog-operations', BLOG_FILE, "SELECT to_regclass('public.app_blog_operations') IS NOT NULL"),
 ]
 
 
@@ -78,12 +87,28 @@ class Config:
     expected_accounts: int = 7
     runtime_limit: int = 12
     root: Path = Path('/opt/xmartmenu/cutover')
+    app_host: str = '188.245.112.3'
+    app_ssh_key: Path = Path('/opt/xmartmenu/cutover/app-host/key')
+    app_known_hosts: Path = Path('/opt/xmartmenu/cutover/app-host/known_hosts')
+    network_id: str = '9618654f72854308768936727d24ecd948decaa235eaf51a163d845958f47c37'
+    xmail_deploy_lock: Path = Path('/opt/xmail/owned-runtime-ops/deploy.lock')
+    offhost_receipt: Path = Path('/opt/xmartmenu/offsite-backups/latest.json')
+    offhost_max_age_hours: int = 26
+    require_offhost: bool = True
     production_host: bool = True
     poll_seconds: float = 5.0
     stop_attempts: int = 36
     deploy_attempts: int = 60
     health_attempts: int = 36
     sleep: object = time.sleep
+
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k):
+        return None
+
+
+OPENER = urllib.request.build_opener(_NoRedirect)
 
 
 class Refused(Exception):
@@ -331,6 +356,69 @@ def docker_exec_launcher(cfg, user=None):
     return build
 
 
+# ---------------------------------------------------------------- app host (188)
+class SshAppHost:
+    """Stops/starts the app container by immutable ID on the app host, never through Coolify (a Coolify
+    stop removes the app network and kills the ID-pinned private transport). Forced command, dedicated key."""
+    def __init__(self, cfg):
+        self.cfg = cfg
+
+    def call(self, verb):
+        c = self.cfg
+        argv = ['ssh', '-i', str(c.app_ssh_key), '-o', 'IdentitiesOnly=yes', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
+                '-o', f'UserKnownHostsFile={c.app_known_hosts}', '-o', 'ConnectTimeout=10', f'root@{c.app_host}', verb]
+        try:
+            p = subprocess.run(argv, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=SAFE_ENV, timeout=90)
+            if p.returncode != 0:
+                raise Refused('app-host-command')
+            return json.loads(p.stdout)
+        except (OSError, subprocess.TimeoutExpired, ValueError):
+            raise Refused('app-host-ssh')
+
+    def inspect(self):
+        return self.call('inspect')
+
+    def stop(self, cid):
+        return self.call('stop ' + cid)
+
+    def start(self, cid):
+        return self.call('start ' + cid)
+
+
+def capacity_problems(info):
+    out = []
+    if info['mem_available_mib'] < 1024:
+        out.append('memory')
+    if info['swap_used_mib'] > 512:
+        out.append('swap')
+    if info['disk_free_gib'] < 2:
+        out.append('disk')
+    return out
+
+
+def operator_recovery_sql(account_id, project_id, subject):
+    """Exact emergency SQL: link an existing enabled superadmin to a Firebase subject. Printed, never run."""
+    if not re.fullmatch(r'[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}', account_id or ''):
+        raise Refused('recovery-account')
+    if not re.fullmatch(r'[a-z][a-z0-9-]{4,28}[a-z0-9]', project_id or '') or not re.fullmatch(r'[A-Za-z0-9]{1,128}', subject or ''):
+        raise Refused('recovery-subject')
+    return f"""BEGIN;
+DO $do$ BEGIN
+ IF NOT EXISTS (SELECT 1 FROM public.profiles p JOIN public.app_accounts a ON a.id=p.id
+   WHERE p.id='{account_id}' AND p.role='superadmin' AND a.disabled_at IS NULL)
+ THEN RAISE EXCEPTION 'not an enabled superadmin'; END IF;
+END $do$;
+INSERT INTO public.app_identity_bindings(project_id, subject, user_id, provider, binding_proof)
+ VALUES ('{project_id}', '{subject}', '{account_id}', 'google.com', 'operator-recovery');
+COMMIT;
+"""
+
+
+SCHEMA_FP_SQL = """SELECT encode(sha256(convert_to(coalesce(string_agg(format('%s.%s:%s:%s:%s', c.relname, a.attname, format_type(a.atttypid, a.atttypmod), a.attnotnull, coalesce(pg_get_expr(d.adbin, d.adrelid), '')), E'\n' ORDER BY c.relname COLLATE "C", a.attnum), ''), 'UTF8')), 'hex')
+FROM pg_class c JOIN pg_attribute a ON a.attrelid=c.oid AND a.attnum>0 AND NOT a.attisdropped LEFT JOIN pg_attrdef d ON d.adrelid=c.oid AND d.adnum=a.attnum
+WHERE c.relnamespace='public'::regnamespace AND c.relkind IN ('r','p') AND c.relname = ANY(__TABLES__)"""
+
+
 # ---------------------------------------------------------------- Coolify
 class Coolify:
     def __init__(self, cfg, token):
@@ -343,7 +431,7 @@ class Coolify:
             r = urllib.request.Request(self.cfg.coolify_base + '/api/v1' + path, data=data, method=method,
                                        headers={'Authorization': 'Bearer ' + self.token, 'Content-Type': 'application/json'})
             try:
-                with urllib.request.urlopen(r, timeout=30) as resp:
+                with OPENER.open(r, timeout=30) as resp:
                     raw = resp.read()
                     return resp.status, (json.loads(raw) if raw else None)
             except urllib.error.HTTPError as e:
@@ -383,17 +471,6 @@ class Coolify:
         status, body = self.req('GET', f'/applications/{self.cfg.app_uuid}')
         return (body or {}).get('status', '') if status == 200 else ''
 
-    def stop(self):
-        status, _ = self.req('POST', f'/applications/{self.cfg.app_uuid}/stop')
-        if status >= 300:
-            raise Refused('coolify-stop')
-        for _ in range(self.cfg.stop_attempts):
-            s = self.app_status()
-            if s.startswith(('exited', 'stopped')):
-                return
-            self.cfg.sleep(self.cfg.poll_seconds)
-        raise Refused('app-did-not-stop')
-
     def deploy(self):
         status, body = self.req('POST', f'/deploy?uuid={self.cfg.app_uuid}')
         uuid = (((body or {}).get('deployments') or [{}])[0]).get('deployment_uuid')
@@ -413,7 +490,7 @@ class Coolify:
 def http_get(url, token=None, timeout=15):
     headers = {'Authorization': 'Bearer ' + token} if token else {}
     try:
-        with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=timeout) as r:
+        with OPENER.open(urllib.request.Request(url, headers=headers), timeout=timeout) as r:
             return r.status, r.read(1 << 20)
     except urllib.error.HTTPError as e:
         return e.code, b''
@@ -450,6 +527,12 @@ class State:
             os.fsync(f.fileno())
         os.replace(tmp, self.path)
         try:
+            run_dir = self.root / self.data['run']
+            if run_dir.is_dir():
+                (run_dir / 'state.json').write_text(json.dumps(self.data, sort_keys=True))
+        except (OSError, KeyError, TypeError):
+            pass
+        try:
             dfd = os.open(self.root, os.O_RDONLY)
             try:
                 os.fsync(dfd)
@@ -479,14 +562,29 @@ class State:
 
 # ---------------------------------------------------------------- orchestrator
 class Cutover:
-    def __init__(self, cfg, secrets_in, image_sha, bundle, target, make_source, coolify, skip_google=False, google_script=False):
+    def __init__(self, cfg, secrets_in, image_sha, bundle, target, make_source, coolify, apphost, google_script=False, discard=''):
         self.cfg, self.sec, self.sha, self.bundle = cfg, secrets_in, image_sha, Path(bundle) if bundle else None
-        self.target, self.make_source, self.coolify = target, make_source, coolify
-        self.skip_google, self.google_script = skip_google, google_script
+        self.target, self.make_source, self.coolify, self.apphost = target, make_source, coolify, apphost
+        self.google_script, self.discard = google_script, discard
         self.st = State(cfg.root)
         self.source = None
+        self._lock = None
+        self._xmail = None
 
-    # ----- helpers
+    @property
+    def proposals(self):
+        keep = []
+        for item in PROPOSALS:
+            name, file, _ = item
+            if name in OPTIONAL_PROPOSALS and not (self.bundle and (self.bundle / 'proposals' / file).exists()):
+                continue
+            keep.append(item)
+        return keep
+
+    @property
+    def flags(self):
+        return FLAGS + (['OWNED_BLOG_ENABLED'] if any(n == 'native-blog-operations' for n, _, _ in self.proposals) else [])
+
     def src(self):
         if self.source is None:
             if not self.sec.get('SUPABASE_SOURCE_DATABASE_URL'):
@@ -519,7 +617,19 @@ class Cutover:
     def plan(self):
         cfg, blockers = self.cfg, []
         state = self.st.load()
-        say(phase='plan', mode='read-only', interrupted_run=bool(state and state.get('status') == 'running'))
+        lock_held = False
+        if fcntl and (cfg.root / 'lock').exists():
+            fd = os.open(cfg.root / 'lock', os.O_RDWR)
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            except OSError:
+                lock_held = True
+            finally:
+                os.close(fd)
+        say(phase='plan', mode='read-only', state_status=(state or {}).get('status', 'none'), state_phase=(state or {}).get('phase', 'none'), lock_held=lock_held)
+        if state and state.get('status') in ('running', 'completed', 'failed-needs-review', 'revert-incomplete'):
+            blockers.append('previous-run-' + state['status'])
         code, h = health(cfg, self.health_token())
         say(check='app-health', http=code, database_ok=bool(h.get('checks', {}).get('database', {}).get('ok')),
             release_is_dispatch_sha=h.get('release') == self.sha, database_mode=(h.get('config') or {}).get('database_mode', 'unknown'))
@@ -529,13 +639,35 @@ class Cutover:
             say(check='secret', name=name, present=bool(self.sec.get(name)))
         try:
             env = self.coolify.env_map()
-            for f in FLAGS:
+            for f in self.flags:
                 say(check='env-flag', name=f, value=env.get(f, 'absent') if env.get(f) in ('true', 'false') else ('absent' if f not in env else 'set'))
             say(check='env-google-staged', present=sum(1 for k in GOOGLE_STAGED if env.get(k)), expected=len(GOOGLE_STAGED), enabled_flag=env.get('GOOGLE_AUTH_ENABLED', 'absent'))
             say(check='env-database-urls', present=sum(1 for p in PREFIXES if env.get(p + '_DATABASE_URL')), expected=len(PREFIXES))
-            say(check='env-misc', health_token=bool(env.get('HEALTH_TOKEN')), storage_provider=env.get('STORAGE_PROVIDER', 'absent'), identity_origin=bool(env.get('IDENTITY_ORIGIN')))
+            legacy = [k for k in ('NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY') if env.get(k)]
+            say(check='env-runtime-required', legacy_proof_present=len(legacy), expected=2, storage_s3_present=sum(1 for k in STORAGE_KEYS if env.get(k)), storage_s3_expected=len(STORAGE_KEYS))
+            say(check='env-misc', health_token=bool(env.get('HEALTH_TOKEN')), storage_provider=env.get('STORAGE_PROVIDER', 'absent'), identity_origin=bool(env.get('IDENTITY_ORIGIN')), cutover_env_lock=RUN_LOCK_ENV in env)
+            if len(legacy) != 2:
+                blockers.append('runtime-legacy-proof-env')
+            if any(not env.get(k) for k in STORAGE_KEYS):
+                blockers.append('storage-s3-env')
+            if RUN_LOCK_ENV in env:
+                blockers.append('cutover-env-lock-present')
         except Refused as e:
             blockers.append(e.label)
+        try:
+            info = self.apphost.inspect()
+            say(check='app-host', containers=info['containers'], running=info['running'], network_pinned=info['network_id'] == cfg.network_id,
+                transport_active=info['transport'], mem_available_mib=info['mem_available_mib'], swap_used_mib=info['swap_used_mib'], disk_free_gib=info['disk_free_gib'])
+            if info['containers'] != 1 or not info['running'] or info['network_id'] != cfg.network_id or not info['transport']:
+                blockers.append('app-host-state')
+            blockers += ['app-host-' + x for x in capacity_problems(info)]
+        except Refused as e:
+            say(check='app-host', ok=False, why=e.label)
+            blockers.append(e.label)
+        if cfg.production_host:
+            cap = self.host_capacity()
+            say(check='host', **cap)
+            blockers += ['local-' + x for x in capacity_problems(cap)]
         try:
             facts = self.target_facts()
             say(check='candidate-access', ok=True, public_tables=len(facts['tables']), ledger_rows=facts['ledger'],
@@ -547,22 +679,16 @@ class Cutover:
                 if not applied:
                     pending.append(name)
             say(check='proposals-pending', count=len(pending), order='|'.join(pending) or 'none')
+            say(check='blog-proposal', in_commit=any(n == 'native-blog-operations' for n, _, _ in self.proposals))
             limit = facts['runtime']['limit']
             pool = (limit - 1) // 2
             say(check='connection-budget', role_limit=limit, containers_during_rollout=2, heartbeat_slots=1, pool_max=pool,
                 worst_case=2 * pool + 1, headroom=limit - (2 * pool + 1), single_pool=True)
-            if limit != cfg.runtime_limit:
-                blockers.append('runtime-limit')
-            if facts['runtime']['login']:
-                blockers.append('runtime-already-login')
-            if facts['sessions']:
-                blockers.append('runtime-sessions')
-            if facts['always']:
-                blockers.append('always-triggers')
-            if facts['accounts'] != cfg.expected_accounts:
-                blockers.append('account-baseline')
-            if not facts['auth_lock'] or facts['not_owned']:
-                blockers.append('owner-privileges')
+            for cond, label in [(limit != cfg.runtime_limit, 'runtime-limit'), (facts['runtime']['login'], 'runtime-already-login'),
+                                (facts['sessions'], 'runtime-sessions'), (facts['always'], 'always-triggers'),
+                                (not facts['auth_lock'] or facts['not_owned'], 'owner-privileges')]:
+                if cond:
+                    blockers.append(label)
         except (SqlFailed, Refused, KeyError, ValueError, IndexError) as e:
             say(check='candidate-access', ok=False, why=getattr(e, 'label', 'sql-error'))
             blockers.append('candidate-access')
@@ -583,15 +709,29 @@ class Cutover:
             say(check='rows-summary', tables_with_difference=different, missing_in_candidate=len(set(stables) - set(ttables)))
             if set(stables) - set(ttables):
                 blockers.append('candidate-missing-tables')
-        except (SqlFailed, Refused, ValueError, IndexError) as e:
+            elif facts:
+                same = self.schema_match(stables)
+                say(check='schema-fingerprint', match=same)
+                if not same:
+                    blockers.append('schema-differs')
+            sf = self.source_facts()
+            say(check='roles', **{('role_' + k): v for k, v in sorted(sf['roles'].items())}, google_users=sf['google_users'], superadmin_with_google=sf['superadmin_google'])
+            if sf['roles'].get('superadmin', 0) and not sf['superadmin_google']:
+                blockers.append('superadmin-without-google')
+            if facts:
+                info, bad = self.account_problems(sf)
+                say(check='accounts', **info)
+                blockers += bad
+        except (SqlFailed, Refused, ValueError, IndexError, KeyError) as e:
             say(check='source-access', ok=False, why=getattr(e, 'label', 'sql-error'))
             blockers.append('source-access')
-        say(check='google-subject-import', script_in_commit=self.google_script, will_skip=self.skip_google)
-        if not self.google_script and not self.skip_google:
+        say(check='google-subject-import', script_in_commit=self.google_script)
+        if not self.google_script:
             blockers.append('google-subjects-script-missing')
-        say(check='offhost-backup', present=False, note='local-verified-dump-only')
-        if self.cfg.production_host:
-            say(check='host', **self.host_capacity())
+        problem = self.offhost_problem()
+        say(check='offhost-backup', ok=problem is None)
+        if problem:
+            blockers.append(problem)
         say(phase='plan', status='done', ready=not blockers, blockers='|'.join(blockers) or 'none')
         return 0 if not blockers else 2
 
@@ -624,12 +764,86 @@ class Cutover:
 
     def proposal_state(self):
         out = {}
-        for name, _, sentinel in PROPOSALS:
+        for name, _, sentinel in self.proposals:
             res = self.target.read(sentinel, self.cfg.database).splitlines()
             out[name] = res[-1].strip() == 't'
         return out
 
-    # ----- apply
+    def offhost_problem(self):
+        """Real check of the off-host backup receipt (contract: docs/xmartmenu-final-cutover.md)."""
+        c = self.cfg
+        if not c.require_offhost:
+            return None
+        try:
+            r = json.loads(c.offhost_receipt.read_text())
+            fresh = time.time() - int(r['at']) <= c.offhost_max_age_hours * 3600
+            ok = r.get('restored') is True and bool(re.fullmatch('[0-9a-f]{64}', r.get('sha256', ''))) and r.get('database') == c.database
+        except (OSError, ValueError, KeyError, TypeError):
+            return 'offhost-backup-missing'
+        return None if fresh and ok else 'offhost-backup-stale'
+
+    def source_facts(self):
+        q = """SELECT jsonb_build_object(
+ 'auth_ids', (SELECT coalesce(jsonb_agg(id ORDER BY id),'[]') FROM auth.users),
+ 'profile_ids', (SELECT coalesce(jsonb_agg(id ORDER BY id),'[]') FROM public.profiles),
+ 'roles', (SELECT coalesce(jsonb_object_agg(role, n),'{}') FROM (SELECT role, count(*) AS n FROM public.profiles GROUP BY role) r),
+ 'superadmin_google', (SELECT count(*) FROM public.profiles p WHERE p.role='superadmin' AND EXISTS (SELECT 1 FROM auth.identities i WHERE i.user_id=p.id AND i.provider='google')),
+ 'google_users', (SELECT count(DISTINCT user_id) FROM auth.identities WHERE provider='google'))::text"""
+        return json.loads(self.src().read(q).splitlines()[-1])
+
+    def account_problems(self, sf):
+        """Compare the source Auth/profile sets with the candidate accounts (counts only)."""
+        accounts = set(self.tgt('SELECT id FROM public.app_accounts').split())
+        auth, profiles = set(sf['auth_ids']), set(sf['profile_ids'])
+        info = {'source_auth': len(auth), 'source_profiles': len(profiles), 'candidate_accounts': len(accounts),
+                'auth_missing_in_candidate': len(auth - accounts), 'candidate_extra': len(accounts - auth),
+                'profiles_without_auth': len(profiles - auth), 'auth_without_profile': len(auth - profiles)}
+        bad = []
+        if info['candidate_extra']:
+            bad.append('candidate-extra-accounts')
+        if info['profiles_without_auth'] or info['auth_without_profile']:
+            bad.append('source-auth-profiles-differ')
+        if info['source_auth'] != self.cfg.expected_accounts:
+            bad.append('account-baseline')
+        return info, bad
+
+    def schema_match(self, tables):
+        arr = "ARRAY[" + ",".join("'" + t + "'" for t in tables) + "]"
+        a = self.src().read(SCHEMA_FP_SQL.replace('__TABLES__', arr)).splitlines()[-1]
+        b = self.target.read(SCHEMA_FP_SQL.replace('__TABLES__', arr), self.cfg.database).splitlines()[-1]
+        return a == b
+
+    def admit(self, where):
+        """Capacity of both hosts, rechecked at each heavy step (host 49 refused a deploy for this on 2026-11-05)."""
+        bad = []
+        if self.cfg.production_host:
+            bad += ['local-' + x for x in capacity_problems(self.host_capacity())]
+        info = self.apphost.inspect()
+        bad += ['app-host-' + x for x in capacity_problems(info)]
+        if bad:
+            raise Refused('capacity-' + where + '-' + '-'.join(bad))
+
+    def take_xmail_lock(self):
+        c = self.cfg
+        if not c.production_host:
+            return
+        try:
+            fd = os.open(c.xmail_deploy_lock, os.O_WRONLY | os.O_NOFOLLOW)
+            if fcntl:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            self._xmail = fd
+        except OSError:
+            raise Refused('xmail-deploy-lock')
+
+    def wait_health(self, release=None, token=None):
+        c = self.cfg
+        for _ in range(c.health_attempts):
+            code, h = health(c, token or self.health_token())
+            if code == 200 and h.get('checks', {}).get('database', {}).get('ok') and (release is None or h.get('release') == release):
+                return h
+            c.sleep(c.poll_seconds)
+        return None
+
     def lock(self):
         self.cfg.root.mkdir(parents=True, exist_ok=True)
         os.chmod(self.cfg.root, 0o700)
@@ -663,17 +877,26 @@ class Cutover:
         old = self.st.load()
         if old and old.get('status') == 'running':
             say(phase='recover', status='start', interrupted_at=old.get('phase', 'none'))
-            self.revert('interrupted-' + str(old.get('phase', 'none')), recovering=True)
+            try:
+                self.revert('interrupted-' + str(old.get('phase', 'none')), recovering=True)
+            except Refused as e:
+                say(phase='recover', status='refused', check=e.label)
+                return 4 if e.label == 'revert-incomplete' else 3
             say(phase='recover', status='done', action='reverted-re-dispatch-apply')
             return 10
+        if old and old.get('status') in ('completed', 'failed-needs-review', 'revert-incomplete'):
+            say(phase='apply', status='refused', check='previous-run-' + old['status'], run=old.get('run', 'none'))
+            return 2
         self.st.begin('apply', self.sha)
         started_changes = False
         try:
+            self.take_xmail_lock()
             self.p_preflight()
-            self.p_backup()
             started_changes = True
+            self.p_backup()
             self.p_stop_app()
             self.p_fence()
+            self.admit('copy')
             self.p_copy()
             self.p_proposals()
             self.p_grants()
@@ -681,9 +904,9 @@ class Cutover:
             self.p_google()
             self.p_post_manifest()
             self.p_env()
+            self.admit('deploy')
             self.p_deploy()
             self.p_verify()
-            self.p_marker()
         except Refused as e:
             return self.fail(e.label, started_changes)
         except SqlFailed as e:
@@ -692,6 +915,11 @@ class Cutover:
             return self.fail('interrupted', started_changes)
         except Exception:
             return self.fail('unexpected', started_changes)
+        try:
+            self.p_marker()
+        except Exception:
+            # A verified switch is never reverted because a marker could not be written (M4).
+            say(phase='marker', status='failed', check='marker-write', note='switch-verified-not-reverted')
         say(phase='apply', status='completed', run=self.st.data['run'])
         return 0
 
@@ -705,7 +933,10 @@ class Cutover:
             self.revert(label)
         except Refused as e:
             say(phase='revert', status='refused', check=e.label)
-            return 3
+            return 4 if e.label == 'revert-incomplete' else 3
+        except BaseException:
+            say(phase='revert', status='failed', check='unexpected')
+            return 4
         return 1
 
     def p_preflight(self):
@@ -713,45 +944,60 @@ class Cutover:
         if c.production_host:
             if os.getuid() != 0 or Path('/etc/hostname').read_text().strip() != c.hostname:
                 raise Refused('wrong-host')
-            cap = self.host_capacity()
-            if cap['mem_available_mib'] < 1024 or cap['swap_used_mib'] > 512 or cap['disk_free_gib'] < 2:
-                raise Refused('host-capacity')
         for name in ('COOLIFY_TOKEN', 'SUPABASE_SOURCE_DATABASE_URL'):
             if not self.sec.get(name):
                 raise Refused('secret-' + name.lower().replace('_', '-'))
         if not re.fullmatch(r'[0-9a-f]{40}', self.sha or ''):
             raise Refused('image-sha')
-        if not self.google_script and not self.skip_google:
+        if not self.google_script:
             raise Refused('google-subjects-script-missing')
+        problem = self.offhost_problem()
+        if problem:
+            raise Refused(problem)
+        self.admit('preflight')
+        info = self.apphost.inspect()
+        if info['containers'] != 1 or not info['running'] or info['network_id'] != c.network_id or not info['transport']:
+            raise Refused('app-host-state')
         code, h = health(c, self.health_token())
         if code != 200 or not h.get('checks', {}).get('database', {}).get('ok'):
             raise Refused('app-not-healthy')
         env = self.coolify.env_map()
-        if any(env.get(f) == 'true' for f in FLAGS):
+        if any(env.get(f) == 'true' for f in self.flags):
             raise Refused('flags-already-on')
+        if RUN_LOCK_ENV in env:
+            raise Refused('cutover-env-lock-present')
         if sum(1 for k in GOOGLE_STAGED if env.get(k)) != len(GOOGLE_STAGED):
             raise Refused('google-staged-incomplete')
+        if not (env.get('NEXT_PUBLIC_SUPABASE_URL') and env.get('NEXT_PUBLIC_SUPABASE_ANON_KEY')):
+            raise Refused('runtime-legacy-proof-env')
+        if any(not env.get(k) for k in STORAGE_KEYS):
+            raise Refused('storage-s3-env')
         facts = self.target_facts()
         if facts['version'] != 17 or facts['database'] != c.database:
             raise Refused('target-identity')
         if facts['runtime']['login'] or facts['runtime']['limit'] != c.runtime_limit or facts['sessions'] or facts['always']:
             raise Refused('target-roles')
-        if facts['accounts'] != c.expected_accounts:
-            raise Refused('account-baseline')
         if not facts['auth_lock'] or facts['not_owned']:
             raise Refused('owner-privileges')
         stables = self.source_tables()
         if len(stables) != c.expected_tables or set(stables) - set(facts['tables']):
             raise Refused('table-set')
+        if not self.schema_match(stables):
+            raise Refused('schema-differs')
+        sf = self.source_facts()
+        _, bad = self.account_problems(sf)
+        if bad:
+            raise Refused(bad[0])
+        if sf['roles'].get('superadmin', 0) and not sf['superadmin_google']:
+            raise Refused('superadmin-without-google')
         if not self.proposal_state()['identity-foundation']:
             raise Refused('identity-foundation-missing')
-        files = {f for _, f, _ in PROPOSALS if f}
         if self.bundle:
             meta = json.loads((self.bundle / 'bundle.json').read_text())
-            for f in files:
-                if hashlib.sha256((self.bundle / 'proposals' / f).read_bytes()).hexdigest() != meta['proposals'].get(f):
+            for _, f, _ in self.proposals:
+                if f and hashlib.sha256((self.bundle / 'proposals' / f).read_bytes()).hexdigest() != meta['proposals'].get(f):
                     raise Refused('bundle-hash')
-        self.st.fact(tables=stables, image_tag_before=env.get('IMAGE_TAG', ''), release_before=h.get('release', ''))
+        self.st.fact(tables=stables, image_tag_before=env.get('IMAGE_TAG', ''), release_before=h.get('release', ''), flags=self.flags)
         self.st.phase('preflight')
 
     def p_backup(self):
@@ -775,8 +1021,17 @@ class Cutover:
         self.st.phase('backup-verified')
 
     def p_stop_app(self):
-        self.st.fact(app_stopped=True)
-        self.coolify.stop()
+        c = self.cfg
+        info = self.apphost.inspect()
+        if info['containers'] != 1 or not info['running'] or info['network_id'] != c.network_id or not info['transport']:
+            raise Refused('app-host-state')
+        # Normal deploys refuse while this variable exists (scripts/coolify-deploy.sh).
+        self.st.fact(app_container=info['id'], network_id=info['network_id'], app_stopped=True, lock_env=True)
+        self.coolify.set_env(RUN_LOCK_ENV, self.st.data['run'])
+        self.apphost.stop(info['id'])  # docker update --restart=no + docker stop, by immutable ID
+        after = self.apphost.inspect()
+        if after['network_id'] != c.network_id or not after['transport'] or after['running']:
+            raise Refused('network-or-transport-lost')
         self.st.phase('app-stopped')
 
     def p_fence(self):
@@ -816,18 +1071,25 @@ class Cutover:
     def p_proposals(self):
         state = self.proposal_state()
         before = set(self.target_tables())
-        for name, file, _ in PROPOSALS:
+        for name, file, _ in self.proposals:
             if file is None or state[name]:
                 continue
             sql = (self.bundle / 'proposals' / file).read_text()
             try:
                 self.target.sql(sql, self.cfg.database, role=self.cfg.owner)
+                if file == CLAIMS_FILE:
+                    version = file.split('_', 1)[0]
+                    self.tgt("INSERT INTO supabase_migrations.schema_migrations(version, name, statements, created_by) VALUES ('"
+                             + version + "', 'identity_google_claims', ARRAY[$stmt$" + sql + "$stmt$], 'xmartmenu-final-cutover') ON CONFLICT DO NOTHING")
             except SqlFailed as e:
                 say(phase='proposal.' + name, status='failed', check='sqlstate-' + e.sqlstate)
                 raise
             if not self.proposal_state()[name]:
                 raise Refused('proposal-not-applied')
             self.st.phase('proposal.' + name)
+        proof = self.tgt("SELECT pg_get_constraintdef(oid) LIKE '%phone-match%' AND pg_get_constraintdef(oid) LIKE '%native-registration%' FROM pg_constraint WHERE conname='app_identity_bindings_binding_proof_check'").splitlines()[-1]
+        if proof != 't':
+            raise Refused('binding-proof-constraint')
         self.st.fact(proposal_tables=sorted(set(self.target_tables()) - before))
         self.st.phase('proposals-applied')
 
@@ -857,19 +1119,18 @@ END $do$;""", role=c.owner)
         self.st.phase('runtime-login-enabled')
 
     def p_google(self):
-        if self.skip_google or not self.google_script:
-            say(phase='google-subjects', status='skipped', accepted=self.skip_google)
-            self.st.phase('google-subjects', 'skipped')
-            return
         base = (self.sec.get('NEXT_PUBLIC_SUPABASE_URL') or '').rstrip('/')
         key = self.sec.get('SUPABASE_SERVICE_ROLE_KEY')
-        if not base or not key:
+        if not base or not key or not base.startswith(('https://', 'http://127.0.0.1')):
             raise Refused('google-subjects-secrets')
         users = []
         for page in range(1, 101):
             r = urllib.request.Request(f'{base}/auth/v1/admin/users?page={page}&per_page=200', headers={'apikey': key, 'Authorization': 'Bearer ' + key})
-            with urllib.request.urlopen(r, timeout=30) as resp:
-                batch = json.loads(resp.read()).get('users')
+            try:
+                with OPENER.open(r, timeout=30) as resp:
+                    batch = json.loads(resp.read()).get('users')
+            except (urllib.error.URLError, ValueError, OSError):
+                raise Refused('google-subjects-response')
             if not isinstance(batch, list):
                 raise Refused('google-subjects-response')
             users += batch
@@ -883,6 +1144,14 @@ END $do$;""", role=c.owner)
  DO $do$ BEGIN IF EXISTS (SELECT 1 FROM (VALUES {values}) v(s,a) JOIN public.identity_google_subject_claims c ON c.google_sub=v.s WHERE c.account_id<>v.a::uuid)
  THEN RAISE EXCEPTION 'claimed by another account'; END IF; END $do$; COMMIT;""")
         say(phase='google-subjects', status='ok', claims=len(claims))
+        # A superadmin must be able to sign in with the owned login (B3); otherwise nothing goes live.
+        n = int(self.tgt("""SELECT count(*) FROM public.profiles p WHERE p.role='superadmin' AND (
+ EXISTS (SELECT 1 FROM public.identity_google_subject_claims c WHERE c.account_id=p.id)
+ OR EXISTS (SELECT 1 FROM public.app_identity_bindings b WHERE b.user_id=p.id))""").splitlines()[-1])
+        total = int(self.tgt("SELECT count(*) FROM public.profiles WHERE role='superadmin'").splitlines()[-1])
+        say(phase='google-subjects', superadmins=total, superadmins_with_link=n)
+        if total and not n:
+            raise Refused('superadmin-without-link')
         self.st.phase('google-subjects')
 
     def p_post_manifest(self):
@@ -893,7 +1162,7 @@ END $do$;""", role=c.owner)
     def env_values(self):
         c = self.cfg
         url = f'postgresql://{c.runtime}:{self.password}@{c.runtime_host}:{c.runtime_port}/{c.database}'
-        values = {f: 'true' for f in FLAGS}
+        values = {f: 'true' for f in self.flags}
         values.update({'STORAGE_PROVIDER': 's3', 'IDENTITY_ORIGIN': c.public_url, 'GOOGLE_AUTH_ENABLED': 'true',
                        'PROD_DATABASE_HOST': c.runtime_host, 'PROD_DATABASE_NAME': c.database, 'IMAGE_TAG': self.sha})
         for p in PREFIXES:
@@ -920,18 +1189,15 @@ END $do$;""", role=c.owner)
 
     def p_verify(self):
         c, token = self.cfg, self.health_token()
-        for _ in range(c.health_attempts):
-            code, h = health(c, token)
-            if code == 200 and h.get('release') == self.sha:
-                break
-            c.sleep(c.poll_seconds)
-        else:
+        h = self.wait_health(self.sha, token)
+        if h is None:
             raise Refused('health-release')
-        if not h.get('checks', {}).get('database', {}).get('ok'):
-            raise Refused('health-database')
         mode = (h.get('config') or {}).get('database_mode')
         if token and (mode != 'owned' or (h.get('config') or {}).get('storage') != 's3'):
             raise Refused('health-mode')
+        info = self.apphost.inspect()
+        if info['network_id'] != c.network_id or not info['transport']:
+            raise Refused('network-or-transport-lost')
         n = int(self.tgt(f"SELECT count(*) FROM pg_stat_activity WHERE usename='{c.runtime}' AND datname='{c.database}'").splitlines()[-1])
         if n < 1:
             raise Refused('app-not-on-owned-database')
@@ -947,15 +1213,18 @@ END $do$;""", role=c.owner)
 
     def p_marker(self):
         run = self.st.data['run']
+        (self.cfg.root / 'COMPLETED').write_text(json.dumps({'run': run, 'sha': self.sha, 'at': int(time.time())}))
+        self.st.data['status'] = 'completed'
+        self.st.phase('completed')
+        try:
+            self.coolify.delete_env(RUN_LOCK_ENV)
+        except Refused:
+            say(check='cutover-env-lock-left', note='remove-by-hand')
         self.tgt(f"""CREATE SCHEMA IF NOT EXISTS xmartmenu_cutover;
 CREATE TABLE IF NOT EXISTS xmartmenu_cutover.markers(run_id text NOT NULL, phase text NOT NULL, at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY(run_id, phase));
 REVOKE ALL ON SCHEMA xmartmenu_cutover FROM PUBLIC; REVOKE ALL ON xmartmenu_cutover.markers FROM PUBLIC;
 INSERT INTO xmartmenu_cutover.markers(run_id, phase) VALUES ('{run}', 'completed') ON CONFLICT DO NOTHING;""")
-        self.st.data['status'] = 'completed'
-        self.st.phase('completed')
-        (self.cfg.root / 'COMPLETED').write_text(json.dumps({'run': run, 'sha': self.sha, 'at': int(time.time())}))
 
-    # ----- revert / rollback
     def new_writes(self):
         f = self.st.facts
         if 'post_manifest' not in f:
@@ -964,42 +1233,130 @@ INSERT INTO xmartmenu_cutover.markers(run_id, phase) VALUES ('{run}', 'completed
         return m['tables'] != f['post_manifest'] or m['next'] != f['post_next']
 
     def revert(self, reason, recovering=False):
-        c, f = self.cfg, self.st.facts
+        """Every step runs even if an earlier one failed; the end state is only 'reverted' when all verified."""
+        c, f, errors = self.cfg, self.st.facts, []
         say(phase='revert', status='start', reason=reason)
-        was_owned = f.get('deploy_started') or self.st.data.get('status') == 'completed'
-        if was_owned:
-            self.coolify.stop()
-            if self.new_writes():
-                say(phase='revert', status='refused', check='new-writes-detected')
-                self.coolify.deploy()
-                self.st.data['status'] = 'failed-needs-review'
-                self.st.save()
-                raise Refused('new-writes-detected')
-        if f.get('copy_attempted') is None and not f.get('source_fenced') and not f.get('app_stopped') and not f.get('runtime_login_enabled') and not f.get('env_write_started'):
+        deployed = bool(f.get('deploy_started')) or self.st.data.get('status') == 'completed'
+        touched = any(f.get(k) for k in ('copy_attempted', 'source_fenced', 'app_stopped', 'runtime_login_enabled', 'env_write_started', 'temp_db', 'lock_env'))
+        if not touched and not deployed:
             self.st.data['status'] = 'refused'
             self.st.save()
             return
-        if f.get('runtime_login_enabled') or was_owned:
-            self.tgt(f"ALTER ROLE {ident(c.runtime)} NOLOGIN PASSWORD NULL; SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity WHERE usename='{c.runtime}';")
-        if f.get('env_write_started'):
-            for k, v in f.get('env_previous', {}).items():
-                self.coolify.delete_env(k) if v is None else self.coolify.set_env(k, v)
-        if f.get('source_fenced'):
-            tables = f['tables']
-            self.src().sql(unfence_sql(tables))
-            left = int(self.src().read("SELECT count(*) FROM pg_trigger WHERE tgname='xm_cutover_fence'").splitlines()[-1])
-            if left:
-                raise Refused('unfence-incomplete')
-        if f.get('temp_db'):
-            self.tgt(f'DROP DATABASE IF EXISTS {ident(f["temp_db"])}', 'postgres')
-        if f.get('app_stopped') or was_owned:
-            self.coolify.deploy()
-            code, h = health(c, self.health_token())
-            if code != 200:
+        current = {}
+
+        def step(name, fn):
+            try:
+                fn()
+            except Refused as e:
+                errors.append(name)
+                say(phase='revert.' + name, status='failed', check=e.label)
+            except SqlFailed as e:
+                errors.append(name)
+                say(phase='revert.' + name, status='failed', check='sqlstate-' + e.sqlstate)
+            except Exception:
+                errors.append(name)
+                say(phase='revert.' + name, status='failed', check='unexpected')
+
+        def stop_current():
+            if deployed:
+                info = self.apphost.inspect()
+                current['id'] = info['id']
+                if info['running']:
+                    self.apphost.stop(info['id'])
+                if self.new_writes():
+                    needs = 'DISCARD-' + self.st.data['run']
+                    if self.discard != needs:
+                        say(phase='revert', status='refused', check='new-writes-detected', needs=needs)
+                        self.apphost.start(info['id'])
+                        self.st.data['status'] = 'failed-needs-review'
+                        self.st.save()
+                        raise Refused('new-writes-detected')
+                    self.export_new_rows()
+
+        try:
+            stop_current()
+        except Refused as e:
+            if e.label == 'new-writes-detected':
+                raise
+            errors.append('stop-current')
+            say(phase='revert.stop-current', status='failed', check=e.label)
+
+        def role_off():
+            if f.get('runtime_login_enabled') or deployed:
+                self.tgt(f"ALTER ROLE {ident(c.runtime)} NOLOGIN PASSWORD NULL; SELECT count(pg_terminate_backend(pid)) FROM pg_stat_activity WHERE usename='{c.runtime}';")
+                row = self.tgt(f"SELECT rolcanlogin::text || (rolpassword IS NULL)::text FROM pg_authid WHERE rolname='{c.runtime}'").splitlines()[-1]
+                if row != 'falsetrue':
+                    raise Refused('role-still-login')
+        step('role-off', role_off)
+
+        def env_back():
+            previous = f.get('env_previous', {})
+            if f.get('env_write_started'):
+                for k, v in previous.items():
+                    if v is None:
+                        self.coolify.delete_env(k)
+                    else:
+                        self.coolify.set_env(k, v)
+                now = self.coolify.env_map()
+                if any(now.get(k) != v for k, v in previous.items()):
+                    raise Refused('env-readback')
+        step('env-restore', env_back)
+
+        def unfence():
+            if f.get('source_fenced'):
+                self.src().sql(unfence_sql(f['tables']))
+                left = int(self.src().read("SELECT count(*) FROM pg_trigger WHERE tgname='xm_cutover_fence'").splitlines()[-1])
+                if left:
+                    raise Refused('unfence-incomplete')
+        step('unfence-source', unfence)
+
+        def temp_db():
+            if f.get('temp_db'):
+                self.tgt(f'DROP DATABASE IF EXISTS {ident(f["temp_db"])}', 'postgres')
+        step('temp-database', temp_db)
+
+        def old_app_back():
+            if deployed:
+                self.coolify.deploy()
+                expected = f.get('release_before') or None
+            elif f.get('app_container'):
+                self.apphost.start(f['app_container'])
+                expected = f.get('release_before') or None
+            else:
+                return
+            if self.wait_health(expected) is None:
                 raise Refused('revert-health')
+            info = self.apphost.inspect()
+            if info['network_id'] != c.network_id or not info['transport']:
+                raise Refused('network-or-transport-lost')
+        step('old-app', old_app_back)
+
+        def drop_lock():
+            self.coolify.delete_env(RUN_LOCK_ENV)
+            if RUN_LOCK_ENV in self.coolify.env_map():
+                raise Refused('cutover-env-lock-left')
+        step('cutover-env-lock', drop_lock)
+
+        if errors:
+            self.st.data['status'] = 'revert-incomplete'
+            self.st.fact(revert_errors=errors)
+            say(phase='revert', status='incomplete', failed_steps='|'.join(errors), manual='docs/xmartmenu-final-cutover.md')
+            raise Refused('revert-incomplete')
         self.st.data['status'] = 'reverted'
         self.st.save()
         say(phase='revert', status='done', reason=reason)
+
+    def export_new_rows(self):
+        """Keep a private copy of everything written to the own database before discarding it (B4)."""
+        raw = self.target.dump(['-Fc', '-d', self.cfg.database])
+        path = self.cfg.root / self.st.data['run'] / 'owned-new-writes.dump'
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o400)
+        with os.fdopen(fd, 'wb') as out:
+            out.write(raw)
+            out.flush()
+            os.fsync(out.fileno())
+        self.st.fact(new_rows_exported=hashlib.sha256(raw).hexdigest())
+        say(phase='revert', status='exported-new-rows', bytes=len(raw))
 
     def _rollback(self):
         self.lock()
@@ -1007,20 +1364,22 @@ INSERT INTO xmartmenu_cutover.markers(run_id, phase) VALUES ('{run}', 'completed
         if not old:
             raise Refused('no-run-recorded')
         if old['status'] == 'running':
-            self.revert('interrupted-' + str(old.get('phase', 'none')), recovering=True)
+            try:
+                self.revert('interrupted-' + str(old.get('phase', 'none')), recovering=True)
+            except Refused as e:
+                say(phase='rollback', status='refused', check=e.label)
+                return 4 if e.label == 'revert-incomplete' else 3
             return 10
-        if old['status'] not in ('completed', 'failed-needs-review'):
+        if old['status'] not in ('completed', 'failed-needs-review', 'revert-incomplete'):
             say(phase='rollback', status='nothing-to-do', last=old['status'])
             return 0
-        self.st.data['facts'] = old['facts']
         try:
             self.revert('manual-rollback')
         except Refused as e:
             say(phase='rollback', status='refused', check=e.label)
-            return 3
+            return 4 if e.label == 'revert-incomplete' else 3
         say(phase='rollback', status='done')
         return 0
-
 
 def plan_claims(users, account_ids):
     uuid = re.compile(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$', re.I)
@@ -1071,13 +1430,17 @@ def production_source(cfg, bundle):
     return make
 
 
-def main(argv=None, cfg=None, target=None, make_source=None, coolify=None):
+def main(argv=None, cfg=None, target=None, make_source=None, coolify=None, apphost=None):
     ap = argparse.ArgumentParser()
     ap.add_argument('--mode', choices=['plan', 'apply', 'rollback'], default='plan')
     ap.add_argument('--image-sha', default='')
     ap.add_argument('--bundle', default='')
-    ap.add_argument('--skip-google-subjects', action='store_true')
+    ap.add_argument('--discard-new-writes', default='', help='rollback only: DISCARD-<run> after the owned rows were exported')
+    ap.add_argument('--print-operator-recovery', nargs=2, metavar=('ACCOUNT_UUID', 'FIREBASE_SUBJECT'), help='print the emergency superadmin SQL and exit')
     args = ap.parse_args(argv)
+    if args.print_operator_recovery:
+        print(operator_recovery_sql(args.print_operator_recovery[0], os.environ.get('GOOGLE_AUTH_PROJECT_ID', 'skaleclub'), args.print_operator_recovery[1]))
+        return 0
     signal.signal(signal.SIGHUP, signal.SIG_IGN)
 
     def term(*_):
@@ -1091,7 +1454,7 @@ def main(argv=None, cfg=None, target=None, make_source=None, coolify=None):
     make_source = make_source or production_source(cfg, bundle)
     coolify = coolify or Coolify(cfg, token)
     google = bool(bundle) and (Path(bundle) / 'google-import-present').exists()
-    op = Cutover(cfg, sec, args.image_sha, bundle, target, make_source, coolify, args.skip_google_subjects, google)
+    op = Cutover(cfg, sec, args.image_sha, bundle, target, make_source, coolify, apphost or SshAppHost(cfg), google, args.discard_new_writes)
     try:
         if args.mode == 'plan':
             return op.plan()

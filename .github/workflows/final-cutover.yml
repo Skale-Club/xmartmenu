@@ -20,11 +20,10 @@ on:
         description: First 8 characters of the main commit (required for apply and rollback)
         required: false
         type: string
-      skip_google_subjects:
-        description: Accept going live without importing Google subjects (only while PR 68 is not merged)
+      discard_new_writes:
+        description: rollback only, after new writes were detected - type DISCARD-<run id> to export and then discard them
         required: false
-        type: boolean
-        default: false
+        type: string
 
 # Same group as the deploy: no build or deploy may overlap the window.
 concurrency:
@@ -41,10 +40,20 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    # Create the environment once (Settings > Environments > final-cutover) restricted to the main branch,
+    # with required reviewers if wanted. The first step below fails closed when it is not restricted.
+    environment: final-cutover
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
+
+      - name: The environment is restricted to main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          policy="$(gh api "repos/${GITHUB_REPOSITORY}/environments/final-cutover" --jq '.deployment_branch_policy.custom_branch_policies // false' 2>/dev/null || echo unreadable)"
+          [[ "${policy}" == "true" ]] || { echo "::error::Environment final-cutover must restrict deployments to selected branches (main); see docs/xmartmenu-final-cutover.md."; exit 1; }
 
       - name: Guard (apply and rollback)
         if: inputs.mode != 'plan'
@@ -54,6 +63,8 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           [[ "${CONFIRM}" == "${SHA:0:8}" ]] || { echo "::error::confirm_sha must be ${SHA:0:8}"; exit 1; }
+          # A rollback must stay possible when the current commit has no green CI; only apply needs it.
+          [[ "${{ inputs.mode }}" == "apply" ]] || exit 0
           ok="$(gh run list --workflow ci.yml --branch main --commit "${SHA}" --status success --json databaseId --jq 'length')"
           [[ "${ok}" != "0" ]] || { echo "::error::No successful CI run on main for ${SHA}."; exit 1; }
 
@@ -78,4 +89,4 @@ jobs:
           CUTOVER_SSH_HOST: ${{ secrets.CUTOVER_SSH_HOST }}
           CUTOVER_SSH_KEY: ${{ secrets.CUTOVER_SSH_KEY }}
           CUTOVER_SSH_HOST_KEY: ${{ secrets.CUTOVER_SSH_HOST_KEY }}
-        run: bash scripts/ops/run-xmartmenu-final-cutover.sh "${{ inputs.mode }}" "${{ github.sha }}" "${{ inputs.skip_google_subjects }}"
+        run: bash scripts/ops/run-xmartmenu-final-cutover.sh "${{ inputs.mode }}" "${{ github.sha }}" "${{ inputs.discard_new_writes }}"
