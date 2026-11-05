@@ -5,8 +5,9 @@ import { validateTenantSlug } from '../admin/tenant-management'
 import { initialSettingsForPlan, liveFeatures } from '../plan-settings'
 import { planCeiling } from '../service-modes'
 import { SERVICE_SETTINGS_KEYS, validateServiceSettingsPatch } from '../service-settings'
+import { oauthAuthority, requireMcpAuthority, type NativeAdminAuthority } from '../mcp/data/authority'
 
-export type TenantAdminContext = { actorId: string; sessionHash: string }
+export type TenantAdminContext = { actorId: string } & NativeAdminAuthority
 export const tenantAdministrationSelected = (env: Record<string,string|undefined> = process.env) => env.OWNED_TENANT_ADMIN_ENABLED === 'true'
 function refuse(status = 403,message = 'Current platform administrator access is required'): never { throw new AdminMenuError(status,message) }
 const single = (rows: Record<string,unknown>[]) => rows.length === 1 ? rows[0] : null
@@ -16,7 +17,9 @@ function dto(row: Record<string,unknown>) {
   return Object.fromEntries(Object.entries(row).map(([key,value]) => [key,iso(value)]))
 }
 export async function requireTenantAdministrator(query: AdminMenuQuery,context: TenantAdminContext,write = false) {
-  if (!UUID.test(context.actorId) || !/^[a-f0-9]{64}$/.test(context.sessionHash)) refuse()
+  const oauth = oauthAuthority(context)
+  if (oauth) { await requireMcpAuthority(query,{ actorId:context.actorId,oauth },write); return }
+  if (!UUID.test(context.actorId) || !/^[a-f0-9]{64}$/.test(context.sessionHash ?? '')) refuse()
   // Shared with account administration: a role/ownership change cannot race a
   // tenant write or remove the last administrator during this operation.
   if (write) await query("SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-account-authority',0))")

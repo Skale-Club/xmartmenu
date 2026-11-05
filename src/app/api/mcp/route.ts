@@ -1,6 +1,7 @@
 import { createMcpHandler, withMcpAuth } from 'mcp-handler'
 import { verifyMcpToken } from '@/lib/mcp/verify-token'
 import { registerMcpTools } from '@/lib/mcp/register'
+import { mcpTransport } from '@/lib/mcp/transport'
 
 /**
  * xmartmenu MCP server (Streamable HTTP) — owner-level management surface for
@@ -38,8 +39,10 @@ const publicOrigin = process.env.MCP_PUBLIC_ORIGIN?.replace(/\/$/, '') || undefi
 
 const authHandler = withMcpAuth(mcpHandler, verifyMcpToken, {
   required: true,
+  requiredScopes: ['mcp:admin'],
   resourceMetadataPath: '/.well-known/oauth-protected-resource',
   ...(publicOrigin ? { resourceUrl: publicOrigin } : {}),
 })
 
-export { authHandler as GET, authHandler as POST, authHandler as DELETE }
+const handler=(request:Request)=>mcpTransport(request,authHandler)
+export { handler as GET, handler as POST, handler as DELETE, handler as OPTIONS }
