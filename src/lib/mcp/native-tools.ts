@@ -16,6 +16,7 @@ import { PlanChangeError } from '../billing/plan-change-model'
 import { launchChecklistItemsFor,summarizeLaunchChecklist,type LaunchChecklistStatus } from '../launch-checklist'
 import { captureSecurityEvent } from '../observability'
 import { revalidateAllPublicMenus } from '../menu/public-menu-cache'
+import { publishPendingNativeTenantEffects } from '../tenant-effects/publish-pending'
 
 export interface NativeMcpDependencies {
   database:McpDatabase; issuer:string; gateway:SubscriptionGateway
@@ -67,7 +68,7 @@ export function registerNativeMcpTools(server:McpServer) {
     annotations:{ readOnlyHint:!definition.write,destructiveHint:definition.destructive } },async(args,extra)=>{
     try {
       const actor=await nativeMcpActor(extra),{ issuer }=nativeMcpConfiguration()
-      return executeNativeMcpTool(definition.name,args,actor,{ database:nativeMcpDatabase(actor),issuer,gateway:subscriptionGateway,scan:scanLaunchChecklistSite })
+      return executeNativeMcpTool(definition.name,args,actor,{ database:nativeMcpDatabase(actor),issuer,gateway:subscriptionGateway,scan:scanLaunchChecklistSite,notify:publishPendingNativeTenantEffects })
     } catch(error) { return failure(error) }
   })
 }

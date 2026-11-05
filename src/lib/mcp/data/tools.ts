@@ -38,10 +38,13 @@ async function locationDelete(query:AdminMenuQuery,tenantId:string,id:string) {
   await query('DELETE FROM public.locations WHERE id=$1 AND tenant_id=$2',[id,tenantId]); return { ok:true }
 }
 async function platform(query:AdminMenuQuery,input?:unknown) {
+  const allowed=['app_name','brand_name','default_primary_color','default_accent_color','cta_color','menu_footer_brand','landing','seo_title','seo_description','favicon_url']
+  const visible=['id',...allowed],projection=visible.join(',')
+  const dto=(row:Args)=>Object.fromEntries(visible.filter(key=>Object.hasOwn(row,key)).map(key=>[key,row[key]]))
   await query("SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-mcp-platform',0))")
-  const rows=bounded((await query('SELECT * FROM public.platform_settings LIMIT 2')).rows,1)
-  if(input===undefined) return rows[0] ?? {}
-  const values=input as Args,allowed=['app_name','brand_name','default_primary_color','default_accent_color','cta_color','menu_footer_brand','landing','seo_title','seo_description','favicon_url']
+  const rows=bounded((await query(`SELECT ${projection} FROM public.platform_settings LIMIT 2`)).rows,1)
+  if(input===undefined) return rows[0] ? dto(rows[0]) : {}
+  const values=input as Args
   const fields=Object.keys(values)
   if(!fields.length || fields.some(key=>!allowed.includes(key))) throw new AdminMenuError(400,'Invalid platform settings')
   for(const [key,value] of Object.entries(values)) {
@@ -51,9 +54,9 @@ async function platform(query:AdminMenuQuery,input?:unknown) {
   }
   const params=fields.map(key=>key==='landing' ? JSON.stringify(values[key]) : values[key])
   const result=rows[0]
-    ? await query(`UPDATE public.platform_settings SET ${fields.map((field,index)=>`${field}=$${index+2}`).join(',')} WHERE id=$1 RETURNING *`,[rows[0].id,...params])
-    : await query(`INSERT INTO public.platform_settings(${fields.join(',')}) VALUES(${fields.map((_,index)=>`$${index+1}`).join(',')}) RETURNING *`,params)
-  return single(result.rows,'Platform settings could not be saved')
+    ? await query(`UPDATE public.platform_settings SET ${fields.map((field,index)=>`${field}=$${index+2}`).join(',')} WHERE id=$1 RETURNING ${projection}`,[rows[0].id,...params])
+    : await query(`INSERT INTO public.platform_settings(${fields.join(',')}) VALUES(${fields.map((_,index)=>`$${index+1}`).join(',')}) RETURNING ${projection}`,params)
+  return dto(single(result.rows,'Platform settings could not be saved'))
 }
 export async function nativeMcpDataTool(query:AdminMenuQuery,actor:McpActor,name:string,args:Args,issuer:string) {
   if((name.startsWith('delete_') || name==='demote_staff') && (process.env.MCP_ALLOW_DESTRUCTIVE!=='true' || args.confirm!==true)) throw new AdminMenuError(403,'MCP destructive actions require the server switch and confirm:true')
@@ -64,7 +67,7 @@ export async function nativeMcpDataTool(query:AdminMenuQuery,actor:McpActor,name
     const term=String(args.search ?? '').toLowerCase(),rows=all.filter(row=>!term || `${row.name} ${row.slug}`.toLowerCase().includes(term)).slice(0,Number(args.limit ?? 200))
     return { count:rows.length,tenants:rows }
   }
-  if(name==='create_tenant') return { tenant:await createTenant(query,actor,args),credentials:null }
+  if(name==='create_tenant') return { ...await createTenant(query,actor,args),credentials:null }
   if(name==='list_users') {
     const all:Record<string,unknown>[]=await listAdminAccounts(query,actor),term=String(args.search ?? '').toLowerCase()
     const rows=all.filter(row=>(!args.role || row.role===args.role) && (!term || String(row.full_name ?? '').toLowerCase().includes(term)))

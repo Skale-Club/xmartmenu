@@ -179,7 +179,12 @@ test('the narrow NOLOGIN runtime role can lock/mint/refresh but cannot rewrite c
   const capability=await new McpCapabilityIssuer(hash=>runtimeRun(false,query=>readMcpIdentity(query,hash,resource)),provider).issue(oauthHash(tokens.access_token))
   await runtimeRun(true,query=>requireMcpAuthority(query,capability,true))
   await runtimeStore.token(new URLSearchParams({ grant_type:'refresh_token',client_id:value.registered.client_id,refresh_token:tokens.refresh_token!,resource }),null)
-  await assert.rejects(runtimeRun(true,query=>query("UPDATE public.app_mcp_clients SET secret_hash=$1",[oauthHash(opaque())])),{ code:'42501' })
-  await assert.rejects(runtimeRun(true,query=>query("UPDATE public.app_mcp_grants SET scopes=ARRAY['other']")),{ code:'42501' })
-  await assert.rejects(runtimeRun(true,query=>query("UPDATE public.app_mcp_tokens SET token_hash=$1",[oauthHash(opaque())])),{ code:'42501' })
+  const denied=async(sql:string,values:unknown[]=[])=>runtimeRun(true,async query=>{
+    await query('SAVEPOINT denied_fact'); let code:unknown
+    try { await query(sql,values) } catch(error) { code=(error as { code?:string }).code }
+    await query('ROLLBACK TO SAVEPOINT denied_fact'); assert.equal(code,'42501')
+  })
+  await denied('UPDATE public.app_mcp_clients SET secret_hash=$1',[oauthHash(opaque())])
+  await denied("UPDATE public.app_mcp_grants SET scopes=ARRAY['other']")
+  await denied('UPDATE public.app_mcp_tokens SET token_hash=$1',[oauthHash(opaque())])
 })
