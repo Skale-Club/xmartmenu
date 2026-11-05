@@ -63,6 +63,26 @@ No private config belongs in this repo, CI artifact, deployment URL or terminal.
 
 ## Root-coordinated clone and real proof
 
+The new `xmartmenu-identity-pilot-snapshot.mjs` compiles one private read-only
+query that combines the preserved47/92 business manifest with all four identity
+table row digests, full95 ledger digest and exact profile/account-control hashes.
+`comparePilotSnapshots` requires equality of every field: the former engagement
+drift exception is not used. Its actual SQL is covered by the disposable
+foundation PostgreSQL fixture after the three migrations commit.
+
+`export-xmartmenu-identity-pilot.py` is plan-only by default. Its reviewed export
+mode requires its own source hash, the exact pinned existing backup helper and
+snapshot query hash, a private previously admitted snapshot SHA, source OID30227,
+dormant runtime/reader roles and zero other database sessions. It takes the
+existing backup lock; samples current capacity, current PG memory and unchanged
+cgroup event counters without requiring historical zero or resetting counters;
+checks the complete private manifest before/after dump; authenticates its
+AES-GCM ciphertext; and retains archive/key/snapshot/receipt as new root400 files
+in a new root700 recovery directory. Only aggregate hashes/counts/path reach its
+stdout. Restore success and application cutover remain explicitly false. The
+key/archive/private snapshot must subsequently travel only through the root
+coordinator's private stdio path; this export CLI never prints those payloads.
+
 1. Serialize the source49 snapshot/export with other PG operations. Reuse the
    reviewed authenticated encrypted backup/restore machinery, current fixed
    container/image/volume pins and fresh51/95/7/47 manifest. Transport archive/key

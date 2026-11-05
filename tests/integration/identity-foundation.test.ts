@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { buildFoundationSql, foundationTransaction } from '../../scripts/ops/prepare-xmartmenu-identity-foundation.mjs'
 import { assertManifest, MANIFEST_SQL, SOURCE_PROJECT, TABLES } from '../../scripts/ops/xmartmenu-source-protocol.mjs'
+import {PILOT_SNAPSHOT_SQL,assertPilotSnapshot,comparePilotSnapshots} from '../../scripts/ops/xmartmenu-identity-pilot-snapshot.mjs'
 
 const raw = process.env.IDENTITY_TEST_DATABASE_URL
 if (!raw) throw Error('Explicit disposable CI target required')
@@ -127,4 +128,18 @@ test('retry refuses existing foundation instead of replaying migrations or enabl
   await assert.rejects(db.query(await buildFoundationSql(state)), /Identity foundation preflight refused/)
   await db.query('ROLLBACK')
   assert.equal((await db.query('SELECT count(*)::int n FROM public.app_accounts')).rows[0].n, 7)
+})
+
+test('the private pilot export query preserves all47 business proofs and all four identity tables in a READ ONLY snapshot',async()=>{
+  await db.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')
+  try{
+    const snapshot=assertPilotSnapshot((await db.query(PILOT_SNAPSHOT_SQL)).rows[0].pilot_snapshot)
+    const proof=comparePilotSnapshots(snapshot,structuredClone(snapshot))
+    assert.equal(proof.publicTablesMatched,51);assert.equal(proof.businessRowDigestsMatched,47);assert.equal(proof.ledgerRowsMatched,95)
+    const changed=structuredClone(snapshot);changed.business.digests.menu_events='a'.repeat(64)
+    assert.throws(()=>comparePilotSnapshots(snapshot,changed),/Pilot clone mismatch/)
+    const controls=structuredClone(snapshot);controls.identity.app_accounts.digest='b'.repeat(64)
+    assert.throws(()=>comparePilotSnapshots(snapshot,controls),/Pilot clone mismatch/)
+    assert.equal((await db.query('SHOW transaction_read_only')).rows[0].transaction_read_only,'on')
+  }finally{await db.query('ROLLBACK')}
 })

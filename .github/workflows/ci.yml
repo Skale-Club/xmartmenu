@@ -83,6 +83,7 @@ jobs:
           python3 -B scripts/ops/test_apply_xmartmenu_identity_foundation.py
           node scripts/ops/build-xmartmenu-identity-pilot.mjs --output-new "$RUNNER_TEMP/xmartmenu-isolated-identity-pilot"
           node "$RUNNER_TEMP/xmartmenu-isolated-identity-pilot/xmartmenu-identity-pilot-cli.mjs"
+          python3 -B scripts/ops/test_export_xmartmenu_identity_pilot.py
 
       - name: Xphere contract checks
         run: npm run xphere:check:all
