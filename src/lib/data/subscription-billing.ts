@@ -3,10 +3,11 @@ import { normalizeRole } from '../auth/role-utils'
 import { readNativeTenantPlan, reconcileNativeTenantPlan } from './tenant-plan'
 import { readNativeStripeAvailability } from './stripe-connect'
 import { enqueueNativeTenantEffect } from './tenant-effects-outbox'
+import { oauthAuthority, requireMcpAuthority, type NativeAdminAuthority } from '../mcp/data/authority'
 import type { UserRole, TenantSubscription } from '@/types/database'
 import type { BillingCycle } from '../plan-billing'
 
-export interface SubscriptionActor { actorId: string; tenantId: string; role: UserRole; sessionHash: string }
+export type SubscriptionActor = { actorId: string; tenantId: string; role: UserRole } & NativeAdminAuthority
 export type SubscriptionView = Pick<TenantSubscription, 'billing_cycle' | 'status' | 'stripe_subscription_id' | 'current_period_end' | 'cancel_at_period_end'>
 export interface SubscriptionPlanOption { id: string; name: string; slug: string; description: string | null; monthly_price: number; annual_price: number; features: string[]; sort_order: number }
 export interface BillingPlan { id: string; slug: string; is_active: boolean; stripe_price_monthly_id: string | null; stripe_price_annual_id: string | null }
@@ -21,10 +22,11 @@ const reference = (value: unknown): string | null => { if (value == null || valu
 const number = (value: unknown) => { if (typeof value !== 'number' || !Number.isFinite(value)) throw billingUnavailable(); return value }
 export async function authorizeSubscription(query: AdminMenuQuery, context: SubscriptionActor, write = false, superadmin = false) {
   id(context.actorId); id(context.tenantId)
-  if (!/^[a-f0-9]{64}$/.test(context.sessionHash)) throw new AdminMenuError(403, 'Forbidden')
+  const oauth = oauthAuthority(context)
+  if (!oauth && !/^[a-f0-9]{64}$/.test(context.sessionHash ?? '')) throw new AdminMenuError(403, 'Forbidden')
   if (!['store-admin', 'superadmin', ...(write ? [] : ['store-staff'])].includes(context.role) || (superadmin && context.role !== 'superadmin')) throw new AdminMenuError(403, 'Forbidden')
   if (write) await query("SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-account-authority',0))")
-  const result = await query(`SELECT p.id,p.role,p.tenant_id,p.must_change_password,a.disabled_at
+  const result = oauth ? { rows:[await requireMcpAuthority(query,{ actorId:context.actorId,oauth },write)] } : await query(`SELECT p.id,p.role,p.tenant_id,p.must_change_password,a.disabled_at
     FROM public.profiles p JOIN public.app_accounts a ON a.id=p.id JOIN public.app_sessions s ON s.user_id=a.id
     JOIN public.app_identity_bindings b ON b.user_id=a.id AND b.project_id=s.project_id AND b.subject=s.subject
     WHERE p.id=$1 AND s.token_hash=$2 AND s.session_version=a.session_version AND s.expires_at>now()

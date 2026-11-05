@@ -1,6 +1,8 @@
 import { Suspense } from 'react'
 import type { Metadata } from 'next'
 import ConsentClient from './ConsentClient'
+import NativeConsentClient from './NativeConsentClient'
+import { nativeMcpSelected } from '@/lib/mcp/oauth-model'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,7 +19,7 @@ export const metadata: Metadata = {
 export default function OAuthConsentPage() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-zinc-950" />}>
-      <ConsentClient />
+      {nativeMcpSelected() ? <NativeConsentClient /> : <ConsentClient />}
     </Suspense>
   )
 }

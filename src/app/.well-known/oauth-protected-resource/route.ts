@@ -1,4 +1,6 @@
 import { protectedResourceHandler, metadataCorsOptionsRequestHandler } from 'mcp-handler'
+import { NextResponse } from 'next/server'
+import { mcpOrigin, nativeMcpSelected } from '@/lib/mcp/oauth-model'
 
 /**
  * OAuth 2.0 Protected Resource Metadata (RFC 9728) for the MCP server.
@@ -25,4 +27,11 @@ const handler = protectedResourceHandler({
 
 const corsHandler = metadataCorsOptionsRequestHandler()
 
-export { handler as GET, corsHandler as OPTIONS }
+export function GET(request: Request) {
+  if (nativeMcpSelected()) {
+    try { const { issuer,resource }=mcpOrigin(); return NextResponse.json({ resource,authorization_servers:[issuer],scopes_supported:['mcp:admin'],bearer_methods_supported:['header'] },{ headers:{ 'Cache-Control':'no-store','Access-Control-Allow-Origin':'*' } }) }
+    catch { return NextResponse.json({ error:'temporarily_unavailable' },{ status:503,headers:{ 'Cache-Control':'no-store' } }) }
+  }
+  return handler(request)
+}
+export { corsHandler as OPTIONS }
