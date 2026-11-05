@@ -51,7 +51,7 @@ export async function claimNativeCrmEffect(query:AdminMenuQuery,id:string,observ
     plan:current.plan,currency:current.currency,reason:current.reason,occurredAt:new Date().toISOString(),
     // Internal dedup keys do not invent new timeline notes for manual resync
     // or OAuth/disconnect, whose Source flows deliberately emitted no note.
-    eventId:current.reason==='manual'||current.eventId?.startsWith('oauth:')||current.eventId?.startsWith('disconnect:')?undefined:current.eventId,tags:current.tags})
+    eventId:current.reason==='manual'||current.reason==='backfill'||current.eventId?.startsWith('oauth:')||current.eventId?.startsWith('disconnect:')?undefined:current.eventId,tags:current.tags})
   if(current.owner)payload.company.phone=phone
   const claimId=randomUUID(),requestDigest=tenantEffectDigest(payload)
   await query("UPDATE public.app_tenant_effects SET status='processing',claim_id=$2,claimed_at=clock_timestamp(),observed_at=$3,request_digest=$4,request_payload=$5::jsonb WHERE id=$1",[id,claimId,payload.occurred_at,requestDigest,JSON.stringify(payload)])

@@ -143,8 +143,9 @@ export async function executeNativeUpload(operation:TenantOperation,bytes:Buffer
   getNativeStorageClient()
   const proof=await actor(operation),claim=await ownedAdminTransaction(true,query=>claimTenantOperation(query,proof,operation.id,tenantEffectDigest(operation.input)))
   if(!claim.claimId)throw new AdminMenuError(503,'Upload claim is unavailable')
+  const claimId=claim.claimId
   try{
-    const path=`${operation.tenantId}/native/${operation.id}/${type}.webp`,url=await storeImage(operation,claim.claimId,bytes,path,0),current=await actor(operation)
-    return await ownedAdminTransaction(true,query=>finishTenantOperation(query,current,operation.id,claim.claimId,{url}))
-  }catch{await unresolved(operation,claim.claimId);throw new AdminMenuError(409,'Upload outcome requires review; existing assets were preserved')}
+    const path=`${operation.tenantId}/native/${operation.id}/${type}.webp`,url=await storeImage(operation,claimId,bytes,path,0),current=await actor(operation)
+    return await ownedAdminTransaction(true,query=>finishTenantOperation(query,current,operation.id,claimId,{url}))
+  }catch{await unresolved(operation,claimId);throw new AdminMenuError(409,'Upload outcome requires review; existing assets were preserved')}
 }

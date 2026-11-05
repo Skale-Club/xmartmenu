@@ -11,6 +11,8 @@ import {prepareTenantEffectCall,recordTenantEffectCall,reconcileTenantEffectCall
 import {prepareNativeImageStep,advanceNativeImageStep} from '../../src/lib/data/tenant-effect-image-jobs'
 import {prepareNativeUploadTicket,nativeOperationStatus,consumeNativeOcrTicket} from '../../src/lib/data/tenant-effect-uploads'
 import {enqueueNativeTenantEffect} from '../../src/lib/data/tenant-effects-outbox'
+import {enqueueNativeTenantEffectBatch} from '../../src/lib/data/tenant-effects-backfill'
+import {nativeOnboarding} from '../../src/lib/auth/native-onboarding'
 import {readNativeCrmFacts,claimNativeCrmEffect,completeNativeCrmEffect,reconcileNativeCrmEffect} from '../../src/lib/data/native-crm-effects'
 import {applySaasWebhook} from '../../src/lib/data/saas-webhooks'
 import {claimNativeStripeOAuth,completeNativeStripeOAuth,disconnectNativeStripe} from '../../src/lib/data/stripe-connect'
@@ -49,6 +51,8 @@ before(async()=>{
  CREATE TABLE audit_events(id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,tenant_id uuid,actor_id uuid,via text,table_name text,record_id text,action text,changes jsonb);
  CREATE TABLE historical_finance(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),tenant_id uuid REFERENCES tenants(id) ON DELETE CASCADE,amount int);`)
  await admin.query(`ALTER TABLE tenants ADD COLUMN xphere_synced_at timestamptz,ADD COLUMN xphere_sync_error text;
+ ALTER TABLE profiles ADD COLUMN phone text;
+ ALTER TABLE tenant_settings ADD COLUMN phone text,ADD COLUMN address text,ADD COLUMN accent_color text;
  ALTER TABLE tenant_settings ADD COLUMN banner_url text,ADD COLUMN tagline text,ADD COLUMN about text,ADD COLUMN currency text;
  ALTER TABLE tenant_subscriptions ADD COLUMN current_period_start timestamptz,ADD COLUMN cancel_at_period_end boolean DEFAULT false,ADD COLUMN chat_addon_active boolean DEFAULT false,ADD COLUMN chat_addon_since timestamptz;
  ALTER TABLE tenant_settings ADD COLUMN whatsapp_orders_enabled boolean DEFAULT false,ADD COLUMN whatsapp text,ADD COLUMN item_notes_enabled boolean DEFAULT false,ADD COLUMN ingredient_customization_enabled boolean DEFAULT false,ADD COLUMN pickup_enabled boolean DEFAULT false,ADD COLUMN delivery_fee_cents int,ADD COLUMN pickup_eta_minutes int;
@@ -60,6 +64,8 @@ before(async()=>{
  for(const path of ['native-tenant-effects-owned-only.sql','native-tenant-effects-dispatch-owned-only.sql','native-tenant-operations-owned-only.sql'])await admin.query(await readFile(new URL('../../docs/proposals/'+path,import.meta.url),'utf8'))
  const oauth=await readFile(new URL('../../docs/proposals/native-stripe-oauth-owned-only.sql',import.meta.url),'utf8')
  await admin.query(oauth.slice(oauth.indexOf('CREATE TABLE public.app_stripe_oauth_attempts'),oauth.indexOf('REVOKE ALL ON')))
+ const onboarding=await readFile(new URL('../../supabase/migrations/20261027096000_atomic_onboarding.sql',import.meta.url),'utf8')
+ await admin.query(onboarding.slice(0,onboarding.indexOf('REVOKE EXECUTE')))
  for(const id of ids)await admin.query('INSERT INTO auth.users VALUES($1)',[id])
  await admin.query('GRANT USAGE ON SCHEMA public TO xmartmenu_effects_fixture;GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO xmartmenu_effects_fixture;GRANT USAGE,SELECT ON ALL SEQUENCES IN SCHEMA public TO xmartmenu_effects_fixture')
  process.env.OWNED_TENANT_EFFECTS_ENABLED='true'
@@ -226,4 +232,49 @@ test('OAuth completion and local disconnect cannot commit without their exact du
  assert.ok(!JSON.stringify(await rows('app_tenant_effects')).includes(attempt.codeHash))
  await tx(q=>disconnectNativeStripe(q,context));assert.equal((await admin.query('SELECT is_active FROM stripe_connections')).rows[0].is_active,false)
  assert.equal((await rows('app_tenant_effects')).length,2)
+})
+
+test('backfill keeps all 100-row boundary ties, microseconds and null timestamps, deduplicates exact page replay and emits no note',async()=>{
+ await admin.query("UPDATE tenants SET created_at='2026-01-01T00:00:00.123456Z'")
+ for(let index=0;index<101;index++)await admin.query("INSERT INTO tenants(name,slug,created_at) VALUES('Synthetic',$1,$2)",['batch-'+index,index===0?null:'2026-01-01T00:00:00.123456Z'])
+ const key=randomUUID(),first=await tx(q=>enqueueNativeTenantEffectBatch(q,proof(),{requestKey:key}))
+ assert.equal(first.intentions.length,100);assert.equal(first.done,false)
+ const replay=await tx(q=>enqueueNativeTenantEffectBatch(q,proof(),{requestKey:key}));assert.deepEqual(replay,first)
+ assert.equal((await rows('app_tenant_effects')).length,100)
+ const second=await tx(q=>enqueueNativeTenantEffectBatch(q,proof(),{requestKey:randomUUID(),cursor:first.nextCursor}))
+ assert.equal(second.intentions.length,3);assert.equal(second.done,true)
+ assert.equal(new Set([...first.intentions,...second.intentions].map(row=>row.tenantId)).size,103)
+ const effect=first.intentions.find(row=>row.tenantId===tenant)??second.intentions.find(row=>row.tenantId===tenant);assert.ok(effect)
+ const facts=await read(q=>readNativeCrmFacts(q,effect.effectId));assert.ok(facts)
+ const claim=await tx(q=>claimNativeCrmEffect(q,effect.effectId,facts,null,Date.now()));assert.ok(!('skipped'in claim))
+ assert.equal(claim.payload.note,undefined)
+ await assert.rejects(tx(q=>enqueueNativeTenantEffectBatch(q,proof(),{requestKey:randomUUID(),limit:101})),{status:400})
+ await assert.rejects(tx(q=>enqueueNativeTenantEffectBatch(q,proof(),{requestKey:randomUUID(),cursor:'2026-01-01'})),{status:400})
+})
+
+test('backfill current session and audit refusal roll back every intention without modifying existing IDs',async()=>{
+ const before=await rows('profiles')
+ await admin.query('ALTER TABLE audit_events ADD CONSTRAINT reject_batch_audit CHECK(false) NOT VALID')
+ try{await assert.rejects(tx(q=>enqueueNativeTenantEffectBatch(q,proof(),{requestKey:randomUUID()})),{status:503})}finally{await admin.query('ALTER TABLE audit_events DROP CONSTRAINT reject_batch_audit')}
+ assert.equal((await rows('app_tenant_effects')).length,0)
+ await admin.query('UPDATE app_sessions SET expires_at=clock_timestamp() WHERE user_id=$1',[ids[0]])
+ await assert.rejects(tx(q=>enqueueNativeTenantEffectBatch(q,proof(),{requestKey:randomUUID()})),{status:403})
+ assert.deepEqual(await rows('profiles'),before)
+})
+
+test('onboarding and its CRM intention/audit roll back together; current revoked session cannot onboard',async()=>{
+ await admin.query("INSERT INTO plans(slug,is_active) VALUES('menu',true)")
+ const input={company_name:'New synthetic',tenant_slug:'new-synthetic',menu_name:'Menu',menu_slug:'menu',menu_purpose:'restaurant',category_name:'Food',product_name:'Soup',product_price:12}
+ const before=await rows('profiles')
+ await admin.query('ALTER TABLE audit_events ADD CONSTRAINT reject_onboard_audit CHECK(false) NOT VALID')
+ try{await assert.rejects(tx(q=>nativeOnboarding(q,ids[2],hashes[2],input)),{status:503})}finally{await admin.query('ALTER TABLE audit_events DROP CONSTRAINT reject_onboard_audit')}
+ assert.deepEqual(await rows('profiles'),before);assert.equal((await rows('tenants')).length,2);assert.equal((await rows('app_tenant_effects')).length,0)
+ await admin.query('UPDATE app_accounts SET session_version=1 WHERE id=$1',[ids[2]])
+ await assert.rejects(tx(q=>nativeOnboarding(q,ids[2],hashes[2],input)))
+ await admin.query('UPDATE app_accounts SET session_version=0 WHERE id=$1',[ids[2]])
+ const done=await tx(q=>nativeOnboarding(q,ids[2],hashes[2],input));assert.ok('tenant_id'in done)
+ const effect=(await admin.query('SELECT tenant_id,kind,event_id FROM app_tenant_effects')).rows[0]
+ assert.equal(effect.tenant_id,done.tenant_id);assert.equal(effect.kind,'onboarded');assert.equal(effect.event_id,'onboarding:'+done.tenant_id)
+ assert.equal((await rows('profiles')).length,7);assert.equal((await rows('app_identity_bindings')).length,7)
+ assert.equal((await admin.query('SELECT role FROM profiles WHERE id=$1',[ids[2]])).rows[0].role,'store-admin')
 })
