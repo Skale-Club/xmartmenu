@@ -1,3 +1,6 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
+import { ownedTenantDetail } from '@/lib/data/tenant-administration-runtime'
 export const dynamic = 'force-dynamic'
 
 import { redirect, notFound } from 'next/navigation'
@@ -8,6 +11,10 @@ interface Props { params: Promise<{ id: string }> }
 
 export default async function TenantDetailPage({ params }: Props) {
   const { id } = await params
+  if (ownedAuthSelected() || tenantAdministrationSelected()) {
+    const data = await ownedTenantDetail(id)
+    return <TenantDetailClient {...data} native />
+  }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()

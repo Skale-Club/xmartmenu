@@ -1,3 +1,6 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
+import { ownedTenantAdministrationHttp } from '@/lib/admin/owned-tenant-administration-http'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
@@ -10,6 +13,7 @@ import { initialSettingsForPlan } from '@/lib/plan-settings'
 import { ownedShellRepository } from '@/lib/auth/owned-shell-runtime'
 
 async function handleGET() {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('tenants',undefined)
   const authorization = await assertSuperadmin()
   if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (authorization.mode === 'owned') return NextResponse.json(await ownedShellRepository().tenants(authorization.principal))
@@ -24,6 +28,7 @@ async function handleGET() {
 }
 
 async function handlePOST(request: Request) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('tenants',request)
   const authorization = await assertSuperadmin()
   if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   // Provider-backed account creation is a separate migration; never send a

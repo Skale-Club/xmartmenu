@@ -1,3 +1,5 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { validateAndConvertToWebP } from '@/lib/upload'
 import { getStorageClient } from '@/lib/storage'
@@ -9,6 +11,7 @@ async function handlePOST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return NextResponse.json({ error: 'Native execution of this external integration is not available yet' }, { status: 503, headers: { 'Cache-Control': 'private, no-store' } })
   const { id } = await params
   if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 

@@ -1,3 +1,6 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
+import { ownedTenantAdministrationHttp } from '@/lib/admin/owned-tenant-administration-http'
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
@@ -5,6 +8,7 @@ import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
 
 async function handleGET() {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('plans',undefined)
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -24,6 +28,7 @@ async function handleGET() {
 }
 
 async function handlePOST(request: Request) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('plans',request)
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

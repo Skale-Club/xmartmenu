@@ -1,3 +1,6 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
+import { ownedTenantDirectory } from '@/lib/data/tenant-administration-runtime'
 export const dynamic = 'force-dynamic'
 
 import { createServiceClient } from '@/lib/supabase/server'
@@ -6,6 +9,10 @@ import { isPendingTenantAssignment } from '@/lib/admin/tenant-management'
 import TenantDirectoryClient from './TenantDirectoryClient'
 
 export default async function TenantsPage() {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) {
+    const data = await ownedTenantDirectory()
+    return <TenantDirectoryClient {...data} native />
+  }
   const service = await createServiceClient()
 
   const [{ data: tenants }, authUsers, { data: profiles }, { data: plans }, { data: subscriptions }] = await Promise.all([

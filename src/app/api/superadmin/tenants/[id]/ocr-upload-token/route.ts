@@ -1,3 +1,5 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { getStorageClient } from '@/lib/storage'
 import { NextResponse } from 'next/server'
@@ -11,6 +13,7 @@ async function handleGET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return NextResponse.json({ error: 'Native execution of this external integration is not available yet' }, { status: 503, headers: { 'Cache-Control': 'private, no-store' } })
   const { id: tenantId } = await params
 
   // D-18: Auth guard | assertSuperadmin() first on every new route

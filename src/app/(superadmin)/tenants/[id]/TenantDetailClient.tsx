@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import OwnedStaffManagement from '@/components/admin/OwnedStaffManagement'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import TenantAiCard from './TenantAiCard'
 import ServiceSwitchesCard, { type ServiceSwitchValues } from './ServiceSwitchesCard'
@@ -124,6 +125,7 @@ export default function TenantDetailClient({
   availablePlans,
   initialSwitches,
   canUseAiTools,
+  native = false,
 }: {
   tenant: Tenant
   initialStaff: StaffMember[]
@@ -133,6 +135,7 @@ export default function TenantDetailClient({
   availablePlans: Array<{ id: string; name: string; slug: string }>
   initialSwitches: ServiceSwitchValues
   canUseAiTools: boolean
+  native?: boolean
 }) {
   const [tab, setTab] = useState<'staff' | 'menus' | 'subscription'>('staff')
   const [staff, setStaff] = useState(initialStaff)
@@ -591,13 +594,14 @@ export default function TenantDetailClient({
           >
             {t === 'staff' ? <Users className="size-4 shrink-0" /> : t === 'menus' ? <MenuIcon className="size-4 shrink-0" /> : <CreditCard className="size-4 shrink-0" />}
             <span className="truncate">{t === 'staff' ? 'Staff' : t === 'menus' ? 'Menus' : 'Subscription'}</span>
-            {t !== 'subscription' && <span className={`hidden min-w-6 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums sm:inline-flex sm:justify-center ${tab === t ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-500'}`}>{t === 'staff' ? staff.length : menus.length}</span>}
+            {t !== 'subscription' && !(native && t === 'staff') && <span className={`hidden min-w-6 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums sm:inline-flex sm:justify-center ${tab === t ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-500'}`}>{t === 'staff' ? staff.length : menus.length}</span>}
           </button>
         ))}
       </nav>
 
       {/* Staff tab */}
-      {tab === 'staff' && (
+      {tab === 'staff' && native && <OwnedStaffManagement tenantId={tenant.id} />}
+      {tab === 'staff' && !native && (
         <div className="space-y-4">
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
             <div className="mb-4 flex items-center gap-3">
@@ -1310,11 +1314,11 @@ export default function TenantDetailClient({
 
         <button
           onClick={() => void handleResync()}
-          disabled={resyncLoading}
+          disabled={native || resyncLoading}
           className="flex min-h-10 items-center gap-2 rounded-xl bg-zinc-900 px-4 text-sm font-bold text-white transition-[background-color,scale] duration-150 hover:bg-zinc-800 active:scale-96 disabled:opacity-50"
         >
           <RefreshCw className={`size-4 ${resyncLoading ? 'animate-spin' : ''}`} />
-          {resyncLoading ? 'Re-syncing...' : 'Re-sync now'}
+          {native ? 'Native CRM sync pending' : resyncLoading ? 'Re-syncing...' : 'Re-sync now'}
         </button>
 
         {resyncStatus?.type === 'success' && (

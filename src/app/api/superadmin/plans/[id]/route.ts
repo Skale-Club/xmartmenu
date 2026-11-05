@@ -1,3 +1,6 @@
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
+import { ownedTenantAdministrationHttp } from '@/lib/admin/owned-tenant-administration-http'
 import { NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
@@ -9,6 +12,7 @@ interface RouteParams {
 }
 
 async function handleGET(request: Request, { params }: RouteParams) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('plans',request,(await params).id)
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -30,6 +34,7 @@ async function handleGET(request: Request, { params }: RouteParams) {
 }
 
 async function handlePUT(request: Request, { params }: RouteParams) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('plans',request,(await params).id)
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -119,6 +124,7 @@ async function handlePUT(request: Request, { params }: RouteParams) {
 }
 
 async function handleDELETE(request: Request, { params }: RouteParams) {
+  if (ownedAuthSelected() || tenantAdministrationSelected()) return ownedTenantAdministrationHttp('plans',request,(await params).id)
   if (!(await assertSuperadmin())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
