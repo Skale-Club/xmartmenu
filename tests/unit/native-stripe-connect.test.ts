@@ -1,13 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { expect, it, vi } from 'vitest'
 import { connectNativeStripe, disconnectNativeStripe, readNativeStripeConnection, readNativeStripeCurrency, readNativeStripeOwnerState } from '@/lib/data/stripe-connect'
-const tenantId = randomUUID(), actorId = randomUUID(), planId = randomUUID(), connectionId = randomUUID(), context = { tenantId, actorId, role: 'store-admin' as const }
+const tenantId = randomUUID(), actorId = randomUUID(), planId = randomUUID(), connectionId = randomUUID(), context = { tenantId, actorId, role: 'store-admin' as const, sessionHash: 'a'.repeat(64) }
 const time = new Date('2026-11-04T22:00:00Z')
 const connection = { id: connectionId, tenant_id: tenantId, stripe_account_id: 'acct_fixture', scope: 'read_write', is_active: true, connected_at: time, disconnected_at: null, created_at: time, updated_at: time }
 const plan = { id: planId, name: 'Plan', slug: 'plan', description: null, monthly_price: 20, annual_price: 200, transaction_fee_pct: 3, features: ['payments','stripe-connect'], billing_cycle: 'monthly', status: 'active', override_monthly_price: null, override_annual_price: null, override_transaction_fee_pct: null, override_notes: null }
 function query(overrides: { profile?: object; other?: boolean } = {}) {
   return vi.fn(async (sql: string) => {
     if (sql.includes('FROM public.profiles p JOIN public.app_accounts')) return { rows: [{ id: actorId, tenant_id: tenantId, role: 'store-admin', must_change_password: false, disabled_at: null, ...overrides.profile }] }
+    if (sql.includes('FROM public.app_sessions s')) return { rows: [{ user_id: actorId }] }
     if (sql.startsWith('SELECT id FROM public.tenants')) return { rows: [{ id: tenantId }] }
     if (sql.includes('SELECT p.id,p.name')) return { rows: [plan] }
     if (sql.includes('stripe_account_id=$1 AND tenant_id<>')) return { rows: overrides.other ? [{ tenant_id: randomUUID() }] : [] }

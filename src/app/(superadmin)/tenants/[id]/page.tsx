@@ -1,3 +1,4 @@
+import { tenantEffectsSelected } from '@/lib/data/tenant-effect-authority-runtime'
 import { ownedAuthSelected } from '@/lib/auth/owned-principal'
 import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
 import { ownedTenantDetail } from '@/lib/data/tenant-administration-runtime'
@@ -13,7 +14,7 @@ export default async function TenantDetailPage({ params }: Props) {
   const { id } = await params
   if (ownedAuthSelected() || tenantAdministrationSelected()) {
     const data = await ownedTenantDetail(id)
-    return <TenantDetailClient {...data} native />
+    return <TenantDetailClient {...data} canUseAiTools={tenantEffectsSelected()} nativeEffects={tenantEffectsSelected()} native />
   }
 
   const supabase = await createClient()

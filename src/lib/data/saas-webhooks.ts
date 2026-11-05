@@ -1,6 +1,7 @@
 import { AdminMenuError, type AdminMenuQuery } from './admin-menus'
 import { reconcileNativeTenantPlan } from './tenant-plan'
 import type { SyncReason } from '../xphere/types'
+import { enqueueNativeTenantEffect,tenantEffectsSelected } from './tenant-effects-outbox'
 
 type Row = Record<string, unknown>
 export interface SaasWebhookEvent { id: string; type: string; account?: string | null; livemode?: boolean; data: { object: unknown } }
@@ -156,6 +157,9 @@ export async function applySaasWebhook(query: AdminMenuQuery, event: SaasWebhook
       result.pendingSync = { tenantId: id, reason: 'connect_changed' }
       break
     }
+  }
+  if (result.pendingSync && tenantEffectsSelected()) {
+    await enqueueNativeTenantEffect(query, { ...result.pendingSync,eventId:event.id })
   }
   await query('INSERT INTO public.processed_stripe_events(event_id,event_type,processed_at) VALUES($1,$2,$3)', [event.id, event.type, now.toISOString()])
   return result

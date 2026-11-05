@@ -4,7 +4,9 @@ import { slugify } from '@/lib/utils'
 import { z } from 'zod'
 import { RESERVED_PATHS } from '@/lib/marketing/reserved-paths'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
-import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { ownedAuthSelected,ownedSessionToken } from '@/lib/auth/owned-principal'
+import { createHash } from 'node:crypto'
+import { publishPendingNativeTenantEffects } from '@/lib/tenant-effects/publish-pending'
 import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
 import { getIdentityServices } from '@/lib/auth/identity-services'
 import { ownedAdminTransaction } from '@/lib/data/admin-menus-runtime'
@@ -56,14 +58,18 @@ async function ownedAccount(request: Request) {
     || /(?:^|;)\s*(?:preview_tenant_id|xm_demo)=/.test(request.headers.get('cookie') ?? '')) throw new NativeOnboardingDenied('Origin or mode denied')
   const principal = await getOwnedPrincipal()
   if (!principal) throw new NativeOnboardingDenied('Authentication required')
-  return principal
+  const token=ownedSessionToken(request.headers.get('cookie'),origin.protocol==='https:')
+  if(!token)throw new NativeOnboardingDenied('Current browser session required')
+  const session=await getIdentityServices().store.session(token)
+  if(!session||session.userId!==principal.userId)throw new NativeOnboardingDenied('Current browser session required')
+  return {...principal,sessionHash:createHash('sha256').update(token).digest('hex')}
 }
 
 export async function GET(request: Request) {
   if (!ownedAuthSelected()) return NextResponse.json({ error: 'Not found' },{ status: 404 })
   try {
     const principal = await ownedAccount(request)
-    const state = await ownedAdminTransaction(true,query => nativeOnboarding(query,principal.userId))
+    const state = await ownedAdminTransaction(true,query => nativeOnboarding(query,principal.userId,principal.sessionHash))
     return NextResponse.json(state,{ headers: { 'Cache-Control': 'no-store' } })
   } catch (error) { return NextResponse.json({ error: 'Onboarding is unavailable.' },{ status: error instanceof NativeOnboardingDenied ? 403 : 503 }) }
 }
@@ -82,10 +88,11 @@ async function ownedPost(request: Request) {
       full_name: data.responsible_name?.trim() || principal.fullName,phone: data.phone?.trim() || null,address: data.address?.trim() || null,
       primary_color: palette.primary,accent_color: palette.accent,menu_name: data.menu_name.trim(),menu_slug: slugify(data.menu_name) || 'menu',
       menu_purpose: sanitizeMenuPurpose(data.business_type),category_name: data.category_name.trim(),product_name: data.product_name.trim(),product_price: data.product_price ?? 0 }
-    const done = await ownedAdminTransaction(true,query => nativeOnboarding(query,principal.userId,input))
+    const current=await ownedAccount(request)
+    if(current.userId!==principal.userId||current.sessionHash!==principal.sessionHash)throw new NativeOnboardingDenied('Onboarding actor changed')
+    const done = await ownedAdminTransaction(true,query => nativeOnboarding(query,current.userId,current.sessionHash,input))
     if (!('tenant_id' in done)) throw new Error('Onboarding failed')
-    // CRM still uses source SQL internally; do not enqueue an owned tenant into
-    // that integration until its data adapter is migrated separately.
+    await publishPendingNativeTenantEffects(done.tenant_id).catch(()=>{})
     return NextResponse.json({ tenant_slug: done.tenant_slug,menu_slug: done.menu_slug,
       ...(done.already_configured ? { already_configured: true } : {}) },{ headers: { 'Cache-Control': 'no-store' } })
   } catch (error) {
