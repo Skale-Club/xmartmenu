@@ -26,9 +26,9 @@ export async function nativeTenantEffectHttp(kind:TenantOperationKind|'status'|'
   let operationId:string|undefined
   try{
     if(!UUID.test(tenantId))throw new AdminMenuError(400,'Invalid restaurant ID')
-    let proof=await currentTenantEffectActor()
     if(request.method!=='GET'&&!hasSameOriginAdminMutation(request))throw new AdminMenuError(403,'Origin mismatch')
     if(request.method==='GET'&&request.headers.get('sec-fetch-site')==='cross-site')throw new AdminMenuError(403,'Origin mismatch')
+    let proof=await currentTenantEffectActor()
     if(kind==='status'){
       const id=new URL(request.url).searchParams.get('jobId')??new URL(request.url).searchParams.get('operationId')??''
       return json(await ownedAdminTransaction(false,query=>nativeOperationStatus(query,proof,tenantId,id)))
