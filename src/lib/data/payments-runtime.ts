@@ -1,5 +1,6 @@
 import pg from 'pg'
 import { postgresRuntimeConfig } from './database-config'
+import { sharedRuntimePool } from './shared-pool'
 import { PaymentDataError, OwnedPaymentRepository, type PaymentQuery, paymentsDataOwned } from './payments'
 
 let pool: pg.Pool | undefined, configuration: string | undefined
@@ -14,7 +15,7 @@ function ownedPool() {
   if (!paymentsDataOwned() || process.env.OWNED_ORDER_DATA_ENABLED !== 'true') throw new PaymentDataError(503, 'Independent orders and payments must be enabled together')
   const current = JSON.stringify(postgresRuntimeConfig(process.env, 'PAYMENTS'))
   if (configuration && configuration !== current) throw new PaymentDataError(503, 'Payment configuration changed; restart required')
-  if (!pool) { pool = createPaymentsPool(process.env); configuration = current }
+  if (!pool) { pool = sharedRuntimePool('PAYMENTS'); configuration = current }
   return pool
 }
 /** Short SQL-only transactions. Provider calls occur outside these leases. */

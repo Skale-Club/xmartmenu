@@ -1,10 +1,23 @@
 ﻿import { Clock } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/server'
+import { platformSettingsOwned } from '@/lib/data/platform-settings'
 
-export default async function PendingPage() {
+async function pendingLogoUrl(): Promise<string> {
+  if (platformSettingsOwned()) {
+    // Own PostgreSQL only: this screen never needs the database to render.
+    try {
+      const { readOwnedPlatformSettings } = await import('@/lib/data/platform-settings-runtime')
+      const favicon = (await readOwnedPlatformSettings(['favicon_url']))?.favicon_url
+      return typeof favicon === 'string' && favicon ? favicon : '/icon.png'
+    } catch { return '/icon.png' }
+  }
   const service = createServiceClient()
   const { data: ps } = await service.from('platform_settings').select('favicon_url').single()
-  const logoUrl = ps?.favicon_url ?? '/icon.png'
+  return ps?.favicon_url ?? '/icon.png'
+}
+
+export default async function PendingPage() {
+  const logoUrl = await pendingLogoUrl()
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4">

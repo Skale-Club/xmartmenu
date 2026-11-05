@@ -5,6 +5,9 @@ import { isLaunchChecklistKey, isLaunchChecklistStatus } from '@/lib/launch-chec
 import { LaunchChecklistSetupError, setLaunchChecklistItem } from '@/lib/admin/launch-checklist-data'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { ownedModeActive } from '@/lib/data/owned-mode'
+import { hasSameOriginAdminMutation } from '@/lib/data/admin-display-settings'
+import { AdminMenuError } from '@/lib/data/admin-menus'
 
 // Set one launch-checklist item for one restaurant (super-admin → Clients →
 // Launch checklist). Body: { status: 'pending' | 'done' | 'na', note?: string }.
@@ -16,7 +19,8 @@ async function handlePUT(
   const { id, itemKey } = await params
   const authorization = await assertSuperadmin()
   if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (authorization.mode === 'owned') return NextResponse.json({ error: 'This operation is temporarily unavailable' }, { status: 503 })
+  const owned = ownedModeActive()
+  if (owned && !hasSameOriginAdminMutation(request)) return NextResponse.json({ error: 'Origin mismatch' }, { status: 403 })
   if (!isLaunchChecklistKey(itemKey)) return NextResponse.json({ error: 'Unknown checklist item' }, { status: 400 })
 
   const body = await request.json().catch(() => null)
@@ -28,6 +32,19 @@ async function handlePUT(
   }
   const note = typeof body.note === 'string' ? body.note.trim() : undefined
 
+  if (owned) {
+    // Own PostgreSQL only; a failure never falls through to the Supabase copy.
+    try {
+      const { setOwnedLaunchChecklistItem } = await import('@/lib/data/launch-checklist-runtime')
+      const entry = await setOwnedLaunchChecklistItem(authorization.principal.userId, id, itemKey, body.status, note)
+      return entry ? NextResponse.json(entry) : NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
+    } catch (error) {
+      if (error instanceof AdminMenuError && error.status < 500) return NextResponse.json({ error: error.message }, { status: error.status })
+      log.error('PUT /api/superadmin/tenants/[id]/launch-checklist/[itemKey]', { err: error })
+      return NextResponse.json({ error: 'This operation is temporarily unavailable' }, { status: 503 })
+    }
+  }
+  if (authorization.mode === 'owned') return NextResponse.json({ error: 'This operation is temporarily unavailable' }, { status: 503 })
   const { data: { user } } = await authorization.legacyClient.auth.getUser()
   try {
     const entry = await setLaunchChecklistItem(createServiceClient(), {

@@ -7,6 +7,9 @@ import { resolveFeedRewritePath } from './lib/feed-route'
 import { resolveCustomDomainRoute } from './lib/custom-domain-routing'
 import { REQUEST_ID_HEADER, resolveRequestId } from './lib/observability/request-id'
 import { LegacyIdentityBoundaryUnavailable } from './lib/auth/owned-principal'
+// Both zero-import: safe for the Edge bundle.
+import { ownedModeActive } from './lib/data/owned-mode'
+import { resolveOwnedDomainSlug, type DomainCacheEntry } from './lib/custom-domain-lookup'
 
 // Cache BOTH hits and misses. Without caching misses, every request carrying an
 // unknown Host header (bots hitting the raw IP, preview hosts, misconfigured
@@ -23,6 +26,9 @@ async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
     ?? 'xmartmenu.skale.club'
 
   if (normalized === platformHost) return null
+
+  // Edge cannot load pg: owned mode asks the Node route on this same server.
+  if (ownedModeActive()) return resolveOwnedDomainSlug(normalized, customDomainCache as Map<string, DomainCacheEntry>)
 
   const cached = customDomainCache.get(normalized)
   if (cached && cached.expires > Date.now()) return cached.slug
