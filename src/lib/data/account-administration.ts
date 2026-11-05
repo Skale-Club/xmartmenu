@@ -1,8 +1,9 @@
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { AdminMenuError, type AdminMenuQuery } from './admin-menus'
 import { UUID } from '../auth/owned-principal'
+import { oauthAuthority, requireMcpAuthority, type NativeAdminAuthority } from '../mcp/data/authority'
 
-export type AccountAdminContext = { actorId: string; sessionHash: string; tenantId?: string; platformOnly?: boolean }
+export type AccountAdminContext = { actorId: string; tenantId?: string; platformOnly?: boolean } & NativeAdminAuthority
 export type StaffProof = { userId: string; projectId: string; subject: string; authenticatedAt: number; checkedAt: number }
 const HASH = /^[a-f0-9]{64}$/, CODE = /^[A-Za-z0-9_-]{43}$/
 const sameId = (left: string,right: string) => left.toLowerCase() === right.toLowerCase()
@@ -17,8 +18,9 @@ async function serialize(query: AdminMenuQuery) {
   await query("SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-account-authority',0))")
 }
 async function actor(query: AdminMenuQuery, context: AccountAdminContext, platform = false, lock = false) {
-  if (!UUID.test(context.actorId) || !HASH.test(context.sessionHash) || (context.tenantId !== undefined && !UUID.test(context.tenantId))) denied()
-  const row = one((await query(`SELECT p.id,${roleColumn} AS role,p.tenant_id,p.must_change_password,a.disabled_at,s.authenticated_at
+  const oauth = oauthAuthority(context)
+  if (!UUID.test(context.actorId) || (!oauth && !HASH.test(context.sessionHash ?? '')) || (context.tenantId !== undefined && !UUID.test(context.tenantId))) denied()
+  const row = oauth ? await requireMcpAuthority(query,{ actorId:context.actorId,oauth },lock) : one((await query(`SELECT p.id,${roleColumn} AS role,p.tenant_id,p.must_change_password,a.disabled_at,s.authenticated_at
     FROM public.profiles p JOIN public.app_accounts a ON a.id=p.id JOIN public.app_sessions s ON s.user_id=a.id
     JOIN public.app_identity_bindings b ON b.user_id=a.id AND b.project_id=s.project_id AND b.subject=s.subject
     WHERE p.id=$1 AND s.token_hash=$2 AND s.session_version=a.session_version AND s.expires_at>now()
