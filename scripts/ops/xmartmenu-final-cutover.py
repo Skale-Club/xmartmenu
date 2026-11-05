@@ -641,7 +641,24 @@ class Cutover:
             raise Refused('another-run-active')
         self._lock = fd
 
+    def unlock(self):
+        fd, self._lock = getattr(self, '_lock', None), None
+        if isinstance(fd, int):
+            os.close(fd)
+
     def apply(self):
+        try:
+            return self._apply()
+        finally:
+            self.unlock()
+
+    def rollback(self):
+        try:
+            return self._rollback()
+        finally:
+            self.unlock()
+
+    def _apply(self):
         self.lock()
         old = self.st.load()
         if old and old.get('status') == 'running':
@@ -984,7 +1001,7 @@ INSERT INTO xmartmenu_cutover.markers(run_id, phase) VALUES ('{run}', 'completed
         self.st.save()
         say(phase='revert', status='done', reason=reason)
 
-    def rollback(self):
+    def _rollback(self):
         self.lock()
         old = self.st.load()
         if not old:

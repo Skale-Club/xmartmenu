@@ -321,10 +321,8 @@ GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO xmartmenu_ru
         op.st.begin('apply', SHA)
         op.st.fact(tables=['tenants'], app_stopped=True, source_fenced=False)
         self.fake.status = 'exited'
-        op._lock = None
-        os.close(op.__dict__.get('_lockfd', -1)) if False else None
         # a new process (new operator, lock released by closing the old fd)
-        os.close(op._lock) if isinstance(op._lock, int) else None
+        op.unlock()
         op2, _ = self.build()
         code, out = self.run_mode(op2, 'apply')
         self.assertEqual(code, 10, out)
