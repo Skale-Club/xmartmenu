@@ -12,6 +12,7 @@
  * campo" de "quero apagar".
  */
 import { useState, useTransition } from 'react'
+import {withNativeBlogActionKey} from '@/lib/blog/native/browser'
 import { AlertCircle, CheckCircle2, Clock, ExternalLink, Loader2, Rss, Send, Trash2 } from 'lucide-react'
 
 import {
@@ -94,7 +95,7 @@ const BTN = 'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bo
 const BTN_PRIMARY = `${BTN} bg-zinc-950 text-white hover:bg-zinc-800`
 const BTN_GHOST = `${BTN} border border-zinc-200 text-zinc-700 hover:bg-zinc-50`
 
-export default function TenantBlogClient({ initialState }: { initialState: TenantBlogState }) {
+export default function TenantBlogClient({ initialState,nativeBlog=false }: { initialState: TenantBlogState;nativeBlog?:boolean }) {
   const [state, setState] = useState(initialState)
   const [form, setForm] = useState(() => formFrom(initialState.settings))
   const [apiKey, setApiKey] = useState('')
@@ -122,7 +123,7 @@ export default function TenantBlogClient({ initialState }: { initialState: Tenan
         setNotice({ kind: 'error', text: result.message ?? 'Algo deu errado' })
         return
       }
-      setNotice({ kind: 'ok', text: success })
+      setNotice({ kind: 'ok', text: result.message??success })
       after?.()
       await refresh()
     })
@@ -154,7 +155,7 @@ export default function TenantBlogClient({ initialState }: { initialState: Tenan
         <button
           className={BTN_GHOST}
           disabled={pending}
-          onClick={() => run(generateTenantPostNow, 'Geração iniciada')}
+          onClick={() => run(()=>withNativeBlogActionKey('generate',null,nativeBlog,key=>generateTenantPostNow(key)), 'Geração iniciada')}
         >
           {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
           Escrever um post agora
@@ -525,7 +526,7 @@ export default function TenantBlogClient({ initialState }: { initialState: Tenan
             className={BTN_PRIMARY}
             disabled={pending}
             onClick={() =>
-              run(() => saveTenantTelegramSettings(tg), 'Telegram salvo', () => setWebhookInfo(null))
+              run(() => withNativeBlogActionKey('telegram-settings',tg,nativeBlog,key=>saveTenantTelegramSettings(tg,key)), 'Telegram salvo', () => setWebhookInfo(null))
             }
           >
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}

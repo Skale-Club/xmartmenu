@@ -1,3 +1,5 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogCronHttp} from '@/lib/blog/native/cron-http'
 /**
  * Scheduled generation (autoblog-parity XM-07 / MASTER D-07).
  *
@@ -44,6 +46,7 @@ export async function POST(request: Request) {
   // One call sweeps EVERY enabled blog — the platform's and every restaurant's
   // (autoblog-parity XM-14). Each scope applies its own cadence in its own
   // timezone, so the crontab entry never has to change as tenants are added.
+  if(nativeBlogSelected())return nativeBlogCronHttp(request,'generation')
   const summary = await runBlogSweep({ trigger: manual ? 'manual' : 'cron' })
 
   // A per-scope failure is reported, not raised: one restaurant with a bad API

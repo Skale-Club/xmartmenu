@@ -1,3 +1,5 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogTelegramWebhook} from '@/lib/blog/native/telegram-webhook'
 /**
  * Telegram approval webhook (autoblog-parity XM-08 + XM-16).
  *
@@ -71,6 +73,7 @@ function secretMatches(provided: string, expected: string): boolean {
 }
 
 export async function POST(request: Request) {
+  if(nativeBlogSelected())return nativeBlogTelegramWebhook(request)
   const provided = request.headers.get('x-telegram-bot-api-secret-token')
   // Sem cabeçalho não há nada de legítimo a chegar aqui. 401 e não 503: quem
   // não está autenticado não aprende nada de qualquer maneira, e mantém o modo

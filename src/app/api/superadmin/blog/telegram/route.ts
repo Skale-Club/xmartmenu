@@ -1,3 +1,5 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogAdminHttp} from '@/lib/blog/native/admin-http'
 /**
  * Telegram approvals configuration (autoblog-parity XM-08).
  *
@@ -30,6 +32,7 @@ const patchSchema = z.object({
 })
 
 async function handleGET() {
+  if(nativeBlogSelected())return nativeBlogAdminHttp('telegram')
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
@@ -57,6 +60,7 @@ async function handleGET() {
 }
 
 async function handlePATCH(request: Request) {
+  if(nativeBlogSelected())return nativeBlogAdminHttp('telegram',request)
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = patchSchema.safeParse(await request.json().catch(() => null))

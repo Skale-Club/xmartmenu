@@ -6,6 +6,8 @@ import type { Metadata } from 'next'
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { getTenantPlan } from '@/lib/tenant-plan'
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogTenant,nativePublishedPost} from '@/lib/blog/native/public-runtime'
 
 interface Props {
   params: Promise<{ slug: string; postSlug: string }>
@@ -37,6 +39,11 @@ async function loadPost(
   slug: string,
   postSlug: string,
 ): Promise<{ tenantName: string; post: PostRow } | null> {
+  if(nativeBlogSelected()){
+    const tenant=await nativeBlogTenant(slug)
+    const post=tenant?await nativePublishedPost(tenant.tenantId,postSlug):null
+    return tenant&&post?{tenantName:tenant.name,post:post as unknown as PostRow}:null
+  }
   const svc = createServiceClient()
   const { data: tenantRow } = await svc
     .from('tenants')

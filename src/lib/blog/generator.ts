@@ -274,7 +274,7 @@ interface GeneratedPost {
   tags: string
 }
 
-function parseGeneratedPost(raw: string): GeneratedPost {
+export function parseGeneratedPost(raw: string): GeneratedPost {
   let cleaned = raw.trim()
   if (cleaned.startsWith('```json')) cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '')
   else if (cleaned.startsWith('```')) cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '')
@@ -318,7 +318,7 @@ async function uniqueSlug(svc: ServiceClient, scope: BlogScope, title: string): 
   }
 }
 
-function readingTimeMinutes(html: string): number {
+export function readingTimeMinutes(html: string): number {
   const words = html.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length
   return Math.max(1, Math.ceil(words / WORDS_PER_MINUTE))
 }
@@ -332,14 +332,14 @@ async function buildSystemMessage(
   rssItem: RssItemRow | null,
   tenant: TenantBlogContext | null,
 ): Promise<{ systemMessage: string; allowedLinkPaths: string[] }> {
-  const { data: recentPosts } = await scopeFilter(
-    svc.from('blog_posts').select('title, slug, status, focus_keyword'),
-    scope,
-  )
-    .order('created_at', { ascending: false })
-    .limit(12)
+  const {data:posts}=await scopeFilter(svc.from('blog_posts').select('title, slug, status, focus_keyword'),scope).order('created_at',{ascending:false}).limit(12)
+  const {data:feedback}=await scopeFilter(svc.from('blog_post_feedback').select('post_title, verdict, reason'),scope).order('created_at',{ascending:false}).limit(16)
+  return buildBlogEditorialPrompt(settings,assignment,rssItem,tenant,{posts:(posts??[]) as BlogEditorialFacts['posts'],feedback:(feedback??[]) as BlogEditorialFacts['feedback']})
+}
 
-  const posts = (recentPosts ?? []) as Array<{
+export type BlogEditorialFacts={posts:Array<{title:string;slug:string;status:string;focus_keyword:string|null}>;feedback:Array<{post_title:string;verdict:string;reason:string|null}>}
+export function buildBlogEditorialPrompt(settings:BlogSettingsRow,assignment:PillarAssignment,rssItem:RssItemRow|null,tenant:TenantBlogContext|null,facts:BlogEditorialFacts):{systemMessage:string;allowedLinkPaths:string[]} {
+  const posts = facts.posts as Array<{
     title: string
     slug: string
     status: string
@@ -417,14 +417,7 @@ async function buildSystemMessage(
   }
 
   // Feedback loop: the editor's past decisions steer the next post.
-  const { data: feedback } = await scopeFilter(
-    svc.from('blog_post_feedback').select('post_title, verdict, reason'),
-    scope,
-  )
-    .order('created_at', { ascending: false })
-    .limit(16)
-
-  const decisions = (feedback ?? []) as Array<{ post_title: string; verdict: string; reason: string | null }>
+  const decisions = facts.feedback as Array<{ post_title: string; verdict: string; reason: string | null }>
   const approved = decisions.filter((f) => f.verdict === 'approved').slice(0, 8)
   const rejected = decisions.filter((f) => f.verdict === 'rejected').slice(0, 8)
 
@@ -821,7 +814,7 @@ async function notifyDraftAwaitingApproval(
 }
 
 /** A stable numeric seed from a uuid, for the deterministic pillar rotation. */
-function hashSeed(id: string): number {
+export function hashSeed(id: string): number {
   let h = 5381
   for (let i = 0; i < id.length; i++) h = (h * 33) ^ id.charCodeAt(i)
   return Math.abs(h | 0)

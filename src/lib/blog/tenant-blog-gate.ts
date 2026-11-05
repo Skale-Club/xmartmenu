@@ -11,6 +11,8 @@
  */
 import { createServiceClient } from '@/lib/supabase/server'
 import { getTenantPlan } from '@/lib/tenant-plan'
+import {nativeBlogSelected} from './native/selected'
+import {nativeBlogTenant} from './native/public-runtime'
 
 export interface TenantBlogAccess {
   tenantId: string
@@ -19,6 +21,7 @@ export interface TenantBlogAccess {
 }
 
 export async function resolveTenantBlog(slug: string): Promise<TenantBlogAccess | null> {
+  if(nativeBlogSelected())return nativeBlogTenant(slug)
   const svc = createServiceClient()
 
   const { data: tenantRow } = await svc

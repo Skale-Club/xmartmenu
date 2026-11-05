@@ -180,7 +180,7 @@ async function processSource(
  *   3. SHA-256(sourceId|title|pubDate) — deterministic, so the same item
  *      synthesizes the same id every run and the unique index still works.
  */
-function resolveGuid(item: ParsedItem, sourceId: string): string {
+export function resolveGuid(item: ParsedItem, sourceId: string): string {
   const guidCandidate = (item.guid ?? item.id ?? '').trim()
   if (guidCandidate) return guidCandidate
 
@@ -191,7 +191,7 @@ function resolveGuid(item: ParsedItem, sourceId: string): string {
   return createHash('sha256').update(seed).digest('hex')
 }
 
-function parsePublishedAt(item: ParsedItem): Date | null {
+export function parsePublishedAt(item: ParsedItem): Date | null {
   for (const value of [item.isoDate, item.pubDate]) {
     if (!value) continue
     const date = new Date(value)
@@ -205,7 +205,7 @@ function parsePublishedAt(item: ParsedItem): Date | null {
  * result is prompt input, not rendered HTML, so a full entity library would be
  * weight for no gain.
  */
-function stripHtml(input: string | null | undefined): string {
+export function stripHtml(input: string | null | undefined): string {
   if (!input) return ''
 
   let text = input.replace(/<[^>]*>/g, ' ')

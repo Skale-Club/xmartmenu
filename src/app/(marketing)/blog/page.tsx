@@ -1,3 +1,4 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
 /**
  * O blog da PLATAFORMA (autoblog-parity XM-18).
  *
@@ -22,7 +23,7 @@ export const metadata: Metadata = {
 }
 
 export default async function BlogIndexPage() {
-  const svc = createServiceClient()
+  const svc = (nativeBlogSelected()?null:createServiceClient())
   const [posts, archive, tags] = await Promise.all([
     listPublishedPosts(svc, null),
     listArchive(svc, null),

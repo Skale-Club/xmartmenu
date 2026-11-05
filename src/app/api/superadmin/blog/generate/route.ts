@@ -1,3 +1,5 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogAdminHttp} from '@/lib/blog/native/admin-http'
 /**
  * Generate now (autoblog-parity XM-09), bypassing the cadence gates. The
  * database lock still applies, so this cannot collide with the scheduled run.
@@ -8,7 +10,8 @@ import { generateBlogPost } from '@/lib/blog/generator'
 import { revalidatePath } from 'next/cache'
 import { withApi } from '@/lib/observability/with-api'
 
-async function handlePOST() {
+async function handlePOST(request: Request) {
+  if(nativeBlogSelected())return nativeBlogAdminHttp('generate',request)
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const result = await generateBlogPost({ trigger: 'manual' })

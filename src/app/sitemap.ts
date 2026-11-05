@@ -3,6 +3,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { PLATFORM_BASE } from '@/lib/seo'
 import { scopeFilter } from '@/lib/blog/scope'
 import { listArchive, listTags } from '@/lib/blog/public-queries'
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativePlatformSitemap} from '@/lib/blog/native/sitemap'
 
 // Regenerate at most every 5 minutes (active tenants change rarely).
 export const revalidate = 300
@@ -12,6 +14,7 @@ export const revalidate = 300
 // excluded here — their canonical home lives on their own domain (which serves
 // its own sitemap), and the platform-slug copy is intentionally noindexed.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if(nativeBlogSelected())return nativePlatformSitemap()
   const entries: MetadataRoute.Sitemap = [
     {
       url: PLATFORM_BASE,

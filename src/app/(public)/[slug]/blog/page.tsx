@@ -6,6 +6,8 @@ import type { Metadata } from 'next'
 
 import { createServiceClient } from '@/lib/supabase/server'
 import { getTenantPlan } from '@/lib/tenant-plan'
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogTenant,nativePublishedPosts} from '@/lib/blog/native/public-runtime'
 
 interface Props {
   params: Promise<{ slug: string }>
@@ -32,6 +34,10 @@ interface PostCard {
  * customer who is not paying for it is a URL Google will keep coming back to.
  */
 async function loadBlog(slug: string): Promise<{ tenantId: string; name: string; posts: PostCard[] } | null> {
+  if(nativeBlogSelected()){
+    const tenant=await nativeBlogTenant(slug)
+    return tenant?{tenantId:tenant.tenantId,name:tenant.name,posts:await nativePublishedPosts(tenant.tenantId)}:null
+  }
   const svc = createServiceClient()
   const { data: tenantRow } = await svc
     .from('tenants')

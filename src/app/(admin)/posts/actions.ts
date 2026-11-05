@@ -1,4 +1,6 @@
 'use server'
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {loadNativeTenantBlogState,nativeTenantBlogMutation,generateNativeTenantPost,fetchNativeTenantRss,checkNativeTenantTelegram,saveNativeTenantTelegram} from '@/lib/blog/native/actions'
 /**
  * Blog do restaurante — ações do admin do tenant (autoblog-parity XM-14).
  *
@@ -123,6 +125,7 @@ export interface TenantBlogState {
 }
 
 export async function loadTenantBlogState(): Promise<ActionResult<TenantBlogState>> {
+  if(nativeBlogSelected())return loadNativeTenantBlogState()
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
 
@@ -207,6 +210,7 @@ export async function loadTenantBlogState(): Promise<ActionResult<TenantBlogStat
 }
 
 export async function saveTenantBlogSettings(input: TenantBlogSettingsInput): Promise<ActionResult> {
+  if(nativeBlogSelected())return nativeTenantBlogMutation('settings',input)
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
 
@@ -260,7 +264,8 @@ export async function saveTenantBlogSettings(input: TenantBlogSettingsInput): Pr
   return { ok: true } as ActionResult
 }
 
-export async function generateTenantPostNow(): Promise<ActionResult<{ status: string }>> {
+export async function generateTenantPostNow(requestKey?:string): Promise<ActionResult<{ status: string }>> {
+  if(nativeBlogSelected())return generateNativeTenantPost(requestKey)
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
 
@@ -274,6 +279,7 @@ export async function generateTenantPostNow(): Promise<ActionResult<{ status: st
 const decisionSchema = z.object({ postId: z.string().uuid(), reason: z.string().max(1000).optional() })
 
 export async function approveTenantDraft(postId: string): Promise<ActionResult> {
+  if(nativeBlogSelected())return nativeTenantBlogMutation('decision',{postId,action:'approve'})
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
   if (!decisionSchema.shape.postId.safeParse(postId).success) {
@@ -320,6 +326,7 @@ export async function approveTenantDraft(postId: string): Promise<ActionResult> 
 }
 
 export async function rejectTenantDraft(postId: string, reason?: string): Promise<ActionResult> {
+  if(nativeBlogSelected())return nativeTenantBlogMutation('decision',{postId,action:'reject',reason})
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
 
@@ -358,6 +365,7 @@ export async function rejectTenantDraft(postId: string, reason?: string): Promis
 const rssSchema = z.object({ name: z.string().min(1).max(200), url: z.string().url().max(2000) })
 
 export async function addTenantRssSource(input: z.infer<typeof rssSchema>): Promise<ActionResult> {
+  if(nativeBlogSelected())return nativeTenantBlogMutation('rss',{...input,action:'add'})
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
   const parsed = rssSchema.safeParse(input)
@@ -378,6 +386,7 @@ export async function addTenantRssSource(input: z.infer<typeof rssSchema>): Prom
 
 /** Pausa sem perder o feed — apagar e recadastrar descarta tudo que já entrou. */
 export async function toggleTenantRssSource(id: string, enabled: boolean): Promise<ActionResult> {
+  if(nativeBlogSelected())return nativeTenantBlogMutation('rss',{id,enabled,action:'toggle'})
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
 
@@ -393,6 +402,7 @@ export async function toggleTenantRssSource(id: string, enabled: boolean): Promi
 }
 
 export async function deleteTenantRssSource(id: string): Promise<ActionResult> {
+  if(nativeBlogSelected())return nativeTenantBlogMutation('rss',{id,action:'delete'})
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
 
@@ -407,6 +417,7 @@ export async function deleteTenantRssSource(id: string): Promise<ActionResult> {
 export async function fetchTenantRssNow(): Promise<
   ActionResult<{ sources: number; upserted: number; errors: string[] }>
 > {
+  if(nativeBlogSelected())return fetchNativeTenantRss()
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
 
@@ -432,6 +443,7 @@ const editSchema = z.object({
 /** Editar um rascunho antes de aprovar. O HTML é re-sanitizado: veio de um
  *  browser, então é entrada de usuário comum na volta. */
 export async function updateTenantDraft(input: z.infer<typeof editSchema>): Promise<ActionResult> {
+  if(nativeBlogSelected())return nativeTenantBlogMutation('edit',input)
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
   const parsed = editSchema.safeParse(input)
@@ -498,7 +510,9 @@ export type TenantTelegramInput = z.infer<typeof telegramSchema>
 
 export async function saveTenantTelegramSettings(
   input: TenantTelegramInput,
+  requestKey?:string,
 ): Promise<ActionResult<{ webhook: string | null }>> {
+  if(nativeBlogSelected())return saveNativeTenantTelegram(input,requestKey)
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
 
@@ -600,6 +614,7 @@ export async function saveTenantTelegramSettings(
 export async function checkTenantTelegramWebhook(): Promise<
   ActionResult<{ url: string | null; expected: string; lastError: string | null }>
 > {
+  if(nativeBlogSelected())return checkNativeTenantTelegram()
   const ctx = await requireBlogTenant()
   if ('error' in ctx) return { ok: false, message: ctx.error }
 

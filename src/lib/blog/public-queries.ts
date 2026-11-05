@@ -11,6 +11,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 import { scopeFilter, type BlogScope } from '@/lib/blog/scope'
+import {nativeBlogSelected} from './native/selected'
+import {nativePublishedPosts,nativeBlogTags,nativeBlogArchive} from './native/public-runtime'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ServiceClient = SupabaseClient<any, any, any>
@@ -54,10 +56,12 @@ export function tagSlug(tag: string): string {
 
 /** Os posts publicados de um escopo, mais recentes primeiro. */
 export async function listPublishedPosts(
-  svc: ServiceClient,
+  svc: ServiceClient | null,
   scope: BlogScope,
   limit = 50,
 ): Promise<PublicPostCard[]> {
+  if(nativeBlogSelected())return nativePublishedPosts(scope,limit)
+  if(!svc)throw new Error('Legacy blog client is required')
   // A ordem importa e não é estilo: `from()` devolve um builder SEM métodos de
   // filtro — `.is`, `.eq` e companhia só existem depois do `.select()`. Passar
   // o `from()` cru ao scopeFilter dá um `e.is is not a function` em runtime, e
@@ -80,9 +84,11 @@ export async function listPublishedPosts(
  * produção para uma página de listagem.
  */
 export async function listTags(
-  svc: ServiceClient,
+  svc: ServiceClient | null,
   scope: BlogScope,
 ): Promise<Array<{ slug: string; name: string; count: number }>> {
+  if(nativeBlogSelected())return nativeBlogTags(scope)
+  if(!svc)throw new Error('Legacy blog client is required')
   const { data } = await scopeFilter(svc.from('blog_posts').select('tags'), scope)
     .eq('status', 'published')
     .lte('published_at', new Date().toISOString())
@@ -112,7 +118,7 @@ export async function listTags(
  * mostra outra.
  */
 export async function listPostsByTag(
-  svc: ServiceClient,
+  svc: ServiceClient | null,
   scope: BlogScope,
   slug: string,
 ): Promise<PublicPostCard[]> {
@@ -131,9 +137,11 @@ export async function listPostsByTag(
  * a oeste de Greenwich, e a máquina muda.
  */
 export async function listArchive(
-  svc: ServiceClient,
+  svc: ServiceClient | null,
   scope: BlogScope,
 ): Promise<ArchiveEntry[]> {
+  if(nativeBlogSelected())return nativeBlogArchive(scope)
+  if(!svc)throw new Error('Legacy blog client is required')
   const { data } = await scopeFilter(svc.from('blog_posts').select('published_at'), scope)
     .eq('status', 'published')
     .not('published_at', 'is', null)
@@ -167,11 +175,13 @@ export async function listArchive(
  * pergunta.
  */
 export async function listPostsByMonth(
-  svc: ServiceClient,
+  svc: ServiceClient | null,
   scope: BlogScope,
   year: number,
   month?: number,
 ): Promise<PublicPostCard[]> {
+  if(nativeBlogSelected())return nativePublishedPosts(scope,5000,{year,month})
+  if(!svc)throw new Error('Legacy blog client is required')
   const from = new Date(Date.UTC(year, month ? month - 1 : 0, 1))
   const periodEnd = month
     ? new Date(Date.UTC(year, month, 1))

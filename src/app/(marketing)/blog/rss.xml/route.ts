@@ -1,3 +1,4 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
 import { createServiceClient } from '@/lib/supabase/server'
 import { PLATFORM_BASE } from '@/lib/seo'
 import { buildFeedXml } from '@/lib/blog/feed'
@@ -7,7 +8,7 @@ import { listPublishedPosts } from '@/lib/blog/public-queries'
 export const revalidate = 3600
 
 export async function GET(): Promise<Response> {
-  const posts = await listPublishedPosts(createServiceClient(), null, 50)
+  const posts = await listPublishedPosts((nativeBlogSelected()?null:createServiceClient()), null, 50)
 
   return new Response(
     buildFeedXml({

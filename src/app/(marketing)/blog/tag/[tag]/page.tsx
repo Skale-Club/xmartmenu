@@ -1,3 +1,4 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
@@ -12,7 +13,7 @@ type Props = { params: Promise<{ tag: string }> }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { tag: slug } = await params
-  const tag = (await listTags(createServiceClient(), null)).find((t) => t.slug === slug)
+  const tag = (await listTags((nativeBlogSelected()?null:createServiceClient()), null)).find((t) => t.slug === slug)
   if (!tag) return {}
 
   return {
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function PlatformBlogTagPage({ params }: Props) {
   const { tag: slug } = await params
-  const svc = createServiceClient()
+  const svc = (nativeBlogSelected()?null:createServiceClient())
 
   const tags = await listTags(svc, null)
   // Uma etiqueta que não existe é 404, não uma listagem vazia: senão qualquer

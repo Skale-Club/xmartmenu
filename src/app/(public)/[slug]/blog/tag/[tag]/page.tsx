@@ -1,3 +1,4 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
@@ -15,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const blog = await resolveTenantBlog(slug)
   if (!blog) return {}
 
-  const tag = (await listTags(createServiceClient(), blog.tenantId)).find(
+  const tag = (await listTags((nativeBlogSelected()?null:createServiceClient()), blog.tenantId)).find(
     (t) => t.slug === tagSlugParam,
   )
   if (!tag) return {}
@@ -35,7 +36,7 @@ export default async function TenantBlogTagPage({ params }: Props) {
   const blog = await resolveTenantBlog(slug)
   if (!blog) notFound()
 
-  const svc = createServiceClient()
+  const svc = (nativeBlogSelected()?null:createServiceClient())
   const tags = await listTags(svc, blog.tenantId)
   const tag = tags.find((t) => t.slug === tagSlugParam)
   if (!tag) notFound()

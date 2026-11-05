@@ -1,3 +1,4 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
 import { createServiceClient } from '@/lib/supabase/server'
 import { buildFeedXml } from '@/lib/blog/feed'
 import { listPublishedPosts } from '@/lib/blog/public-queries'
@@ -22,7 +23,7 @@ export async function GET(
   const blog = await resolveTenantBlog(slug)
   if (!blog) return new Response('Not found', { status: 404 })
 
-  const posts = await listPublishedPosts(createServiceClient(), blog.tenantId, 50)
+  const posts = await listPublishedPosts((nativeBlogSelected()?null:createServiceClient()), blog.tenantId, 50)
 
   return new Response(
     buildFeedXml({

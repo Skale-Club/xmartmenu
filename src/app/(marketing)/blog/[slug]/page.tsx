@@ -15,6 +15,8 @@ import { notFound } from 'next/navigation'
 import { createServiceClient } from '@/lib/supabase/server'
 import { PLATFORM_BASE } from '@/lib/seo'
 import { scopeFilter } from '@/lib/blog/scope'
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativePublishedPost} from '@/lib/blog/native/public-runtime'
 
 export const revalidate = 300
 
@@ -31,6 +33,7 @@ interface PostRow {
 }
 
 async function getPost(slug: string): Promise<PostRow | null> {
+  if(nativeBlogSelected())return await nativePublishedPost(null,slug) as unknown as PostRow|null
   try {
     const service = createServiceClient()
       // Escopo da PLATAFORMA. Sem este filtro, e depois de XM-14 ter dado

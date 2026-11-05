@@ -1,3 +1,5 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogCronHttp} from '@/lib/blog/native/cron-http'
 /**
  * Scheduled RSS ingestion (autoblog-parity XM-05/XM-07). Same authorisation and
  * the same reasoning as the generate route next door.
@@ -30,5 +32,6 @@ export async function POST(request: Request) {
   // Sweeps every scope that has BOTH the blog and RSS on (autoblog-parity
   // XM-14) — the platform's own and each restaurant's. A scope with RSS off
   // opens no sockets at all.
+  if(nativeBlogSelected())return nativeBlogCronHttp(request,'rss')
   return NextResponse.json(await runRssSweep())
 }
