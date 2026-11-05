@@ -15,11 +15,13 @@ export function requireNativeQueue(kind:'crm'|'ai') {
   if(!ownedAuthSelected() || !tenantEffectsSelected() || !process.env.QSTASH_TOKEN || !process.env.QSTASH_CURRENT_SIGNING_KEY || !process.env.QSTASH_NEXT_SIGNING_KEY)throw new AdminMenuError(503,'Native worker configuration is unavailable')
   return nativeQueueUrl(kind)
 }
-export async function publishNativeTenantWork(kind:'crm'|'ai',id:string) {
-  if(!UUID.test(id))throw new AdminMenuError(400,'Invalid native work ID')
+export async function publishNativeTenantWork(kind:'crm'|'ai',id:string,step=0) {
+  if(!UUID.test(id) || !Number.isSafeInteger(step) || step<0 || (kind==='ai'&&step>2000))throw new AdminMenuError(400,'Invalid native work ID')
   const url=requireNativeQueue(kind),token=process.env.QSTASH_TOKEN!
   const client=new Client(process.env.QSTASH_URL?{token,baseUrl:process.env.QSTASH_URL}:{token})
-  await client.publishJSON({url,body:kind==='crm'?{effectId:id}:{operationId:id},retries:0,deduplicationId:`xmartmenu-native:${kind}:${id}`})
+  // Retries before a claim are safe. Once provider work is prepared, the SQL
+  // state machine refuses another request; ambiguity returns non-retryable.
+  await client.publishJSON({url,body:kind==='crm'?{effectId:id}:{operationId:id},retries:5,deduplicationId:`xmartmenu-native:${kind}:${id}:${step}`})
 }
 /** Verify the same bounded raw bytes against the configured public URL. No
  * caller-supplied URL, tenant, actor hash or role reaches a worker capability. */

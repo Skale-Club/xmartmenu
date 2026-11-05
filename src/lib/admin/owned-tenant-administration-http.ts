@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache'
 import { hasSameOriginAdminMutation } from '../data/admin-display-settings'
 import { AdminMenuError } from '../data/admin-menus'
 import { ownedPlans,ownedTenants,ownedTenantSettings,ownedTenantMenuRows } from '../data/tenant-administration-runtime'
+import { publishPendingNativeTenantEffects } from '../tenant-effects/publish-pending'
 
 const json = (value: unknown,status = 200) => NextResponse.json(value,{ status,headers:{ 'Cache-Control':'private, no-store' } })
 const failure = (error: unknown) => error instanceof AdminMenuError && error.status < 500 ? json({ error:error.message },error.status)
@@ -27,6 +28,11 @@ export async function ownedTenantAdministrationHttp(kind: 'plans'|'tenants'|'set
     if (kind === 'settings') return json(await ownedTenantSettings(id ?? '',input))
     const action = method === 'GET' ? 'read' : method === 'DELETE' ? 'delete' : method === 'POST' ? 'create' : 'update'
     const result = kind === 'plans' ? await ownedPlans(action,id,input) : await ownedTenants(action,id,input)
+    if (kind === 'tenants' && action === 'create' && result && typeof result === 'object' && 'tenant' in result && result.tenant && typeof result.tenant === 'object' && 'id' in result.tenant && typeof result.tenant.id === 'string') {
+      // The transaction already committed its intention. Queue failure leaves
+      // it pending and never retries restaurant/account creation.
+      await publishPendingNativeTenantEffects(result.tenant.id)
+    }
     if (kind === 'tenants' && action !== 'read') { revalidatePath('/tenants'); if (result && typeof result === 'object' && 'slug' in result) revalidatePath(`/${result.slug}`,'layout') }
     return kind === 'plans' && action === 'delete' ? new NextResponse(null,{ status:204,headers:{ 'Cache-Control':'private, no-store' } }) : json(result,action === 'create' ? 201 : 200)
   } catch (error) { return failure(error) }

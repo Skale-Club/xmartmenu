@@ -20,6 +20,7 @@ ALTER TABLE public.app_tenant_effects
   ADD COLUMN response_digest text CHECK(response_digest IS NULL OR response_digest ~ '^[a-f0-9]{64}$');
 CREATE UNIQUE INDEX app_tenant_effects_event_dedup ON public.app_tenant_effects(tenant_id,kind,event_id) WHERE event_id IS NOT NULL;
 CREATE INDEX app_tenant_effects_pending ON public.app_tenant_effects(created_at,id) WHERE status='pending';
+CREATE INDEX app_tenant_effects_tenant_history ON public.app_tenant_effects(tenant_id,created_at DESC,id);
 -- Existing IDs/status/tenant/kind/created_at are preserved. New defaults are
 -- neutral; no existing job is claimed or dispatched by this proposal.
 COMMIT;

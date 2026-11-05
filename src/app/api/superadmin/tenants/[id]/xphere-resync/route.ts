@@ -1,3 +1,5 @@
+import { nativeTenantEffectHttp } from '@/lib/tenant-effects/http'
+import { tenantEffectsSelected } from '@/lib/data/tenant-effect-authority-runtime'
 import { ownedAuthSelected } from '@/lib/auth/owned-principal'
 import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
 /**
@@ -17,7 +19,7 @@ import { enqueueXphereSync } from '@/lib/xphere/queue'
 import { withApi } from '@/lib/observability/with-api'
 
 async function handlePOST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (ownedAuthSelected() || tenantAdministrationSelected()) return NextResponse.json({ error: 'Native execution of this external integration is not available yet' }, { status: 503, headers: { 'Cache-Control': 'private, no-store' } })
+  if (ownedAuthSelected() || tenantAdministrationSelected() || tenantEffectsSelected()) return nativeTenantEffectHttp('resync',request,(await params).id)
   const ok = await assertSuperadmin()
   if (!ok) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

@@ -4,6 +4,7 @@ import { getIdentityServices } from '../auth/identity-services'
 import { isXphereEnabled,postXphereSync } from '../xphere/client'
 import { XpherePermanentError } from '../xphere/errors'
 import type { PostXphereResult } from '../xphere/client'
+import { publishPendingNativeTenantEffects } from './publish-pending'
 
 export async function dispatchNativeCrmEffect(id:string,send:(payload:NativeCrmPayload,options:{idempotencyKey:string})=>Promise<PostXphereResult>=postXphereSync) {
   // A disabled integration leaves the intention pending. It is never marked
@@ -33,6 +34,7 @@ export async function dispatchNativeCrmEffect(id:string,send:(payload:NativeCrmP
     }
     const response=verifiedNativeCrmResponse(result.response)
     await ownedAdminTransaction(true,query=>completeNativeCrmEffect(query,id,claim.claimId,claim.requestDigest,response))
+    await publishPendingNativeTenantEffects(claim.tenantId)
     return {status:'delivered'}
   }catch(error){
     // Network/2xx parse errors, uncertain COMMIT and permanent errors cannot

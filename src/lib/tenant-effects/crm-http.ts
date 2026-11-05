@@ -10,6 +10,6 @@ export async function nativeCrmWorkerHttp(request:Request) {
   }catch(error){
     const status=error instanceof AdminMenuError && error.status<500?error.status:503
     return NextResponse.json({error:status<500&&error instanceof AdminMenuError?error.message:'Native CRM worker is unavailable'},
-      {status,headers:{'Cache-Control':'private, no-store','Upstash-NonRetryable-Error':'true'}})
+      {status,headers:{'Cache-Control':'private, no-store',...(status<500?{'Upstash-NonRetryable-Error':'true'}:{})}})
   }
 }

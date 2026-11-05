@@ -23,6 +23,11 @@
 
 import { Client } from '@upstash/qstash'
 import type { SyncReason } from './types'
+import { ownedAuthSelected } from '../auth/owned-principal'
+import { tenantEffectsSelected } from '../data/tenant-effect-authority-runtime'
+import { ownedAdminTransaction } from '../data/admin-menus-runtime'
+import { enqueueNativeTenantEffect } from '../data/tenant-effects-outbox'
+import { publishPendingNativeTenantEffects } from '../tenant-effects/publish-pending'
 
 // Fail-open env gate (mirror rate-limit.ts `redis = hasUpstash ? ... : null`):
 // create the client only when the token is present; otherwise null -> no-op.
@@ -87,6 +92,17 @@ export async function enqueueXphereSync(
   reason: SyncReason,
   opts?: EnqueueXphereOpts,
 ): Promise<void> {
+  if (ownedAuthSelected() || tenantEffectsSelected()) {
+    // Owned producers never publish a legacy thin message to a Source reader.
+    // Financial writers should record this same intention in their own TX;
+    // this bridge also protects older trusted post-commit producers.
+    if (!ownedAuthSelected() || !tenantEffectsSelected()) return
+    try {
+      await ownedAdminTransaction(true, query => enqueueNativeTenantEffect(query, { tenantId,reason,...opts }))
+      await publishPendingNativeTenantEffects(tenantId)
+    } catch { console.error('xphere.native_intention_pending', { tenantId,reason }) }
+    return
+  }
   // Producer kill switch first (OBS-02): when XPHERE_SYNC_ENABLED is
   // unset/'false'/'0', bail BEFORE any publish — authoritative at the source,
   // one env flip halts all syncing with no code change. Never throws.

@@ -152,7 +152,7 @@ class S3StorageClient implements IStorageClient {
     bucket: StorageBucket,
     path: string,
     data: Buffer | Uint8Array,
-    options: { contentType: string; upsert?: boolean },
+    options: { contentType: string; upsert?: boolean; signal?: AbortSignal },
   ): Promise<string> {
     const { PutObjectCommand } = await import('@aws-sdk/client-s3')
     const client = await this.getS3Client()
@@ -166,7 +166,7 @@ class S3StorageClient implements IStorageClient {
       Key: path,
       Body: data,
       ContentType: options.contentType,
-    }))
+    }), options.signal ? { abortSignal: options.signal } : undefined)
     return this.getPublicUrl(bucket, path)
   }
 
@@ -175,13 +175,13 @@ class S3StorageClient implements IStorageClient {
     return `${base}/${path}`
   }
 
-  async download(bucket: StorageBucket, path: string, maxBytes?: number): Promise<Buffer> {
+  async download(bucket: StorageBucket, path: string, maxBytes?: number, signal?: AbortSignal): Promise<Buffer> {
     const { GetObjectCommand } = await import('@aws-sdk/client-s3')
     const client = await this.getS3Client()
     const response = await client.send(new GetObjectCommand({
       Bucket: this.bucketName(bucket),
       Key: path,
-    }))
+    }), signal ? { abortSignal: signal } : undefined)
     const close = () => { const body = response.Body; if (body && 'destroy' in body && typeof body.destroy === 'function') body.destroy() }
     if (maxBytes !== undefined && (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || (response.ContentLength !== undefined && response.ContentLength > maxBytes))) {
       close(); throw new Error('Storage object exceeds the permitted size')
@@ -209,6 +209,13 @@ class S3StorageClient implements IStorageClient {
       { expiresIn },
     )
     return { url }
+  }
+
+  async createNativeSignedUploadUrl(bucket: StorageBucket, path: string, byteLength: number, contentType: string, expiresIn: number) {
+    if (!Number.isSafeInteger(byteLength) || byteLength < 1 || byteLength > 15 * 1024 * 1024 || !Number.isInteger(expiresIn) || expiresIn < 1 || expiresIn > 300) throw new Error('Invalid native upload limits')
+    const { PutObjectCommand } = await import('@aws-sdk/client-s3')
+    const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner')
+    return getSignedUrl(await this.getS3Client(), new PutObjectCommand({ Bucket:this.bucketName(bucket),Key:path,ContentLength:byteLength,ContentType:contentType }), { expiresIn })
   }
 }
 

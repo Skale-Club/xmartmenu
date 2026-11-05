@@ -1,3 +1,5 @@
+import { nativeTenantEffectHttp } from '@/lib/tenant-effects/http'
+import { tenantEffectsSelected } from '@/lib/data/tenant-effect-authority-runtime'
 import { ownedAuthSelected } from '@/lib/auth/owned-principal'
 import { tenantAdministrationSelected } from '@/lib/data/tenant-administration'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -49,7 +51,7 @@ async function handlePOST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (ownedAuthSelected() || tenantAdministrationSelected()) return NextResponse.json({ error: 'Native execution of this external integration is not available yet' }, { status: 503, headers: { 'Cache-Control': 'private, no-store' } })
+  if (ownedAuthSelected() || tenantAdministrationSelected() || tenantEffectsSelected()) return nativeTenantEffectHttp('image',request,(await params).id)
   const { id: tenantId } = await params
 
   // Auth guard | D-20: assertSuperadmin() first on every new route

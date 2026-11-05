@@ -42,6 +42,8 @@ export async function claimNativeCrmEffect(query:AdminMenuQuery,id:string,observ
     // A stranded processing claim needs explicit operator reconciliation.
     return {skipped:'processing'} as const
   }
+  const earlier=(await query("SELECT id FROM public.app_tenant_effects WHERE tenant_id=$1 AND status IN('pending','processing','reconcile') ORDER BY created_at,id LIMIT 1 FOR UPDATE",[current.tenantId])).rows
+  if(earlier.length!==1 || earlier[0].id!==id)throw new AdminMenuError(503,'An earlier CRM intention must finish or be reconciled first')
   if(current.status!=='pending' || current.digest!==observed.digest || Date.now()-checkedAt>5000 || checkedAt>Date.now()+5000)throw new AdminMenuError(409,'CRM facts changed; no request was sent')
   if(phone!==null && !/^\+[1-9]\d{7,14}$/.test(phone))throw new AdminMenuError(503,'Verified owner phone is invalid')
   const payload:NativeCrmPayload=buildSyncPayload({tenant:{id:current.tenantId,name:String(current.tenant.name),slug:String(current.tenant.slug),custom_domain:typeof current.tenant.custom_domain==='string'?current.tenant.custom_domain:null},

@@ -10,7 +10,7 @@ import { AdminMenuError } from '../data/admin-menus'
 
 /** Existing superadmin services are platform cost, never customer billing.
  * This explicit native adapter cannot fall through the legacy access selector. */
-export async function nativeEffectAiAccess(operation:TenantOperation,claimId:string,feature:'seed'|'ocr'|'seed_image',index=0,request:typeof fetch=fetch) {
+export async function nativeEffectAiAccess(operation:TenantOperation,claimId:string,feature:'seed'|'ocr'|'seed_image',index=0,request:typeof fetch=fetch,workerNonce?:string) {
   const proof=await currentTenantEffectActor({actorId:operation.actorId,sessionHash:operation.sessionHash})
   const settings=await ownedAdminTransaction(false,async query=>{await requireTenantEffectActor(query,proof);return readPlatformAiRecord(query)})
   let panelKey:string|null=null
@@ -23,7 +23,7 @@ export async function nativeEffectAiAccess(operation:TenantOperation,claimId:str
     if(url.origin!==base.origin || !url.pathname.startsWith(base.pathname+'/') || url.username || url.password || !['https:','http:'].includes(url.protocol)
       || (process.env.NODE_ENV==='production'&&url.protocol!=='https:') || started)throw new AdminMenuError(409,'Provider request cannot be repeated')
     const actor=await currentTenantEffectActor({actorId:operation.actorId,sessionHash:operation.sessionHash})
-    await ownedAdminTransaction(true,query=>prepareTenantEffectCall(query,actor,operation.id,claimId,index,feature,{url:url.href,body:typeof init?.body==='string'?init.body:null}))
+    await ownedAdminTransaction(true,query=>prepareTenantEffectCall(query,actor,operation.id,claimId,index,feature,{url:url.href,body:typeof init?.body==='string'?init.body:null},workerNonce))
     started=true
     try{
       const timeout=AbortSignal.timeout(125000)

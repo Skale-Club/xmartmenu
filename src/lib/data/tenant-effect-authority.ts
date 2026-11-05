@@ -1,8 +1,9 @@
 import { AdminMenuError,type AdminMenuQuery } from './admin-menus'
-import { requireTenantAdministrator,type TenantAdminContext } from './tenant-administration'
+import { requireTenantAdministrator } from './tenant-administration'
 
-export type TenantEffectActor = TenantAdminContext & { projectId:string; subject:string; authenticatedAt:number; checkedAt:number }
-export async function readTenantEffectSession(query:AdminMenuQuery,context:TenantAdminContext) {
+export type TenantEffectSessionContext = {actorId:string;sessionHash:string}
+export type TenantEffectActor = TenantEffectSessionContext & { projectId:string; subject:string; authenticatedAt:number; checkedAt:number }
+export async function readTenantEffectSession(query:AdminMenuQuery,context:TenantEffectSessionContext) {
   await requireTenantAdministrator(query,context)
   const rows=(await query('SELECT project_id,subject,authenticated_at FROM public.app_sessions WHERE token_hash=$1 AND user_id=$2 AND expires_at>clock_timestamp()',[context.sessionHash,context.actorId])).rows
   if(rows.length!==1 || !(rows[0].authenticated_at instanceof Date))throw new AdminMenuError(403,'Current administrator session is required')

@@ -1,16 +1,17 @@
 import { ownedAdminTransaction } from './admin-menus-runtime'
 import { tenantAdministrationContext } from './tenant-administration-runtime'
-import type { TenantAdminContext } from './tenant-administration'
-import { readTenantEffectSession,type TenantEffectActor } from './tenant-effect-authority'
+import { readTenantEffectSession,type TenantEffectActor,type TenantEffectSessionContext } from './tenant-effect-authority'
 import { getIdentityServices } from '../auth/identity-services'
 import { assertProviderAccountActive } from '../auth/provider-account-status'
 import { ownedAuthSelected } from '../auth/owned-principal'
 import { AdminMenuError } from './admin-menus'
 
 export const tenantEffectsSelected=(env:Record<string,string|undefined>=process.env)=>env.OWNED_TENANT_EFFECTS_ENABLED==='true'
-export async function currentTenantEffectActor(context?:TenantAdminContext):Promise<TenantEffectActor> {
+export async function currentTenantEffectActor(context?:TenantEffectSessionContext):Promise<TenantEffectActor> {
   if(!ownedAuthSelected() || !tenantEffectsSelected())throw new AdminMenuError(503,'Native tenant effects are unavailable')
-  const selected=context ?? await tenantAdministrationContext()
+  const candidate=context ?? await tenantAdministrationContext()
+  if(!('sessionHash'in candidate) || typeof candidate.sessionHash!=='string')throw new AdminMenuError(403,'A current browser session is required for this effect')
+  const selected={actorId:candidate.actorId,sessionHash:candidate.sessionHash}
   const session=await ownedAdminTransaction(false,query=>readTenantEffectSession(query,selected))
   const {config,customerAccount}=getIdentityServices()
   if(session.projectId!==config.web.projectId)throw new AdminMenuError(403,'Identity project mismatch')

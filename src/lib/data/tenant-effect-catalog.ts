@@ -3,6 +3,7 @@ import { AdminMenuError,type AdminMenuQuery } from './admin-menus'
 import { UUID } from '../auth/owned-principal'
 import { requireTenantEffectActor,type TenantEffectActor } from './tenant-effect-authority'
 import { tenantEffectDigest } from './tenant-effect-operations'
+import { sanitizeTranslations } from '../menu-translations'
 
 export type NativeCatalogSnapshot={tenantId:string;tenant:Record<string,unknown>;menu:Record<string,unknown>;settings:Record<string,unknown>|null;categories:Record<string,unknown>[];products:Record<string,unknown>[];digest:string}
 export async function readTenantEffectCatalog(query:AdminMenuQuery,proof:TenantEffectActor,tenantId:string,menuId:string,write=false):Promise<NativeCatalogSnapshot> {
@@ -24,10 +25,10 @@ export type NativeSeedProduct={name:string;description?:string|null;price:number
 export type NativeSeedCategory={name:string;description?:string|null;translations?:Record<string,unknown>;products:NativeSeedProduct[]}
 function label(value:unknown,max=500):string {if(typeof value!=='string' || !value.trim() || value.length>max)throw new AdminMenuError(503,'Generated catalog text is invalid');return value.trim()}
 function description(value:unknown):string|null {if(value===undefined || value===null || value==='')return null;if(typeof value!=='string' || value.length>10000)throw new AdminMenuError(503,'Generated description is invalid');return value}
-function translations(value:unknown):string {if(value===undefined)return '{}';if(!value || typeof value!=='object' || Array.isArray(value) || JSON.stringify(value).length>32000)throw new AdminMenuError(503,'Generated translations are invalid');return JSON.stringify(value)}
-function productValues(value:NativeSeedProduct) {
+function translations(value:unknown,menu:Record<string,unknown>):string {if(value===undefined)return '{}';if(!value || typeof value!=='object' || Array.isArray(value) || JSON.stringify(value).length>32000)throw new AdminMenuError(503,'Generated translations are invalid');const allowed=new Set(Array.isArray(menu.supported_languages)?menu.supported_languages:['en']);return JSON.stringify(Object.fromEntries(Object.entries(sanitizeTranslations(value)).filter(([language])=>allowed.has(language))))}
+function productValues(value:NativeSeedProduct,menu:Record<string,unknown>) {
   if(typeof value.price!=='number' || !Number.isFinite(value.price) || value.price<0 || value.price>99999999.99)throw new AdminMenuError(503,'Generated price is invalid')
-  return {name:label(value.name),description:description(value.description),price:value.price,translations:translations(value.translations)}
+  return {name:label(value.name),description:description(value.description),price:value.price,translations:translations(value.translations,menu)}
 }
 export async function applyTenantEffectSeed(query:AdminMenuQuery,proof:TenantEffectActor,snapshot:NativeCatalogSnapshot,type:string,generated:NativeSeedCategory[],categoryId?:string) {
   const current=await readTenantEffectCatalog(query,proof,snapshot.tenantId,String(snapshot.menu.id),true)
@@ -49,14 +50,14 @@ export async function applyTenantEffectSeed(query:AdminMenuQuery,proof:TenantEff
       if(current.categories.length+categoriesCreated>=1000)throw new AdminMenuError(409,'Category limit reached')
       target={id:randomUUID(),name};categoryNames.add(name.toLowerCase())
       await query(`INSERT INTO public.categories(id,tenant_id,menu_id,name,description,translations,position,is_active)
-        VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,true)`,[target.id,current.tenantId,current.menu.id,name,description(candidate.description),translations(candidate.translations),catPosition++]);categoriesCreated++
+        VALUES($1,$2,$3,$4,$5,$6::jsonb,$7,true)`,[target.id,current.tenantId,current.menu.id,name,description(candidate.description),translations(candidate.translations,current.menu),catPosition++]);categoriesCreated++
     }
     if(type==='categories' || type==='single_category')continue
     if(!target)throw new AdminMenuError(409,'Product category is unavailable')
     const targetId=target.id
     const names=new Set(current.products.filter(row=>row.category_id===targetId).map(row=>String(row.name).toLowerCase()))
     for(const candidateProduct of candidate.products){
-      const product=productValues(candidateProduct);if(names.has(product.name.toLowerCase()))continue
+      const product=productValues(candidateProduct,current.menu);if(names.has(product.name.toLowerCase()))continue
       if(current.products.length+productsCreated>=2000)throw new AdminMenuError(409,'Product limit reached')
       names.add(product.name.toLowerCase())
       await query(`INSERT INTO public.products(id,tenant_id,menu_id,category_id,name,description,translations,price,is_available,is_featured,tags,image_urls,position)

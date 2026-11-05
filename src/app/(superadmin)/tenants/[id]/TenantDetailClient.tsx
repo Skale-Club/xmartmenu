@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { nativeEffectFetch, completeNativeEffectRequest, browserImageDigest } from '@/lib/tenant-effects/browser'
 import Image from 'next/image'
 import Link from 'next/link'
 import OwnedStaffManagement from '@/components/admin/OwnedStaffManagement'
@@ -126,6 +127,7 @@ export default function TenantDetailClient({
   initialSwitches,
   canUseAiTools,
   native = false,
+  nativeEffects = false,
 }: {
   tenant: Tenant
   initialStaff: StaffMember[]
@@ -136,6 +138,7 @@ export default function TenantDetailClient({
   initialSwitches: ServiceSwitchValues
   canUseAiTools: boolean
   native?: boolean
+  nativeEffects?: boolean
 }) {
   const [tab, setTab] = useState<'staff' | 'menus' | 'subscription'>('staff')
   const [staff, setStaff] = useState(initialStaff)
@@ -151,6 +154,47 @@ export default function TenantDetailClient({
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [confirmName, setConfirmName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [effectReview, setEffectReview] = useState<string | null>(null)
+  const [effectReviewNotice, setEffectReviewNotice] = useState<string | null>(null)
+  const nativePoll = useRef<AbortController | null>(null)
+  const nativeImageRequest = useRef<{ id: string; url: string; init: RequestInit } | null>(null)
+  useEffect(() => () => { nativePoll.current?.abort() }, [])
+
+  async function inspectNativeEffect() {
+    if (!effectReview) return
+    try {
+      const response = await fetch(`/api/superadmin/tenants/${tenant.id}/seed-status?jobId=${encodeURIComponent(effectReview)}`, { cache: 'no-store' })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error ?? 'Status is unavailable')
+      setEffectReviewNotice(result.status === 'complete' ? 'Operation completed.' : result.errorMessage ?? `Operation status: ${result.status}.`)
+      const saved = nativeImageRequest.current
+      if (result.status === 'complete' && saved?.id === effectReview) await completeNativeEffectRequest(saved.url, saved.init)
+    } catch (failure) { setEffectReviewNotice(failure instanceof Error ? failure.message : 'Status is unavailable') }
+  }
+
+  async function pollNativeImageJob(id: string, url: string, init: RequestInit) {
+    nativePoll.current?.abort()
+    const controller = new AbortController(); nativePoll.current = controller
+    nativeImageRequest.current = { id, url, init }
+    for (let attempt = 0; attempt < 180 && !controller.signal.aborted; attempt++) {
+      const response = await fetch(`/api/superadmin/tenants/${tenant.id}/seed-status?jobId=${encodeURIComponent(id)}`, { cache: 'no-store', signal: controller.signal })
+      const result = await response.json()
+      if (!response.ok) throw new Error(result.error ?? 'Image job status is unavailable')
+      if (result.status === 'complete') {
+        await completeNativeEffectRequest(url, init)
+        setImageSeedStatus({ type: 'success', message: `${result.imagesCreated ?? 0} product images generated and uploaded.` })
+        setEffectReviewNotice('Image job completed.')
+        return
+      }
+      if (result.status === 'failed') {
+        setImageSeedStatus({ type: 'error', message: `${result.imagesCreated ?? 0} images completed. ${result.errorMessage ?? 'This job needs review before another paid request.'}` })
+        return
+      }
+      setImageSeedStatus({ type: 'success', message: `Image job ${result.status}; ${result.imagesCreated ?? 0} images completed so far.` })
+      await new Promise(resolve => setTimeout(resolve, 2500))
+    }
+    if (!controller.signal.aborted) setEffectReviewNotice('The image job continues in the background. Use Check status to follow it.')
+  }
 
   // AI Tools state
   const [seedLoading, setSeedLoading] = useState(false)
@@ -289,7 +333,7 @@ export default function TenantDetailClient({
     setSeedLoading(true)
     setSeedStatus(null)
     try {
-      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/seed`, {
+      const res = await nativeEffectFetch(`/api/superadmin/tenants/${tenant.id}/seed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -298,8 +342,9 @@ export default function TenantDetailClient({
           businessType: effectiveBusinessType,
           companyName: tenant.name,
         }),
-      })
+      }, nativeEffects)
       const data = await res.json()
+      if (nativeEffects && data.operationId) setEffectReview(data.operationId)
       if (!res.ok) {
         setSeedStatus({ type: 'error', message: data.error ?? 'Seeding failed. Check the API logs and retry.' })
       } else {
@@ -318,7 +363,7 @@ export default function TenantDetailClient({
     setPerItemLoading(key)
     setPerItemError(null)
     try {
-      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/seed`, {
+      const res = await nativeEffectFetch(`/api/superadmin/tenants/${tenant.id}/seed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -328,8 +373,9 @@ export default function TenantDetailClient({
           businessType: effectiveBusinessType,
           companyName: tenant.name,
         }),
-      })
+      }, nativeEffects)
       const data = await res.json()
+      if (nativeEffects && data.operationId) setEffectReview(data.operationId)
       if (!res.ok) {
         setPerItemError(data.error ?? 'Failed. Retry?')
         setTimeout(() => setPerItemError(null), 5000)
@@ -364,14 +410,20 @@ export default function TenantDetailClient({
       if (type === 'image_single_product' && selectedProductId) {
         body.productId = selectedProductId
       }
-      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/seed-image`, {
+      const res = await nativeEffectFetch(`/api/superadmin/tenants/${tenant.id}/seed-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      })
+      }, nativeEffects)
       const data = await res.json() as {
         success?: boolean; error?: string; message?: string
-        imagesCreated?: number; skipped?: boolean; partial?: boolean
+        imagesCreated?: number; skipped?: boolean; partial?: boolean; jobId?: string; operationId?: string
+      }
+      if (nativeEffects && (data.operationId || data.jobId)) setEffectReview(data.operationId ?? data.jobId ?? null)
+      if (res.ok && nativeEffects && data.jobId) {
+        await pollNativeImageJob(data.jobId, `/api/superadmin/tenants/${tenant.id}/seed-image`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+        setImageSeedLoading(null)
+        return
       }
       if (!res.ok) {
         const errMsg = data.partial
@@ -400,9 +452,9 @@ export default function TenantDetailClient({
     setOcrStatus(null)
     try {
       // Step 1: Get signed upload URL from ocr-upload-token route
-      const tokenRes = await fetch(
-        `/api/superadmin/tenants/${tenant.id}/ocr-upload-token?filename=${encodeURIComponent(ocrFile.name)}`
-      )
+      const ticketUrl = `/api/superadmin/tenants/${tenant.id}/ocr-upload-token?filename=${encodeURIComponent(ocrFile.name)}`
+        + (nativeEffects ? `&size=${ocrFile.size}&contentType=${encodeURIComponent(ocrFile.type || 'image/jpeg')}&contentDigest=${await browserImageDigest(ocrFile)}` : '')
+      const tokenRes = await nativeEffectFetch(ticketUrl, {}, nativeEffects, { retainOnSuccess: true })
       const tokenData = await tokenRes.json()
       if (!tokenRes.ok) {
         setOcrStatus({ type: 'error', message: tokenData.error ?? 'Failed to get upload URL.' })
@@ -424,15 +476,17 @@ export default function TenantDetailClient({
       }
 
       // Step 3: Call ocr-menu route to extract and write to DB
-      const ocrRes = await fetch(`/api/superadmin/tenants/${tenant.id}/ocr-menu`, {
+      const ocrRes = await nativeEffectFetch(`/api/superadmin/tenants/${tenant.id}/ocr-menu`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ storagePath, menuId: selectedMenuId }),
-      })
+      }, nativeEffects)
       const ocrData = await ocrRes.json()
+      if (nativeEffects && ocrData.operationId) setEffectReview(ocrData.operationId)
       if (!ocrRes.ok) {
         setOcrStatus({ type: 'error', message: ocrData.error ?? 'OCR extraction failed. Check server logs.' })
       } else {
+        if (nativeEffects) await completeNativeEffectRequest(ticketUrl, {})
         const cats = ocrData.categoriesCreated ?? 0
         const prods = ocrData.productsCreated ?? 0
         const msg = cats === 0 && prods === 0
@@ -452,9 +506,10 @@ export default function TenantDetailClient({
     setResyncLoading(true)
     setResyncStatus(null)
     try {
-      const res = await fetch(`/api/superadmin/tenants/${tenant.id}/xphere-resync`, { method: 'POST' })
+      const res = await nativeEffectFetch(`/api/superadmin/tenants/${tenant.id}/xphere-resync`, { method: 'POST' }, nativeEffects, { completeOnAccepted: true })
       if (res.ok) {
-        setResyncStatus({ type: 'success', message: 'Re-sync enqueued.' })
+        const data = await res.json().catch(() => ({}))
+        setResyncStatus({ type: 'success', message: nativeEffects ? data.message ?? 'CRM intention saved; delivery is pending.' : 'Re-sync enqueued.' })
       } else {
         const data = await res.json().catch(() => ({}))
         setResyncStatus({ type: 'error', message: data.error ?? 'Re-sync failed.' })
@@ -494,6 +549,12 @@ export default function TenantDetailClient({
   return (
     <div className="w-full px-4 py-5 sm:p-6 lg:p-8">
       <div className="mx-auto w-full max-w-7xl">
+      {nativeEffects && effectReview && (
+        <section role="status" className="mb-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p>{effectReviewNotice ?? 'A saved operation is available. Check its status before starting another paid request.'}</p>
+          <button type="button" onClick={() => void inspectNativeEffect()} className="mt-2 min-h-10 rounded-lg border border-amber-300 px-3 font-semibold">Check status</button>
+        </section>
+      )}
       <ConfirmDialog
         open={!!confirmId}
         title="Remove staff member"
@@ -1283,7 +1344,7 @@ export default function TenantDetailClient({
       {canUseAiTools && <TenantAiCard tenantId={tenant.id} />}
 
       {/* CRM Sync section | OBS-01: surface Xphere sync state + manual re-sync */}
-      {canUseAiTools && hasXphereConnection && (
+      {canUseAiTools && (hasXphereConnection || nativeEffects) && (
       <section className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600"><RefreshCw className="size-4" /></span>
@@ -1314,11 +1375,11 @@ export default function TenantDetailClient({
 
         <button
           onClick={() => void handleResync()}
-          disabled={native || resyncLoading}
+          disabled={(native && !nativeEffects) || resyncLoading}
           className="flex min-h-10 items-center gap-2 rounded-xl bg-zinc-900 px-4 text-sm font-bold text-white transition-[background-color,scale] duration-150 hover:bg-zinc-800 active:scale-96 disabled:opacity-50"
         >
           <RefreshCw className={`size-4 ${resyncLoading ? 'animate-spin' : ''}`} />
-          {native ? 'Native CRM sync pending' : resyncLoading ? 'Re-syncing...' : 'Re-sync now'}
+          {native && !nativeEffects ? 'Native CRM sync pending' : resyncLoading ? 'Re-syncing...' : 'Re-sync now'}
         </button>
 
         {resyncStatus?.type === 'success' && (

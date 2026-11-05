@@ -4,17 +4,20 @@ import { UUID } from '../auth/owned-principal'
 import { requireTenantEffectActor,type TenantEffectActor } from './tenant-effect-authority'
 
 export type TenantOperationKind='seed'|'image'|'image-job'|'ocr'|'upload'|'ocr-upload'
-export type TenantOperation={id:string;tenantId:string;actorId:string;sessionHash:string;kind:TenantOperationKind;input:Record<string,unknown>;status:string;claimId:string|null;result:unknown}
+export type TenantOperationStatus='reserved'|'running'|'generated'|'applied'|'rejected'|'failed'|'reconcile'
+export type TenantOperation={id:string;tenantId:string;actorId:string;sessionHash:string;kind:TenantOperationKind;input:Record<string,unknown>;status:TenantOperationStatus;claimId:string|null;result:unknown;nextIndex?:number;imageTargets?:string[]}
 function canonical(value:unknown):string {
   if(Array.isArray(value))return '['+value.map(canonical).join(',')+']'
   if(value && typeof value==='object')return '{'+Object.entries(value).sort(([a],[b])=>a.localeCompare(b)).map(([key,item])=>JSON.stringify(key)+':'+canonical(item)).join(',')+'}'
   return JSON.stringify(value) ?? 'null'
 }
 export const tenantEffectDigest=(value:unknown)=>createHash('sha256').update(canonical(value)).digest('hex')
+export const tenantEffectByteDigest=(bytes:Uint8Array)=>createHash('sha256').update(bytes).digest('hex')
 export function operationRow(row:Record<string,unknown>):TenantOperation {
   if(!row.input || typeof row.input!=='object' || Array.isArray(row.input))throw new AdminMenuError(503,'Native operation input is unavailable')
+  if(!['reserved','running','generated','applied','rejected','failed','reconcile'].includes(String(row.status)))throw new AdminMenuError(503,'Native operation state is unavailable')
   return {id:String(row.id),tenantId:String(row.tenant_id),actorId:String(row.actor_id),sessionHash:String(row.actor_session_hash),kind:row.kind as TenantOperationKind,
-    input:row.input as Record<string,unknown>,status:String(row.status),claimId:row.claim_id ? String(row.claim_id) : null,result:row.result}
+    input:row.input as Record<string,unknown>,status:row.status as TenantOperationStatus,claimId:row.claim_id ? String(row.claim_id) : null,result:row.result,nextIndex:Number(row.next_index??0),imageTargets:Array.isArray(row.image_targets)?row.image_targets.map(String):[]}
 }
 async function operationAudit(query:AdminMenuQuery,proof:TenantEffectActor,operation:TenantOperation,action:string) {
   const rows=(await query(`INSERT INTO public.audit_events(tenant_id,actor_id,via,table_name,record_id,action,changes)
@@ -42,7 +45,7 @@ export async function lockTenantOperation(query:AdminMenuQuery,proof:TenantEffec
   if(!(await query('SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE',[operation.tenantId])).rows.length)throw new AdminMenuError(404,'Restaurant not found')
   return operation
 }
-export async function claimTenantOperation(query:AdminMenuQuery,proof:TenantEffectActor,id:string,snapshotDigest:string) {
+export async function claimTenantOperation(query:AdminMenuQuery,proof:TenantEffectActor,id:string,snapshotDigest:string):Promise<TenantOperation> {
   const operation=await lockTenantOperation(query,proof,id)
   if(operation.status!=='reserved')throw new AdminMenuError(409,'This operation was already started; inspect its status instead of repeating provider work')
   const claimId=randomUUID()
