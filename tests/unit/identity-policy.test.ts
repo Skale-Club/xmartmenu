@@ -1,25 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { resolveIdentity } from '@/lib/auth/identity-policy'
-import type { VerifiedGoogleIdentity } from '@/lib/auth/google-identity'
+import { resolveLogin } from '@/lib/auth/identity-policy'
 
-const identity: VerifiedGoogleIdentity = { projectId: 'skaleclub', subject: 'firebase-subject', provider: 'google.com', googleSubject: 'google-subject', authenticatedAt: 1, email: 'owner@example.com' }
+const google = { provider: 'google.com' as const, googleSubject: 'g-sub' }
+const phone = { provider: 'phone' as const, phone: '+15551234567' }
+const ok = { userId: 'u1', disabled: false }
 
-describe('preserving existing account ownership', () => {
-  it('does not claim an account by verified email or phone alone', () => {
-    expect(resolveIdentity({ identity })).toEqual({ kind: 'recovery-required' })
-    expect(resolveIdentity({ identity: { ...identity, provider: 'phone', phone: '+15551234567' } })).toEqual({ kind: 'recovery-required' })
+describe('resolveLogin', () => {
+  it('uses an existing binding first', () => {
+    expect(resolveLogin({ identity: google, linkedUserId: 'u9', googleClaim: ok })).toEqual({ kind: 'existing', userId: 'u9' })
   })
-  it('keeps the immutable application ID for a linked identity', () => {
-    expect(resolveIdentity({ identity, linkedUserId: 'old-uuid' })).toEqual({ kind: 'existing', userId: 'old-uuid' })
+  it('binds an imported Google subject, blocks it when the account is disabled', () => {
+    expect(resolveLogin({ identity: google, googleClaim: ok })).toEqual({ kind: 'bind', userId: 'u1', proof: 'google-subject' })
+    expect(resolveLogin({ identity: google, googleClaim: { ...ok, disabled: true } })).toEqual({ kind: 'blocked' })
   })
-  it('requires legacy ownership proof or exact Google provider subject', () => {
-    expect(resolveIdentity({ identity, authenticatedLegacyUserId: 'old-uuid' })).toEqual({ kind: 'bind', userId: 'old-uuid' })
-    expect(resolveIdentity({ identity, legacyGoogleUserId: 'old-uuid' })).toEqual({ kind: 'bind', userId: 'old-uuid' })
-    expect(resolveIdentity({ identity: { ...identity, googleSubject: undefined }, legacyGoogleUserId: 'old-uuid' })).toEqual({ kind: 'recovery-required' })
+  it('asks for a phone when Google has no link, and never uses e-mail', () => {
+    expect(resolveLogin({ identity: google })).toEqual({ kind: 'phone-required' })
+    expect(resolveLogin({ identity: { ...google, googleSubject: undefined }, googleClaim: ok })).toEqual({ kind: 'phone-required' })
+    expect(resolveLogin({ identity: { ...google, email: 'owner@example.test' } as never })).toEqual({ kind: 'phone-required' })
   })
-  it('refuses conflicting ownership and disabled accounts', () => {
-    expect(resolveIdentity({ identity, linkedUserId: 'a', authenticatedLegacyUserId: 'b' }).kind).toBe('conflict')
-    expect(resolveIdentity({ identity, legacyGoogleUserId: 'a', authenticatedLegacyUserId: 'b' }).kind).toBe('conflict')
-    expect(resolveIdentity({ identity, linkedUserId: 'a', accountDisabled: true }).kind).toBe('recovery-required')
+  it('binds a phone equal to one account, refuses duplicates, blocks disabled, unknown goes to customer signup', () => {
+    expect(resolveLogin({ identity: phone, phoneOwners: [ok] })).toEqual({ kind: 'bind', userId: 'u1', proof: 'phone-match' })
+    expect(resolveLogin({ identity: phone, phoneOwners: [ok, { userId: 'u2', disabled: false }] })).toEqual({ kind: 'phone-ambiguous' })
+    expect(resolveLogin({ identity: phone, phoneOwners: [ok, { userId: 'u2', disabled: true }] })).toEqual({ kind: 'phone-ambiguous' })
+    expect(resolveLogin({ identity: phone, phoneOwners: [{ ...ok, disabled: true }] })).toEqual({ kind: 'blocked' })
+    expect(resolveLogin({ identity: phone, phoneOwners: [] })).toEqual({ kind: 'unknown-phone' })
   })
 })
