@@ -27,7 +27,12 @@ const [okAcct, disabledAcct, phoneAcct, dupA, dupB] = Array.from({ length: 5 }, 
 before(async () => {
   await control.query('CREATE DATABASE xmartmenu'); created = true
   await control.query('CREATE ROLE xmartmenu_claims_runtime NOLOGIN BYPASSRLS')
-  await admin.query('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS')
+  // Roles are cluster-wide and other suites already create them; create only what is missing.
+  await admin.query(`DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN BYPASSRLS; END IF;
+  END $$`)
   await admin.query('CREATE TABLE public.profiles(id uuid PRIMARY KEY, phone text)')
   for (const name of ['20261103190000_application_identity', '20261103200000_identity_session_provenance', '20261103210000_identity_browser_challenges', '20261104090000_identity_google_claims_and_pending']) {
     await admin.query(await readFile(new URL(`../../supabase/migrations/${name}.sql`, import.meta.url), 'utf8'))
