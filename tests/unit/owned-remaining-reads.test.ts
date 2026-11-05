@@ -3,8 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { OWNED_MODE_FLAGS, assertOwnedModeStorage, ownedModeActive } from '@/lib/data/owned-mode'
 import { SHARED_POOL_MAX, RUNTIME_ROLE_CONNECTION_LIMIT, TRANSPORT_HEARTBEAT_SLOTS, ROLLING_DEPLOY_CONTAINERS, closeSharedRuntimePools, sharedPoolForConfig, sharedPoolKey } from '@/lib/data/shared-pool'
 import { PLATFORM_SETTINGS_LOCK, parsePlatformSettingsPatch, readPlatformSettingsRow, writePlatformSettingsRow } from '@/lib/data/platform-settings'
-import { normalizeCustomDomainHost, readCustomDomainTenantSlug } from '@/lib/data/tenant-domain'
-import { resolveOwnedDomainSlug, type DomainCacheEntry } from '@/lib/custom-domain-lookup'
+import { isLoopbackCall, normalizeCustomDomainHost, readCustomDomainTenantSlug } from '@/lib/data/tenant-domain'
+import { assertOwnedModeStartup } from '@/lib/data/owned-startup'
+import { assertSingleSharedPoolTarget } from '@/lib/data/shared-pool'
+import { rememberDomain, resolveOwnedDomainSlug, type DomainCacheEntry } from '@/lib/custom-domain-lookup'
 import { checkOwnedDatabase } from '@/lib/data/database-health'
 import { readPlatformBlogSitemap } from '@/lib/data/public-seo'
 import { configSummary } from '@/lib/observability/health'
@@ -32,7 +34,7 @@ describe('owned mode switch', () => {
     expect(() => assertOwnedModeStorage({ OWNED_PUBLIC_MENU_ENABLED: 'true' })).toThrow('STORAGE_PROVIDER=s3')
     expect(() => assertOwnedModeStorage({ OWNED_AUTH_ENABLED: 'true', STORAGE_PROVIDER: 'supabase' })).toThrow()
     expect(() => assertOwnedModeStorage({ OWNED_AUTH_ENABLED: 'true', STORAGE_PROVIDER: 's3' })).not.toThrow()
-    expect(read('src/instrumentation.ts')).toContain('assertOwnedModeStorage()')
+    expect(read('src/instrumentation.ts')).toContain('assertOwnedModeStartup()')
     expect(read('src/lib/storage/index.ts')).toMatch(/getStorageClient\(\): IStorageClient \{\s+assertOwnedModeStorage\(\)/)
   })
   it('reports the database mode in the token-protected health config', () => {
@@ -195,13 +197,17 @@ describe('public SEO reads', () => {
 })
 
 describe('legacy-only operations are closed in owned mode', () => {
-  it('demo has no built-in password and answers 503 in owned mode', async () => {
+  it('demo has no fixed password: random per hit unless pinned, and 503 only in owned mode', async () => {
     expect(read('src/app/demo/route.ts')).not.toContain('XmartDemo2026')
     expect(read('.env.example')).not.toContain('XmartDemo2026')
     const { GET } = await import('@/app/demo/route')
-    vi.stubEnv('OWNED_PUBLIC_MENU_ENABLED', 'true'); vi.stubEnv('DEMO_OWNER_PASSWORD', 'a-long-demo-password')
-    expect((await GET(new Request('http://localhost/demo'))).status).toBe(503)
-    vi.unstubAllEnvs(); vi.stubEnv('DEMO_OWNER_PASSWORD', '')
+    const { demoPassword } = await import('@/lib/demo-password')
+    const first = demoPassword({}), second = demoPassword({})
+    expect(first).toMatch(/^[A-Za-z0-9_-]{32}$/)
+    expect(first).not.toBe(second)
+    expect(demoPassword({ DEMO_OWNER_PASSWORD: 'short' })).not.toBe('short')
+    expect(demoPassword({ DEMO_OWNER_PASSWORD: 'pinned-by-operator' })).toBe('pinned-by-operator')
+    vi.stubEnv('OWNED_PUBLIC_MENU_ENABLED', 'true')
     expect((await GET(new Request('http://localhost/demo'))).status).toBe(503)
   }, 30_000)
   it('migrate-webp is blocked before any credential check', async () => {
@@ -221,4 +227,48 @@ describe('legacy-only operations are closed in owned mode', () => {
     await expect(setLaunchChecklistItem(service, { tenantId: 't', itemKey: 'k', status: 'done', updatedBy: null })).rejects.toThrow('disabled in owned mode')
     await expect(runLaunchChecklistScan(service, 't', { apply: true, updatedBy: 'x' })).rejects.toThrow('disabled in owned mode')
   }, 30_000)
+})
+
+describe('review hardening', () => {
+  it('resolve-domain answers only the middleware loopback call', () => {
+    const call = (host: string | null, forwarded?: string) => new Headers({ ...(host ? { host } : {}), ...(forwarded ? { 'x-forwarded-for': forwarded } : {}) })
+    expect(isLoopbackCall(call('127.0.0.1:3000'))).toBe(true)
+    expect(isLoopbackCall(call('localhost'))).toBe(true)
+    expect(isLoopbackCall(call('[::1]:3000'))).toBe(true)
+    expect(isLoopbackCall(call('127.0.0.1:3000', '203.0.113.9'))).toBe(false)
+    expect(isLoopbackCall(call('xmartmenu.skale.club'))).toBe(false)
+    expect(isLoopbackCall(call(null))).toBe(false)
+    const route = read('src/app/api/internal/resolve-domain/route.ts')
+    expect(route).toContain('!isLoopbackCall(request.headers)')
+  })
+  it('implausible hosts never reach the loopback and the cache stays bounded', async () => {
+    const fetcher = vi.fn()
+    const cache = new Map<string, DomainCacheEntry>()
+    expect(await resolveOwnedDomainSlug('not a host', cache, fetcher as unknown as typeof fetch)).toBeNull()
+    expect(await resolveOwnedDomainSlug('127.0.0.1', cache, fetcher as unknown as typeof fetch)).toBeNull()
+    expect(fetcher).not.toHaveBeenCalled()
+    for (let i = 0; i < 12; i++) rememberDomain(cache, `h${i}.test`, { slug: null, expires: 1 }, 5)
+    expect(cache.size).toBe(5)
+    expect([...cache.keys()]).toEqual(['h7.test', 'h8.test', 'h9.test', 'h10.test', 'h11.test'])
+    expect(read('src/middleware.ts')).not.toMatch(/customDomainCache\.set\(/)
+  })
+  it('owned mode refuses to boot without a valid ADMIN_MENUS target or with two databases', () => {
+    const prod = { NODE_ENV: 'production', PROD_DATABASE_HOST: 'db', PROD_DATABASE_NAME: 'app', STORAGE_PROVIDER: 's3' }
+    const url = (user: string, database = 'app') => `postgresql://${user}:pw@db:5432/${database}`
+    expect(() => assertOwnedModeStartup(prod)).not.toThrow()
+    expect(() => assertOwnedModeStartup({ ...prod, OWNED_PUBLIC_MENU_ENABLED: 'true' })).toThrow('Explicit matching independent PostgreSQL target')
+    expect(() => assertOwnedModeStartup({ ...prod, OWNED_PUBLIC_MENU_ENABLED: 'true', STORAGE_PROVIDER: undefined, ADMIN_MENUS_DATABASE_URL: url('rt') })).toThrow('STORAGE_PROVIDER=s3')
+    const ok = { ...prod, OWNED_PUBLIC_MENU_ENABLED: 'true', ADMIN_MENUS_DATABASE_URL: url('rt'), ADMIN_MENUS_DATABASE_SSL: 'disable', PUBLIC_MENU_DATABASE_URL: url('rt'), PUBLIC_MENU_DATABASE_SSL: 'disable' }
+    expect(() => assertOwnedModeStartup(ok)).not.toThrow()
+    expect(() => assertOwnedModeStartup({ ...ok, ORDERS_DATABASE_URL: url('other'), ORDERS_DATABASE_SSL: 'disable' })).toThrow('same database and role')
+    expect(() => assertSingleSharedPoolTarget({ ...ok, PAYMENTS_DATABASE_URL: url('rt', 'app'), PAYMENTS_DATABASE_SSL: 'disable' })).not.toThrow()
+  })
+  it('a second runtime target cannot open a second pool in owned mode', async () => {
+    const first = { connectionString: 'postgresql://rt:pw@db:5432/app', ssl: false as const }
+    sharedPoolForConfig(first)
+    vi.stubEnv('OWNED_AUTH_ENABLED', 'true')
+    expect(() => sharedPoolForConfig({ connectionString: 'postgresql://rt:pw@db:5432/other', ssl: false })).toThrow('single PostgreSQL runtime target')
+    expect(sharedPoolForConfig(first)).toBeDefined()
+    await closeSharedRuntimePools()
+  })
 })

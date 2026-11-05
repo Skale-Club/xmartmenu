@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { ownedModeActive } from '@/lib/data/owned-mode'
-import { normalizeCustomDomainHost, readCustomDomainTenantSlug } from '@/lib/data/tenant-domain'
+import { isLoopbackCall, normalizeCustomDomainHost, readCustomDomainTenantSlug } from '@/lib/data/tenant-domain'
 
 // Used only by the Edge middleware in owned mode (pg cannot run there). It
 // answers a public fact: which verified custom domain belongs to which slug.
@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
   const headers = { 'Cache-Control': 'no-store' }
-  if (!ownedModeActive()) return NextResponse.json({ error: 'Not found' }, { status: 404, headers })
+  if (!ownedModeActive() || !isLoopbackCall(request.headers)) return NextResponse.json({ error: 'Not found' }, { status: 404, headers })
   const host = normalizeCustomDomainHost(new URL(request.url).searchParams.get('host'))
   if (!host) return NextResponse.json({ slug: null }, { headers })
   try {

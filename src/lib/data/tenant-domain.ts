@@ -17,3 +17,12 @@ export async function readCustomDomainTenantSlug(query: AdminMenuQuery, host: st
     'SELECT slug FROM public.tenants WHERE custom_domain=$1 AND is_active=true AND custom_domain_verified=true LIMIT 2', [normalized])
   return rows.length === 1 && typeof rows[0].slug === 'string' ? rows[0].slug : null
 }
+
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]'])
+
+/** Only the middleware's own loopback call: a proxied request carries x-forwarded-for and a public Host. */
+export function isLoopbackCall(headers: Headers): boolean {
+  if (headers.get('x-forwarded-for') !== null) return false
+  const host = (headers.get('host') ?? '').toLowerCase().replace(/:\d{1,5}$/, '')
+  return LOOPBACK_HOSTS.has(host)
+}

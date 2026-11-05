@@ -1,5 +1,6 @@
 import { Pool } from 'pg'
 import { postgresRuntimeConfig, type RuntimePrefix } from './database-config'
+import { ownedModeActive } from './owned-mode'
 
 /**
  * One PostgreSQL pool per distinct runtime target, shared by every owned
@@ -55,6 +56,8 @@ export function sharedPoolForConfig(config: RuntimeConfig): Pool {
   const key = sharedPoolKey(config)
   const pools = registry()
   let pool = pools.get(key)
+  // Owned mode serves one database through one pool; a second target would double the budget.
+  if (!pool && pools.size > 0 && ownedModeActive()) throw new Error('Owned mode requires a single PostgreSQL runtime target')
   if (!pool) { pool = createSharedPool(config); pools.set(key, pool) }
   return pool
 }
@@ -62,6 +65,19 @@ export function sharedPoolForConfig(config: RuntimeConfig): Pool {
 /** Resolves the prefix's explicit target, then reuses the pool of that database. */
 export function sharedRuntimePool(prefix: RuntimePrefix, env: Record<string, string | undefined> = process.env): Pool {
   return sharedPoolForConfig(postgresRuntimeConfig(env, prefix))
+}
+
+export const RUNTIME_PREFIXES: readonly RuntimePrefix[] = ['IDENTITY', 'PLATFORM_APPEARANCE', 'PUBLIC_MENU', 'ADMIN_MENUS', 'ORDERS', 'PAYMENTS']
+
+/** Startup check: every configured runtime URL must resolve to the same pool key. */
+export function assertSingleSharedPoolTarget(env: Record<string, string | undefined> = process.env): void {
+  const keys = new Set<string>()
+  for (const prefix of RUNTIME_PREFIXES) {
+    // Production prefixes are opt-in per feature; development always resolves the one DEV target.
+    if (env.NODE_ENV === 'production' && !env[`${prefix}_DATABASE_URL`]) continue
+    keys.add(sharedPoolKey(postgresRuntimeConfig(env, prefix)))
+  }
+  if (keys.size > 1) throw new Error('Owned mode requires every PostgreSQL runtime URL to target the same database and role')
 }
 
 /** Tests and graceful shutdown. */

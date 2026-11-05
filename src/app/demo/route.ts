@@ -3,26 +3,25 @@ import { cookies } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
 import { ownedModeActive } from '@/lib/data/owned-mode'
+import { demoPassword } from '@/lib/demo-password'
 
 // The demo signs a visitor straight into the sample restaurant's admin panel
 // in the role of the owner. It is self-healing: on every hit it guarantees the
-// demo owner account exists, resets its password to the known demo value (so a
-// visitor changing it can never lock the demo), and re-binds the owner profile
+// demo owner account exists, resets its password (so a visitor changing it can
+// never lock the demo), signs in with it in the same request and re-binds the owner profile
 // to the demo tenant. No real auth state is required to reach /demo.
 export const dynamic = 'force-dynamic'
 
 const DEMO_SLUG = 'bella-vista'
 const DEMO_EMAIL = process.env.DEMO_OWNER_EMAIL || 'demo-owner@xmartmenu.local'
 
-// No built-in password: it is read from the environment on every hit (legacy mode only).
 const unavailable = () => NextResponse.json({ error: 'The demo is temporarily unavailable' },
   { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '3600' } })
 
 export async function GET(request: Request) {
   // The demo creates and signs in a Supabase Auth user, which owned mode never does.
   if (ownedModeActive()) return unavailable()
-  const DEMO_PASSWORD = process.env.DEMO_OWNER_PASSWORD
-  if (!DEMO_PASSWORD || DEMO_PASSWORD.length < 12) return unavailable()
+  const DEMO_PASSWORD = demoPassword()
   const { origin } = new URL(request.url)
   const service = createServiceClient()
 

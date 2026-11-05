@@ -9,12 +9,12 @@ import { REQUEST_ID_HEADER, resolveRequestId } from './lib/observability/request
 import { LegacyIdentityBoundaryUnavailable } from './lib/auth/owned-principal'
 // Both zero-import: safe for the Edge bundle.
 import { ownedModeActive } from './lib/data/owned-mode'
-import { resolveOwnedDomainSlug, type DomainCacheEntry } from './lib/custom-domain-lookup'
+import { resolveOwnedDomainSlug, rememberDomain, type DomainCacheEntry } from './lib/custom-domain-lookup'
 
 // Cache BOTH hits and misses. Without caching misses, every request carrying an
 // unknown Host header (bots hitting the raw IP, preview hosts, misconfigured
 // DNS) fires a fresh `tenants` query on the request critical path.
-const customDomainCache = new Map<string, { slug: string | null; expires: number }>()
+const customDomainCache = new Map<string, DomainCacheEntry>()
 const CACHE_TTL_MS = 60_000
 const CACHE_MISS_TTL_MS = 30_000
 
@@ -28,7 +28,7 @@ async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
   if (normalized === platformHost) return null
 
   // Edge cannot load pg: owned mode asks the Node route on this same server.
-  if (ownedModeActive()) return resolveOwnedDomainSlug(normalized, customDomainCache as Map<string, DomainCacheEntry>)
+  if (ownedModeActive()) return resolveOwnedDomainSlug(normalized, customDomainCache)
 
   const cached = customDomainCache.get(normalized)
   if (cached && cached.expires > Date.now()) return cached.slug
@@ -44,11 +44,11 @@ async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
     .single()
 
   if (!data) {
-    customDomainCache.set(normalized, { slug: null, expires: Date.now() + CACHE_MISS_TTL_MS })
+    rememberDomain(customDomainCache, normalized, { slug: null, expires: Date.now() + CACHE_MISS_TTL_MS })
     return null
   }
 
-  customDomainCache.set(normalized, { slug: data.slug, expires: Date.now() + CACHE_TTL_MS })
+  rememberDomain(customDomainCache, normalized, { slug: data.slug, expires: Date.now() + CACHE_TTL_MS })
   return data.slug
 }
 

@@ -3,9 +3,9 @@ import * as Sentry from '@sentry/nextjs'
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('./sentry.server.config')
-    // Refuse to boot in owned mode without S3 storage (no silent Supabase fallback).
-    const { assertOwnedModeStorage } = await import('./lib/data/owned-mode')
-    assertOwnedModeStorage()
+    // Owned mode refuses to boot without S3 storage, a valid ADMIN_MENUS target and one shared database.
+    const { assertOwnedModeStartup } = await import('./lib/data/owned-startup')
+    assertOwnedModeStartup()
   }
   if (process.env.NEXT_RUNTIME === 'edge') {
     await import('./sentry.edge.config')

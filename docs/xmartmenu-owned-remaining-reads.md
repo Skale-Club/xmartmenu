@@ -19,15 +19,15 @@ SQL (`authorizeAdminActor`).
 
 | Boundary | Owned behavior |
 | --- | --- |
-| `src/middleware.ts` custom-domain lookup | `middleware.ts` runs on the **Edge** runtime in Next 16 (only `proxy.ts` is Node), where `pg` cannot load. In owned mode it calls `GET /api/internal/resolve-domain` (Node route, loopback to `127.0.0.1:$PORT`, already exempt from the middleware). Hits cached 60 s, misses 30 s, failures 5 s, and a stale hit survives an outage. No new service. |
+| `src/middleware.ts` custom-domain lookup | `middleware.ts` runs on the **Edge** runtime in Next 16 (only `proxy.ts` is Node), where `pg` cannot load. In owned mode it calls `GET /api/internal/resolve-domain` (Node route, loopback to `127.0.0.1:$PORT`, already exempt from the middleware). Hits cached 60 s, misses 30 s, failures 5 s, a stale hit survives an outage, cache capped at 5,000 hosts, implausible hosts never leave the Edge. The route answers 404 unless the call is loopback (`Host` 127.0.0.1/localhost/[::1], no `x-forwarded-for`). No new service. |
 | `/api/health/ready` | Probes `public.plans` through the owned pool (3 s limit). Fixed error text `database unavailable`. Token-protected config shows `database_mode`. |
 | `platform_settings` | Reads: marketing layout/page, legal pages, pending screen, superadmin page. Writes: `PATCH /api/superadmin/settings` (same-origin check, role re-checked in SQL, advisory lock shared with the native MCP writer, `updated_at=now()`). |
 | SEO | Platform sitemap (tenants + platform blog), per-tenant `sitemap.xml`, per-tenant `robots.txt` (503 on failure, never a wrong `Disallow`), tenant Open Graph card (generic card on failure). The root `opengraph-image.tsx` has no data access. |
 | Superadmin | `products-list`, launch checklist page and `PUT .../launch-checklist/[itemKey]` (before: always 503 in owned auth). The Supabase-client checklist helpers now throw in owned mode. |
-| `/demo` | 503 in owned mode (it would create a Supabase Auth user). Legacy mode needs `DEMO_OWNER_PASSWORD` (>= 12 chars); the built-in default was removed. |
+| `/demo` | 503 in owned mode (it would create a Supabase Auth user). Legacy mode uses a fresh random password per hit (set and used in the same request); `DEMO_OWNER_PASSWORD` (>= 12 chars) only pins it. No fixed password in code. |
 | `migrate-webp` | 410 in owned mode. |
 | `/settings/password` | Redirects to `/dashboard` when `OWNED_AUTH_ENABLED=true` (no password exists). |
-| Storage | `getStorageClient()` throws and `instrumentation.ts` refuses to boot in owned mode unless `STORAGE_PROVIDER=s3`. |
+| Startup | `instrumentation.ts` refuses to boot in owned mode unless `STORAGE_PROVIDER=s3`, `ADMIN_MENUS_DATABASE_URL` is valid, and every configured runtime URL resolves to one database/role. `getStorageClient()` also throws without S3. |
 
 ## Connection budget
 
