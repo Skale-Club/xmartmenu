@@ -15,6 +15,7 @@ ALTER TABLE public.app_tenant_effects
   ADD COLUMN completed_at timestamptz,
   ADD COLUMN outcome_code text,
   ADD COLUMN observed_at timestamptz,
+  ADD COLUMN request_payload jsonb,
   ADD COLUMN request_digest text CHECK(request_digest IS NULL OR request_digest ~ '^[a-f0-9]{64}$'),
   ADD COLUMN response_digest text CHECK(response_digest IS NULL OR response_digest ~ '^[a-f0-9]{64}$');
 CREATE UNIQUE INDEX app_tenant_effects_event_dedup ON public.app_tenant_effects(tenant_id,kind,event_id) WHERE event_id IS NOT NULL;
