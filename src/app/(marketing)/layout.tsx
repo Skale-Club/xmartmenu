@@ -2,13 +2,24 @@ import type { Metadata } from 'next'
 import '../globals.css'
 import { createServiceClient } from '@/lib/supabase/server'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
+import { platformSettingsOwned } from '@/lib/data/platform-settings'
+
+interface MarketingSettings {
+  app_name: string | null; seo_title: string | null; seo_description: string | null
+  cta_color: string | null; favicon_url: string | null; twitter_handle: string | null
+}
 
 export const revalidate = 60
 
 // Single DB call shared by generateMetadata() and MarketingLayout().
 // Avoids two platform_settings round-trips per request (see Phase 44 research Pitfall 5).
-async function getPlatformSettings() {
+async function getPlatformSettings(): Promise<MarketingSettings | null> {
   try {
+    if (platformSettingsOwned()) {
+      // Own PostgreSQL only: a failure falls back to the defaults, never to Supabase.
+      const { readOwnedPlatformSettings } = await import('@/lib/data/platform-settings-runtime')
+      return await readOwnedPlatformSettings(['app_name', 'seo_title', 'seo_description', 'cta_color', 'favicon_url', 'twitter_handle']) as MarketingSettings | null
+    }
     const service = createServiceClient()
     const { data } = await service
       .from('platform_settings')

@@ -6,6 +6,8 @@
  * With HEALTH_TOKEN: which integrations are configured — as booleans only,
  * never the values.
  */
+import { ownedModeActive } from '../data/owned-mode'
+
 export interface CheckResult {
   ok: boolean
   latency_ms?: number
@@ -42,6 +44,7 @@ export function configSummary(env: Env = process.env): Record<string, boolean | 
     rate_limit_store: set('UPSTASH_REDIS_REST_URL') && set('UPSTASH_REDIS_REST_TOKEN'),
     chat_encryption: set('CHAT_ADDON_ENCRYPTION_KEY'),
     storage: env.STORAGE_PROVIDER?.trim() || 'supabase',
+    database_mode: ownedModeActive(env) ? 'owned' : 'legacy',
   }
 }
 

@@ -2,6 +2,7 @@ import { ImageResponse } from 'next/og'
 import { createServiceClient } from '@/lib/supabase/server'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { getInitials } from '@/lib/utils'
+import { ownedModeActive } from '@/lib/data/owned-mode'
 
 // SEED-014: per-tenant branded Open Graph / Twitter card.
 // Rendered at request time and cached by the ISR window below. When a tenant
@@ -15,13 +16,23 @@ export const contentType = 'image/png'
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const supabase = createServiceClient()
-  const { data: tenant } = await supabase
-    .from('tenants')
-    .select('name, tenant_settings(primary_color, accent_color, tagline, logo_url)')
-    .eq('slug', slug)
-    .eq('is_active', true)
-    .single()
+  let tenant: { name?: string; tenant_settings?: unknown } | null
+  if (ownedModeActive()) {
+    // Own PostgreSQL only; the generic card is the fallback, never the stale copy.
+    try {
+      const { ownedOgTenant } = await import('@/lib/data/public-seo-runtime')
+      const found = await ownedOgTenant(slug)
+      tenant = found ? { name: found.name, tenant_settings: found.settings } : null
+    } catch { tenant = null }
+  } else {
+    const supabase = createServiceClient()
+    tenant = (await supabase
+      .from('tenants')
+      .select('name, tenant_settings(primary_color, accent_color, tagline, logo_url)')
+      .eq('slug', slug)
+      .eq('is_active', true)
+      .single()).data
+  }
 
   const name = tenant?.name ?? 'Menu'
   const settings = (tenant?.tenant_settings ?? null) as

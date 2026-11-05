@@ -1,6 +1,7 @@
 import pg from 'pg'
 import { cache } from 'react'
 import { postgresRuntimeConfig } from './database-config'
+import { sharedRuntimePool } from './shared-pool'
 import { readPlatformAppearance, selectPlatformAppearance } from './platform-appearance'
 import { ownedAuthSelected } from '../auth/owned-principal'
 import { getIdentityServices } from '../auth/identity-services'
@@ -16,7 +17,7 @@ export function createPlatformAppearancePool(env: Record<string, string | undefi
   return created
 }
 function ownedPool() {
-  pool ??= createPlatformAppearancePool(process.env)
+  pool ??= sharedRuntimePool('PLATFORM_APPEARANCE')
   return pool
 }
 

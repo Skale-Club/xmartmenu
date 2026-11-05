@@ -12,6 +12,22 @@ import { liveFeatures } from '@/lib/plan-settings'
 import { planCeiling } from '@/lib/service-modes'
 import { deriveLaunchChecklistSignals } from '@/lib/admin/launch-checklist-signals'
 import { scanLaunchChecklistSite, type LaunchChecklistScan } from '@/lib/admin/launch-checklist-scan'
+import { ownedModeActive } from '@/lib/data/owned-mode'
+
+/**
+ * The Supabase-client functions below read/write the legacy copy. In owned mode
+ * that copy is stale, so they refuse instead of silently touching it; callers
+ * use loadLaunchChecklistSource / the owned runtime (data/launch-checklist-runtime).
+ */
+function assertLegacyChecklistSource() {
+  if (ownedModeActive()) throw new Error('The legacy launch checklist source is disabled in owned mode')
+}
+
+/** Page entry point: own PostgreSQL in owned mode, the Supabase client otherwise. */
+export async function loadLaunchChecklistSource(createService: () => SupabaseClient): Promise<LaunchChecklistResponse> {
+  if (ownedModeActive()) return (await import('@/lib/data/launch-checklist-runtime')).loadOwnedLaunchChecklist()
+  return loadLaunchChecklist(createService())
+}
 
 /**
  * PostgREST answers a query on a table that does not exist yet with
@@ -64,6 +80,7 @@ interface TickRow {
 
 /** Every restaurant with its launch-checklist ticks and detected signals. Service role only. */
 export async function loadLaunchChecklist(service: SupabaseClient): Promise<LaunchChecklistResponse> {
+  assertLegacyChecklistSource()
   const [tenantsRes, settingsRes, ticksRes, subscriptionsRes, stripeRes] = await Promise.all([
     service.from('tenants').select('id, name, slug, is_active, custom_domain, custom_domain_verified').order('name'),
     service.from('tenant_settings').select('tenant_id, seo_title, seo_description, seo_og_image_url, seo_noindex, logo_url, phone, address, city, latitude'),
@@ -141,6 +158,7 @@ export async function setLaunchChecklistItem(
   service: SupabaseClient,
   write: LaunchChecklistWrite,
 ): Promise<LaunchChecklistEntry | null> {
+  assertLegacyChecklistSource()
   const { data: tenant } = await service.from('tenants').select('id').eq('id', write.tenantId).maybeSingle()
   if (!tenant) return null
 
@@ -183,6 +201,7 @@ export async function runLaunchChecklistScan(
   tenantId: string,
   opts: { apply: boolean; updatedBy: string },
 ): Promise<LaunchChecklistScanOutcome | null> {
+  assertLegacyChecklistSource()
   const { tenants, setupRequired } = await loadLaunchChecklist(service)
   const tenant = tenants.find((t) => t.id === tenantId)
   if (!tenant) return null

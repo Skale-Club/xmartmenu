@@ -1,6 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { getCanonicalUrl } from '@/lib/seo'
+import { ownedModeActive } from '@/lib/data/owned-mode'
 
 export const revalidate = 300
 
@@ -12,11 +13,28 @@ function urlEntry(loc: string, lastmod?: string, priority = '0.8') {
   return `<url><loc>${xmlEscape(loc)}</loc>${lastmod ? `<lastmod>${lastmod}</lastmod>` : ''}<priority>${priority}</priority></url>`
 }
 
+function urlset(entries: string[]) {
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries.join('\n')}\n</urlset>`
+}
+
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params
+  if (ownedModeActive()) {
+    // Own PostgreSQL only; an outage is a 503, never a read of the stale copy.
+    try {
+      const { ownedTenantSitemap } = await import('@/lib/data/public-seo-runtime')
+      const found = await ownedTenantSitemap(slug)
+      if (!found) return new NextResponse('Not found', { status: 404 })
+      const { tenant, menus, locations } = found
+      const owned = [urlEntry(getCanonicalUrl(tenant, '/'), tenant.updated_at?.slice(0, 10), '1.0')]
+      for (const menu of menus) if (!menu.is_default) owned.push(urlEntry(getCanonicalUrl(tenant, `/${menu.slug}`), menu.updated_at?.slice(0, 10)))
+      for (const loc of locations) owned.push(urlEntry(getCanonicalUrl(tenant, `/${loc.slug}`), loc.updated_at?.slice(0, 10)))
+      return new NextResponse(urlset(owned), { headers: { 'Content-Type': 'application/xml; charset=utf-8' } })
+    } catch { return new NextResponse('Service unavailable', { status: 503 }) }
+  }
   const supabase = createServiceClient()
 
   const { data: tenant } = await supabase

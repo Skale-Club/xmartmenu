@@ -1,4 +1,4 @@
-import { Pool } from 'pg'
+import { sharedPoolForConfig } from '../data/shared-pool'
 import { IdentityStore } from './identity-store'
 import { identityRuntimeConfig } from './identity-runtime-config'
 import { createGoogleAccountStatusReader } from './provider-account-status'
@@ -11,10 +11,9 @@ let services: ReturnType<typeof createServices> | undefined
 function createServices() {
   if (process.env.GOOGLE_AUTH_ENABLED !== 'true') throw new Error('Identity provider is unavailable')
   const config = identityRuntimeConfig()
-  // Shared by the existing identity pilot and the core principal/profile reads.
-  const pool = new Pool({ connectionString: config.connectionString, ssl: config.ssl,
-    max: 2, connectionTimeoutMillis: 5_000, statement_timeout: 5_000, query_timeout: 6_000, idleTimeoutMillis: 30_000 })
-  pool.on('error', () => {})
+  // Shared by the existing identity pilot and the core principal/profile reads,
+  // and — when the URLs match — by every other owned repository (shared-pool.ts).
+  const pool = sharedPoolForConfig(config)
   const accessToken = async (signal: AbortSignal) => {
     const current = identityRuntimeConfig()
     if (current.web.projectId !== config.web.projectId || current.projectNumber !== config.projectNumber) throw new Error('Identity project changed')
