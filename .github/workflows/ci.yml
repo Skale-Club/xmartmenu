@@ -234,6 +234,38 @@ jobs:
           IDENTITY_TEST_DATABASE_URL: postgresql://identity_test:disposable_ci_only@127.0.0.1:5432/xmartmenu_identity_test
         run: npx tsx --test --test-concurrency=1 tests/integration/identity-foundation.test.ts tests/integration/identity-store.test.ts tests/integration/platform-appearance.test.ts tests/integration/public-menu.test.ts tests/integration/admin-menus.test.ts tests/integration/admin-categories.test.ts tests/integration/admin-products.test.ts tests/integration/orders.test.ts tests/integration/payments.test.ts tests/integration/rehearsal-manifest.test.ts tests/integration/admin-ingredients.test.ts tests/integration/owned-core.test.ts tests/integration/admin-display-settings.test.ts tests/integration/admin-locations.test.ts tests/integration/admin-analytics.test.ts tests/integration/public-analytics.test.ts tests/integration/public-scans.test.ts tests/integration/public-waiter-calls.test.ts tests/integration/public-chat-session.test.ts tests/integration/native-ai-access.test.ts tests/integration/public-chat-turns.test.ts tests/integration/admin-chat.test.ts tests/integration/ai-panel.test.ts tests/integration/chat-addon-billing.test.ts tests/integration/native-tenant-plan.test.ts tests/integration/saas-webhooks.test.ts tests/integration/admin-store-settings.test.ts tests/integration/admin-store-operations.test.ts tests/integration/admin-audit.test.ts tests/integration/native-registration.test.ts tests/integration/native-ai-billing.test.ts tests/integration/native-stripe-connect.test.ts tests/integration/admin-waiter-calls.test.ts tests/integration/subscription-billing.test.ts tests/integration/native-mcp-oauth.test.ts tests/integration/account-administration.test.ts tests/integration/native-customer-account-fks.test.ts tests/integration/tenant-administration.test.ts tests/integration/native-tenant-effects.test.ts tests/integration/owned-remaining-reads.test.ts
 
+  dev-db-pull:
+    name: Dev database pull rehearsal (disposable PostgreSQL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: xmartmenu_pull_test
+          # Disposable runner database, reachable only over runner loopback.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d xmartmenu_pull_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - run: npm ci
+      - name: Rehearse db:pull between two throwaway databases (no production, Supabase or SSH)
+        env:
+          DEV_PULL_TEST_DATABASE_URL: postgresql://postgres@127.0.0.1:5432/xmartmenu_pull_test
+          DEV_PULL_TEST_SENTINEL: xmartmenu-dev-db-pull-ci
+          # A missing database must fail the run here, never skip the tests.
+          XMARTMENU_REQUIRE_PG: '1'
+        run: npx vitest run tests/unit/dev-db-pull.integration.test.ts
+
   deploy:
     needs: [checks, e2e, identity-postgres]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
