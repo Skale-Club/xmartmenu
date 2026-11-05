@@ -21,7 +21,7 @@ export interface PlanOption {
 
 interface SubscriptionClientProps {
   tenantId: string
-  subscription: TenantSubscription | null
+  subscription: Pick<TenantSubscription, 'billing_cycle' | 'status' | 'stripe_subscription_id' | 'current_period_end' | 'cancel_at_period_end'> | null
   plan: EffectivePlan | null
   plans: PlanOption[]
   /** Owner / superadmin: may change plan and billing. Staff see the page read-only. */

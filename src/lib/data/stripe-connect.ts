@@ -24,8 +24,9 @@ function tenant(value: string) { if (!UUID.test(value)) throw unavailable(); ret
 async function owner(query: AdminMenuQuery, context: AdminActorContext, write = false): Promise<string> {
   if (!context.tenantId) throw new AdminMenuError(403, 'Forbidden')
   const id = tenant(context.tenantId)
-  if (write && !(await query('SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE', [id])).rows.length) throw unavailable()
+  if (write) await query("SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-account-authority',0))")
   await authorizeAdminActor(query, context, write)
+  if (write && !(await query('SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE', [id])).rows.length) throw unavailable()
   return id
 }
 /** Trusted server callers already scope the tenant; no Auth or provider API. */
