@@ -1,6 +1,9 @@
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
+import { waiterAccess } from '@/lib/auth/waiter-access'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import WaiterPage from './WaiterPage'
@@ -14,18 +17,26 @@ interface Props {
 
 export default async function WaiterServerPage({ params }: Props) {
   const { slug } = await params
-  const supabase = await createClient()
 
-  // Must be authenticated
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect(`/${slug}`)
-
-  // Must be admin or staff on this tenant
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('tenant_id, role')
-    .eq('id', user.id)
-    .single()
+  // Native mode: the session is the owned one (xm_identity); Supabase is not consulted,
+  // otherwise staff signed in natively would be sent away from the waiter screen.
+  const owned = ownedAuthSelected()
+  let actor: { role: unknown; tenantId: string | null } | null = null
+  if (owned) {
+    const principal = await getOwnedPrincipal()
+    if (!principal) redirect(`/${slug}`)
+    actor = { role: principal.role, tenantId: principal.tenantId }
+  } else {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect(`/${slug}`)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('tenant_id, role')
+      .eq('id', user.id)
+      .single()
+    actor = profile ? { role: profile.role, tenantId: profile.tenant_id } : null
+  }
 
   const service = createServiceClient()
   const { data: tenant } = await service
@@ -37,11 +48,7 @@ export default async function WaiterServerPage({ params }: Props) {
 
   if (!tenant) redirect(`/${slug}`)
 
-  const isSuperadmin = profile?.role === 'superadmin' || profile?.role === 'super-admin'
-  const isStaff = profile?.role === 'store-admin' || profile?.role === 'store-staff'
-  const belongsToTenant = profile?.tenant_id === tenant.id
-
-  if (!isSuperadmin && !(isStaff && belongsToTenant)) {
+  if (!waiterAccess(actor, tenant.id)) {
     redirect(`/${slug}`)
   }
 

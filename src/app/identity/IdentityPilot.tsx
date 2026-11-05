@@ -3,10 +3,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { googleProof, phoneProof, type IdentityWebConfig } from '@/lib/auth/identity-browser'
 import { requireLoginAuthority } from '@/lib/auth/browser-login-authority'
-import { completeOwnedLogin, ownedLoginDestination } from '@/lib/auth/browser-owned-login'
+import { completeOwnedLogin, ownedLoginDestination, OwnedLoginError } from '@/lib/auth/browser-owned-login'
 import Link from 'next/link'
 
-class IdentityRequestError extends Error {}
+class IdentityRequestError extends Error { constructor(message: string, readonly code?: string) { super(message) } }
 
 async function post(operation: string, body: object, legacyToken?: string) {
   const response = await fetch(`/api/identity/${operation}`, { method: 'POST', credentials: 'same-origin', cache: 'no-store',
@@ -47,7 +47,13 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       await requireLoginAuthority(continueToApp ? 'owned' : 'legacy')
       await action()
     }
-    catch (error) { setError(error instanceof IdentityRequestError ? error.message : 'Could not complete verification. Check your details and try again. If the problem continues, contact support.') }
+    catch (error) {
+      if (error instanceof IdentityRequestError && error.code === 'phone_required') {
+        // Google alone does not open an account: confirm the phone, which finishes the Google link.
+        setMessage('Google confirmed. Now verify your phone number to finish signing in.'); setError(''); document.getElementById('identity-phone')?.focus(); return
+      }
+      setError(error instanceof IdentityRequestError ? error.message : 'Could not complete verification. Check your details and try again. If the problem continues, contact support.')
+    }
     finally { pending.current = false; setBusy(false) }
   }
 
@@ -66,7 +72,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         const destination = await completeOwnedLogin(idToken,{ next,link,customerFlow,
           ...(existingAccountLink ? { existing: { email: existingEmail.trim(),password: existingPassword } } : {}) })
         setSignedIn(true); window.location.assign(destination)
-      } catch (error) { throw new IdentityRequestError(error instanceof Error ? error.message : 'Your access could not be confirmed.') }
+      } catch (error) { throw new IdentityRequestError(error instanceof Error ? error.message : 'Your access could not be confirmed.', error instanceof OwnedLoginError ? error.code : undefined) }
       finally { setExistingPassword('') }
       return
     }
@@ -143,7 +149,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         <input className="mt-1 accent-primary" type="checkbox" checked={link} onChange={event => setLink(event.target.checked)} disabled={busy} />
         Link this sign-in method to my existing signed-in account
       </label> : null}
-      {!staffAccess && continueToApp && !existingAccountLink ? <Link className="mt-6 block text-sm font-semibold text-zinc-300 underline underline-offset-4" href={`/auth/login?action=existing-account-link${customerFlow ? `&flow=customer&from=${encodeURIComponent(next)}` : ''}`}>Link an existing account with your previous password</Link> : null}
+      {!staffAccess && continueToApp && !existingAccountLink ? <Link className="mt-6 block text-sm font-semibold text-zinc-300 underline underline-offset-4" href={`/auth/login?action=existing-account-link${customerFlow ? `&flow=customer&from=${encodeURIComponent(next)}` : ''}`}>Have an account with e-mail and password? Enter it once to add your phone</Link> : null}
       {continueToApp && linkCurrentAccount ? <Link className="mt-4 block text-sm font-semibold text-zinc-300 underline underline-offset-4"
         href={`/auth/login?flow=customer&from=${encodeURIComponent(`/identity?action=link&flow=customer&from=${encodeURIComponent(next)}`)}`}>Sign in again before linking if your current sign-in is no longer recent</Link> : null}
       {continueToApp ? <p className="mt-4 text-xs leading-5 text-zinc-500">If your account requires recovery or no longer has access to its previous sign-in, contact support for reviewed recovery.</p> : null}

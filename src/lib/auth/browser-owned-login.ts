@@ -1,10 +1,14 @@
 import { requireLoginAuthority } from './browser-login-authority'
 
+export class OwnedLoginError extends Error {
+  constructor(message: string, readonly code?: string) { super(message); this.name = 'OwnedLoginError' }
+}
+
 async function post(request: typeof fetch, path: string, body: object) {
   const response = await request(path,{ method: 'POST',credentials: 'same-origin',cache: 'no-store',redirect: 'error',
     headers: { 'Content-Type': 'application/json' },body: JSON.stringify(body) })
   const result = await response.json()
-  if (!response.ok) throw new Error(typeof result?.message === 'string' ? result.message : 'Your access could not be confirmed. Try again or contact support for reviewed recovery.')
+  if (!response.ok) throw new OwnedLoginError(typeof result?.message === 'string' ? result.message : 'Your access could not be confirmed. Try again or contact support for reviewed recovery.', typeof result?.code === 'string' ? result.code : undefined)
   return result
 }
 export async function ownedLoginDestination(next = '/', request: typeof fetch = fetch, customerFlow = false): Promise<string> {

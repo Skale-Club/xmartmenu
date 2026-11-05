@@ -1,32 +1,34 @@
 import type { VerifiedGoogleIdentity } from './google-identity'
 
-export type IdentityResolution =
+export type AccountRef = { userId: string; disabled: boolean }
+export type LoginResolution =
   | { kind: 'existing'; userId: string }
-  | { kind: 'bind'; userId: string }
-  | { kind: 'recovery-required' }
-  | { kind: 'conflict' }
+  | { kind: 'bind'; userId: string; proof: 'google-subject' | 'phone-match' }
+  | { kind: 'blocked' }
+  | { kind: 'phone-required' }
+  | { kind: 'phone-ambiguous' }
+  | { kind: 'unknown-phone' }
 
 /**
- * Emails/profile phones are hints for operator recovery, never ownership proof.
- * Callers obtain linkedUserId from a unique (project, subject) binding. A
- * legacyGoogleUserId is only an exact, unique old Google provider-sub match to
- * the signed Google identity, not a Supabase/Firebase UUID comparison.
+ * Xpot rule. Ownership comes only from (1) an existing binding, (2) an imported
+ * Google subject matched by exact value, or (3) a verified phone equal to ONE
+ * account's phone. E-mail is never an input: it cannot claim an account.
  */
-export function resolveIdentity(input: {
-  identity: VerifiedGoogleIdentity
+export function resolveLogin(input: {
+  identity: Pick<VerifiedGoogleIdentity, 'provider' | 'googleSubject' | 'phone'>
   linkedUserId?: string | null
-  authenticatedLegacyUserId?: string | null
-  legacyGoogleUserId?: string | null
-  accountDisabled?: boolean
-}): IdentityResolution {
-  if (input.accountDisabled) return { kind: 'recovery-required' }
-  const { linkedUserId, authenticatedLegacyUserId, legacyGoogleUserId, identity } = input
-  if (linkedUserId) {
-    if (authenticatedLegacyUserId && authenticatedLegacyUserId !== linkedUserId) return { kind: 'conflict' }
-    return { kind: 'existing', userId: linkedUserId }
+  googleClaim?: AccountRef | null
+  phoneOwners?: AccountRef[]
+}): LoginResolution {
+  const { identity } = input
+  if (input.linkedUserId) return { kind: 'existing', userId: input.linkedUserId }
+  if (identity.provider === 'google.com') {
+    const claim = identity.googleSubject ? input.googleClaim : null
+    if (!claim) return { kind: 'phone-required' }
+    return claim.disabled ? { kind: 'blocked' } : { kind: 'bind', userId: claim.userId, proof: 'google-subject' }
   }
-  const googleOwner = identity.provider === 'google.com' && identity.googleSubject ? legacyGoogleUserId : null
-  if (googleOwner && authenticatedLegacyUserId && googleOwner !== authenticatedLegacyUserId) return { kind: 'conflict' }
-  const owner = authenticatedLegacyUserId || googleOwner
-  return owner ? { kind: 'bind', userId: owner } : { kind: 'recovery-required' }
+  const owners = identity.phone ? input.phoneOwners ?? [] : []
+  if (owners.length === 0) return { kind: 'unknown-phone' }
+  if (owners.length > 1) return { kind: 'phone-ambiguous' }
+  return owners[0].disabled ? { kind: 'blocked' } : { kind: 'bind', userId: owners[0].userId, proof: 'phone-match' }
 }
