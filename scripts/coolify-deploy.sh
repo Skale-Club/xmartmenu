@@ -19,6 +19,12 @@ api() {
     -H "Authorization: Bearer ${COOLIFY_TOKEN}" -H 'Content-Type: application/json' "$@"
 }
 
+# The final cutover operation sets XM_CUTOVER_ACTIVE while it owns the app; a normal deploy must wait.
+if api "${COOLIFY_BASE}/api/v1/applications/${APP_UUID}/envs" | jq -e '[.[] | select(.key == "XM_CUTOVER_ACTIVE")] | length > 0' >/dev/null; then
+  echo "::error::The final cutover operation is active (XM_CUTOVER_ACTIVE); not deploying."
+  exit 1
+fi
+
 echo "Pinning IMAGE_TAG=${SHA}"
 payload="$(jq -nc --arg v "${SHA}" '{key: "IMAGE_TAG", value: $v}')"
 if ! api -X PATCH "${COOLIFY_BASE}/api/v1/applications/${APP_UUID}/envs" -d "${payload}" >/dev/null; then
