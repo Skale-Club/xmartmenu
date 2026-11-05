@@ -21,16 +21,18 @@ export async function mcpTenant(query:AdminMenuQuery,value:unknown,lock=false) {
 }
 async function locationDelete(query:AdminMenuQuery,tenantId:string,id:string) {
   await query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',[`xmartmenu-admin-locations:${tenantId}`])
+  await query('LOCK TABLE public.locations IN SHARE UPDATE EXCLUSIVE MODE')
   single((await query('SELECT id FROM public.locations WHERE id=$1 AND tenant_id=$2 FOR UPDATE',[id,tenantId])).rows,'Location not found')
   // Inspect real FK definitions; only known SET NULL references of this same
   // tenant may be cleared. Unknown dependencies fail before deletion.
   const refs=(await query(`SELECT c.convalidated,c.confdeltype,array_length(c.conkey,1) AS columns,n.nspname AS schema,t.relname AS child,
-      a.attname AS column,quote_ident(n.nspname)||'.'||quote_ident(t.relname) AS qualified,quote_ident(a.attname) AS quoted_column
+      a.attname AS column,pa.attname AS parent_column,quote_ident(n.nspname)||'.'||quote_ident(t.relname) AS qualified,quote_ident(a.attname) AS quoted_column
     FROM pg_constraint c JOIN pg_class p ON p.oid=c.confrelid JOIN pg_namespace pn ON pn.oid=p.relnamespace
     JOIN pg_class t ON t.oid=c.conrelid JOIN pg_namespace n ON n.oid=t.relnamespace JOIN pg_attribute a ON a.attrelid=t.oid AND a.attnum=c.conkey[1]
+    JOIN pg_attribute pa ON pa.attrelid=p.oid AND pa.attnum=c.confkey[1]
     WHERE c.contype='f' AND pn.nspname='public' AND p.relname='locations'`)).rows
   for(const ref of refs) {
-    if(!ref.convalidated || Number(ref.columns)!==1) throw new AdminMenuError(409,'Location dependencies require review')
+    if(!ref.convalidated || Number(ref.columns)!==1 || ref.parent_column!=='id') throw new AdminMenuError(409,'Location dependencies require review')
     const known=ref.schema==='public' && ['orders','menu_events','menu_sessions'].includes(String(ref.child)) && ref.column==='location_id' && ref.confdeltype==='n'
     const rows=(await query(`SELECT 1 FROM ${ref.qualified} WHERE ${ref.quoted_column}=$1${known ? ' AND tenant_id<>$2' : ''} LIMIT 1`,known ? [id,tenantId] : [id])).rows
     if(rows.length) throw new AdminMenuError(409,'Location has inconsistent or unknown tenant dependencies')

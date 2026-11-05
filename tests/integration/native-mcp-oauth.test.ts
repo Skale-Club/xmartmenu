@@ -10,6 +10,7 @@ import { McpCapabilityIssuer,readMcpIdentity,requireMcpAuthority,type McpActor }
 import { oauthHash,opaque } from '../../src/lib/mcp/oauth-model'
 import { requireTenantAdministrator } from '../../src/lib/data/tenant-administration'
 import { authorizeSubscription } from '../../src/lib/data/subscription-billing'
+import { nativeMcpDataTool } from '../../src/lib/mcp/data/tools'
 
 const raw=process.env.IDENTITY_TEST_DATABASE_URL
 if (!raw || new URL(raw).pathname!=='/xmartmenu_identity_test') throw new Error('Disposable identity test database required')
@@ -187,4 +188,24 @@ test('the narrow NOLOGIN runtime role can lock/mint/refresh but cannot rewrite c
   await denied('UPDATE public.app_mcp_clients SET secret_hash=$1',[oauthHash(opaque())])
   await denied("UPDATE public.app_mcp_grants SET scopes=ARRAY['other']")
   await denied('UPDATE public.app_mcp_tokens SET token_hash=$1',[oauthHash(opaque())])
+})
+test('native location deletion refuses an alternate-key cascade and preserves its child before allowing an unreferenced delete',async()=>{
+  const value=await authorized(),capability=await actor(value.tokens.access_token),location=randomUUID(),previous=process.env.MCP_ALLOW_DESTRUCTIVE
+  process.env.MCP_ALLOW_DESTRUCTIVE='true'
+  await admin.query(`DROP TABLE IF EXISTS public.mcp_location_guard_fixture,public.locations CASCADE;
+    CREATE TABLE public.locations(id uuid PRIMARY KEY,tenant_id uuid NOT NULL REFERENCES public.tenants(id),slug text UNIQUE);
+    CREATE TABLE public.mcp_location_guard_fixture(location_slug text REFERENCES public.locations(slug) ON DELETE CASCADE);`)
+  await admin.query("INSERT INTO public.locations VALUES($1,$2,'alternate-location')",[location,tenantId])
+  await admin.query("INSERT INTO public.mcp_location_guard_fixture VALUES('alternate-location')")
+  try {
+    await assert.rejects(run(true,query=>nativeMcpDataTool(query,capability,'delete_location',{ tenant:tenantId,location_id:location,confirm:true },issuer)),{ status:409 })
+    assert.equal((await admin.query('SELECT count(*)::int AS n FROM public.locations')).rows[0].n,1)
+    assert.equal((await admin.query('SELECT count(*)::int AS n FROM public.mcp_location_guard_fixture')).rows[0].n,1)
+    await admin.query('DROP TABLE public.mcp_location_guard_fixture')
+    await run(true,query=>nativeMcpDataTool(query,capability,'delete_location',{ tenant:tenantId,location_id:location,confirm:true },issuer))
+    assert.equal((await admin.query('SELECT count(*)::int AS n FROM public.locations')).rows[0].n,0)
+  } finally {
+    await admin.query('DROP TABLE IF EXISTS public.mcp_location_guard_fixture,public.locations CASCADE')
+    if(previous===undefined) delete process.env.MCP_ALLOW_DESTRUCTIVE; else process.env.MCP_ALLOW_DESTRUCTIVE=previous
+  }
 })
