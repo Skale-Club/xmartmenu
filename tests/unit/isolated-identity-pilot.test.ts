@@ -13,7 +13,7 @@ function packet(){return{environment:{IDENTITY_ORIGIN:PILOT_ORIGIN,IDENTITY_DATA
 function fixture(){
   const challenge=opaque(),session=opaque(),id=randomUUID(),sessions=new Map<string,{userId:string;authenticatedAt:Date}>()
   const deps:IdentityHttpDependencies={enabled:()=>true,origin:PILOT_ORIGIN,config:{apiKey:'public-key',projectId:'skaleclub',authDomain:'skaleclub.firebaseapp.com'},
-    verifyConfig:vi.fn(async()=>{}),allowRequest:vi.fn(async()=>true),verify:vi.fn(async()=>({projectId:'skaleclub',subject:'verified-subject',provider:'google.com',authenticatedAt:Math.floor(Date.now()/1000)})),legacyOwner:vi.fn(async()=>id),
+    verifyConfig:vi.fn(async()=>{}),allowRequest:vi.fn(async()=>true),verify:vi.fn(async()=>({projectId:'skaleclub',subject:'verified-subject',provider:'google.com' as const,authenticatedAt:Math.floor(Date.now()/1000)})),legacyOwner:vi.fn(async()=>id),
     store:{issueChallenge:vi.fn(async()=>challenge),consumeChallenge:vi.fn(async(value:string)=>value===challenge),owner:vi.fn(async()=>id),bind:vi.fn(async()=>{}),
       createSession:vi.fn(async()=>{sessions.set(session,{userId:id,authenticatedAt:new Date()});return{token:session,expiresAt:new Date(Date.now()+60000)}}),
       session:vi.fn(async(value:string)=>sessions.get(value)??null),logout:vi.fn(async()=>{}),revokeAll:vi.fn(async()=>{})}}
