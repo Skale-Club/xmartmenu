@@ -97,7 +97,7 @@ test('a claim on a disabled account is reported disabled and cannot bind', async
 
 test('phone owners compare digits only and a duplicated number is visible as two rows', async () => {
   assert.deepEqual(await store.phoneOwners('+15551234567'), [{ userId: phoneAcct, disabled: false }])
-  assert.equal((await store.phoneOwners('+551190000001')).length, 2)
+  assert.equal((await store.phoneOwners('+5511900000001')).length, 2)
   assert.deepEqual(await store.phoneOwners('+15550000000'), [])
   assert.deepEqual(await store.phoneOwners('123'), [])
 })
@@ -107,7 +107,7 @@ test('phone-match binds only the exact unique owner with current provider phone;
   await store.bind(id, phoneAcct, 'phone-match')
   assert.equal(await store.owner(id), phoneAcct)
   await assert.rejects(store.bind(phoneId('fb-phone-other', '+15551234567'), okAcct, 'phone-match'), /exactly this account/)
-  await assert.rejects(store.bind(phoneId('fb-dup', '+551190000001'), dupA, 'phone-match'), /exactly this account/)
+  await assert.rejects(store.bind(phoneId('fb-dup', '+5511900000001'), dupA, 'phone-match'), /exactly this account/)
   const stale = new IdentityStore(backend, active, async () => ({ disabled: false, validSince: 0, phoneE164: '+15550000000' }))
   await assert.rejects(stale.bind(phoneId('fb-stale', '+15551234567'), phoneAcct, 'phone-match'))
   await assert.rejects(new IdentityStore(backend, active).bind(phoneId('fb-nocheck', '+15551234567'), phoneAcct, 'phone-match'), /phone proof/)
