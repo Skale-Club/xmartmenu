@@ -13,7 +13,7 @@
  */
 import { pathToFileURL } from 'node:url'
 
-export type AuthUser = { id?: unknown; identities?: unknown }
+export type AuthUser = { id?: unknown; identities?: unknown; app_metadata?: unknown }
 export interface ClaimPlan {
   claims: { googleSub: string; accountId: string }[]
   skippedNoAccount: number
@@ -34,6 +34,26 @@ function googleSubOf(user: AuthUser): string | null {
     if (typeof sub === 'string' && GOOGLE_SUB.test(sub)) subs.add(sub)
   }
   return subs.size === 1 ? [...subs][0] : null
+}
+
+/**
+ * The Admin API LISTING returns `identities: []` for every user; only GET /admin/users/{id} carries them.
+ * `app_metadata.providers` is in the listing, so the detail is fetched only for accounts that have Google.
+ */
+export async function enrichGoogleUsers(users: AuthUser[], getDetail: (id: string) => Promise<AuthUser>, maxDetails = 100): Promise<AuthUser[]> {
+  const out: AuthUser[] = []
+  let fetched = 0
+  for (const user of users) {
+    const meta = user.app_metadata as { providers?: unknown } | null | undefined
+    const hinted = Array.isArray(meta?.providers) && meta.providers.includes('google')
+    const hasIdentities = Array.isArray(user.identities) && user.identities.length > 0
+    if (!hinted || hasIdentities || typeof user.id !== 'string' || !UUID.test(user.id)) { out.push(user); continue }
+    if (++fetched > maxDetails) throw new Error('Too many Google accounts to fetch; nothing was written')
+    const detail = await getDetail(user.id)
+    if (!detail || detail.id !== user.id) throw new Error('Auth Admin API detail did not match the account')
+    out.push({ ...user, identities: detail.identities })
+  }
+  return out
 }
 
 export function planClaims(users: AuthUser[], accountIds: ReadonlySet<string>): ClaimPlan {
@@ -62,7 +82,13 @@ async function fetchAllUsers(baseUrl: string, key: string): Promise<AuthUser[]> 
     users.push(...body.users)
     if (body.users.length < 200) break
   }
-  return users
+  return enrichGoogleUsers(users, async id => {
+    const response = await fetch(`${baseUrl}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
+      method: 'GET', headers: { apikey: key, Authorization: `Bearer ${key}` }, redirect: 'error', signal: AbortSignal.timeout(10_000),
+    })
+    if (!response.ok) throw new Error(`Auth Admin API returned ${response.status}`)
+    return await response.json() as AuthUser
+  })
 }
 
 async function main() {

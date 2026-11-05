@@ -118,6 +118,23 @@ class OfflineTests(unittest.TestCase):
                  {'id': uid, 'identities': [{'provider': 'email'}]}]
         self.assertEqual(cut.plan_claims(users, {uid}), [('12345678901', uid)])
 
+    def test_google_claims_real_admin_api_shape(self):
+        a, b = '11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222'
+        listing = [{'id': a, 'identities': [], 'app_metadata': {'providers': ['email', 'google']}},
+                   {'id': b, 'identities': [], 'app_metadata': {'providers': ['email']}}]
+        calls = []
+        def detail(uid):
+            calls.append(uid)
+            return {'id': uid, 'identities': [{'provider': 'google', 'provider_id': '12345678901'}]}
+        users = cut.enrich_google_users(listing, detail)
+        self.assertEqual(calls, [a])
+        self.assertEqual(cut.plan_claims(users, {a, b}), [('12345678901', a)])
+        self.assertEqual(cut.plan_claims(listing, {a, b}), [])  # the old behaviour
+        with self.assertRaises(cut.Refused):
+            cut.enrich_google_users(listing, detail, 0)
+        with self.assertRaises(cut.Refused):
+            cut.enrich_google_users(listing, lambda uid: {'id': b, 'identities': []})
+
     def test_budget_arithmetic(self):
         self.assertEqual((12 - 1) // 2, 5)
 
