@@ -8,7 +8,8 @@ import {buildApprovalCallbackData,webhookUrl} from '../telegram'
 import {nativeBlogScope,requireNativeBlogContext,type NativeBlogContext} from './authority'
 import {nativeBlogPhase} from './runtime'
 import {normalizeNativeTelegramIds,nativeBlogAudit} from './admin-data'
-import {reserveNativeBlogOperation,claimNativeBlogOperation,lockNativeBlogOperation,prepareNativeBlogCall,recordNativeBlogCall,finishNativeBlogOperation,reconcileNativeBlogOperation} from './operations'
+import {reserveNativeBlogOperation,claimNativeBlogOperation,lockNativeBlogOperation,prepareNativeBlogCall,recordNativeBlogCall,finishNativeBlogOperation,reconcileNativeBlogOperation,failNativeBlogOperation,recordNativeBlogCallFailure,expireStaleNativeBlogOperations} from './operations'
+import {NativeBlogDefinitiveError,NativeBlogUnknownOutcomeError,definitiveHttpStatus} from './outcome'
 import {nativeBlogResponseJson} from './provider-call'
 const decrypt=(value:unknown)=>{if(typeof value!=='string'||!value)return null;try{return decryptApiKey(value)||null}catch{return null}}
 const origin=()=>{const url=new URL(process.env.NEXT_PUBLIC_SITE_URL??'https://xmartmenu.com');if(url.protocol!=='https:'||url.username||url.password)throw new AdminMenuError(503,'Public blog URL unavailable');return url.origin}
@@ -26,15 +27,27 @@ async function writeSettings(query:AdminMenuQuery,context:NativeBlogContext,desi
 /** Official endpoint only; token stays in memory and is never logged or saved
  * in a request payload/receipt. One network call, no automatic retry. */
 export async function callNativeTelegram(token:string,method:'setWebhook'|'deleteWebhook'|'sendMessage'|'answerCallbackQuery'|'getWebhookInfo',body:Record<string,unknown>,send:typeof fetch=fetch){
- if(!token||token.length>400||/[/\s?#]/.test(token))throw new AdminMenuError(400,'Invalid bot credential')
+ if(!token||token.length>400||/[/\s?#]/.test(token))throw new NativeBlogDefinitiveError('Invalid bot credential')
  const response=await send(`https://api.telegram.org/bot${token}/${method}`,{method:'POST',redirect:'error',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)})
+ // A 4xx (wrong token, chat not found, ...) is Telegram answering no: definitive, never blocks the panel.
+ if(definitiveHttpStatus(response.status)){await response.body?.cancel().catch(()=>{});throw new NativeBlogDefinitiveError(`Telegram rejected the request (HTTP ${response.status}); check the bot token and chat`)}
  const result=await nativeBlogResponseJson(response,2097152)
- if(!response.ok||result.ok!==true)throw new AdminMenuError(409,'Telegram outcome needs review')
+ if(!response.ok)throw new NativeBlogUnknownOutcomeError('Telegram outcome needs review')
+ if(result.ok!==true)throw new NativeBlogDefinitiveError('Telegram rejected the request')
  return result
+}
+/** Nothing left the building (error before the request), or Telegram answered with a refusal: final. Otherwise the outcome is unknown. */
+const telegramFailureIsFinal=(error:unknown,sent:boolean)=>error instanceof NativeBlogDefinitiveError||(!sent&&!(error instanceof NativeBlogUnknownOutcomeError))
+async function closeTelegramOperation(id:string,claimId:string,final:boolean,index:number){
+ await ownedAdminTransaction(true,async query=>{
+  if(final){await recordNativeBlogCallFailure(query,id,claimId,index,{final:true});await failNativeBlogOperation(query,id,claimId,'telegram_refused')}
+  else await reconcileNativeBlogOperation(query,id,claimId)
+ }).catch(()=>{})
 }
 export async function saveNativeTelegramSettings(context:NativeBlogContext,input:Record<string,unknown>,key:string,send:typeof fetch=fetch){
  if(context.kind!=='browser')throw new AdminMenuError(403,'Browser administrator required')
  const scope=nativeBlogScope(context),requestDigest=tenantEffectDigest({...input,...('botToken'in input?{botToken:tenantEffectDigest(input.botToken)}:{}),...('approvalsBotToken'in input?{approvalsBotToken:tenantEffectDigest(input.approvalsBotToken)}:{})})
+ await nativeBlogPhase(context,true,query=>expireStaleNativeBlogOperations(query,scope,'telegram-settings'))
  const op=await nativeBlogPhase(context,true,async(query,current)=>{
   const previous=await readSettings(query,scope),desired:Record<string,unknown>={id:previous?.id??randomUUID(),enabled:previous?.enabled??false,bot_token:previous?.bot_token??null,chat_ids:previous?.chat_ids??[],approvals_enabled:previous?.approvals_enabled??false,approvals_bot_token:previous?.approvals_bot_token??null,approvals_chat_ids:previous?.approvals_chat_ids??[],webhook_secret:previous?.webhook_secret??null}
   for(const [field,column] of [['enabled','enabled'],['approvalsEnabled','approvals_enabled']] as const)if(field in input)desired[column]=input[field]
@@ -43,7 +56,7 @@ export async function saveNativeTelegramSettings(context:NativeBlogContext,input
   if(input.approvalsEnabled===true&&!desired.webhook_secret)desired.webhook_secret=randomBytes(32).toString('hex')
   if(input.approvalsEnabled===false)desired.webhook_secret=null
   if(desired.enabled&&desired.approvals_enabled&&(!plainToken(desired)||!desired.webhook_secret))throw new AdminMenuError(400,'Configure a bot before enabling approvals')
-  return reserveNativeBlogOperation(query,current,'telegram-settings',key,{desired,previousDigest:settingsDigest(previous),previousToken:previous?.approvals_bot_token??previous?.bot_token??null,previousSecret:!!previous?.webhook_secret},requestDigest)
+  return reserveNativeBlogOperation(query,current,'telegram-settings',key,{desired,previousDigest:settingsDigest(previous),previousToken:previous?.approvals_bot_token??previous?.bot_token??null,previousSecret:!!previous?.webhook_secret},requestDigest,desired.enabled===true&&desired.approvals_enabled===true)
  })
  if(op.status==='completed')return {ok:true,webhook:typeof op.result?.webhook==='string'?op.result.webhook:null}
  if(op.status!=='reserved')throw new AdminMenuError(409,'Telegram settings operation needs review; do not resend it')
@@ -59,10 +72,12 @@ export async function saveNativeTelegramSettings(context:NativeBlogContext,input
   return {...value,preCallDigest:settingsDigest(await readSettings(query,scope))}
  });if(!claimed.claimId)throw new AdminMenuError(409,'Telegram claim unavailable')
  const claimId=claimed.claimId
+ let sent=false
  try{
   if(needsNetwork&&token){
    const method=enabling?'setWebhook':'deleteWebhook',body=enabling?{url:webhookUrl(origin()),secret_token:desired.webhook_secret,allowed_updates:['callback_query']}:{}
    await nativeBlogPhase(context,true,async(query,current)=>{await assertSettings(query,scope,claimed.preCallDigest);await prepareNativeBlogCall(query,current,op.id,claimId,0,'telegram',{method,body})})
+   sent=true
    const response=await callNativeTelegram(token,method,body,send)
    await ownedAdminTransaction(true,query=>recordNativeBlogCall(query,op.id,claimId,0,{ok:true,bodyDigest:tenantEffectDigest(response)}))
   }
@@ -72,8 +87,9 @@ export async function saveNativeTelegramSettings(context:NativeBlogContext,input
   })
   return {ok:true,webhook:enabling?webhookUrl(origin()):null}
  }catch(error){
-  await ownedAdminTransaction(true,query=>reconcileNativeBlogOperation(query,op.id,claimId)).catch(()=>{})
-  if(!enabling)return {ok:true,webhook:null,pending:true,message:'Disabled locally; remote webhook removal needs review'}
+  const final=telegramFailureIsFinal(error,sent)
+  await closeTelegramOperation(op.id,claimId,final,0)
+  if(!enabling)return {ok:true,webhook:null,pending:true,message:final?'Disabled locally; Telegram refused the webhook removal (check the bot token), nothing else is pending':'Disabled locally; remote webhook removal needs review'}
   throw error instanceof AdminMenuError?error:new AdminMenuError(409,'Telegram registration needs reconciliation; do not resend it')
  }
 }
@@ -103,20 +119,24 @@ export async function dispatchNativeDraftNotification(context:NativeBlogContext,
  if(!claimed.claimId)throw new AdminMenuError(409,'Notification claim unavailable')
  const claimId=claimed.claimId,draft=claimed.input,heading=scope?'Novo rascunho do blog à espera de aprovação':'New blog draft awaiting approval',panelUrl=origin()+(scope?'/posts':'/admin/blog')
  const text=[`<b>${heading}</b>`,...(scope?[escapeHtml(reserved.tenant.name)]:[]),'',`<b>${escapeHtml(String(draft.title))}</b>`,...(draft.excerpt?['',escapeHtml(String(draft.excerpt))]:[]),'',`${scope?'Tema':'Pillar'}: ${escapeHtml(String(draft.pillarLabel))}`,'',panelUrl].join('\n')
+ let sent=false,failedIndex=0
  try{
   for(const [index,entry] of targets.entries()){
+   failedIndex=index
    const target=parseTelegramTarget(entry);if(!target)throw new AdminMenuError(400,'Invalid Telegram destination')
    const body={chat_id:target.chatId,...(target.threadId?{message_thread_id:target.threadId}:{}),text,parse_mode:'HTML',disable_web_page_preview:true,reply_markup:{inline_keyboard:[[{text:scope?'✅ Aprovar e publicar':'✅ Approve & publish',callback_data:buildApprovalCallbackData('approve',String(draft.postId))},{text:scope?'❌ Rejeitar':'❌ Reject',callback_data:buildApprovalCallbackData('reject',String(draft.postId))}]]}}
    await nativeBlogPhase(context,true,async(query,current)=>{await assertSettings(query,scope,digest);await prepareNativeBlogCall(query,current,id,claimId,index,'telegram',body)})
+   sent=true
    const response=await callNativeTelegram(token,'sendMessage',body,send),result=response.result as Record<string,unknown>|undefined
    if(!Number.isSafeInteger(result?.message_id))throw new Error('Confirmed Telegram message ID required')
    await ownedAdminTransaction(true,query=>recordNativeBlogCall(query,id,claimId,index,{ok:true,messageId:result?.message_id,bodyDigest:tenantEffectDigest(response)}))
   }
   await nativeBlogPhase(context,true,(query,current)=>finishNativeBlogOperation(query,current,id,claimId,{delivered:targets.length}))
   return {status:'delivered'}
- }catch{
-  await ownedAdminTransaction(true,query=>reconcileNativeBlogOperation(query,id,claimId)).catch(()=>{})
-  return {status:'reconcile'}
+ }catch(error){
+  const final=telegramFailureIsFinal(error,sent)
+  await closeTelegramOperation(id,claimId,final,failedIndex)
+  return {status:final?'failed':'reconcile'}
  }
 }
 export async function dispatchNativeTelegramAck(context:NativeBlogContext,id:string,send:typeof fetch=fetch){
@@ -128,13 +148,15 @@ export async function dispatchNativeTelegramAck(context:NativeBlogContext,id:str
  const digest=settingsDigest(reserved.settings),claimed=await nativeBlogPhase(context,true,(query,current)=>claimNativeBlogOperation(query,current,id,digest))
  if(!claimed.claimId)throw new AdminMenuError(409,'Telegram acknowledgement claim unavailable')
  const claimId=claimed.claimId,body={callback_query_id:String(claimed.input.callbackQueryId),text:String(claimed.input.text),show_alert:false}
+ let sent=false
  try{
   await nativeBlogPhase(context,true,async(query,current)=>{await assertSettings(query,scope,digest);await prepareNativeBlogCall(query,current,id,claimId,0,'telegram',{method:'answerCallbackQuery',body})})
+  sent=true
   const response=await callNativeTelegram(token,'answerCallbackQuery',body,send)
   await ownedAdminTransaction(true,query=>recordNativeBlogCall(query,id,claimId,0,{ok:true,bodyDigest:tenantEffectDigest(response)}))
   await nativeBlogPhase(context,true,(query,current)=>finishNativeBlogOperation(query,current,id,claimId,{ok:true}))
   return {status:'delivered'}
- }catch{await ownedAdminTransaction(true,query=>reconcileNativeBlogOperation(query,id,claimId)).catch(()=>{});return {status:'reconcile'}}
+ }catch(error){const final=telegramFailureIsFinal(error,sent);await closeTelegramOperation(id,claimId,final,0);return {status:final?'failed':'reconcile'}}
 }
 /** Scheduled handoff reads provenance from the private operation row; it never
  * substitutes the tenant's current owner for the actor who created the work. */

@@ -3,13 +3,18 @@ import {ownedAdminTransaction} from '../../data/admin-menus-runtime'
 import {PLATFORM_BASE} from '../../seo'
 import {requireNativeBlogConfiguration} from './selected'
 import {readNativePublishedPosts,readNativeBlogTags,readNativeBlogArchive} from './public-data'
-export async function nativePlatformSitemap():Promise<MetadataRoute.Sitemap>{
- requireNativeBlogConfiguration()
+type Entries=MetadataRoute.Sitemap
+async function tenantEntries():Promise<Entries>{
  return ownedAdminTransaction(false,async query=>{
-  const entries:MetadataRoute.Sitemap=[{url:PLATFORM_BASE,lastModified:new Date(),changeFrequency:'weekly',priority:1}]
+  const entries:Entries=[]
   const tenants=(await query('SELECT slug,updated_at,custom_domain,custom_domain_verified FROM public.tenants WHERE is_active=true ORDER BY updated_at DESC,id LIMIT 5000')).rows
   for(const row of tenants)if(!(row.custom_domain&&row.custom_domain_verified))entries.push({url:`${PLATFORM_BASE}/${row.slug}`,lastModified:row.updated_at instanceof Date?row.updated_at:new Date(),changeFrequency:'weekly',priority:0.8})
-  entries.push({url:`${PLATFORM_BASE}/blog`,lastModified:new Date(),changeFrequency:'weekly',priority:0.7})
+  return entries
+ })
+}
+async function blogEntries():Promise<Entries>{
+ return ownedAdminTransaction(false,async query=>{
+  const entries:Entries=[{url:`${PLATFORM_BASE}/blog`,lastModified:new Date(),changeFrequency:'weekly',priority:0.7}]
   const posts=await readNativePublishedPosts(query,null,1000),tags=await readNativeBlogTags(query,null),archive=await readNativeBlogArchive(query,null)
   for(const tag of tags)entries.push({url:`${PLATFORM_BASE}/blog/tag/${tag.slug}`,changeFrequency:'weekly',priority:0.5})
   for(const year of new Set(archive.map(row=>row.year)))entries.push({url:`${PLATFORM_BASE}/blog/archive/${year}`,changeFrequency:'monthly',priority:0.4})
@@ -17,4 +22,13 @@ export async function nativePlatformSitemap():Promise<MetadataRoute.Sitemap>{
   for(const post of posts)entries.push({url:`${PLATFORM_BASE}/blog/${post.slug}`,lastModified:post.published_at?new Date(post.published_at):new Date(),changeFrequency:'monthly',priority:0.6})
   return entries
  })
+}
+/** Degrades block by block, like the legacy sitemap: a failing tenant or blog
+ * read costs only that block, and the landing entry is always returned. */
+export async function nativePlatformSitemap():Promise<Entries>{
+ const entries:Entries=[{url:PLATFORM_BASE,lastModified:new Date(),changeFrequency:'weekly',priority:1}]
+ try{requireNativeBlogConfiguration()}catch{return entries}
+ try{entries.push(...await tenantEntries())}catch{}
+ try{entries.push(...await blogEntries())}catch{}
+ return entries
 }

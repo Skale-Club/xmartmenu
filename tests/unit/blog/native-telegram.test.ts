@@ -1,11 +1,11 @@
 import {beforeEach,it,expect,vi} from 'vitest'
 import {randomUUID} from 'node:crypto'
-const mocks=vi.hoisted(()=>({query:vi.fn(),gate:vi.fn(),reserve:vi.fn(),claim:vi.fn(),prepare:vi.fn(),receipt:vi.fn(),finish:vi.fn(),reconcile:vi.fn()}))
+const mocks=vi.hoisted(()=>({query:vi.fn(),gate:vi.fn(),reserve:vi.fn(),claim:vi.fn(),prepare:vi.fn(),receipt:vi.fn(),finish:vi.fn(),reconcile:vi.fn(),fail:vi.fn(),callFailure:vi.fn()}))
 vi.mock('@/lib/blog/native/runtime',()=>({nativeBlogPhase:async(context:unknown,_write:boolean,operation:(query:unknown,current:unknown)=>Promise<unknown>)=>{await mocks.gate();return operation(mocks.query,context)}}))
 vi.mock('@/lib/data/admin-menus-runtime',()=>({ownedAdminTransaction:async(_write:boolean,operation:(query:unknown)=>Promise<unknown>)=>operation(mocks.query)}))
 vi.mock('@/lib/crypto',()=>({encryptApiKey:(raw:string)=>'cipher:'+raw,decryptApiKey:(raw:string)=>raw.slice(7)}))
 vi.mock('@/lib/ai/openrouter',()=>({OPENROUTER_BASE_URL:'https://synthetic.example'}))
-vi.mock('@/lib/blog/native/operations',()=>({reserveNativeBlogOperation:mocks.reserve,claimNativeBlogOperation:mocks.claim,prepareNativeBlogCall:mocks.prepare,recordNativeBlogCall:mocks.receipt,finishNativeBlogOperation:mocks.finish,reconcileNativeBlogOperation:mocks.reconcile,lockNativeBlogOperation:vi.fn()}))
+vi.mock('@/lib/blog/native/operations',()=>({reserveNativeBlogOperation:mocks.reserve,claimNativeBlogOperation:mocks.claim,prepareNativeBlogCall:mocks.prepare,recordNativeBlogCall:mocks.receipt,finishNativeBlogOperation:mocks.finish,reconcileNativeBlogOperation:mocks.reconcile,lockNativeBlogOperation:vi.fn(),failNativeBlogOperation:mocks.fail,expireStaleNativeBlogOperations:async()=>0,recordNativeBlogCallFailure:mocks.callFailure}))
 import {saveNativeTelegramSettings} from '@/lib/blog/native/telegram'
 const context={kind:'browser' as const,actor:{actorId:randomUUID(),sessionHash:'a'.repeat(64),scope:null,projectId:'synthetic',subject:'synthetic-subject',authenticatedAt:1,checkedAt:Date.now()}}
 let settings:Record<string,unknown>,operation:Record<string,unknown>|null
@@ -41,4 +41,32 @@ it('current authority refusal before claiming cannot contact Telegram',async()=>
  mocks.gate.mockRejectedValueOnce(new Error('synthetic SQL authority denied'))
  const send=vi.fn();await expect(saveNativeTelegramSettings(context,{approvalsEnabled:false},randomUUID(),send)).rejects.toThrow()
  expect(send).not.toHaveBeenCalled();expect(mocks.claim).not.toHaveBeenCalled()
+})
+it('a wrong token (401) closes the operation as failed and tells the admin what to fix, without reconcile',async()=>{
+ settings={...settings,enabled:false,approvals_enabled:false,webhook_secret:null}
+ const send=vi.fn(async()=>new Response(JSON.stringify({ok:false,error_code:401,description:'Unauthorized'}),{status:401}))
+ await expect(saveNativeTelegramSettings(context,{enabled:true,approvalsEnabled:true},randomUUID(),send)).rejects.toMatchObject({status:409,message:expect.stringContaining('HTTP 401')})
+ expect(mocks.fail).toHaveBeenCalledOnce();expect(mocks.reconcile).not.toHaveBeenCalled()
+ expect(settings.enabled).toBe(false)
+})
+it('turning approvals off after a refused deletion succeeds locally and leaves nothing pending',async()=>{
+ const send=vi.fn(async()=>new Response('{}',{status:401}))
+ const result=await saveNativeTelegramSettings(context,{approvalsEnabled:false},randomUUID(),send)
+ expect(result).toMatchObject({ok:true,webhook:null,pending:true});expect(settings.webhook_secret).toBeNull()
+ expect(mocks.fail).toHaveBeenCalledOnce();expect(mocks.reconcile).not.toHaveBeenCalled()
+})
+it('a 5xx from Telegram stays unknown and reconciles',async()=>{
+ settings={...settings,enabled:false,approvals_enabled:false,webhook_secret:null}
+ const send=vi.fn(async()=>new Response('{}',{status:502}))
+ await expect(saveNativeTelegramSettings(context,{enabled:true,approvalsEnabled:true},randomUUID(),send)).rejects.toMatchObject({status:409})
+ expect(mocks.reconcile).toHaveBeenCalledOnce();expect(mocks.fail).not.toHaveBeenCalled()
+})
+it('an earlier pending operation bars enabling but never disabling',async()=>{
+ const send=vi.fn(async()=>new Response(JSON.stringify({ok:true,result:true}),{status:200}))
+ await saveNativeTelegramSettings(context,{approvalsEnabled:false},randomUUID(),send)
+ expect(mocks.reserve.mock.calls.at(-1)?.[6]).toBe(false)
+ operation=null
+ settings={...settings,enabled:false,approvals_enabled:false,webhook_secret:null}
+ await saveNativeTelegramSettings(context,{enabled:true,approvalsEnabled:true},randomUUID(),send)
+ expect(mocks.reserve.mock.calls.at(-1)?.[6]).toBe(true)
 })

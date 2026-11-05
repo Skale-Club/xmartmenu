@@ -7,7 +7,7 @@ import pg from 'pg'
 import {adminMenuTransaction} from '../../src/lib/data/admin-menus-runtime'
 import {readNativePublishedPosts,readNativePublishedPost,readNativeBlogTenant} from '../../src/lib/blog/native/public-data'
 import {saveNativeBlogSettings,decideNativeBlogPost,readNativeBlogState,changeNativeRssSource} from '../../src/lib/blog/native/admin-data'
-import {reserveNativeBlogOperation,claimNativeBlogOperation,prepareNativeBlogCall,recordNativeBlogCall,finishNativeBlogOperation,reconcileNativeBlogOperation} from '../../src/lib/blog/native/operations'
+import {reserveNativeBlogOperation,claimNativeBlogOperation,prepareNativeBlogCall,recordNativeBlogCall,finishNativeBlogOperation,reconcileNativeBlogOperation,failNativeBlogOperation,recordNativeBlogCallFailure,ambiguousNativeBlogCoverCalls,expireStaleNativeBlogOperations,repairNativeBlogOperation,listUnresolvedNativeBlogOperations} from '../../src/lib/blog/native/operations'
 import type {NativeBlogActor} from '../../src/lib/blog/native/authority'
 import {applyNativeTelegramDecision} from '../../src/lib/blog/native/telegram-data'
 const raw=process.env.IDENTITY_TEST_DATABASE_URL
@@ -143,4 +143,71 @@ test('SQL role, expiry, version, live binding, provider tuple, disabled/recovery
  await assert.rejects(read(q=>readNativeBlogState(q,actor(1))),{status:403})
  assert.equal((await rows('app_identity_bindings')).length,7)
  assert.equal((await admin.query('SELECT disabled_at FROM app_accounts WHERE id=$1',[ids[5]])).rows[0].disabled_at.toISOString(),'2026-01-01T00:00:00.000Z')
+})
+const choice={apiKey:'synthetic-offline',keySource:'platform' as const,billable:false,markupPct:0}
+const running=async(kind:'generation'|'telegram-settings'='generation')=>{
+ const op=await tx(q=>reserveNativeBlogOperation(q,context(1),kind,randomUUID(),{trigger:'manual'}))
+ const claimed=await tx(q=>claimNativeBlogOperation(q,context(1),op.id,'a'.repeat(64)));assert.ok(claimed.claimId)
+ return {op,claimId:claimed.claimId as string}
+}
+const statusOf=async(id:string)=>(await admin.query('SELECT status,outcome_code FROM app_blog_operations WHERE id=$1',[id])).rows[0]
+test('a definitive failure closes as failed and never blocks the tenant again',async()=>{
+ const {op,claimId}=await running()
+ await tx(q=>prepareNativeBlogCall(q,context(1),op.id,claimId,0,'ai',{prompt:'synthetic'},choice,'synthetic/model'))
+ await tx(q=>recordNativeBlogCallFailure(q,op.id,claimId,0,{httpStatus:402}))
+ await tx(q=>failNativeBlogOperation(q,op.id,claimId,'provider_refused'))
+ assert.deepEqual(await statusOf(op.id),{status:'failed',outcome_code:'provider_refused'})
+ const call=(await admin.query('SELECT status,response_payload FROM app_blog_calls WHERE operation_id=$1',[op.id])).rows[0]
+ assert.equal(call.status,'response');assert.equal(call.response_payload.failed,true)
+ assert.equal((await admin.query('SELECT count(*)::int AS n FROM ai_usage_events')).rows[0].n,0)
+ await tx(q=>reserveNativeBlogOperation(q,context(1),'generation',randomUUID(),{trigger:'manual'}))
+})
+test('a run orphaned by a deploy expires into the reviewable reconcile state; a superadmin repair, audited, unblocks the tenant',async()=>{
+ const {op}=await running()
+ await assert.rejects(tx(q=>reserveNativeBlogOperation(q,context(1),'generation',randomUUID(),{trigger:'manual'})),{status:409})
+ assert.equal((await tx(q=>expireStaleNativeBlogOperations(q,tenant,'generation'))),0)
+ await admin.query("UPDATE app_blog_operations SET created_at=clock_timestamp()-interval '20 minutes' WHERE id=$1",[op.id])
+ assert.equal((await tx(q=>expireStaleNativeBlogOperations(q,tenant,'generation'))),1)
+ assert.deepEqual(await statusOf(op.id),{status:'reconcile',outcome_code:'expired_running'})
+ await assert.rejects(tx(q=>reserveNativeBlogOperation(q,context(1),'generation',randomUUID(),{trigger:'manual'})),{status:409})
+ const listed=await read(q=>listUnresolvedNativeBlogOperations(q,actor(0)))
+ assert.deepEqual(listed.map(row=>row.id),[op.id])
+ await assert.rejects(read(q=>listUnresolvedNativeBlogOperations(q,actor(1))),{status:403})
+ await assert.rejects(tx(q=>repairNativeBlogOperation(q,actor(1),op.id)),{status:403})
+ assert.equal((await statusOf(op.id)).status,'reconcile')
+ const repaired=await tx(q=>repairNativeBlogOperation(q,actor(0),op.id))
+ assert.deepEqual(repaired,{ok:true,id:op.id,previousStatus:'reconcile'})
+ assert.deepEqual(await statusOf(op.id),{status:'failed',outcome_code:'repaired_by_superadmin'})
+ const audit=(await admin.query("SELECT table_name,action,actor_id,tenant_id,changes FROM audit_events WHERE record_id=$1 AND changes->>'operation'='blog_operation_repaired'",[op.id])).rows
+ assert.equal(audit.length,1);assert.equal(audit[0].table_name,'app_blog_operations');assert.equal(audit[0].actor_id,ids[0]);assert.equal(audit[0].tenant_id,tenant)
+ await assert.rejects(tx(q=>repairNativeBlogOperation(q,actor(0),op.id)),{status:409})
+ await assert.rejects(tx(q=>repairNativeBlogOperation(q,actor(0),randomUUID())),{status:404})
+ await tx(q=>reserveNativeBlogOperation(q,context(1),'generation',randomUUID(),{trigger:'manual'}))
+})
+test('a still-fresh running operation cannot be repaired out from under its own run',async()=>{
+ const {op}=await running()
+ await assert.rejects(tx(q=>repairNativeBlogOperation(q,actor(0),op.id)),{status:409})
+ assert.equal((await statusOf(op.id)).status,'running')
+})
+test('turning Telegram approvals off is never barred by a pending operation; enabling is',async()=>{
+ const {op,claimId}=await running('telegram-settings')
+ await tx(q=>reconcileNativeBlogOperation(q,op.id,claimId))
+ await assert.rejects(tx(q=>reserveNativeBlogOperation(q,context(1),'telegram-settings',randomUUID(),{enable:true},undefined,true)),{status:409})
+ const disabling=await tx(q=>reserveNativeBlogOperation(q,context(1),'telegram-settings',randomUUID(),{enable:false},undefined,false))
+ assert.equal(disabling.status,'reserved')
+})
+test('an ambiguous or failed cover call stays reviewable and does not block finishing the paid post; any other ambiguous call still does',async()=>{
+ const {op,claimId}=await running()
+ await tx(q=>prepareNativeBlogCall(q,context(1),op.id,claimId,0,'ai',{prompt:'text'},choice,'synthetic/model'))
+ await tx(q=>recordNativeBlogCall(q,op.id,claimId,0,{text:'synthetic'},{costUsd:0.1,generationId:'g',tokens:1,inputTokens:1,outputTokens:0}))
+ await tx(q=>prepareNativeBlogCall(q,context(1),op.id,claimId,2,'ai',{prompt:'cover'},choice,'synthetic/image'))
+ await tx(q=>prepareNativeBlogCall(q,context(1),op.id,claimId,3,'storage',{path:'cover'}))
+ await tx(q=>ambiguousNativeBlogCoverCalls(q,op.id,claimId))
+ assert.deepEqual((await admin.query('SELECT call_index,status FROM app_blog_calls WHERE operation_id=$1 ORDER BY call_index',[op.id])).rows,[{call_index:0,status:'response'},{call_index:2,status:'ambiguous'},{call_index:3,status:'ambiguous'}])
+ await tx(q=>finishNativeBlogOperation(q,context(1),op.id,claimId,{status:'generated'}))
+ assert.equal((await statusOf(op.id)).status,'completed')
+ const second=await running()
+ await tx(q=>prepareNativeBlogCall(q,context(1),second.op.id,second.claimId,1,'ai',{prompt:'content'},choice,'synthetic/model'))
+ await admin.query("UPDATE app_blog_calls SET status='ambiguous' WHERE operation_id=$1",[second.op.id])
+ await assert.rejects(tx(q=>finishNativeBlogOperation(q,context(1),second.op.id,second.claimId,{status:'generated'})),{status:409})
 })

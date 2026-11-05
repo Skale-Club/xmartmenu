@@ -11,7 +11,8 @@ import {coverPrompt,normaliseTo16x9} from '../cover-image'
 import {tenantEffectDigest} from '../../data/tenant-effect-operations'
 import {nativeBlogPhase} from './runtime'
 import {readNativeBlogGenerationFacts,requireNativeBlogFacts} from './generation-data'
-import {reserveNativeBlogOperation,claimNativeBlogOperation,prepareNativeBlogCall,recordNativeBlogCall,finishNativeBlogOperation,reconcileNativeBlogOperation} from './operations'
+import {reserveNativeBlogOperation,claimNativeBlogOperation,prepareNativeBlogCall,recordNativeBlogCall,finishNativeBlogOperation,reconcileNativeBlogOperation,failNativeBlogOperation,ambiguousNativeBlogCoverCalls,expireStaleNativeBlogOperations} from './operations'
+import {NativeBlogDefinitiveError,NativeBlogUnknownOutcomeError} from './outcome'
 import {nativeBlogScope,lockNativeBlogScope,type NativeBlogContext} from './authority'
 import {callNativeBlogAi} from './provider-call'
 import {reserveNativeDraftNotification,dispatchNativeDraftNotification,drainNativeDraftNotifications} from './telegram'
@@ -28,6 +29,8 @@ export async function generateNativeBlogPost(context:NativeBlogContext,input:{tr
   else if(settings.last_run_at&&(now.getTime()-new Date(settings.last_run_at).getTime())/36e5<24/settings.posts_per_day)return {status:'skipped',reason:'too_soon'}
  }
  const model=settings.text_model||'anthropic/claude-sonnet-5'
+ // Persist the expiry of a run that died with a deploy BEFORE the reservation below, which throws (and rolls back) while it is still blocked.
+ await nativeBlogPhase(context,true,query=>expireStaleNativeBlogOperations(query,scope,'generation'))
  const reservation=await nativeBlogPhase(context,true,async(query,current)=>{
   await requireNativeBlogFacts(query,current,facts.digest)
   const op=await reserveNativeBlogOperation(query,current,'generation',input.requestKey,{trigger:input.trigger})
@@ -64,9 +67,12 @@ export async function generateNativeBlogPost(context:NativeBlogContext,input:{tr
   const length=getPlainTextLength(generated.content)
   if(length<MIN_PLAIN_TEXT_CHARS||length>MAX_PLAIN_TEXT_CHARS)throw new Error('Generated content length is invalid')
   await nativeBlogPhase(context,true,async(query,current)=>{await requireNativeBlogFacts(query,current,facts.digest);await query('UPDATE public.app_blog_operations SET draft_payload=$3::jsonb WHERE id=$1 AND claim_id=$2',[operation.id,claimId,JSON.stringify(generated)])})
-  let coverUrl:string|null=null,imageMs:number|null=null,uploadMs=0
+  let coverUrl:string|null=null,imageMs:number|null=null,uploadMs=0,coverSkipped=false
+  // The cover is optional. Whatever goes wrong with it, the paid post is kept and
+  // published with cover=null; its calls stay reviewable (ambiguous) on their own.
   if(settings.image_model?.trim()){
-   const imageStart=Date.now(),image=await callNativeBlogAi({context,operationId:operation.id,claimId,index:2,settingsDigest:facts.digest,choice,image:true,body:{model:settings.image_model,messages:[{role:'user',content:coverPrompt(generated.title,generated.focusKeyword||null)}],modalities:['image','text']}},send)
+   try{
+   const imageStart=Date.now(),image=await callNativeBlogAi({context,operationId:operation.id,claimId,index:2,settingsDigest:facts.digest,choice,image:true,optional:true,body:{model:settings.image_model,messages:[{role:'user',content:coverPrompt(generated.title,generated.focusKeyword||null)}],modalities:['image','text']}},send)
    const dataUrl=(image.choices as Array<{message?:{images?:Array<{image_url?:{url?:string}}>} }>|undefined)?.[0]?.message?.images?.[0]?.image_url?.url
    imageMs=Date.now()-imageStart
    const match=typeof dataUrl==='string'?dataUrl.match(/^data:(image\/[a-z0-9.+-]+);base64,(.+)$/i):null
@@ -79,6 +85,10 @@ export async function generateNativeBlogPost(context:NativeBlogContext,input:{tr
     if(!/^https:\/\//i.test(coverUrl))throw new Error('Confirmed HTTPS cover URL required')
     uploadMs=Date.now()-uploadStart
    }
+   }catch{
+    coverUrl=null;coverSkipped=true;imageMs=null;uploadMs=0
+    await ownedAdminTransaction(true,query=>ambiguousNativeBlogCoverCalls(query,operation.id,claimId)).catch(()=>{})
+   }
   }
   const result=await nativeBlogPhase(context,true,async(query,current)=>{
    await requireNativeBlogFacts(query,current,facts.digest);await lockNativeBlogScope(query,scope)
@@ -89,15 +99,23 @@ export async function generateNativeBlogPost(context:NativeBlogContext,input:{tr
     VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true,$13,$14)`,[postId,scope,generated.title,slug,generated.content,generated.excerpt||null,generated.metaDescription||null,generated.focusKeyword||null,generated.tags||null,facts.tenantContext?.name??'Xmartmenu',coverUrl,readingTimeMinutes(generated.content),settings.auto_publish?'published':'draft',settings.auto_publish?now:null])
    if(facts.rssItem)await query("UPDATE public.blog_rss_items SET status='used',used_at=clock_timestamp(),used_post_id=$3 WHERE id=$1 AND tenant_id IS NOT DISTINCT FROM $2::uuid AND status='pending'",[facts.rssItem.id,scope,postId])
    await query("UPDATE public.blog_generation_jobs SET status='completed',post_id=$2,topic=$3,completed_at=clock_timestamp(),durations_ms=$4::jsonb WHERE id=$1",[jobId,postId,topic,JSON.stringify({topic:topicMs,content:contentMs,image:imageMs,upload:uploadMs,total:Date.now()-started})])
-   const outcome={status:'generated' as const,postId,jobId,title:generated.title}
+   const outcome={status:'generated' as const,postId,jobId,title:generated.title,...(coverSkipped?{coverSkipped:true}:{})}
    await finishNativeBlogOperation(query,current,operation.id,claimId,outcome)
    const notification=settings.auto_publish?null:await reserveNativeDraftNotification(query,current,{postId,title:generated.title,excerpt:generated.excerpt||null,pillarLabel:assignment.pillar.label})
    return {outcome,notificationId:notification?.id}
-  })
+  }).catch(error=>{throw error instanceof AdminMenuError?error:new NativeBlogUnknownOutcomeError('Publishing outcome needs review; the post may already have been saved')})
   if(result.notificationId)await dispatchNativeDraftNotification(context,result.notificationId,send).catch(()=>{})
   return result.outcome
- }catch{
-  await ownedAdminTransaction(true,async query=>{await reconcileNativeBlogOperation(query,operation.id,claimId);await query("UPDATE public.blog_generation_jobs SET status='failed',error_message='Native operation requires reconciliation',completed_at=clock_timestamp() WHERE id=$1 AND status='running'",[jobId])}).catch(()=>{})
-  return {status:'failed',error:'This operation needs review; no paid call will be automatically repeated',jobId}
+ }catch(error){
+  // Only a genuinely unknown outcome (timeout/network after send, 5xx, unseen commit)
+  // is reconciled and blocks the tenant. A known refusal or unusable content is final.
+  const unknown=error instanceof NativeBlogUnknownOutcomeError
+  const message=unknown?'This operation needs review; no paid call will be automatically repeated':error instanceof NativeBlogDefinitiveError?error.message:'Generation failed; nothing is pending and you can try again'
+  await ownedAdminTransaction(true,async query=>{
+   if(unknown)await reconcileNativeBlogOperation(query,operation.id,claimId)
+   else await failNativeBlogOperation(query,operation.id,claimId,error instanceof NativeBlogDefinitiveError?'provider_refused':'generation_failed')
+   await query("UPDATE public.blog_generation_jobs SET status='failed',error_message=$2,completed_at=clock_timestamp() WHERE id=$1 AND status='running'",[jobId,message.slice(0,500)])
+  }).catch(()=>{})
+  return {status:'failed',error:message,jobId}
  }
 }

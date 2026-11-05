@@ -1,4 +1,7 @@
-import {ownedAuthSelected} from '../../auth/owned-principal'
 import {AdminMenuError} from '../../data/admin-menus'
-export const nativeBlogSelected=(env:Record<string,string|undefined>=process.env)=>ownedAuthSelected(env)||env.OWNED_BLOG_ENABLED==='true'
-export function requireNativeBlogConfiguration(){if(!ownedAuthSelected()||process.env.OWNED_BLOG_ENABLED!=='true')throw new AdminMenuError(503,'Native blog configuration unavailable')}
+import {nativeBlogFlagsReady} from './flags'
+/** Native blog is selected only when OWNED_BLOG_ENABLED and OWNED_AUTH_ENABLED
+ * are both on. Auth alone no longer redirects the blog: that made every blog
+ * page and the whole sitemap answer 503 when only the auth flag was enabled. */
+export const nativeBlogSelected=(env:Record<string,string|undefined>=process.env)=>nativeBlogFlagsReady(env)
+export function requireNativeBlogConfiguration(){if(!nativeBlogFlagsReady())throw new AdminMenuError(503,'Native blog configuration unavailable')}

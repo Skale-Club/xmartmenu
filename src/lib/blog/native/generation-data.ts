@@ -38,8 +38,12 @@ export async function readNativeBlogGenerationFacts(query:AdminMenuQuery,context
   for(const candidate of candidates){const score=scoreItem(candidate,settings.seo_keywords);if(score>bestScore){rssItem=candidate;bestScore=score}}
   if(bestScore<MIN_RSS_SCORE)rssItem=null
  }
+ // The digest guards what the paid call depends on to be authorised: settings,
+ // key and billing. Editorial context (menu, recent posts, feedback) is the
+ // snapshot taken at the start; editing a dish mid-generation must not discard
+ // an already paid post.
  const stableSettings={...raw};delete stableSettings.last_run_at;delete stableSettings.lock_acquired_at;delete stableSettings.updated_at
- const digest=tenantEffectDigest({settings:stableSettings,platform,tenantAi:tenantAi?{billing_mode:tenantAi.billing_mode,openrouter_api_key:tenantAi.openrouter_api_key,markup_pct:tenantAi.markup_pct}:null,environmentKeyDigest:envKey?tenantEffectDigest(envKey):null,tenantContext,posts,feedback})
+ const digest=tenantEffectDigest({settings:stableSettings,platform,tenantAi:tenantAi?{billing_mode:tenantAi.billing_mode,openrouter_api_key:tenantAi.openrouter_api_key,markup_pct:tenantAi.markup_pct}:null,environmentKeyDigest:envKey?tenantEffectDigest(envKey):null})
  return {scope,settings,choice,tenantContext,editorial:{posts,feedback},recentPillars,rssItem,digest}
 }
 export async function requireNativeBlogFacts(query:AdminMenuQuery,context:NativeBlogContext,digest:string){

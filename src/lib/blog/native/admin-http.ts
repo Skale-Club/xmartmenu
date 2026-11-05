@@ -6,7 +6,8 @@ import {tenantAdminBody} from '../../admin/owned-tenant-administration-http'
 import {currentNativeBlogActor} from './authority-runtime'
 import {nativeBlogPhase} from './runtime'
 import {readNativeBlogState,saveNativeBlogSettings,decideNativeBlogPost,changeNativeRssSource} from './admin-data'
-import {nativeBlogSettingsSchema,nativeBlogDecisionSchema,nativeBlogRssSchema,nativeEmptyBlogInput} from './input'
+import {nativeBlogSettingsSchema,nativeBlogDecisionSchema,nativeBlogRssSchema,nativeEmptyBlogInput,nativeBlogRepairSchema} from './input'
+import {listUnresolvedNativeBlogOperations,repairNativeBlogOperation} from './operations'
 import {fetchNativeBlogRss} from './rss'
 import {nativeBlogTelegramSchema} from './input'
 import {saveNativeTelegramSettings} from './telegram'
@@ -14,13 +15,13 @@ import {generateNativeBlogPost} from './generation'
 import {UUID} from '../../auth/owned-principal'
 import type {NativeBlogActor} from './authority'
 const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{'Cache-Control':'private, no-store'}})
-export async function nativeBlogAdminHttp(kind:'settings'|'posts'|'rss'|'telegram'|'generate',request?:Request){
+export async function nativeBlogAdminHttp(kind:'settings'|'posts'|'rss'|'telegram'|'generate'|'operations',request?:Request){
  try{
   const mutation=!!request&&request.method!=='GET'
   if(mutation&&(!request||!hasSameOriginAdminMutation(request)))throw new AdminMenuError(403,'Origin mismatch')
   if(request?.headers.get('sec-fetch-site')==='cross-site')throw new AdminMenuError(403,'Origin mismatch')
   const raw=mutation&&request?(kind==='generate'?await nativeEmptyBlogInput(request):await tenantAdminBody(request)):undefined
-  const schema=kind==='settings'?nativeBlogSettingsSchema:kind==='posts'?nativeBlogDecisionSchema:kind==='telegram'?nativeBlogTelegramSchema:nativeBlogRssSchema
+  const schema=kind==='operations'?nativeBlogRepairSchema:kind==='settings'?nativeBlogSettingsSchema:kind==='posts'?nativeBlogDecisionSchema:kind==='telegram'?nativeBlogTelegramSchema:nativeBlogRssSchema
   if(kind==='generate'&&(!raw||typeof raw!=='object'||Array.isArray(raw)||Object.keys(raw).length))throw new AdminMenuError(400,'Generation body must be empty')
   const parsed=mutation&&kind!=='generate'?schema.safeParse(raw):null
   if(parsed&&!parsed.success)throw new AdminMenuError(400,'Invalid blog request')
@@ -31,6 +32,12 @@ export async function nativeBlogAdminHttp(kind:'settings'|'posts'|'rss'|'telegra
    if(current.kind!=='browser')throw new AdminMenuError(403,'Browser authority required')
    return operation(query,current.actor)
   })
+  if(kind==='operations'){
+   if(!mutation)return json({operations:await phase(false,(query,current)=>listUnresolvedNativeBlogOperations(query,current))})
+   if(!parsed?.success)throw new AdminMenuError(400,'Invalid blog request')
+   const repair=nativeBlogRepairSchema.parse(parsed.data)
+   return json(await phase(true,(query,current)=>repairNativeBlogOperation(query,current,repair.operationId)))
+  }
   if(!mutation){
    const state=await phase(false,(query,current)=>readNativeBlogState(query,current))
    if(kind==='settings')return json({settings:state.settings?{...state.settings,openrouter_api_key_masked:state.maskedKey,has_openrouter_key:state.hasOpenrouterKey}:null,nextScheduledRunAt:state.nextScheduledRunAt})

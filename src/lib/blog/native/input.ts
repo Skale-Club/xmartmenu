@@ -23,3 +23,4 @@ export const nativeBlogRssSchema=z.discriminatedUnion('action',[
  z.object({action:z.literal('fetch')}).strict(),
 ])
 export const nativeBlogTelegramSchema=z.object({enabled:z.boolean().optional(),approvalsEnabled:z.boolean().optional(),botToken:z.string().max(400).optional(),approvalsBotToken:z.string().max(400).optional(),chatIds:z.array(z.string().max(120)).max(20).optional(),approvalsChatIds:z.array(z.string().max(120)).max(20).optional()}).strict()
+export const nativeBlogRepairSchema=z.object({operationId:z.string().uuid()}).strict()
