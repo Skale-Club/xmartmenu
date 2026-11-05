@@ -44,6 +44,9 @@ import {
   nonRetryableHeaders,
 } from '@/lib/xphere/classify'
 import { captureSecurityEvent } from '@/lib/observability'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantEffectsSelected } from '@/lib/data/tenant-effect-authority-runtime'
+import { nativeCrmWorkerHttp } from '@/lib/tenant-effects/crm-http'
 
 // The QStash Receiver needs Node crypto; the route needs the service-role key and
 // a real fetch budget for the outbound Xphere call. Never Edge.
@@ -70,6 +73,7 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  if (ownedAuthSelected() || tenantEffectsSelected()) return nativeCrmWorkerHttp(req)
   // 1. Read the raw body ONCE. The same string feeds the verifier and JSON.parse —
   //    re-stringifying a parsed object would change the bytes QStash hashed.
   const rawBody = await req.text()

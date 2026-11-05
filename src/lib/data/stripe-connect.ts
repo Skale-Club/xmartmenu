@@ -2,6 +2,7 @@ import { AdminMenuError, type AdminMenuQuery } from './admin-menus'
 import { authorizeAdminActor, type AdminActorContext } from './admin-actor'
 import { readNativeTenantPlan } from './tenant-plan'
 import { planCeiling } from '../service-modes'
+import { enqueueNativeTenantEffect,tenantEffectsSelected } from './tenant-effects-outbox'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const unavailable = () => new AdminMenuError(503, 'Stripe connection is unavailable')
@@ -9,6 +10,7 @@ export interface NativeStripeConnection {
   id: string; tenant_id: string; stripe_account_id: string; scope: string; is_active: boolean
   connected_at: string | null; disconnected_at: string | null; created_at: string | null; updated_at: string | null
 }
+export type NativeStripeActor = AdminActorContext & { sessionHash: string }
 export interface NativeStripeOAuthAttempt { nonceHash: string; codeHash: string; expiresAt: number }
 function attempt(value: NativeStripeOAuthAttempt, now: Date, fresh = false) {
   if (!/^[a-f0-9]{64}$/.test(value.nonceHash) || !/^[a-f0-9]{64}$/.test(value.codeHash) || !Number.isFinite(now.getTime())
@@ -21,11 +23,17 @@ function timestamp(value: unknown): string | null {
   throw unavailable()
 }
 function tenant(value: string) { if (!UUID.test(value)) throw unavailable(); return value }
-async function owner(query: AdminMenuQuery, context: AdminActorContext, write = false): Promise<string> {
+async function owner(query: AdminMenuQuery, context: NativeStripeActor, write = false): Promise<string> {
   if (!context.tenantId) throw new AdminMenuError(403, 'Forbidden')
   const id = tenant(context.tenantId)
+  if (!/^[a-f0-9]{64}$/.test(context.sessionHash)) throw new AdminMenuError(403, 'A current browser session is required')
   if (write) await query("SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-account-authority',0))")
   await authorizeAdminActor(query, context, write)
+  const sessions = (await query(`SELECT s.user_id FROM public.app_sessions s JOIN public.app_accounts a ON a.id=s.user_id
+    JOIN public.app_identity_bindings b ON b.user_id=a.id AND b.project_id=s.project_id AND b.subject=s.subject
+    WHERE s.user_id=$1 AND s.token_hash=$2 AND s.session_version=a.session_version AND s.expires_at>clock_timestamp()
+      AND a.disabled_at IS NULL AND b.disabled_at IS NULL${write ? ' FOR SHARE OF s,a,b' : ''}`, [context.actorId, context.sessionHash])).rows
+  if (sessions.length !== 1) throw new AdminMenuError(403, 'A current browser session is required')
   if (write && !(await query('SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE', [id])).rows.length) throw unavailable()
   return id
 }
@@ -56,12 +64,12 @@ export async function readNativeStripeCurrency(query: AdminMenuQuery, tenantId: 
   if (typeof currency !== 'string' || !/^[a-z]{3}$/i.test(currency)) throw unavailable()
   return currency.toLowerCase()
 }
-export async function readNativeStripeOwnerState(query: AdminMenuQuery, context: AdminActorContext) {
+export async function readNativeStripeOwnerState(query: AdminMenuQuery, context: NativeStripeActor) {
   const id = await owner(query, context)
   return { tenantId: id, ...await readNativeStripeAvailability(query, id) }
 }
 /** Persist after exchange, rechecking actor and current plan in this transaction. */
-export async function connectNativeStripe(query: AdminMenuQuery, context: AdminActorContext, accountId: string, now = new Date()) {
+export async function connectNativeStripe(query: AdminMenuQuery, context: NativeStripeActor, accountId: string, now = new Date()) {
   const id = await owner(query, context, true)
   if (!/^acct_[A-Za-z0-9]+$/.test(accountId) || accountId.length > 255 || !Number.isFinite(now.getTime())) throw unavailable()
   if (!planCeiling((await readNativeTenantPlan(query, id, true))?.features ?? []).stripe) throw new AdminMenuError(403, 'Stripe feature is unavailable')
@@ -72,7 +80,7 @@ export async function connectNativeStripe(query: AdminMenuQuery, context: AdminA
     VALUES($1,$2,'read_write',$3,NULL,true) ON CONFLICT(tenant_id) DO UPDATE SET stripe_account_id=EXCLUDED.stripe_account_id,
     scope=EXCLUDED.scope,connected_at=EXCLUDED.connected_at,disconnected_at=NULL,is_active=true`, [id, accountId, now.toISOString()])
 }
-export async function disconnectNativeStripe(query: AdminMenuQuery, context: AdminActorContext, now = new Date()) {
+export async function disconnectNativeStripe(query: AdminMenuQuery, context: NativeStripeActor, now = new Date()) {
   const id = await owner(query, context, true)
   if (!Number.isFinite(now.getTime())) throw unavailable()
   const result = await query('UPDATE public.stripe_connections SET is_active=false,disconnected_at=$2 WHERE tenant_id=$1 AND is_active=true RETURNING id,stripe_account_id', [id, now.toISOString()])
@@ -80,11 +88,12 @@ export async function disconnectNativeStripe(query: AdminMenuQuery, context: Adm
   const row = result.rows[0]
   if (!row) return null
   if (typeof row.stripe_account_id !== 'string' || !row.stripe_account_id) throw unavailable()
+  if (tenantEffectsSelected()) await enqueueNativeTenantEffect(query, { tenantId:id,reason:'connect_changed',eventId:`disconnect:${String(row.id)}:${now.toISOString()}` })
   return { accountId: row.stripe_account_id }
 }
 
 /** OAuth token exchange is not idempotent: commit this claim before network. */
-export async function claimNativeStripeOAuth(query: AdminMenuQuery, context: AdminActorContext, proof: NativeStripeOAuthAttempt, now = new Date()): Promise<'claimed' | 'connected' | 'refused'> {
+export async function claimNativeStripeOAuth(query: AdminMenuQuery, context: NativeStripeActor, proof: NativeStripeOAuthAttempt, now = new Date()): Promise<'claimed' | 'connected' | 'refused'> {
   attempt(proof, now, true)
   const id = await owner(query, context, true)
   if (!await readNativeStripeFeature(query, id)) throw new AdminMenuError(403, 'Stripe feature is unavailable')
@@ -101,7 +110,7 @@ export async function claimNativeStripeOAuth(query: AdminMenuQuery, context: Adm
     VALUES($1,$2,$3,$4,$3,$4,$5,$6,'claimed')`, [proof.nonceHash, proof.codeHash, context.actorId, id, now.toISOString(), new Date(proof.expiresAt).toISOString()])
   return 'claimed'
 }
-export async function completeNativeStripeOAuth(query: AdminMenuQuery, context: AdminActorContext, proof: NativeStripeOAuthAttempt, accountId: string, now = new Date()) {
+export async function completeNativeStripeOAuth(query: AdminMenuQuery, context: NativeStripeActor, proof: NativeStripeOAuthAttempt, accountId: string, now = new Date()) {
   attempt(proof, now)
   const id = await owner(query, context, true)
   const claimed = await query(`SELECT nonce_hash FROM public.app_stripe_oauth_attempts WHERE nonce_hash=$1 AND code_hash=$2 AND actor_id=$3 AND tenant_id=$4
@@ -109,9 +118,10 @@ export async function completeNativeStripeOAuth(query: AdminMenuQuery, context: 
   if (claimed.rows.length !== 1) throw unavailable()
   await connectNativeStripe(query, context, accountId, now)
   await query("UPDATE public.app_stripe_oauth_attempts SET state='connected',stripe_account_id=$2,completed_at=$3 WHERE nonce_hash=$1", [proof.nonceHash, accountId, now.toISOString()])
+  if (tenantEffectsSelected()) await enqueueNativeTenantEffect(query, { tenantId:id,reason:'connect_changed',eventId:`oauth:${proof.nonceHash}` })
 }
 /** State-only cleanup stays possible after actor/tenant deletion or revocation. */
-export async function refuseNativeStripeOAuth(query: AdminMenuQuery, context: AdminActorContext, proof: NativeStripeOAuthAttempt, accountId?: string) {
+export async function refuseNativeStripeOAuth(query: AdminMenuQuery, context: NativeStripeActor, proof: NativeStripeOAuthAttempt, accountId?: string) {
   attempt(proof, new Date())
   if (accountId !== undefined && (!/^acct_[A-Za-z0-9]+$/.test(accountId) || accountId.length > 255)) throw unavailable()
   await query(`UPDATE public.app_stripe_oauth_attempts SET state='reconcile_required',stripe_account_id=$5,completed_at=NULL

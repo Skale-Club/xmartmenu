@@ -1,7 +1,7 @@
-import { randomBytes, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { AdminMenuError } from '@/lib/data/admin-menus'
-const state = vi.hoisted(() => ({ source: vi.fn(), cookie: vi.fn(), effective: vi.fn(), context: vi.fn(), read: vi.fn(), claim: vi.fn(), refuse: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), token: vi.fn(), deauth: vi.fn(), enqueue: vi.fn(), currency: vi.fn(), connection: vi.fn(), available: vi.fn(), feature: vi.fn(), order: [] as string[] }))
+const state = vi.hoisted(() => ({ source: vi.fn(), cookie: vi.fn(), effective: vi.fn(), context: vi.fn(), read: vi.fn(), claim: vi.fn(), refuse: vi.fn(), connect: vi.fn(), disconnect: vi.fn(), token: vi.fn(), deauth: vi.fn(), enqueue: vi.fn(), headers: vi.fn(), session: vi.fn(), publish: vi.fn(), currency: vi.fn(), connection: vi.fn(), available: vi.fn(), feature: vi.fn(), order: [] as string[] }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: state.cookie, createServiceClient: state.source }))
 vi.mock('@/lib/get-effective-tenant', () => ({ getEffectiveTenant: state.effective }))
 vi.mock('@/lib/admin/chat-context', () => ({ adminChatContext: state.context }))
@@ -9,14 +9,19 @@ vi.mock('@/lib/data/stripe-connect-runtime', () => ({ readOwnedStripeOwnerState:
   readOwnedStripeCurrency: state.currency, readOwnedStripeConnection: state.connection, readOwnedStripeAvailability: state.available, readOwnedStripeFeature: state.feature }))
 vi.mock('@/lib/stripe', () => ({ stripe: { oauth: { token: state.token, deauthorize: state.deauth } } }))
 vi.mock('@/lib/xphere/queue', () => ({ enqueueXphereSync: state.enqueue }))
+vi.mock('@/lib/tenant-effects/publish-pending', () => ({ publishPendingNativeTenantEffects: state.publish }))
+vi.mock('next/headers', () => ({ headers: state.headers }))
+vi.mock('@/lib/auth/identity-services', () => ({ getIdentityServices: () => ({ config: { origin:'https://fixture.invalid' }, store: { session: state.session } }) }))
 vi.mock('@/lib/observability/with-api', () => ({ withApi: (_: string, handler: unknown) => handler }))
 import { signOwnedStripeState, verifyOwnedStripeState } from '@/lib/stripe-owned-state'
 import { GET as start } from '@/app/api/stripe/connect/oauth/route'
 import { GET as finish } from '@/app/api/stripe/connect/callback/route'
 import { POST as stop } from '@/app/api/stripe/connect/disconnect/route'
-const tenantId = randomUUID(), actorId = randomUUID(), context = { actorId, tenantId, role: 'store-admin' as const }
+const token = randomBytes(32).toString('base64url'), sessionHash = createHash('sha256').update(token).digest('hex')
+const tenantId = randomUUID(), actorId = randomUUID(), context = { actorId, tenantId, role: 'store-admin' as const, sessionHash }
 const request = (signed = signOwnedStripeState(actorId, tenantId)) => new Request(`http://localhost/api/stripe/connect/callback?code=offline-code&state=${encodeURIComponent(signed)}`)
 beforeEach(() => {
+  vi.stubEnv('OWNED_AUTH_ENABLED','true'); state.headers.mockResolvedValue(new Headers({cookie:`__Host-xm_identity=${token}`})); state.session.mockResolvedValue({userId:actorId,authenticatedAt:new Date()})
   vi.stubEnv('OWNED_ADMIN_MENUS_ENABLED', 'true'); vi.stubEnv('OAUTH_STATE_SECRET', randomBytes(32).toString('hex'))
   vi.stubEnv('STRIPE_SECRET_KEY', randomUUID()); vi.stubEnv('STRIPE_CLIENT_ID', 'ca_fixture'); vi.stubEnv('NEXT_PUBLIC_APP_URL', 'https://fixture.invalid')
   state.effective.mockResolvedValue({ tenantId, role: 'store-admin' }); state.context.mockResolvedValue(context)
@@ -24,7 +29,7 @@ beforeEach(() => {
   state.claim.mockImplementation(async () => { state.order.push('claim'); return 'claimed' })
   state.token.mockImplementation(async () => { state.order.push('provider'); return { stripe_user_id: 'acct_fixture', scope: 'read_write' } })
   state.connect.mockImplementation(async () => { state.order.push('commit') })
-  state.enqueue.mockImplementation(async () => { state.order.push('queue') })
+  state.publish.mockImplementation(async () => { state.order.push('queue'); return {queued:true} })
   state.disconnect.mockImplementation(async () => { state.order.push('disconnect'); return { accountId: 'acct_fixture' } })
 })
 afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks(); state.order.length = 0 })
@@ -90,6 +95,20 @@ it('an uncertain claim commit stops before exchange, and revoked authority after
   expect((await finish(request(), undefined)).status).toBe(403)
   expect(state.refuse).toHaveBeenCalledOnce(); expect(state.enqueue).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled()
 })
+it('a revoked browser session after token exchange cannot persist Connect or queue CRM', async () => {
+  state.session.mockResolvedValueOnce({userId:actorId,authenticatedAt:new Date()}).mockResolvedValueOnce(null)
+  const response=await finish(request(),undefined)
+  expect(response.status).toBe(403);expect(state.token).toHaveBeenCalledOnce();expect(state.connect).not.toHaveBeenCalled()
+  expect(state.refuse).toHaveBeenCalledOnce();expect(state.publish).not.toHaveBeenCalled();expect(state.source).not.toHaveBeenCalled()
+})
+it('queue publication failure cannot turn a committed Connect/disconnect into a failed financial response', async () => {
+  state.publish.mockRejectedValue(new Error('synthetic queue unavailable'))
+  expect((await finish(request(),undefined)).headers.get('location')).toContain('stripe=connected')
+  expect(state.connect).toHaveBeenCalledOnce()
+  const response=await stop(new Request('http://localhost/api/stripe/connect/disconnect',{method:'POST'}),undefined)
+  expect(await response.json()).toEqual({success:true,disconnected:true})
+  expect(state.enqueue).not.toHaveBeenCalled();expect(state.source).not.toHaveBeenCalled()
+})
 it('a token timeout is marked uncertain and its duplicate refuses before the provider', async () => {
   const callback = request()
   state.claim.mockResolvedValue('claimed'); state.token.mockRejectedValue(new Error('response uncertain'))
@@ -101,7 +120,7 @@ it('a token timeout is marked uncertain and its duplicate refuses before the pro
 it('disconnect commits locally before bounded best-effort revoke; failed SQL never revokes', async () => {
   state.deauth.mockImplementation(async () => { state.order.push('revoke'); throw Error('provider unavailable') })
   const response = await stop(new Request('http://localhost/api/stripe/connect/disconnect', { method: 'POST' }), undefined)
-  expect(await response.json()).toEqual({ success: true, disconnected: true }); expect(state.order).toEqual(['disconnect','revoke'])
+  expect(await response.json()).toEqual({ success: true, disconnected: true }); expect(state.order).toEqual(['disconnect','queue','revoke'])
   expect(state.deauth).toHaveBeenCalledWith({ client_id: 'ca_fixture', stripe_user_id: 'acct_fixture' }, { timeout: 6000, maxNetworkRetries: 0 })
   state.deauth.mockClear(); state.disconnect.mockRejectedValue(new AdminMenuError(503, 'unavailable'))
   expect((await stop(new Request('http://localhost/api/stripe/connect/disconnect', { method: 'POST' }), undefined)).status).toBe(503); expect(state.deauth).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled()

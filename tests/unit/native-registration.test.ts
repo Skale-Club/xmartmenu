@@ -40,8 +40,8 @@ describe('native registration boundary', () => {
   it('onboarding denies disabled, recovery, absent and superadmin accounts before canonical function', async () => {
     for (const row of [null,{ role: 'superadmin' },{ role: 'customer',disabled_at: new Date() },{ role: 'store-admin',must_change_password: true }]) {
       const query = vi.fn(async () => ({ rows: row ? [row] : [] }))
-      await expect(nativeOnboarding(query,'server-uuid',{})).rejects.toThrow()
-      expect(query).toHaveBeenCalledTimes(1)
+      await expect(nativeOnboarding(query,'11111111-1111-4111-8111-111111111111','a'.repeat(64),{})).rejects.toThrow()
+      expect(query).toHaveBeenCalledTimes(2)
     }
   })
 })

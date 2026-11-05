@@ -30,6 +30,9 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
 import { withApi } from '@/lib/observability/with-api'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { tenantEffectsSelected } from '@/lib/data/tenant-effects-outbox'
+import { nativeTenantEffectsBackfill } from '@/lib/tenant-effects/backfill'
 
 const BATCH_SIZE = 100 // tenants enqueued per invocation page
 const THROTTLE_MS = 50 // delay between per-tenant enqueues to avoid stampeding /api/v1/sync
@@ -112,6 +115,7 @@ export async function runBackfillBatch(opts: {
  * (reason 'backfill'). Returns { enqueued, skipped, nextCursor, done }.
  */
 async function handlePOST(request: Request) {
+  if(ownedAuthSelected()||tenantEffectsSelected())return nativeTenantEffectsBackfill(request)
   const guard = await assertSuperadmin()
   if (!guard) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

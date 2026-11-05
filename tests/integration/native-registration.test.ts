@@ -95,10 +95,11 @@ test('late session failure rolls back profile account and binding',async () => {
 })
 test('canonical onboarding rolls back a missing entry plan then converges on retry',async () => {
   const uid = (await admin.query("SELECT user_id FROM public.app_identity_bindings WHERE subject='new-google'")).rows[0].user_id
+  const sessionHash=(await admin.query('SELECT token_hash FROM public.app_sessions WHERE user_id=$1',[uid])).rows[0].token_hash
   const input = { company_name: 'Synthetic Restaurant',tenant_slug: 'synthetic',menu_name: 'Lunch',menu_slug: 'lunch',menu_purpose: 'restaurant',category_name: 'Food',product_name: 'Soup',product_price: 12,primary_color: '#F52323',accent_color: '#09090b' }
   const run = async () => {
     const client = await backend.connect()
-    try { await client.query('BEGIN'); const result = await nativeOnboarding((sql,values) => client.query(sql,values),uid,input); await client.query('COMMIT'); return result }
+    try { await client.query('BEGIN'); const result = await nativeOnboarding((sql,values) => client.query(sql,values),uid,sessionHash,input); await client.query('COMMIT'); return result }
     catch (error) { await client.query('ROLLBACK'); throw error } finally { client.release() }
   }
   await assert.rejects(run(),{ code: 'P0500' })

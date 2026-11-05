@@ -1,3 +1,6 @@
+import { headers } from 'next/headers'
+import { getIdentityServices } from '../auth/identity-services'
+import { ownedAuthSelected, ownedSessionToken } from '../auth/owned-principal'
 import { NextResponse } from 'next/server'
 import { createHash } from 'node:crypto'
 import { stripe } from '../stripe'
@@ -6,7 +9,7 @@ import { adminChatContext } from '../admin/chat-context'
 import { AdminMenuError } from '../data/admin-menus'
 import { claimOwnedStripeOAuth, connectOwnedStripe, disconnectOwnedStripe, readOwnedStripeOwnerState, refuseOwnedStripeOAuth } from '../data/stripe-connect-runtime'
 import { signOwnedStripeState, verifyOwnedStripeState } from '../stripe-owned-state'
-import { enqueueXphereSync } from '../xphere/queue'
+import { publishPendingNativeTenantEffects } from '../tenant-effects/publish-pending'
 
 const OPTIONS = Object.freeze({ timeout: 6000, maxNetworkRetries: 0 })
 const base = () => process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'
@@ -15,10 +18,16 @@ function errorResponse(error: unknown) {
   return NextResponse.json({ error: error instanceof AdminMenuError ? error.message : 'Stripe connection is unavailable' }, { status: error instanceof AdminMenuError ? error.status : 503 })
 }
 async function actor() {
+  if (!ownedAuthSelected()) throw new AdminMenuError(503, 'Native browser authentication is required')
   const effective = await getEffectiveTenant()
   if (!effective) throw new AdminMenuError(401, 'Unauthorized')
   if (effective.role !== 'store-admin' && effective.role !== 'superadmin') throw new AdminMenuError(403, 'Forbidden')
-  return adminChatContext(effective)
+  const context = await adminChatContext(effective), current = await headers(), { config, store } = getIdentityServices()
+  const token = ownedSessionToken(current.get('cookie'), new URL(config.origin).protocol === 'https:')
+  if (!token) throw new AdminMenuError(401, 'Sign in again')
+  const session = await store.session(token)
+  if (!session || session.userId !== context.actorId) throw new AdminMenuError(403, 'Current browser session is required')
+  return { ...context, sessionHash: createHash('sha256').update(token).digest('hex') }
 }
 export async function startOwnedStripeConnect() {
   try {
@@ -64,13 +73,17 @@ export async function finishOwnedStripeConnect(request: Request) {
       return redirect('exchange_failed')
     }
     if (typeof accountId !== 'string' || !/^acct_[A-Za-z0-9]+$/.test(accountId)) { await refuseOwnedStripeOAuth(context, proof); return redirect('exchange_failed') }
-    try { await connectOwnedStripe(context, accountId, proof) }
+    try {
+      const current = await actor()
+      if (current.actorId !== context.actorId || current.tenantId !== context.tenantId || current.sessionHash !== context.sessionHash) throw new AdminMenuError(403, 'Stripe actor changed')
+      await connectOwnedStripe(current, accountId, proof)
+    }
     catch (error) {
       await refuseOwnedStripeOAuth(context, proof, accountId)
       if (error instanceof AdminMenuError && error.status === 403) return error.message === 'Stripe feature is unavailable' ? redirect('feature_not_available') : errorResponse(error)
       return redirect('db_error')
     }
-    await enqueueXphereSync(signed.tenantId, 'connect_changed')
+    await publishPendingNativeTenantEffects(signed.tenantId).catch(() => {})
     return redirect('connected')
   } catch (error) { return errorResponse(error) }
 }
@@ -79,6 +92,7 @@ export async function stopOwnedStripeConnect() {
     const context = await actor(), connection = await disconnectOwnedStripe(context)
     // Source .single() rejects a zero-row update; retain that response.
     if (!connection) return NextResponse.json({ error: 'Failed to disconnect Stripe account' }, { status: 500 })
+    if (context.tenantId) await publishPendingNativeTenantEffects(context.tenantId).catch(() => {})
     const clientId = process.env.STRIPE_CLIENT_ID
     if (clientId) {
       try { await stripe.oauth.deauthorize({ client_id: clientId, stripe_user_id: connection.accountId }, OPTIONS) }

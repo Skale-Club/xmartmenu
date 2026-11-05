@@ -3,7 +3,7 @@ import Stripe from 'stripe'
 import { NextRequest } from 'next/server'
 import { beforeEach, afterEach, expect, it, vi } from 'vitest'
 import { AdminMenuError } from '@/lib/data/admin-menus'
-const state = vi.hoisted(() => ({ source: vi.fn(), owned: vi.fn(), raw: vi.fn(), enqueue: vi.fn(), security: vi.fn(), bill: vi.fn() }))
+const state = vi.hoisted(() => ({ source: vi.fn(), owned: vi.fn(), raw: vi.fn(), enqueue: vi.fn(), publish: vi.fn(), security: vi.fn(), bill: vi.fn() }))
 vi.mock('@/lib/supabase/server', () => ({ createServiceClient: state.source }))
 vi.mock('@/lib/data/saas-webhooks-runtime', () => ({ processOwnedSaasWebhook: state.owned }))
 vi.mock('@/lib/stripe', async () => {
@@ -11,6 +11,7 @@ vi.mock('@/lib/stripe', async () => {
   return { stripe: { webhooks: { constructEvent: (...args: Parameters<typeof SDK.webhooks.constructEvent>) => { state.raw(...args); return SDK.webhooks.constructEvent(...args) } } } }
 })
 vi.mock('@/lib/xphere/queue', () => ({ enqueueXphereSync: state.enqueue }))
+vi.mock('@/lib/tenant-effects/publish-pending', () => ({ publishPendingNativeTenantEffects: state.publish }))
 vi.mock('@/lib/ai/billing', () => ({ billAiUsage: state.bill, subscriptionIdFromInvoice: vi.fn() }))
 vi.mock('@/lib/tenant-plan', () => ({ reconcileTenantSettings: vi.fn() }))
 vi.mock('@/lib/observability', () => ({ captureSecurityEvent: state.security }))
@@ -22,7 +23,7 @@ let secret: string
 beforeEach(() => {
   secret = randomBytes(32).toString('hex'); vi.stubEnv('STRIPE_WEBHOOK_SECRET', secret)
   vi.stubEnv('OWNED_ADMIN_MENUS_ENABLED', 'true'); vi.stubEnv('OWNED_ORDER_DATA_ENABLED', 'false'); vi.stubEnv('OWNED_PAYMENT_DATA_ENABLED', 'false')
-  state.owned.mockResolvedValue({ received: true }); state.enqueue.mockResolvedValue(undefined)
+  state.owned.mockResolvedValue({ received: true }); state.enqueue.mockResolvedValue(undefined); state.publish.mockResolvedValue({queued:true})
 })
 afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks() })
 const payload = (type = 'checkout.session.completed') => ` { "id": "evt_${randomUUID().replaceAll('-', '')}", "type": "${type}", "data": {"object":{"metadata":{"tenant_id":"${tenant}","kind":"plan"}}} } `
@@ -43,15 +44,22 @@ it('post-commit CRM/security intents retain event ID and duplicate receipts emit
   const raw = payload('account.updated'), id = JSON.parse(raw).id
   state.owned.mockResolvedValueOnce({ received: true, disabledAccountId: 'account-fixture', pendingSync: { tenantId: tenant, reason: 'connect_changed', tags: ['changed'] } })
   expect((await POST(request(raw), undefined)).status).toBe(200)
-  expect(state.enqueue).toHaveBeenCalledWith(tenant, 'connect_changed', { eventId: id, tags: ['changed'] }); expect(state.security).toHaveBeenCalledTimes(1)
-  state.enqueue.mockClear(); state.security.mockClear(); state.owned.mockResolvedValueOnce({ received: true, skipped: true })
-  const duplicate = await POST(request(raw), undefined); expect(await duplicate.json()).toEqual({ received: true, skipped: true }); expect(state.enqueue).not.toHaveBeenCalled(); expect(state.security).not.toHaveBeenCalled()
+  expect(state.owned).toHaveBeenCalledWith(expect.objectContaining({id})); expect(state.publish).toHaveBeenCalledWith(tenant); expect(state.enqueue).not.toHaveBeenCalled(); expect(state.security).toHaveBeenCalledTimes(1)
+  state.enqueue.mockClear(); state.publish.mockClear(); state.security.mockClear(); state.owned.mockResolvedValueOnce({ received: true, skipped: true })
+  const duplicate = await POST(request(raw), undefined); expect(await duplicate.json()).toEqual({ received: true, skipped: true }); expect(state.enqueue).not.toHaveBeenCalled(); expect(state.publish).not.toHaveBeenCalled(); expect(state.security).not.toHaveBeenCalled()
 })
 it('native failure or required invoice billing returns retryable failure without Source/billing/enqueue fallback', async () => {
   state.owned.mockRejectedValue(new AdminMenuError(503, 'Native AI invoice settlement is not available'))
   const response = await POST(request(payload('invoice.created')), undefined)
   expect(response.status).toBe(500); expect(await response.json()).toEqual({ error: 'Processing error' })
   expect(state.bill).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled(); expect(state.enqueue).not.toHaveBeenCalled()
+})
+it('queue publication failure after the native event commit still acknowledges the signed financial event', async()=>{
+  state.owned.mockResolvedValue({received:true,pendingSync:{tenantId:tenant,reason:'plan_activated'}})
+  state.publish.mockRejectedValue(new Error('synthetic queue unavailable'))
+  const response=await POST(request(payload()),undefined)
+  expect(response.status).toBe(200);expect(await response.json()).toEqual({received:true})
+  expect(state.publish).toHaveBeenCalledWith(tenant);expect(state.enqueue).not.toHaveBeenCalled();expect(state.source).not.toHaveBeenCalled()
 })
 it('a genuinely signed connected-account checkout cannot use foreign tenant metadata to mutate platform SaaS in either mode', async () => {
   const connected = JSON.stringify({ ...JSON.parse(payload()), account: 'acct_merchantfixture', livemode: true,

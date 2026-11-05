@@ -25,6 +25,7 @@ import { withOwnedPayments } from '@/lib/data/payments-runtime'
 import { createServiceClient } from '@/lib/supabase/server'
 import { captureSecurityEvent } from '@/lib/observability'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
+import { publishPendingNativeTenantEffects } from '@/lib/tenant-effects/publish-pending'
 import { applyPaymentSignal, type IntentFacts } from '@/lib/orders/payment-sync'
 import type { PaymentSignal } from '@/lib/orders/status-machine'
 import { withApi } from '@/lib/observability/with-api'
@@ -81,7 +82,7 @@ async function handlePOST(request: NextRequest) {
     if (adminMenusOwned()) {
       const outcome = await processOwnedSaasWebhook(saasEvent)
       if (outcome.disabledAccountId) captureSecurityEvent('Stripe Connect: charges disabled on connected account', { stripeAccountId: outcome.disabledAccountId })
-      if (outcome.pendingSync) await enqueueXphereSync(outcome.pendingSync.tenantId, outcome.pendingSync.reason, { eventId: event.id, ...(outcome.pendingSync.tags ? { tags: outcome.pendingSync.tags } : {}) })
+      if (outcome.pendingSync) await publishPendingNativeTenantEffects(outcome.pendingSync.tenantId).catch(() => {})
       return NextResponse.json(outcome.skipped ? { received: true, skipped: true } : { received: true })
     }
     // Webhook requests have no cookies; the service client bypasses RLS to write
