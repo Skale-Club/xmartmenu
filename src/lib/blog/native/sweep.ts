@@ -4,6 +4,7 @@ import {UUID} from '../../auth/owned-principal'
 import {requireNativeBlogConfiguration} from './selected'
 import {generateNativeBlogPost} from './generation'
 import {fetchNativeBlogRss} from './rss'
+import {revalidateNativeBlogPublic} from './public-paths'
 import {drainNativeDraftNotifications} from './telegram'
 import type {SweepSummary} from '../sweep'
 import {describeScope} from '../scope'
@@ -21,7 +22,7 @@ export async function runNativeBlogSweep(trigger:'cron'|'manual',requestKey?:str
   try{
    await drainNativeDraftNotifications({kind:'cron',scope}).catch(()=>{})
    const result=await generateNativeBlogPost({kind:'cron',scope},{trigger,requestKey:key})
-   if(result.status==='generated')summary.generated++;else if(result.status==='failed')summary.failed++;else summary.skipped++
+   if(result.status==='generated'){summary.generated++;await revalidateNativeBlogPublic(scope,result.postId)}else if(result.status==='failed')summary.failed++;else summary.skipped++
    summary.entries.push({scope:describeScope(scope),status:result.status,...(result.status==='generated'?{title:result.title}:result.status==='failed'?{error:result.error}:{reason:result.reason})})
   }catch{summary.failed++;summary.entries.push({scope:describeScope(scope),status:'failed',error:'Native blog scope is unavailable'})}
  }

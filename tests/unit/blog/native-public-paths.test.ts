@@ -9,6 +9,7 @@ vi.mock('@/lib/blog/native/rss',()=>({fetchNativeBlogRss:vi.fn()}))
 vi.mock('@/lib/blog/native/telegram',()=>({saveNativeTelegramSettings:vi.fn(),checkNativeTelegramWebhook:vi.fn()}))
 vi.mock('@/lib/blog/native/admin-data',()=>({readNativeBlogState:vi.fn(),saveNativeBlogSettings:vi.fn(),decideNativeBlogPost:vi.fn(),changeNativeRssSource:vi.fn()}))
 import {nativeTenantBlogPublicPaths} from '@/lib/blog/native/actions'
+import {nativeBlogPublicPaths,revalidateNativeBlogPublic} from '@/lib/blog/native/public-paths'
 const actor=(scope:string|null)=>({actorId:'a',sessionHash:'h',scope,projectId:'p',subject:'s',authenticatedAt:1,checkedAt:1})
 beforeEach(()=>{mocks.rows={tenant:{slug:'cafe'},post:{slug:'first-post'}}})
 it('a tenant publish refreshes the slug blog list, the feed and the post page',async()=>{
@@ -19,6 +20,13 @@ it('without a post only the list and the feed are refreshed; an unknown tenant r
  mocks.rows={}
  expect(await nativeTenantBlogPublicPaths(actor('11111111-1111-4111-8111-111111111111'))).toEqual([])
 })
-it('the platform blog keeps its own path',async()=>{
- expect(await nativeTenantBlogPublicPaths(actor(null))).toEqual(['/blog'])
+it('the platform blog refreshes its list, feed and post page too',async()=>{
+ expect(await nativeTenantBlogPublicPaths(actor(null),'22222222-2222-4222-8222-222222222222')).toEqual(['/blog','/blog/rss.xml','/blog/first-post'])
+})
+it('cron generation and Telegram approval share the same revalidation, and a failure never throws',async()=>{
+ await revalidateNativeBlogPublic('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222')
+ expect(mocks.revalidate.mock.calls.map(call=>call[0])).toEqual(['/cafe/blog','/cafe/blog/rss.xml','/cafe/blog/first-post'])
+ mocks.revalidate.mockImplementation(()=>{throw new Error('cache down')})
+ await expect(revalidateNativeBlogPublic('11111111-1111-4111-8111-111111111111')).resolves.toBeUndefined()
+ expect(await nativeBlogPublicPaths(null)).toEqual(['/blog','/blog/rss.xml'])
 })

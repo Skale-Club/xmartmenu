@@ -33,7 +33,7 @@ export async function callNativeTelegram(token:string,method:'setWebhook'|'delet
  if(definitiveHttpStatus(response.status)){await response.body?.cancel().catch(()=>{});throw new NativeBlogDefinitiveError(`Telegram rejected the request (HTTP ${response.status}); check the bot token and chat`)}
  const result=await nativeBlogResponseJson(response,2097152)
  if(!response.ok)throw new NativeBlogUnknownOutcomeError('Telegram outcome needs review')
- if(result.ok!==true)throw new NativeBlogDefinitiveError('Telegram rejected the request')
+ if(result.ok!==true)throw new NativeBlogUnknownOutcomeError('Telegram answered without confirming the request')
  return result
 }
 /** Nothing left the building (error before the request), or Telegram answered with a refusal: final. Otherwise the outcome is unknown. */

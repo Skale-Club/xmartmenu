@@ -1,4 +1,4 @@
-import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogSelected,legacyBlogWritesBlocked,LEGACY_BLOG_WRITES_MESSAGE} from '@/lib/blog/native/selected'
 import {nativeBlogAdminHttp} from '@/lib/blog/native/admin-http'
 /**
  * Auto-blog settings (autoblog-parity XM-09). Superadmin only: this is the
@@ -86,6 +86,7 @@ async function handleGET() {
 
 async function handlePATCH(request: Request) {
   if(nativeBlogSelected())return nativeBlogAdminHttp('settings',request)
+  if(legacyBlogWritesBlocked())return NextResponse.json({error:LEGACY_BLOG_WRITES_MESSAGE},{status:503})
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = patchSchema.safeParse(await request.json().catch(() => null))

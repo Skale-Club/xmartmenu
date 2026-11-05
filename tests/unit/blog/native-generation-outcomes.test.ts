@@ -20,6 +20,7 @@ vi.mock('@/lib/blog/native/provider-call',()=>({callNativeBlogAi:mocks.call}))
 vi.mock('@/lib/blog/native/telegram',()=>({reserveNativeDraftNotification:async()=>null,dispatchNativeDraftNotification:async()=>({status:'pending'}),drainNativeDraftNotifications:async()=>undefined}))
 import {generateNativeBlogPost} from '@/lib/blog/native/generation'
 import {NativeBlogDefinitiveError,NativeBlogUnknownOutcomeError} from '@/lib/blog/native/outcome'
+import {AdminMenuError} from '@/lib/data/admin-menus'
 const context={kind:'cron' as const,scope:null}
 const settings={enabled:true,posts_per_day:1,posting_hour:null,last_run_at:null,image_model:'synthetic/image',text_model:'synthetic/text',auto_publish:true,timezone:'UTC',enable_trend_analysis:false}
 const text=(content:string)=>({choices:[{message:{content}}]})
@@ -82,5 +83,27 @@ describe('the cover is optional and never discards the paid post',()=>{
  it('a healthy cover is attached',async()=>{
   const result=await run()
   expect(result.status).toBe('generated');expect(mocks.inserts[0][10]).toBe('https://synthetic.example/cover.webp')
+ })
+})
+describe('adminMenuTransaction reports every failure, a COMMIT timeout included, as 503: after a paid call that is unknown',()=>{
+ const unavailable=()=>new AdminMenuError(503,'Menu service is unavailable')
+ it('503 while publishing reconciles instead of failing (a repeat would pay and publish twice)',async()=>{
+  mocks.query.mockImplementation(async(sql:string)=>{if(sql.includes('INSERT INTO public.blog_posts'))throw unavailable();return {rows:[]}})
+  expect((await run()).status).toBe('failed');expect(mocks.reconcile).toHaveBeenCalledOnce();expect(mocks.fail).not.toHaveBeenCalled()
+ })
+ it('503 while saving draft_payload reconciles',async()=>{
+  mocks.query.mockImplementation(async(sql:string)=>{if(sql.includes('draft_payload'))throw unavailable();return {rows:[]}})
+  await run();expect(mocks.reconcile).toHaveBeenCalledOnce();expect(mocks.fail).not.toHaveBeenCalled();expect(mocks.inserts).toHaveLength(0)
+ })
+ it('503 raised by a step after a call went out reconciles; a 4xx there is still a final failure',async()=>{
+  mocks.call.mockRejectedValueOnce(unavailable())
+  await run();expect(mocks.reconcile).toHaveBeenCalledOnce()
+  vi.clearAllMocks()
+  mocks.call.mockRejectedValueOnce(new AdminMenuError(409,'Blog configuration changed'))
+  await run();expect(mocks.fail).toHaveBeenCalledOnce();expect(mocks.reconcile).not.toHaveBeenCalled()
+ })
+ it('503 before any paid call left is still a final failure',async()=>{
+  mocks.query.mockImplementation(async(sql:string)=>{if(sql.includes('pillar_id'))throw unavailable();return {rows:[]}})
+  await run();expect(mocks.fail).toHaveBeenCalledOnce();expect(mocks.reconcile).not.toHaveBeenCalled();expect(mocks.call).not.toHaveBeenCalled()
  })
 })

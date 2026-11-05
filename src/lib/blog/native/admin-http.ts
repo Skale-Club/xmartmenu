@@ -1,5 +1,5 @@
 import {NextResponse} from 'next/server'
-import {revalidatePath} from 'next/cache'
+import {revalidateNativeBlogPublic} from './public-paths'
 import {AdminMenuError,type AdminMenuQuery} from '../../data/admin-menus'
 import {hasSameOriginAdminMutation} from '../../data/admin-display-settings'
 import {tenantAdminBody} from '../../admin/owned-tenant-administration-http'
@@ -47,14 +47,14 @@ export async function nativeBlogAdminHttp(kind:'settings'|'posts'|'rss'|'telegra
   if(kind==='generate'||kind==='telegram'){
    if(kind==='telegram')return json(await saveNativeTelegramSettings(context,nativeBlogTelegramSchema.parse(raw),key))
    const result=await generateNativeBlogPost(context,{trigger:'manual',requestKey:key})
-   try{revalidatePath('/blog')}catch{}
+   await revalidateNativeBlogPublic(null,result.status==='generated'?result.postId:undefined)
    return json(result.status==='skipped'?{...result,error:'Generation was not started: '+result.reason}:result,result.status==='generated'?200:409)
   }
   if(!parsed?.success)throw new AdminMenuError(400,'Invalid blog request')
   if(kind==='settings')await phase(true,(query,current)=>saveNativeBlogSettings(query,current,nativeBlogSettingsSchema.parse(parsed.data)))
   else if(kind==='posts'){
    const result=await phase(true,(query,current)=>decideNativeBlogPost(query,current,nativeBlogDecisionSchema.parse(parsed.data)))
-   try{revalidatePath('/blog')}catch{}
+   await revalidateNativeBlogPublic(null,nativeBlogDecisionSchema.parse(parsed.data).postId)
    return json(result)
   }else{
    const input=nativeBlogRssSchema.parse(parsed.data)

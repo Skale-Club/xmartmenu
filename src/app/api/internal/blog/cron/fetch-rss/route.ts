@@ -1,4 +1,4 @@
-import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogSelected,legacyBlogWritesBlocked,LEGACY_BLOG_WRITES_MESSAGE} from '@/lib/blog/native/selected'
 import {nativeBlogCronHttp} from '@/lib/blog/native/cron-http'
 /**
  * Scheduled RSS ingestion (autoblog-parity XM-05/XM-07). Same authorisation and
@@ -33,5 +33,6 @@ export async function POST(request: Request) {
   // XM-14) — the platform's own and each restaurant's. A scope with RSS off
   // opens no sockets at all.
   if(nativeBlogSelected())return nativeBlogCronHttp(request,'rss')
+  if(legacyBlogWritesBlocked())return NextResponse.json({error:LEGACY_BLOG_WRITES_MESSAGE},{status:503})
   return NextResponse.json(await runRssSweep())
 }

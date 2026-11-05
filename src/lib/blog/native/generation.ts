@@ -52,11 +52,16 @@ export async function generateNativeBlogPost(context:NativeBlogContext,input:{tr
  }
  if(!operation.claimId||!jobId)return {status:'failed',error:'This operation already started; inspect job history before another attempt'}
  const claimId=operation.claimId,started=Date.now()
+ // adminMenuTransaction turns EVERY failure (a COMMIT timeout included) into a 503,
+ // and a commit that timed out may still have landed. Only a status below 500 is a
+ // known "nothing was written"; anything else after a paid call left is unknown.
+ let sent=false
+ const settle=(error:unknown):never=>{throw error instanceof AdminMenuError&&error.status<500?error:new NativeBlogUnknownOutcomeError('Publishing outcome needs review; the post may already have been saved')}
  try{
   const assignment=assignPillar(facts.recentPillars,{hasRssItem:!!facts.rssItem,hasMenu:(facts.tenantContext?.dishes.length??0)>0,hasAddress:!!facts.tenantContext?.address?.trim()},hashSeed(jobId),facts.tenantContext?TENANT_BLOG_PILLARS:undefined)
   await nativeBlogPhase(context,true,(query)=>query('UPDATE public.blog_generation_jobs SET pillar_id=$2 WHERE id=$1',[jobId,assignment.pillar.id]))
   const {systemMessage,allowedLinkPaths}=buildBlogEditorialPrompt(settings,assignment,facts.rssItem,facts.tenantContext,facts.editorial)
-  const call=(index:number,prompt:string)=>callNativeBlogAi({context,operationId:operation.id,claimId,index,settingsDigest:facts.digest,choice,body:{model,messages:[{role:'system',content:systemMessage},{role:'user',content:prompt}],temperature:0.7}},send)
+  const call=(index:number,prompt:string)=>{sent=true;return callNativeBlogAi({context,operationId:operation.id,claimId,index,settingsDigest:facts.digest,choice,body:{model,messages:[{role:'system',content:systemMessage},{role:'user',content:prompt}],temperature:0.7}},send)}
   const topicStart=Date.now(),topicBody=await call(0,facts.rssItem?'Transforme a FONTE em UMA ideia de pauta, no formato que a PAUTA DESTE POST determina. A pauta tem que ser sobre o que a fonte significa para o nosso leitor, não um recontar dela. Devolva APENAS a pauta, nada mais.':'Proponha UMA ideia de pauta que cumpra a PAUTA DESTE POST: seu pilar, seu formato de título, um único assunto. Devolva APENAS a pauta, nada mais.')
   const contentText=(body:Record<string,unknown>)=>String((body.choices as Array<{message?:{content?:string}}>|undefined)?.[0]?.message?.content??'').trim()
   const topic=contentText(topicBody);if(!topic||topic.length>4000)throw new Error('Invalid topic')
@@ -66,7 +71,7 @@ export async function generateNativeBlogPost(context:NativeBlogContext,input:{tr
   generated.content=sanitizeBlogHtml(sanitizeGeneratedLinks(generated.content,allowedLinkPaths))
   const length=getPlainTextLength(generated.content)
   if(length<MIN_PLAIN_TEXT_CHARS||length>MAX_PLAIN_TEXT_CHARS)throw new Error('Generated content length is invalid')
-  await nativeBlogPhase(context,true,async(query,current)=>{await requireNativeBlogFacts(query,current,facts.digest);await query('UPDATE public.app_blog_operations SET draft_payload=$3::jsonb WHERE id=$1 AND claim_id=$2',[operation.id,claimId,JSON.stringify(generated)])})
+  await nativeBlogPhase(context,true,async(query,current)=>{await requireNativeBlogFacts(query,current,facts.digest);await query('UPDATE public.app_blog_operations SET draft_payload=$3::jsonb WHERE id=$1 AND claim_id=$2',[operation.id,claimId,JSON.stringify(generated)])}).catch(settle)
   let coverUrl:string|null=null,imageMs:number|null=null,uploadMs=0,coverSkipped=false
   // The cover is optional. Whatever goes wrong with it, the paid post is kept and
   // published with cover=null; its calls stay reviewable (ambiguous) on their own.
@@ -103,13 +108,13 @@ export async function generateNativeBlogPost(context:NativeBlogContext,input:{tr
    await finishNativeBlogOperation(query,current,operation.id,claimId,outcome)
    const notification=settings.auto_publish?null:await reserveNativeDraftNotification(query,current,{postId,title:generated.title,excerpt:generated.excerpt||null,pillarLabel:assignment.pillar.label})
    return {outcome,notificationId:notification?.id}
-  }).catch(error=>{throw error instanceof AdminMenuError?error:new NativeBlogUnknownOutcomeError('Publishing outcome needs review; the post may already have been saved')})
+  }).catch(settle)
   if(result.notificationId)await dispatchNativeDraftNotification(context,result.notificationId,send).catch(()=>{})
   return result.outcome
  }catch(error){
   // Only a genuinely unknown outcome (timeout/network after send, 5xx, unseen commit)
   // is reconciled and blocks the tenant. A known refusal or unusable content is final.
-  const unknown=error instanceof NativeBlogUnknownOutcomeError
+  const unknown=error instanceof NativeBlogUnknownOutcomeError||(sent&&error instanceof AdminMenuError&&error.status>=500)
   const message=unknown?'This operation needs review; no paid call will be automatically repeated':error instanceof NativeBlogDefinitiveError?error.message:'Generation failed; nothing is pending and you can try again'
   await ownedAdminTransaction(true,async query=>{
    if(unknown)await reconcileNativeBlogOperation(query,operation.id,claimId)

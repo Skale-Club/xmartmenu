@@ -1,4 +1,4 @@
-import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogSelected,legacyBlogWritesBlocked,LEGACY_BLOG_WRITES_MESSAGE} from '@/lib/blog/native/selected'
 import {nativeBlogAdminHttp} from '@/lib/blog/native/admin-http'
 /**
  * The approval queue and the job history (autoblog-parity XM-09).
@@ -48,6 +48,7 @@ const decisionSchema = z.object({
 
 async function handlePOST(request: Request) {
   if(nativeBlogSelected())return nativeBlogAdminHttp('posts',request)
+  if(legacyBlogWritesBlocked())return NextResponse.json({error:LEGACY_BLOG_WRITES_MESSAGE},{status:503})
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = decisionSchema.safeParse(await request.json().catch(() => null))

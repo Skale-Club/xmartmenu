@@ -3,7 +3,7 @@ const mocks=vi.hoisted(()=>({tx:vi.fn(),posts:vi.fn(),tags:vi.fn(),archive:vi.fn
 vi.mock('@/lib/data/admin-menus-runtime',()=>({ownedAdminTransaction:mocks.tx}))
 vi.mock('@/lib/seo',()=>({PLATFORM_BASE:'https://synthetic.example'}))
 vi.mock('@/lib/blog/native/public-data',()=>({readNativePublishedPosts:mocks.posts,readNativeBlogTags:mocks.tags,readNativeBlogArchive:mocks.archive}))
-import {nativeBlogFlagProblem,nativeBlogFlagsReady,reportNativeBlogFlags} from '@/lib/blog/native/flags'
+import {nativeBlogFlagProblem,nativeBlogFlagsReady,reportNativeBlogFlags,legacyBlogWritesBlocked} from '@/lib/blog/native/flags'
 import {nativeBlogSelected,requireNativeBlogConfiguration} from '@/lib/blog/native/selected'
 import {nativePlatformSitemap} from '@/lib/blog/native/sitemap'
 describe('flag combinations',()=>{
@@ -25,6 +25,17 @@ describe('flag combinations',()=>{
  })
  it('a malformed value is reported rather than guessed',()=>{
   expect(nativeBlogFlagProblem({OWNED_BLOG_ENABLED:'yes'})).toContain('must be "true" or "false"')
+ })
+})
+describe('legacy blog writes are refused once data lives in the owned database',()=>{
+ it('auth on without the blog flag blocks cron and mutations but still selects the legacy path for public reads',()=>{
+  for(const env of [{OWNED_AUTH_ENABLED:'true'},{OWNED_AUTH_ENABLED:'true',OWNED_BLOG_ENABLED:'false'}]){
+   expect(legacyBlogWritesBlocked(env)).toBe(true);expect(nativeBlogSelected(env)).toBe(false)
+  }
+ })
+ it('is not blocked when auth is off, or when the native blog is on',()=>{
+  expect(legacyBlogWritesBlocked({})).toBe(false);expect(legacyBlogWritesBlocked({OWNED_BLOG_ENABLED:'true'})).toBe(false)
+  expect(legacyBlogWritesBlocked({OWNED_AUTH_ENABLED:'true',OWNED_BLOG_ENABLED:'true'})).toBe(false)
  })
 })
 describe('platform sitemap degrades by block and never throws',()=>{

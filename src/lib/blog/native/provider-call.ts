@@ -9,13 +9,13 @@ import {prepareNativeBlogCall,recordNativeBlogCall,recordNativeBlogCallFailure,r
 import {NativeBlogDefinitiveError,NativeBlogUnknownOutcomeError,definitiveHttpStatus} from './outcome'
 import type {NativeBlogContext} from './authority'
 export async function nativeBlogResponseJson(response:Response,maxBytes=25165824):Promise<Record<string,unknown>>{
- if(Number(response.headers.get('content-length')??0)>maxBytes)throw new NativeBlogDefinitiveError('Provider response exceeds the size limit')
- const reader=response.body?.getReader();if(!reader)throw new NativeBlogDefinitiveError('Provider response had no body')
+ if(Number(response.headers.get('content-length')??0)>maxBytes)throw new NativeBlogUnknownOutcomeError('Provider response exceeds the size limit')
+ const reader=response.body?.getReader();if(!reader)throw new NativeBlogUnknownOutcomeError('Provider response had no body')
  let size=0,raw='';const decoder=new TextDecoder()
- try{for(;;){const next=await reader.read();if(next.done)break;size+=next.value.byteLength;if(size>maxBytes){await reader.cancel();throw new NativeBlogDefinitiveError('Provider response exceeds the size limit')}raw+=decoder.decode(next.value,{stream:true})}}finally{reader.releaseLock()}
+ try{for(;;){const next=await reader.read();if(next.done)break;size+=next.value.byteLength;if(size>maxBytes){await reader.cancel();throw new NativeBlogUnknownOutcomeError('Provider response exceeds the size limit')}raw+=decoder.decode(next.value,{stream:true})}}finally{reader.releaseLock()}
  let body:unknown
- try{body=JSON.parse(raw+decoder.decode())}catch{throw new NativeBlogDefinitiveError('Provider response was not valid JSON')}
- if(!body||typeof body!=='object'||Array.isArray(body))throw new NativeBlogDefinitiveError('Provider response was not a JSON object')
+ try{body=JSON.parse(raw+decoder.decode())}catch{throw new NativeBlogUnknownOutcomeError('Provider response was not valid JSON')}
+ if(!body||typeof body!=='object'||Array.isArray(body))throw new NativeBlogUnknownOutcomeError('Provider response was not a JSON object')
  return body as Record<string,unknown>
 }
 export function nativeBlogUsage(body:Record<string,unknown>){
@@ -40,8 +40,6 @@ export async function callNativeBlogAi(input:{context:NativeBlogContext;operatio
   status=response.status
   if(definitiveHttpStatus(status)){await response.body?.cancel().catch(()=>{});throw new NativeBlogDefinitiveError(`AI provider refused the request (HTTP ${status})`)}
   const body=await nativeBlogResponseJson(response)
-  const providerError=body.error as {code?:unknown}|undefined
-  if(providerError&&typeof providerError.code==='number'&&definitiveHttpStatus(providerError.code))throw new NativeBlogDefinitiveError(`AI provider refused the request (HTTP ${providerError.code})`)
   if(!response.ok||body.error)throw new Error('AI provider outcome requires review')
   const fact=nativeBlogUsage(body)
   await ownedAdminTransaction(true,query=>recordNativeBlogCall(query,input.operationId,input.claimId,input.index,{bodyDigest:tenantEffectDigest(body),httpStatus:response.status},fact))

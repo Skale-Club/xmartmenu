@@ -1,7 +1,7 @@
 import {applyNativeTelegramDecision} from './telegram-data'
 import {createHash,timingSafeEqual} from 'node:crypto'
 import {NextResponse} from 'next/server'
-import {revalidatePath} from 'next/cache'
+import {revalidateNativeBlogPublic} from './public-paths'
 import {AdminMenuError} from '../../data/admin-menus'
 import {ownedAdminTransaction} from '../../data/admin-menus-runtime'
 import {tenantAdminBody} from '../../admin/owned-tenant-administration-http'
@@ -27,7 +27,7 @@ export async function nativeBlogTelegramWebhook(request:Request){
   if(!isChatAllowed(settings[0] as unknown as TelegramSettingsRow,chatId))return json({ok:true,ignored:true})
   const context={kind:'telegram' as const,scope:settings[0].tenant_id===null?null:String(settings[0].tenant_id),settingsId:String(settings[0].id),secretHash:createHash('sha256').update(provided).digest('hex')}
   const applied=await ownedAdminTransaction(true,query=>applyNativeTelegramDecision(query,context,{callbackQueryId,chatId,...parsed}))
-  try{revalidatePath(context.scope?`/${applied.slug}/blog`:'/blog')}catch{}
+  await revalidateNativeBlogPublic(context.scope,parsed.postId)
   if(applied.ackId)await dispatchNativeTelegramAck(context,applied.ackId).catch(()=>{})
   return json(applied.result)
  }catch(error){return json({error:error instanceof AdminMenuError&&error.status<500?error.message:'Native Telegram webhook is unavailable'},error instanceof AdminMenuError?error.status:error instanceof SyntaxError?400:503)}

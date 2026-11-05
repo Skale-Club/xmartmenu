@@ -4,7 +4,7 @@ import {UUID} from '../../auth/owned-principal'
 import type {ActionResult,TenantBlogState} from '@/app/(admin)/posts/actions'
 import {currentNativeBlogActor} from './authority-runtime'
 import {nativeBlogPhase} from './runtime'
-import {ownedAdminTransaction} from '../../data/admin-menus-runtime'
+import {nativeBlogPublicPaths,revalidateNativeBlogPublic} from './public-paths'
 import type {NativeBlogActor} from './authority'
 import {readNativeBlogState,saveNativeBlogSettings,decideNativeBlogPost,changeNativeRssSource} from './admin-data'
 import {nativeBlogSettingsSchema,nativeBlogDecisionSchema,nativeBlogEditSchema,nativeBlogRssSchema,nativeBlogTelegramSchema} from './input'
@@ -13,20 +13,9 @@ import {fetchNativeBlogRss} from './rss'
 import {saveNativeTelegramSettings,checkNativeTelegramWebhook} from './telegram'
 const message=(error:unknown)=>error instanceof AdminMenuError&&error.status<500?error.message:'Native blog is unavailable'
 const invalidate=()=>{try{revalidatePath('/posts')}catch{}}
-/** Tenant public pages live under /<slug>/blog (slug path), not only /posts. A
- * publish, approval or edit must refresh the list, the post and the feed. */
-export async function nativeTenantBlogPublicPaths(actor:NativeBlogActor,postId?:string):Promise<string[]>{
- if(actor.scope===null)return ['/blog']
- const found=await ownedAdminTransaction(false,async query=>({
-  tenant:(await query('SELECT slug FROM public.tenants WHERE id=$1',[actor.scope])).rows[0],
-  post:postId?(await query('SELECT slug FROM public.blog_posts WHERE id=$1 AND tenant_id=$2',[postId,actor.scope])).rows[0]:undefined,
- }))
- if(!found.tenant?.slug)return []
- const base='/'+String(found.tenant.slug)+'/blog'
- return [base,base+'/rss.xml',...(found.post?.slug?[base+'/'+String(found.post.slug)]:[])]
-}
+export const nativeTenantBlogPublicPaths=(actor:NativeBlogActor,postId?:string)=>nativeBlogPublicPaths(actor.scope,postId)
 async function invalidatePublic(actor:NativeBlogActor,postId?:string){
- try{for(const path of await nativeTenantBlogPublicPaths(actor,postId))revalidatePath(path)}catch{}
+ await revalidateNativeBlogPublic(actor.scope,postId)
 }
 export async function loadNativeTenantBlogState():Promise<ActionResult<TenantBlogState>>{
  try{const actor=await currentNativeBlogActor();const data=await nativeBlogPhase({kind:'browser',actor},false,(query,current)=>readNativeBlogState(query,current.kind==='browser'?current.actor:actor));return {ok:true,data}}catch(error){return {ok:false,message:message(error)}}

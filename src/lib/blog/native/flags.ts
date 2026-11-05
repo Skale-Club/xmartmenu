@@ -4,6 +4,11 @@
 type Env=Record<string,string|undefined>
 const isTrue=(value:string|undefined)=>value==='true'
 export const nativeBlogFlagsReady=(env:Env=process.env)=>isTrue(env.OWNED_BLOG_ENABLED)&&isTrue(env.OWNED_AUTH_ENABLED)
+/** With owned auth on the application data lives in the owned database; the legacy
+ * blog writes to the stopped Supabase copy. Public READS may keep using the legacy
+ * path, but cron and every mutation must refuse until the native blog is on. */
+export const legacyBlogWritesBlocked=(env:Env=process.env)=>isTrue(env.OWNED_AUTH_ENABLED)&&!isTrue(env.OWNED_BLOG_ENABLED)
+export const LEGACY_BLOG_WRITES_MESSAGE='Blog writes are unavailable until OWNED_BLOG_ENABLED is turned on'
 /** Human-readable description of an invalid combination, or null when valid. */
 export function nativeBlogFlagProblem(env:Env=process.env):string|null{
  for(const name of ['OWNED_BLOG_ENABLED','OWNED_AUTH_ENABLED'] as const){

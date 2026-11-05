@@ -1,4 +1,4 @@
-import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativeBlogSelected,legacyBlogWritesBlocked,LEGACY_BLOG_WRITES_MESSAGE} from '@/lib/blog/native/selected'
 import {nativeBlogAdminHttp} from '@/lib/blog/native/admin-http'
 /**
  * RSS sources (autoblog-parity XM-05/XM-09).
@@ -43,6 +43,7 @@ const bodySchema = z.union([
 
 async function handlePOST(request: Request) {
   if(nativeBlogSelected())return nativeBlogAdminHttp('rss',request)
+  if(legacyBlogWritesBlocked())return NextResponse.json({error:LEGACY_BLOG_WRITES_MESSAGE},{status:503})
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null))

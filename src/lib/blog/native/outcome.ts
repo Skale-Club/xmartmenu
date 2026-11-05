@@ -1,6 +1,7 @@
 import {AdminMenuError} from '../../data/admin-menus'
-/** The remote side answered and we know nothing usable (or billable) happened:
- * 4xx, malformed JSON, oversize body, content that fails validation. The
+/** The remote side answered with a 4xx refusal, or our own validation rejected
+ * content we already hold (nothing is in doubt). A 2xx with a truncated or
+ * oversize body is NOT here: it may already have been billed. The
  * operation becomes `failed` and never blocks the tenant. */
 export class NativeBlogDefinitiveError extends AdminMenuError{constructor(message='Blog operation failed; no paid call is pending'){super(409,message)}}
 /** Genuinely unknown: timeout or network loss after the request left, a 5xx,

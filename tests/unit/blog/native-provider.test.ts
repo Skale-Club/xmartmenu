@@ -37,15 +37,19 @@ describe('definitive provider answers fail without reconcile; only unknown outco
   expect(provider).toHaveBeenCalledOnce();expect(mocks.reconcile).not.toHaveBeenCalled()
   expect(mocks.failure).toHaveBeenCalledWith(expect.anything(),'synthetic-operation','synthetic-claim',0,{httpStatus:status})
  })
- it('malformed JSON and an oversize body are known refusals',async()=>{
-  await expect(callNativeBlogAi(input,vi.fn(async()=>new Response('{not json',{status:200})))).rejects.toBeInstanceOf(NativeBlogDefinitiveError)
-  await expect(callNativeBlogAi(input,vi.fn(async()=>new Response('{}',{status:200,headers:{'content-length':'99999999'}})))).rejects.toBeInstanceOf(NativeBlogDefinitiveError)
+ it('a 2xx with truncated JSON or an oversize body may already be billed: unknown, reconciled',async()=>{
+  await expect(callNativeBlogAi(input,vi.fn(async()=>new Response('{not json',{status:200})))).rejects.toBeInstanceOf(NativeBlogUnknownOutcomeError)
+  await expect(callNativeBlogAi(input,vi.fn(async()=>new Response('{}',{status:200,headers:{'content-length':'99999999'}})))).rejects.toBeInstanceOf(NativeBlogUnknownOutcomeError)
+  expect(mocks.reconcile).toHaveBeenCalledTimes(2);expect(mocks.failure).not.toHaveBeenCalled()
+ })
+ it('a 4xx with an unreadable body is still a known refusal',async()=>{
+  await expect(callNativeBlogAi(input,vi.fn(async()=>new Response('<html>',{status:429})))).rejects.toBeInstanceOf(NativeBlogDefinitiveError)
   expect(mocks.reconcile).not.toHaveBeenCalled()
  })
- it('a body-level provider error with a 4xx code is known',async()=>{
+ it('a body-level provider error on a 200 is not trusted as a refusal',async()=>{
   const provider=vi.fn(async()=>new Response(JSON.stringify({error:{code:402}}),{status:200}))
-  await expect(callNativeBlogAi(input,provider)).rejects.toBeInstanceOf(NativeBlogDefinitiveError)
-  expect(mocks.reconcile).not.toHaveBeenCalled()
+  await expect(callNativeBlogAi(input,provider)).rejects.toBeInstanceOf(NativeBlogUnknownOutcomeError)
+  expect(mocks.reconcile).toHaveBeenCalledOnce()
  })
  it('5xx and a missing cost stay unknown and reconcile once',async()=>{
   await expect(callNativeBlogAi(input,vi.fn(async()=>new Response('{}',{status:502})))).rejects.toBeInstanceOf(NativeBlogUnknownOutcomeError)
