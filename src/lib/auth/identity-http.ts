@@ -6,6 +6,8 @@ const OPAQUE = /^[A-Za-z0-9_-]{43}$/
 const BODY_LIMIT = 20_000
 type Principal = { userId: string; authenticatedAt: Date }
 export interface IdentityHttpDependencies {
+  /** Server-only isolated harness; normal application cookies remain the default. */
+  cookieMode?: 'isolated-pilot'
   enabled: () => boolean
   origin: string
   config: { apiKey: string; projectId: string; authDomain: string }
@@ -71,8 +73,10 @@ async function readBody(request: Request): Promise<Record<string, unknown>> {
 export function createIdentityHttp(deps: IdentityHttpDependencies) {
   const origin = new URL(deps.origin)
   const secure = origin.protocol === 'https:'
-  const sessionName = `${secure ? '__Host-' : ''}xm_identity`
-  const challengeName = `${secure ? '__Host-' : ''}xm_identity_challenge`
+  if (deps.cookieMode !== undefined && deps.cookieMode !== 'isolated-pilot') throw new Error('Invalid cookie mode')
+  const namespace = deps.cookieMode === 'isolated-pilot' ? 'xm_identity_pilot' : 'xm_identity'
+  const sessionName = `${secure ? '__Host-' : ''}${namespace}`
+  const challengeName = `${secure ? '__Host-' : ''}${namespace}_challenge`
   const reply = (body: object, status = 200) => Response.json(body, { status, headers: {
     'Cache-Control': 'no-store', Pragma: 'no-cache', Vary: 'Cookie', 'Referrer-Policy': 'no-referrer',
   } })
