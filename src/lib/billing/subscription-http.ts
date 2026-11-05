@@ -13,6 +13,8 @@ import { validateSubscriptionPatch, type SubscriptionActor } from '../data/subsc
 import { subscriptionGateway } from './subscription-provider'
 import { changeNativeSubscription, nativeSubscriptionPortal } from './subscription-native'
 import { PlanChangeError } from './plan-change-model'
+import { hasSameOriginAdminMutation } from '../data/admin-display-settings'
+import { tenantAdminBody } from '../admin/owned-tenant-administration-http'
 
 export async function subscriptionActor(effective?: Awaited<ReturnType<typeof getEffectiveTenant>>): Promise<SubscriptionActor> {
   const value = effective ?? await getEffectiveTenant()
@@ -39,15 +41,24 @@ async function superActor(tenantId: string): Promise<SubscriptionActor> {
 }
 const dependencies = () => ({ database: subscriptionTransactions, gateway: subscriptionGateway, baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000' })
 function errorResponse(error: unknown, portal = false) {
-  const status = error instanceof AdminMenuError || error instanceof PlanChangeError ? error.status : 503
-  return NextResponse.json({ error: error instanceof AdminMenuError || error instanceof PlanChangeError ? error.message : 'Subscription service is unavailable', ...(portal && error instanceof PlanChangeError ? { portal: status === 409 } : {}) }, { status })
+  const status = error instanceof AdminMenuError || error instanceof PlanChangeError ? error.status : error instanceof SyntaxError ? 400 : 503
+  return NextResponse.json({ error: error instanceof AdminMenuError || error instanceof PlanChangeError ? error.message : error instanceof SyntaxError ? 'Invalid request body' : 'Subscription service is unavailable', ...(portal && error instanceof PlanChangeError ? { portal: status === 409 } : {}) }, { status })
+}
+function requireOrigin(request: Request) {
+  if (!hasSameOriginAdminMutation(request)) throw new AdminMenuError(403, 'Origin mismatch')
+}
+async function subscriptionBody(request: Request) {
+  const body = await tenantAdminBody(request)
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new AdminMenuError(400, 'Invalid request body')
+  return body as Record<string, unknown>
 }
 export async function nativeSubscriptionGet() {
   try { return NextResponse.json(await readOwnedSubscriptionApi(await subscriptionActor())) } catch (error) { return errorResponse(error) }
 }
 export async function nativeSubscriptionCycle(request: Request) {
   try {
-    const context = await subscriptionActor(), body = await request.json().catch(() => null)
+    requireOrigin(request)
+    const body = await subscriptionBody(request), context = await subscriptionActor()
     if (context.role !== 'store-admin' && context.role !== 'superadmin') throw new AdminMenuError(403, 'Forbidden')
     if (body?.billing_cycle !== 'monthly' && body?.billing_cycle !== 'annual') throw new AdminMenuError(400, 'Invalid billing_cycle value')
     const output = await changeNativeSubscription(context, { mode: 'cycle', cycle: body.billing_cycle }, dependencies())
@@ -56,21 +67,23 @@ export async function nativeSubscriptionCycle(request: Request) {
 }
 export async function nativeSubscriptionCheckout(request: Request) {
   try {
-    const context = await subscriptionActor(), body = await request.json().catch(() => ({}))
+    requireOrigin(request)
+    const body = await subscriptionBody(request), context = await subscriptionActor()
     if (context.role !== 'store-admin' && context.role !== 'superadmin') throw new AdminMenuError(403, 'Forbidden')
     const output = await changeNativeSubscription(context, { mode: 'checkout', cycle: body?.billing_cycle === 'annual' ? 'annual' : 'monthly', planId: typeof body?.plan_id === 'string' && body.plan_id ? body.plan_id : undefined }, dependencies())
     return NextResponse.json(output.body)
   } catch (error) { return errorResponse(error, true) }
 }
-export async function nativeSubscriptionPortalPost() {
-  try { return NextResponse.json(await nativeSubscriptionPortal(await subscriptionActor(), dependencies())) } catch (error) { return errorResponse(error) }
+export async function nativeSubscriptionPortalPost(request: Request) {
+  try { requireOrigin(request); return NextResponse.json(await nativeSubscriptionPortal(await subscriptionActor(), dependencies())) } catch (error) { return errorResponse(error) }
 }
 export async function nativeSuperSubscriptionGet(tenantId: string) {
   try { return NextResponse.json(await readOwnedSuperSubscription(await superActor(tenantId))) } catch (error) { return errorResponse(error) }
 }
 export async function nativeSuperSubscriptionPut(tenantId: string, request: Request) {
   try {
-    const context = await superActor(tenantId), body = await request.json().catch(() => null), patch = validateSubscriptionPatch(body)
+    requireOrigin(request)
+    const patch = validateSubscriptionPatch(await subscriptionBody(request)), context = await superActor(tenantId)
     const output = await changeNativeSubscription(context, { mode: 'admin', patch, planId: patch.plan_id, cycle: patch.billing_cycle }, dependencies())
     // The CRM intention committed with the subscription. Cache invalidation
     // cannot turn an already committed billing change into a false 503.

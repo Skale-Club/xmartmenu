@@ -12,8 +12,8 @@ import { withApi } from '@/lib/observability/with-api'
 import { adminMenusOwned } from '@/lib/data/admin-menus'
 import { nativeSubscriptionPortalPost } from '@/lib/billing/subscription-http'
 
-async function handlePOST() {
-  if (adminMenusOwned()) return nativeSubscriptionPortalPost()
+async function handlePOST(request: Request) {
+  if (adminMenusOwned()) return nativeSubscriptionPortalPost(request)
   const effective = await getEffectiveTenant()
   if (!effective) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (effective.role === 'store-staff') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })

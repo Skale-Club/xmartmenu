@@ -23,7 +23,7 @@ import { GET as superGet, PUT as superPut } from '@/app/api/superadmin/tenants/[
 import Page from '@/app/(admin)/settings/subscription/page'
 const token = randomBytes(32).toString('base64url'), sessionHash = createHash('sha256').update(token).digest('hex')
 const tenantId = randomUUID(), actorId = randomUUID(), plan = randomUUID(), context = { tenantId, actorId, role: 'store-admin' as const, sessionHash }
-const request = (body: unknown) => new NextRequest('http://localhost/api/tenant/subscription', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json' } })
+const request = (body: unknown) => new NextRequest('http://localhost/api/tenant/subscription', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json', origin: 'http://localhost' } })
 beforeEach(() => {
   vi.stubEnv('OWNED_ADMIN_MENUS_ENABLED', 'true')
   vi.stubEnv('OWNED_AUTH_ENABLED', 'true')
@@ -83,4 +83,24 @@ it('missing native cookie or native Auth mode denies without Source fallback or 
   vi.stubEnv('OWNED_AUTH_ENABLED', 'false')
   expect((await checkout(request({}), undefined)).status).toBe(503)
   expect(state.change).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled(); expect(state.cookie).not.toHaveBeenCalled()
+})
+it('cross-site cycle, checkout, portal and superadmin mutations refuse before reading authority or producing effects', async () => {
+  const crossSite = () => { const value = request({ billing_cycle: 'annual', status: 'active' }); value.headers.set('origin', 'https://foreign.invalid'); return value }
+  expect((await PATCH(crossSite(), undefined)).status).toBe(403)
+  expect((await checkout(crossSite(), undefined)).status).toBe(403)
+  expect((await portal(crossSite(), undefined)).status).toBe(403)
+  expect((await superPut(crossSite(), { params: Promise.resolve({ id: tenantId }) })).status).toBe(403)
+  expect(state.effective).not.toHaveBeenCalled(); expect(state.principal).not.toHaveBeenCalled(); expect(state.super).not.toHaveBeenCalled()
+  expect(state.change).not.toHaveBeenCalled(); expect(state.portal).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled()
+})
+it('oversized streamed JSON and wrong content type refuse before authority, SQL or provider operations', async () => {
+  const tooLarge = request({ override_notes: 'x'.repeat(65536) })
+  expect((await superPut(tooLarge, { params: Promise.resolve({ id: tenantId }) })).status).toBe(413)
+  const declared = request({}); declared.headers.set('content-length', '65537')
+  expect((await checkout(declared, undefined)).status).toBe(413)
+  const wrongType = request({ billing_cycle: 'annual' }); wrongType.headers.set('content-type', 'text/plain')
+  expect((await PATCH(wrongType, undefined)).status).toBe(400)
+  const invalid = new NextRequest('http://localhost/api/tenant/subscription', { method: 'POST', body: '{', headers: { origin: 'http://localhost', 'content-type': 'application/json' } })
+  expect((await checkout(invalid, undefined)).status).toBe(400)
+  expect(state.effective).not.toHaveBeenCalled(); expect(state.super).not.toHaveBeenCalled(); expect(state.change).not.toHaveBeenCalled(); expect(state.source).not.toHaveBeenCalled()
 })
