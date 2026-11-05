@@ -196,7 +196,7 @@ function LocationModal({
                 type="tel"
                 value={form.phone}
                 onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                placeholder="+55 (11) 99999-0000"
+                placeholder="+55 (00) 00000-0000"
                 className={inputClassName}
               />
             </div>

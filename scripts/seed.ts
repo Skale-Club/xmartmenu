@@ -108,9 +108,9 @@ async function seed() {
       accent_color: '#e94560',
       banner_url: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1200',
       address: '123 Main Street, New York, NY',
-      phone: '(11) 99999-8888',
+      phone: '(00) 00000-0000',
       instagram: '@demorestaurant',
-      whatsapp: '5511999998888',
+      whatsapp: '5500000000000',
       orders_enabled: true,
       whatsapp_orders_enabled: true,
       custom_tags: ['Vegetarian', 'Vegan', 'Gluten-free', 'Spicy', 'Chef pick', 'Recommended', 'New'],
@@ -128,9 +128,9 @@ async function seed() {
         accent_color: '#e94560',
         banner_url: 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1200',
         address: '123 Main Street, New York, NY',
-        phone: '(11) 99999-8888',
+        phone: '(00) 00000-0000',
         instagram: '@demorestaurant',
-        whatsapp: '5511999998888',
+        whatsapp: '5500000000000',
         custom_tags: ['Vegetarian', 'Vegan', 'Gluten-free', 'Spicy', 'Chef pick', 'Recommended', 'New'],
         business_hours: businessHours
       }, { onConflict: 'tenant_id' }).then(({ error }) => error)

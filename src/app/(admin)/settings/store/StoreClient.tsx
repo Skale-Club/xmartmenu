@@ -607,7 +607,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                     type="tel"
                     value={form.phone}
                     onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                    placeholder="+1 (555) 000-0000"
+                    placeholder="+1 (000) 000-0000"
                     className={cn(inputClassName, "pl-14")}
                   />
                 </div>
@@ -650,7 +650,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                   value={whatsappDraft}
                   onChange={e => setWhatsappDraft(e.target.value)}
                   onBlur={commitWhatsapp}
-                  placeholder="e.g. 15550000000"
+                  placeholder="e.g. 10000000000"
                   className={cn(inputClassName, 'pl-14')}
                 />
               </div>
