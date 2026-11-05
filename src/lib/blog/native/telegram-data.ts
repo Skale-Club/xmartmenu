@@ -23,7 +23,7 @@ export async function applyNativeTelegramDecision(query:AdminMenuQuery,context:E
     VALUES($1,$2,$3,$4,$5,'telegram')`,[context.scope,post.id,post.title,post.excerpt,input.action==='approve'?'approved':'rejected'])
    if(input.action==='approve')await query("UPDATE public.blog_posts SET status='published',published_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=$1",[post.id])
    else await query('DELETE FROM public.blog_posts WHERE id=$1',[post.id])
-   await nativeBlogAudit(query,null,context.scope,String(post.id),'telegram_post_'+input.action)
+   await nativeBlogAudit(query,null,context.scope,String(post.id),'telegram_post_'+input.action,'blog_posts',input.action==='reject'?'delete':'update')
   }
   result={ok:true,action:input.action==='approve'?'approved':'rejected'}
  }

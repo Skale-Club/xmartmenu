@@ -20,7 +20,7 @@ export async function reserveNativeBlogOperation(query:AdminMenuQuery,context:Na
  if((kind==='generation'||kind==='telegram-settings')&&(await query("SELECT id FROM public.app_blog_operations WHERE tenant_id IS NOT DISTINCT FROM $1::uuid AND kind=$2 AND status IN('running','reconcile') LIMIT 1",[scope,kind])).rows.length)throw new AdminMenuError(409,'An earlier blog operation needs review before another attempt')
  const id=randomUUID(),row=(await query(`INSERT INTO public.app_blog_operations(id,tenant_id,actor_id,actor_session_hash,authenticated_at,kind,request_key,input_digest,input,actor_project_id,actor_subject)
   VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11) RETURNING *`,[id,scope,actor?.actorId??null,actor?.sessionHash??null,actor?new Date(actor.authenticatedAt*1000):null,kind,key,digest,JSON.stringify(input),actor?.projectId??null,actor?.subject??null])).rows[0]
- await nativeBlogAudit(query,actor?.actorId??null,scope,id,'blog_operation_reserved')
+ await nativeBlogAudit(query,actor?.actorId??null,scope,id,'blog_operation_reserved','app_blog_operations','insert')
  return operation(row)
 }
 export async function lockNativeBlogOperation(query:AdminMenuQuery,context:NativeBlogContext,id:string,claimId?:string){
@@ -71,5 +71,5 @@ export async function finishNativeBlogOperation(query:AdminMenuQuery,context:Nat
  const current=await lockNativeBlogOperation(query,context,id,claimId)
  if(current.status!=='running'||(await query("SELECT operation_id FROM public.app_blog_calls WHERE operation_id=$1 AND status<>'response' LIMIT 1",[id])).rows.length)throw new AdminMenuError(409,'Blog operation requires reconciliation')
  await query("UPDATE public.app_blog_operations SET status='completed',result=$3::jsonb,completed_at=clock_timestamp() WHERE id=$1 AND claim_id=$2",[id,claimId,JSON.stringify(result)])
- await nativeBlogAudit(query,context.kind==='browser'?context.actor.actorId:null,current.scope,id,'blog_operation_completed')
+ await nativeBlogAudit(query,context.kind==='browser'?context.actor.actorId:null,current.scope,id,'blog_operation_completed','app_blog_operations')
 }

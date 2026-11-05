@@ -32,7 +32,7 @@ import {
 import { sanitizeBlogHtml } from '@/lib/blog/content-validator'
 
 export type ActionResult<T = undefined> =
-  | ({ ok: true } & (T extends undefined ? Record<string, never> : { data: T }))
+  | ({ ok: true; message?: string } & (T extends undefined ? { data?: never } : { data: T }))
   | { ok: false; message: string }
 
 const MASKED = '********'

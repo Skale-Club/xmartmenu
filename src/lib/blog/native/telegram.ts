@@ -21,7 +21,7 @@ async function writeSettings(query:AdminMenuQuery,context:NativeBlogContext,desi
  const values=[desired.id,scope,desired.enabled,desired.bot_token,desired.chat_ids,desired.approvals_enabled,desired.approvals_bot_token,desired.approvals_chat_ids,desired.webhook_secret]
  if(current)await query('UPDATE public.telegram_settings SET enabled=$3,bot_token=$4,chat_ids=$5,approvals_enabled=$6,approvals_bot_token=$7,approvals_chat_ids=$8,webhook_secret=$9,updated_at=clock_timestamp() WHERE id=$1 AND tenant_id IS NOT DISTINCT FROM $2::uuid',values)
  else await query('INSERT INTO public.telegram_settings(id,tenant_id,enabled,bot_token,chat_ids,approvals_enabled,approvals_bot_token,approvals_chat_ids,webhook_secret) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9)',values)
- await nativeBlogAudit(query,context.kind==='browser'?context.actor.actorId:null,scope,String(desired.id),'telegram_settings_saved')
+ await nativeBlogAudit(query,context.kind==='browser'?context.actor.actorId:null,scope,String(desired.id),'telegram_settings_saved','telegram_settings',current?'update':'insert')
 }
 /** Official endpoint only; token stays in memory and is never logged or saved
  * in a request payload/receipt. One network call, no automatic retry. */

@@ -23,7 +23,7 @@ export async function nativeTenantBlogMutation(action:'settings'|'decision'|'edi
   const actor=await currentNativeBlogActor(false,true),context={kind:'browser' as const,actor}
   if(action==='telegram'){
    if(!key)throw new AdminMenuError(400,'Explicit request UUID required')
-   const result=await saveNativeTelegramSettings(context,nativeBlogTelegramSchema.parse(parsed.data),key);invalidate();return result
+   const result=await saveNativeTelegramSettings(context,nativeBlogTelegramSchema.parse(parsed.data),key);invalidate();return {ok:true,...('message'in result?{message:result.message}:{})}
   }
   await nativeBlogPhase(context,true,async(query,current)=>{
    if(current.kind!=='browser')throw new AdminMenuError(403,'Browser proof required')

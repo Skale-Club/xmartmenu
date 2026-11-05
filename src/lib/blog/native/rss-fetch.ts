@@ -23,7 +23,7 @@ export async function fetchNativeRssXml(raw:string):Promise<string>{
  const selected=addresses[0]
  return new Promise((resolve,reject)=>{
   const requester=url.protocol==='https:'?https:http
-  const request=requester.get(url,{agent:false,autoSelectFamily:false,lookup:(_hostname,_options,callback)=>callback(null,selected.address,selected.family),headers:{'User-Agent':'Xmartmenu RSS Fetcher/1.0'}},response=>{
+  const request=requester.get(url,({agent:false,autoSelectFamily:false,lookup:(_hostname,_options,callback)=>callback(null,selected.address,selected.family),headers:{'User-Agent':'Xmartmenu RSS Fetcher/1.0'}} as http.RequestOptions&{autoSelectFamily:boolean}),response=>{
    if(response.statusCode!==200){response.destroy();reject(new Error('RSS returned an unsuccessful response'));return}
    if(Number(response.headers['content-length']??0)>2097152){response.destroy();reject(new Error('RSS response exceeds 2MB'));return}
    const chunks:Buffer[]=[];let length=0

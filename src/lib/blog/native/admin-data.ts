@@ -7,9 +7,9 @@ import {sanitizeBlogHtml} from '../content-validator'
 import {requireNativeBlogActor,lockNativeBlogScope,type NativeBlogActor} from './authority'
 const dto=(row:Record<string,unknown>)=>Object.fromEntries(Object.entries(row).map(([key,value])=>[key,value instanceof Date?value.toISOString():value]))
 export const safeNativeTelegram=(row:Record<string,unknown>|undefined)=>({enabled:row?.enabled===true,approvalsEnabled:row?.approvals_enabled===true,hasBotToken:!!row?.bot_token,hasApprovalsBotToken:!!row?.approvals_bot_token,chatIds:Array.isArray(row?.chat_ids)?row.chat_ids:[],approvalsChatIds:Array.isArray(row?.approvals_chat_ids)?row.approvals_chat_ids:[]})
-export async function nativeBlogAudit(query:AdminMenuQuery,actorId:string|null,scope:string|null,id:string,operation:string){
+export async function nativeBlogAudit(query:AdminMenuQuery,actorId:string|null,scope:string|null,id:string,operation:string,table:'blog_posts'|'blog_settings'|'blog_rss_sources'|'telegram_settings'|'app_blog_operations'='blog_posts',action:'insert'|'update'|'delete'='update'){
  const rows=(await query(`INSERT INTO public.audit_events(tenant_id,actor_id,via,table_name,record_id,action,changes)
-  VALUES($1,$2,'server','blog_posts',$3,'update',$4::jsonb) RETURNING id`,[scope,actorId,id,JSON.stringify({operation})])).rows
+  VALUES($1,$2,'server',$3,$4,$5,$6::jsonb) RETURNING id`,[scope,actorId,table,id,action,JSON.stringify({operation})])).rows
  if(rows.length!==1)throw new AdminMenuError(503,'Blog audit unavailable')
 }
 export async function readNativeBlogState(query:AdminMenuQuery,actor:NativeBlogActor){
@@ -44,7 +44,7 @@ export async function saveNativeBlogSettings(query:AdminMenuQuery,actor:NativeBl
  const result=row?await query(`UPDATE public.blog_settings SET ${columns.map((key,index)=>`${key}=$${index+2}`).join(',')},updated_at=clock_timestamp() WHERE id=$1 RETURNING id`,[row.id,...values])
   :await query(`INSERT INTO public.blog_settings(tenant_id,${columns.join(',')}) VALUES($1,${values.map((_,index)=>'$'+(index+2)).join(',')}) RETURNING id`,[actor.scope,...values])
  if(result.rows.length!==1)throw new AdminMenuError(503,'Blog settings unavailable')
- await nativeBlogAudit(query,actor.actorId,actor.scope,String(result.rows[0].id),'blog_settings_saved')
+ await nativeBlogAudit(query,actor.actorId,actor.scope,String(result.rows[0].id),'blog_settings_saved','blog_settings',row?'update':'insert')
  return {ok:true}
 }
 export async function decideNativeBlogPost(query:AdminMenuQuery,actor:NativeBlogActor,input:{postId:string;action:'approve'|'reject'|'edit';reason?:string;title?:string;excerpt?:string;content?:string}){
@@ -62,7 +62,7 @@ export async function decideNativeBlogPost(query:AdminMenuQuery,actor:NativeBlog
   if(input.action==='approve')await query("UPDATE public.blog_posts SET status='published',published_at=clock_timestamp(),updated_at=clock_timestamp() WHERE id=$1",[post.id])
   else await query('DELETE FROM public.blog_posts WHERE id=$1',[post.id])
  }
- await nativeBlogAudit(query,actor.actorId,actor.scope,String(post.id),'blog_post_'+input.action)
+ await nativeBlogAudit(query,actor.actorId,actor.scope,String(post.id),'blog_post_'+input.action,'blog_posts',input.action==='reject'?'delete':'update')
  return {ok:true,action:input.action==='approve'?'approved':input.action==='reject'?'rejected':'edited'}
 }
 export async function changeNativeRssSource(query:AdminMenuQuery,actor:NativeBlogActor,input:{action:'add'|'toggle'|'delete';id?:string;name?:string;url?:string;enabled?:boolean}){
@@ -77,7 +77,7 @@ export async function changeNativeRssSource(query:AdminMenuQuery,actor:NativeBlo
   const rows=(await query(input.action==='delete'?'DELETE FROM public.blog_rss_sources WHERE id=$1 AND tenant_id IS NOT DISTINCT FROM $2::uuid RETURNING id':'UPDATE public.blog_rss_sources SET enabled=$3,updated_at=clock_timestamp() WHERE id=$1 AND tenant_id IS NOT DISTINCT FROM $2::uuid RETURNING id',input.action==='delete'?[id,actor.scope]:[id,actor.scope,input.enabled])).rows
   if(rows.length!==1)throw new AdminMenuError(404,'RSS source not found')
  }
- await nativeBlogAudit(query,actor.actorId,actor.scope,id,'blog_rss_'+input.action)
+ await nativeBlogAudit(query,actor.actorId,actor.scope,id,'blog_rss_'+input.action,'blog_rss_sources',input.action==='add'?'insert':input.action==='delete'?'delete':'update')
  return {ok:true}
 }
 export function normalizeNativeTelegramIds(ids:string[]) {
