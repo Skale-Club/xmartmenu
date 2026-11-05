@@ -36,3 +36,10 @@ export async function nativeOperationStatus(query:AdminMenuQuery,proof:TenantEff
   return {status,errorMessage:status==='failed'?'This operation requires review. Do not repeat a paid request with an uncertain outcome.':null,
     ...(row.result&&typeof row.result==='object'&&'imagesCreated'in row.result?{imagesCreated:row.result.imagesCreated}:{}),nextIndex:Number(row.next_index??0)}
 }
+export async function consumeNativeOcrTicket(query:AdminMenuQuery,proof:TenantEffectActor,operation:TenantOperation,path:string) {
+  await lockTenantOperation(query,proof,operation.id)
+  const rows=(await query(`UPDATE public.app_tenant_uploads SET consumed_by=$1 WHERE storage_path=$2 AND tenant_id=$3 AND actor_id=$4 AND actor_session_hash=$5
+    AND expires_at>clock_timestamp() AND consumed_by IS NULL RETURNING byte_length,content_type,content_digest`,[operation.id,path,operation.tenantId,operation.actorId,operation.sessionHash])).rows
+  if(rows.length!==1)throw new AdminMenuError(409,'OCR upload is expired, already used or belongs to another session/tenant')
+  return rows[0]
+}

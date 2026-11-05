@@ -1,5 +1,12 @@
 -- PROPOSAL ONLY. No startup/migration hook, provider call or flag activation.
 BEGIN;
+SET LOCAL lock_timeout='2s';
+SET LOCAL statement_timeout='15s';
+DO $$ BEGIN
+  IF current_database()<>'xmartmenu' OR current_user<>'xmartmenu_owner'
+    OR (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=current_database())<>'xmartmenu_owner'
+  THEN RAISE EXCEPTION 'Exact owned candidate owner required'; END IF;
+END $$;
 CREATE TABLE public.app_tenant_operations (
   id uuid PRIMARY KEY,
   tenant_id uuid NOT NULL REFERENCES public.tenants(id) ON DELETE RESTRICT,

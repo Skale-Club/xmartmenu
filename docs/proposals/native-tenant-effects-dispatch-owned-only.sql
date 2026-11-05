@@ -1,6 +1,14 @@
 -- PROPOSAL ONLY, reviewed separately after the PR62 table. Never auto-migrate.
 -- No provider/network work or flags are enabled by this schema preparation.
 BEGIN;
+SET LOCAL lock_timeout='2s';
+SET LOCAL statement_timeout='15s';
+DO $$ BEGIN
+  IF current_database()<>'xmartmenu' OR current_user<>'xmartmenu_owner'
+    OR (SELECT pg_get_userbyid(datdba) FROM pg_database WHERE datname=current_database())<>'xmartmenu_owner'
+  THEN RAISE EXCEPTION 'Exact owned candidate owner required'; END IF;
+END $$;
+LOCK TABLE public.app_tenant_effects IN ACCESS EXCLUSIVE MODE;
 ALTER TABLE public.app_tenant_effects DROP CONSTRAINT app_tenant_effects_kind_check;
 ALTER TABLE public.app_tenant_effects ADD CONSTRAINT app_tenant_effects_kind_check
   CHECK(kind IN('onboarded','plan_activated','plan_changed','past_due','churned','connect_changed','backfill','manual'));

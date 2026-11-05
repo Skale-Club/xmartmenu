@@ -14,6 +14,7 @@ import { getNativeStorageClient } from '../storage'
 import { convertBufferToWebP,MAX_FILE_SIZE } from '../upload'
 import { publishNativeTenantWork } from './queue'
 import { revalidatePath } from 'next/cache'
+import { consumeNativeOcrTicket } from '../data/tenant-effect-uploads'
 
 const actor=(operation:TenantOperation)=>currentTenantEffectActor({actorId:operation.actorId,sessionHash:operation.sessionHash})
 function invalidate(snapshot:NativeCatalogSnapshot){try{revalidatePath('/tenants');revalidatePath(`/${snapshot.tenant.slug}`);revalidatePath(`/${snapshot.tenant.slug}/${snapshot.menu.slug}`)}catch{}}
@@ -124,13 +125,7 @@ export async function executeNativeOcr(operation:TenantOperation) {
   const storage=getNativeStorageClient(),claim=await claimSnapshot(operation)
   try{
     const proof=await actor(operation),path=String(operation.input.storagePath)
-    const ticket=await ownedAdminTransaction(true,async query=>{
-      await lockTenantOperation(query,proof,operation.id)
-      const rows=(await query(`UPDATE public.app_tenant_uploads SET consumed_by=$1 WHERE storage_path=$2 AND tenant_id=$3 AND actor_id=$4 AND actor_session_hash=$5
-        AND expires_at>clock_timestamp() AND consumed_by IS NULL RETURNING byte_length,content_type,content_digest`,[operation.id,path,operation.tenantId,operation.actorId,operation.sessionHash])).rows
-      if(rows.length!==1)throw new AdminMenuError(409,'OCR upload is expired, already used or belongs to another session/tenant')
-      return rows[0]
-    })
+    const ticket=await ownedAdminTransaction(true,query=>consumeNativeOcrTicket(query,proof,operation,path))
     const downloaded=await storage.download('tenant-assets',path,MAX_FILE_SIZE,AbortSignal.timeout(30000))
     if(downloaded.length!==Number(ticket.byte_length))throw new AdminMenuError(400,'OCR upload size does not match its ticket')
     if(tenantEffectByteDigest(downloaded)!==ticket.content_digest)throw new AdminMenuError(400,'OCR upload bytes do not match the authorized ticket')
