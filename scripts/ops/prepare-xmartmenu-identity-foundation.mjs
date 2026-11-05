@@ -222,8 +222,8 @@ CREATE TEMP TABLE identity_after ON COMMIT DROP AS ${preservedManifestSql()};
 DO $guard$ BEGIN
  IF (SELECT manifest FROM identity_before) IS DISTINCT FROM (SELECT manifest FROM identity_after)
  OR (SELECT jsonb_agg FROM identity_roles) IS DISTINCT FROM (${roles})
- OR (SELECT count(*) FROM supabase_migrations.schema_migrations)<>95
- OR (SELECT count(*) FROM pg_tables WHERE schemaname='public')<>51
+ OR (SELECT count(*) FROM supabase_migrations.schema_migrations)<>96
+ OR (SELECT count(*) FROM pg_tables WHERE schemaname='public')<>52
  OR (SELECT count(*) FROM public.app_accounts)<>${review ? 7 : 0}
  OR EXISTS(SELECT FROM public.app_identity_bindings) OR EXISTS(SELECT FROM public.app_sessions) OR EXISTS(SELECT FROM public.app_identity_challenges)
  OR EXISTS(SELECT FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
