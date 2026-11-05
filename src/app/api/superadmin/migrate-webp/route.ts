@@ -5,6 +5,7 @@ import { getStorageClient } from '@/lib/storage'
 import { convertBufferToWebP } from '@/lib/upload'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
+import { ownedModeActive } from '@/lib/data/owned-mode'
 
 const RASTER_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.avif', '.heic', '.bmp', '.tiff']
 const BUCKETS = ['tenant-assets', 'product-images'] as const
@@ -61,6 +62,11 @@ function isAuthorized(request: Request): boolean {
 }
 
 async function handlePOST(request: Request) {
+  // Historical Supabase Storage + table rewrite. In owned mode it would act on
+  // the stale source, so it is blocked before any credential check or I/O.
+  if (ownedModeActive()) {
+    return NextResponse.json({ error: 'This legacy migration is disabled in owned mode' }, { status: 410, headers: { 'Cache-Control': 'no-store' } })
+  }
   const authorized = isAuthorized(request) || await assertSuperadmin()
   if (!authorized) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

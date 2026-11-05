@@ -10,11 +10,19 @@ import { withApi } from '@/lib/observability/with-api'
 import { getRequestContext } from '@/lib/observability/context'
 import { log } from '@/lib/observability/log'
 import { buildHealthReport, tokenMatches, type CheckResult } from '@/lib/observability/health'
+import { ownedModeActive } from '@/lib/data/owned-mode'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 async function checkDatabase(): Promise<CheckResult> {
+  // Owned mode measures the database that actually serves traffic. Probing
+  // Supabase here would report a stale copy as healthy (or down) for the wrong reason.
+  if (ownedModeActive()) {
+    const { checkOwnedDatabase, OWNED_DATABASE_PROBE_TIMEOUT_MS } = await import('@/lib/data/database-health')
+    const { ownedAdminTransaction } = await import('@/lib/data/admin-menus-runtime')
+    return checkOwnedDatabase(operation => ownedAdminTransaction(false, operation, OWNED_DATABASE_PROBE_TIMEOUT_MS))
+  }
   const started = performance.now()
   try {
     const { error } = await createServiceClient()

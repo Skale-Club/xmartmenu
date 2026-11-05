@@ -5,6 +5,7 @@ import { scopeFilter } from '@/lib/blog/scope'
 import { listArchive, listTags } from '@/lib/blog/public-queries'
 import {nativeBlogSelected} from '@/lib/blog/native/selected'
 import {nativePlatformSitemap} from '@/lib/blog/native/sitemap'
+import { ownedModeActive } from '@/lib/data/owned-mode'
 
 // Regenerate at most every 5 minutes (active tenants change rarely).
 export const revalidate = 300
@@ -13,6 +14,27 @@ export const revalidate = 300
 // tenant's platform-slug menu. Tenants with a *verified custom domain* are
 // excluded here — their canonical home lives on their own domain (which serves
 // its own sitemap), and the platform-slug copy is intentionally noindexed.
+// Own PostgreSQL only; each part degrades on its own and never reads Supabase.
+async function ownedSitemap(entries: MetadataRoute.Sitemap): Promise<MetadataRoute.Sitemap> {
+  const runtime = await import('@/lib/data/public-seo-runtime')
+  try {
+    for (const t of await runtime.ownedSitemapTenants()) {
+      if (t.custom_domain && t.custom_domain_verified) continue
+      entries.push({ url: `${PLATFORM_BASE}/${t.slug}`, lastModified: t.updated_at ? new Date(t.updated_at) : new Date(), changeFrequency: 'weekly', priority: 0.8 })
+    }
+  } catch {}
+  try {
+    const blog = await runtime.ownedPlatformBlogSitemap()
+    entries.push({ url: `${PLATFORM_BASE}/blog`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.7 })
+    for (const tag of blog.tags) entries.push({ url: `${PLATFORM_BASE}/blog/tag/${tag}`, changeFrequency: 'weekly', priority: 0.5 })
+    for (const year of new Set(blog.archive.map(e => e.year))) entries.push({ url: `${PLATFORM_BASE}/blog/archive/${year}`, changeFrequency: 'monthly', priority: 0.4 })
+    for (const e of blog.archive) entries.push({ url: `${PLATFORM_BASE}/blog/archive/${e.year}/${String(e.month).padStart(2, '0')}`, changeFrequency: 'monthly', priority: 0.3 })
+    for (const post of blog.posts) entries.push({ url: `${PLATFORM_BASE}/blog/${post.slug}`,
+      lastModified: new Date(post.updated_at ?? post.published_at ?? Date.now()), changeFrequency: 'monthly', priority: 0.6 })
+  } catch {}
+  return entries
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   if(nativeBlogSelected())return nativePlatformSitemap()
   const entries: MetadataRoute.Sitemap = [
@@ -23,6 +45,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 1,
     },
   ]
+
+  if (ownedModeActive()) return ownedSitemap(entries)
 
   try {
     const supabase = createServiceClient()

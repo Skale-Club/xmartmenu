@@ -4,9 +4,37 @@ import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { platformSettingsOwned } from '@/lib/data/platform-settings'
+import { hasSameOriginAdminMutation } from '@/lib/data/admin-display-settings'
+import { AdminMenuError } from '@/lib/data/admin-menus'
+
+// Owned mode never touches Supabase, not even to fall back after a failure.
+function ownedFailure(route: string, error: unknown) {
+  if (error instanceof AdminMenuError) return NextResponse.json({ error: error.message }, { status: error.status })
+  log.error(route, { err: error })
+  return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+}
+
+function revalidatePlatformPages(written: unknown) {
+  revalidatePath('/', 'page')
+  // /terms and /privacy read platform_settings.legal and are ISR-cached, so
+  // without this a published document would not appear until the 60s window
+  // elapsed — which reads as "saving is broken" to whoever just clicked Save.
+  if (written && typeof written === 'object' && 'legal' in written) {
+    revalidatePath('/terms', 'page')
+    revalidatePath('/privacy', 'page')
+  }
+}
 
 async function handleGET() {
-  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (platformSettingsOwned()) {
+    try {
+      const { readOwnedPlatformSettingsAsSuperadmin } = await import('@/lib/data/platform-settings-runtime')
+      return NextResponse.json(await readOwnedPlatformSettingsAsSuperadmin(authorization.principal.userId))
+    } catch (error) { return ownedFailure('GET /api/superadmin/settings', error) }
+  }
   const service = await createServiceClient()
   const { data, error } = await service.from('platform_settings').select('*').single()
   if (error) {
@@ -17,9 +45,20 @@ async function handleGET() {
 }
 
 async function handlePATCH(request: Request) {
-  if (!await assertSuperadmin()) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const authorization = await assertSuperadmin()
+  if (!authorization) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const owned = platformSettingsOwned()
+  if (owned && !hasSameOriginAdminMutation(request)) return NextResponse.json({ error: 'Origin mismatch' }, { status: 403 })
 
   const body = await request.json()
+  if (owned) {
+    try {
+      const { writeOwnedPlatformSettings } = await import('@/lib/data/platform-settings-runtime')
+      const saved = await writeOwnedPlatformSettings(authorization.principal.userId, body)
+      revalidatePlatformPages(body)
+      return NextResponse.json(saved)
+    } catch (error) { return ownedFailure('PATCH /api/superadmin/settings', error) }
+  }
   const service = await createServiceClient()
 
   const allowed = ['app_name', 'brand_name', 'default_primary_color', 'default_accent_color', 'cta_color', 'menu_footer_brand', 'landing', 'seo_title', 'seo_description', 'favicon_url', 'legal']
@@ -56,14 +95,7 @@ async function handlePATCH(request: Request) {
     result = data
   }
 
-  revalidatePath('/', 'page')
-  // /terms and /privacy read platform_settings.legal and are ISR-cached, so
-  // without this a published document would not appear until the 60s window
-  // elapsed — which reads as "saving is broken" to whoever just clicked Save.
-  if ('legal' in update) {
-    revalidatePath('/terms', 'page')
-    revalidatePath('/privacy', 'page')
-  }
+  revalidatePlatformPages(update)
 
   return NextResponse.json(result)
 }

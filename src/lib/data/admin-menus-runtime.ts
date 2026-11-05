@@ -1,5 +1,6 @@
 import pg from 'pg'
 import { postgresRuntimeConfig } from './database-config'
+import { sharedRuntimePool } from './shared-pool'
 import { AdminMenuError, findAdminMenu, mutateAdminMenu, readAdminMenus, type AdminMenuContext, type AdminMenuMutation, type AdminMenuQuery } from './admin-menus'
 
 let pool: pg.Pool | undefined, configuration: string | undefined
@@ -13,7 +14,7 @@ export function createAdminMenusPool(env: Record<string, string | undefined>) {
 function ownedPool() {
   const current = JSON.stringify(postgresRuntimeConfig(process.env, 'ADMIN_MENUS'))
   if (configuration && configuration !== current) throw new AdminMenuError(503, 'Menu configuration changed; restart required')
-  if (!pool) { pool = createAdminMenusPool(process.env); configuration = current }
+  if (!pool) { pool = sharedRuntimePool('ADMIN_MENUS'); configuration = current }
   return pool
 }
 /** No mutation retries: an interrupted COMMIT can have an ambiguous outcome. */
@@ -49,4 +50,4 @@ export const listOwnedAdminMenus = (context: AdminMenuContext) => adminMenuTrans
 export const findOwnedAdminMenu = (context: AdminMenuContext, id: string) => adminMenuTransaction(ownedPool(), false, query => findAdminMenu(query, context, id))
 export const mutateOwnedAdminMenu = (context: AdminMenuContext, mutation: AdminMenuMutation) => adminMenuTransaction(ownedPool(), true, query => mutateAdminMenu(query, context, mutation))
 /** Other back-office repositories share this pool and its connection budget. */
-export const ownedAdminTransaction = <T>(write: boolean, operation: (query: AdminMenuQuery) => Promise<T>) => adminMenuTransaction(ownedPool(), write, operation)
+export const ownedAdminTransaction = <T>(write: boolean, operation: (query: AdminMenuQuery) => Promise<T>, timeoutMs?: number) => adminMenuTransaction(ownedPool(), write, operation, timeoutMs)

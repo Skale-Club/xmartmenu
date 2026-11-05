@@ -6,6 +6,8 @@ vi.mock('@/lib/auth/provider-account-status', () => ({ createGoogleAccountStatus
 vi.mock('@/lib/auth/google-runtime-adc', () => ({ readGoogleRuntimeAdc: mocks.adc }))
 vi.mock('@/lib/auth/google-x509-access-token', () => ({ getGoogleX509AccessToken: mocks.token }))
 beforeEach(() => {
+  // The shared pool registry lives on globalThis so it survives module reloads.
+  ;(globalThis as Record<symbol, Map<string, unknown> | undefined>)[Symbol.for('xmartmenu.sharedRuntimePools')]?.clear()
   vi.resetModules(); vi.clearAllMocks(); vi.stubEnv('GOOGLE_AUTH_ENABLED', 'true')
   mocks.config.mockReturnValue({ connectionString: 'fixture-only', ssl: false, origin: 'https://fixture.test', web: { projectId: 'fixture' }, projectNumber: '1' })
   mocks.lookup.mockReturnValue(vi.fn())
@@ -16,7 +18,7 @@ it('shares one bounded IDENTITY pool for all native principal/pilot/shell reader
   const { getIdentityServices } = await import('@/lib/auth/identity-services')
   expect(getIdentityServices()).toBe(getIdentityServices())
   expect(mocks.pool).toHaveBeenCalledTimes(1)
-  expect(mocks.pool).toHaveBeenCalledWith(expect.objectContaining({ max: 2, connectionTimeoutMillis: 5000, statement_timeout: 5000, query_timeout: 6000 }))
+  expect(mocks.pool).toHaveBeenCalledWith(expect.objectContaining({ max: 5, connectionTimeoutMillis: 5000, statement_timeout: 5000, query_timeout: 6000 }))
   expect(mocks.adc).not.toHaveBeenCalled(); expect(mocks.token).not.toHaveBeenCalled()
 })
 

@@ -9,6 +9,10 @@ import { requireMcpAuthority,type McpActor } from './authority'
 type Row=Record<string,unknown>
 export async function nativeChecklist(query:AdminMenuQuery,actor:McpActor,issuer:string) {
   await requireMcpAuthority(query,actor)
+  return readNativeChecklist(query,issuer)
+}
+/** Authority-free read: callers (MCP, superadmin page) authorize before calling. */
+export async function readNativeChecklist(query:AdminMenuQuery,issuer:string) {
   const ready=(await query("SELECT to_regclass('public.launch_checklist_items') IS NOT NULL AS ready")).rows[0]?.ready===true
   const rows=(await query(`SELECT to_jsonb(t) AS tenant,to_jsonb(s) AS settings,su.status,p.features,
     EXISTS(SELECT 1 FROM public.stripe_connections c WHERE c.tenant_id=t.id AND c.is_active) AS connected,
@@ -42,11 +46,15 @@ export function describeNativeChecklist(tenant:LaunchChecklistTenant) {
 }
 export async function setNativeChecklist(query:AdminMenuQuery,actor:McpActor,tenantId:string,itemKey:string,status:LaunchChecklistStatus,note?:string) {
   await requireMcpAuthority(query,actor,true)
+  return writeNativeChecklistItem(query,tenantId,itemKey,status,note,`mcp:${actor.actorId}`)
+}
+/** Authority-free upsert: callers authorize before calling. */
+export async function writeNativeChecklistItem(query:AdminMenuQuery,tenantId:string,itemKey:string,status:LaunchChecklistStatus,note:string|undefined,updatedBy:string) {
   if(!LAUNCH_CHECKLIST_KEYS.has(itemKey) || !LAUNCH_CHECKLIST_STATUSES.includes(status) || (note!==undefined && (typeof note!=='string' || note.length>2000))) throw new AdminMenuError(400,'Invalid checklist item')
   const row=(await query(`INSERT INTO public.launch_checklist_items(tenant_id,item_key,status,note,updated_by,updated_at)
     VALUES($1,$2,$3,COALESCE($4,''),$5,now()) ON CONFLICT(tenant_id,item_key) DO UPDATE SET status=EXCLUDED.status,
       note=CASE WHEN $4::text IS NULL THEN launch_checklist_items.note ELSE EXCLUDED.note END,updated_by=EXCLUDED.updated_by,updated_at=now()
-    RETURNING status,note,updated_by,updated_at`,[tenantId,itemKey,status,note?.trim() ?? null,`mcp:${actor.actorId}`])).rows[0]
+    RETURNING status,note,updated_by,updated_at`,[tenantId,itemKey,status,note?.trim() ?? null,updatedBy])).rows[0]
   if(!row) throw new AdminMenuError(503,'Checklist item was not saved')
   return { status:row.status,note:row.note,updatedBy:row.updated_by,updatedAt:row.updated_at instanceof Date ? row.updated_at.toISOString() : row.updated_at }
 }

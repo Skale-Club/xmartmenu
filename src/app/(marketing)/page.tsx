@@ -8,14 +8,27 @@ import {
   buildSoftwareApplicationJsonLd,
 } from '@/lib/seo'
 import ClientLandingPage from './ClientPage'
+import { platformSettingsOwned } from '@/lib/data/platform-settings'
+
+interface LandingSettings {
+  landing: unknown; app_name: string | null; favicon_url: string | null
+  seo_description: string | null; social_links: unknown
+}
 
 async function getPlatformSettings() {
   try {
-    const service = createServiceClient()
-    const { data } = await service
-      .from('platform_settings')
-      .select('landing, app_name, favicon_url, seo_description, social_links')
-      .single()
+    let data: LandingSettings | null
+    if (platformSettingsOwned()) {
+      // Own PostgreSQL only: a failure falls back to the defaults, never to Supabase.
+      const { readOwnedPlatformSettings } = await import('@/lib/data/platform-settings-runtime')
+      data = await readOwnedPlatformSettings(['landing', 'app_name', 'favicon_url', 'seo_description', 'social_links']) as LandingSettings | null
+    } else {
+      const service = createServiceClient()
+      data = (await service
+        .from('platform_settings')
+        .select('landing, app_name, favicon_url, seo_description, social_links')
+        .single()).data
+    }
     return {
       landing: data?.landing ?? null,
       appName: data?.app_name ?? null,
