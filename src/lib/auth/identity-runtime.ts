@@ -9,6 +9,7 @@ import { readLegacyPasswordOwner } from './legacy-password-proof'
 import { OwnedPrincipalRepository } from './owned-principal'
 import { ownedAuthSelected } from './owned-principal'
 import { NativeRegistration } from './native-registration'
+import { gateFirstLogin } from './first-login-gate'
 import { completeOwnedStaffAccess } from '../data/account-administration-runtime'
 
 let handler: ReturnType<typeof createIdentityHttp> | undefined
@@ -32,7 +33,7 @@ function runtime() {
       const principal = await new OwnedPrincipalRepository((text,values) => pool.query(text,values)).profile(userId,new Date())
       return !!principal && !principal.mustChangePassword
     },
-    store,
+    store: Object.assign(Object.create(store) as typeof store, gateFirstLogin(store, () => ownedAuthSelected())),
     completeStaffAccess: completeOwnedStaffAccess,
     register: async (identity,name,kind) => {
       if (!ownedAuthSelected() || process.env.OWNED_REGISTRATION_ENABLED !== 'true') throw new Error('Native registration unavailable')

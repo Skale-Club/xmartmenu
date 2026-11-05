@@ -8,8 +8,9 @@ export const MIGRATIONS = [
   ['20261103190000', 'application_identity', '9f0e4a498409c7c9d08752f1841384deafd9bc24008bbfcb950a6a972a7ada25'],
   ['20261103200000', 'identity_session_provenance', '9f05416e0a01fbd8d952804d13a7e288013611274779ede9d4090da078912480'],
   ['20261103210000', 'identity_browser_challenges', 'afc546ea90481d093c96bccfc785e600a21b72bae2565c23945b5d54373142d0'],
+  ['20261104090000', 'identity_google_claims', '40273e642ef063992c86df90cb0977ef1841791c2176e7171c11aa699a9cd1c0'],
 ]
-export const IDENTITY_TABLES = ['app_accounts', 'app_identity_bindings', 'app_sessions', 'app_identity_challenges']
+export const IDENTITY_TABLES = ['app_accounts', 'app_identity_bindings', 'app_sessions', 'app_identity_challenges', 'identity_google_subject_claims']
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 const HEX = /^[0-9a-f]{64}$/
 const literal = value => `'${String(value).replaceAll("'", "''")}'`

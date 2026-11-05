@@ -14,7 +14,6 @@ function fixture() {
     bindings: new Map<string, string>(),
     claims: new Map<string, Ref>(), phones: new Map<string, Ref[]>(),
     proofs: [] as string[],
-    pendings: new Map<string, { projectId: string; subject: string; authenticatedAt: number; expires: number }>(),
   }
   const challenges = new Set<string>(), sessions = new Map<string, string>(), cookies = new Map<string, string>()
   const google = (extra: Partial<VerifiedGoogleIdentity> = {}): VerifiedGoogleIdentity => ({ projectId: 'skaleclub', subject: 'fb-google', provider: 'google.com', googleSubject: 'g-sub-1', email: 'same@example.test', authenticatedAt: now(), ...extra })
@@ -34,9 +33,6 @@ function fixture() {
       logout: async t => { sessions.delete(t) }, revokeAll: async () => {},
       googleClaim: async sub => state.claims.get(sub) ?? null,
       phoneOwners: async p => state.phones.get(p) ?? [],
-      issuePending: async id => { const t = opaque(); state.pendings.set(t, { projectId: id.projectId, subject: id.subject, authenticatedAt: id.authenticatedAt, expires: Date.now() + 600_000 }); return t },
-      takePending: async t => { const p = state.pendings.get(t); state.pendings.delete(t); return p && p.expires > Date.now() ? p : null },
-      bindPendingGoogle: async (p, userId) => { state.bindings.set(p.subject, userId); return true },
     },
   }
   const handle = createIdentityHttp(deps)
@@ -85,22 +81,16 @@ describe('first sign-in: imported Google subject and verified phone', () => {
     const f = fixture(); const res = await f.login(f.phone())
     expect(res.status).toBe(409); expect((await res.json()).code).toBe('ACCOUNT_LINK_REQUIRED'); expect(f.state.bindings.size).toBe(0)
   })
-  it('holds an unlinked Google as pending and links it when the phone is confirmed', async () => {
+  it('Google without a link only asks for a phone: no pending state, no cookie, and the phone never links it by itself', async () => {
     const f = fixture(); f.state.phones.set('+15551234567', [{ userId: 'acct-1', disabled: false }])
-    const first = await f.login(f.google()); expect((await first.json()).code).toBe('phone_required')
-    expect(f.state.pendings.size).toBe(1); expect(f.cookies.has('__Host-xm_identity_pending')).toBe(true); expect(f.sessions.size).toBe(0)
+    const first = await f.login(f.google())
+    expect(first.status).toBe(409); expect((await first.json()).code).toBe('phone_required')
+    expect(first.headers.get('set-cookie') ?? '').not.toContain('pending')
+    expect(f.sessions.size).toBe(0); expect(f.state.bindings.size).toBe(0)
     expect((await f.login(f.phone())).status).toBe(200)
-    expect(f.state.bindings.get('fb-google')).toBe('acct-1'); expect(f.state.bindings.get('fb-phone')).toBe('acct-1')
-    expect(f.state.pendings.size).toBe(0)
-    f.cookies.clear()
-    expect((await f.login(f.google())).status).toBe(200)
-  })
-  it('ignores an expired pending Google: the phone still signs in, Google stays unlinked', async () => {
-    const f = fixture(); f.state.phones.set('+15551234567', [{ userId: 'acct-1', disabled: false }])
-    await f.login(f.google())
-    for (const p of f.state.pendings.values()) p.expires = Date.now() - 1
-    expect((await f.login(f.phone())).status).toBe(200)
+    expect(f.state.bindings.get('fb-phone')).toBe('acct-1')
     expect(f.state.bindings.has('fb-google')).toBe(false)
+    expect(f.state.proofs).toEqual(['phone-match'])
   })
   it('rejects an unknown challenge before binding', async () => {
     const f = fixture(); f.state.claims.set('g-sub-1', { userId: 'acct-1', disabled: false }); f.state.identity = f.google()

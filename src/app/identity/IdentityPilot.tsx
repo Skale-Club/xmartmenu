@@ -16,6 +16,14 @@ async function post(operation: string, body: object, legacyToken?: string) {
   return result
 }
 
+/** Display only: the server verifies the token. Never used for any decision. */
+function googleEmail(token: string): string {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))) as { email?: unknown }
+    return typeof payload.email === 'string' ? payload.email.slice(0, 254) : 'this Google account'
+  } catch { return 'this Google account' }
+}
+
 export default function IdentityPilot({ config, continueToApp = false, existingAccountLink = false, next = '/',customerFlow = false,linkCurrentAccount = false,staffAccess }: {
   config: IdentityWebConfig; continueToApp?: boolean; existingAccountLink?: boolean; next?: string; customerFlow?: boolean; linkCurrentAccount?: boolean; staffAccess?: {kind:'invite'|'recovery';code:string}
 }) {
@@ -27,6 +35,8 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
   const [link, setLink] = useState(linkCurrentAccount)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
+  const [googleAttempted, setGoogleAttempted] = useState(false)
+  const [confirmLink, setConfirmLink] = useState<{ token: string; email: string } | null>(null)
   const [existingEmail, setExistingEmail] = useState('')
   const [existingPassword, setExistingPassword] = useState('')
   const container = useRef<HTMLDivElement>(null)
@@ -50,7 +60,8 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
     catch (error) {
       if (error instanceof IdentityRequestError && error.code === 'phone_required') {
         // Google alone does not open an account: confirm the phone, which finishes the Google link.
-        setMessage('Google confirmed. Now verify your phone number to finish signing in.'); setError(''); document.getElementById('identity-phone')?.focus(); return
+        setGoogleAttempted(true)
+        setMessage('Google confirmed. Verify your phone number first; you can then link Google to your account.'); setError(''); document.getElementById('identity-phone')?.focus(); return
       }
       setError(error instanceof IdentityRequestError ? error.message : 'Could not complete verification. Check your details and try again. If the problem continues, contact support.')
     }
@@ -71,7 +82,10 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       try {
         const destination = await completeOwnedLogin(idToken,{ next,link,customerFlow,
           ...(existingAccountLink ? { existing: { email: existingEmail.trim(),password: existingPassword } } : {}) })
-        setSignedIn(true); window.location.assign(destination)
+        setSignedIn(true)
+        // Google that waited for a phone is linked afterwards, from this fresh session, after showing which Google account it is.
+        window.location.assign(googleAttempted && !link
+          ? `/identity?action=link${customerFlow ? '&flow=customer' : ''}&from=${encodeURIComponent(destination)}` : destination)
       } catch (error) { throw new IdentityRequestError(error instanceof Error ? error.message : 'Your access could not be confirmed.', error instanceof OwnedLoginError ? error.code : undefined) }
       finally { setExistingPassword('') }
       return
@@ -144,7 +158,18 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         </> : null}
         <button data-testid="identity-phone-submit" className={button} disabled={busy}>{busy ? 'Please wait…' : sent ? 'Verify and continue' : 'Send verification code'}</button>
       </form>
-      <button className={`${button} mt-4 border border-white/15 bg-transparent text-white hover:bg-white/5`} disabled={busy || sent} onClick={() => void run(async () => { requireExistingCredentials(); await complete(await googleProof(config)) })}>Continue with Google</button>
+      <button className={`${button} mt-4 border border-white/15 bg-transparent text-white hover:bg-white/5`} disabled={busy || sent} onClick={() => void run(async () => {
+        requireExistingCredentials()
+        const token = await googleProof(config)
+        // Linking: show the Google account first and let the person confirm it is theirs.
+        if (linkCurrentAccount && link) { setConfirmLink({ token, email: googleEmail(token) }); return }
+        await complete(token)
+      })}>Continue with Google</button>
+      {confirmLink ? <div role="alertdialog" aria-label="Confirm Google account" className="mt-4 space-y-3 rounded-2xl border border-white/15 p-4">
+        <p className="text-sm leading-6">Link <strong>{confirmLink.email}</strong> to your account? Only continue if this is your own Google account.</p>
+        <button className={button} disabled={busy} onClick={() => void run(async () => { const token = confirmLink.token; setConfirmLink(null); await complete(token) })}>Link this Google account</button>
+        <button className="w-full text-sm font-semibold text-zinc-300 hover:text-white" disabled={busy} onClick={() => setConfirmLink(null)}>Cancel</button>
+      </div> : null}
       {!staffAccess && !existingAccountLink && (!continueToApp || signedIn) ? <label className="mt-6 flex items-start gap-3 text-sm leading-5 text-zinc-400">
         <input className="mt-1 accent-primary" type="checkbox" checked={link} onChange={event => setLink(event.target.checked)} disabled={busy} />
         Link this sign-in method to my existing signed-in account

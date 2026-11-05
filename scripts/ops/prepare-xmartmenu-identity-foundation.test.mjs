@@ -49,18 +49,18 @@ test('exact source controls preserve active bans, deletion and mandatory passwor
   assert.match(CONTROL_SQL, /LIMIT 8$/)
 })
 
-test('the unchanged three migration bodies match normalized Git source pins', async () => {
+test('the unchanged four migration bodies match normalized Git source pins', async () => {
   const sources = await migrationSources()
-  assert.equal(sources.length, 3)
-  assert.deepEqual(sources.map(row => row.version), ['20261103190000', '20261103200000', '20261103210000'])
+  assert.equal(sources.length, 4)
+  assert.deepEqual(sources.map(row => row.version), ['20261103190000', '20261103200000', '20261103210000', '20261104090000'])
   for (const { sql } of sources) assert.doesNotMatch(sql, /\b(?:ALTER ROLE|CREATE ROLE|PASSWORD|INSERT INTO|UPDATE public|DELETE FROM)\b/i)
 })
 
-test('post proof excludes exactly four new tables and only the three new ledger rows', () => {
+test('post proof excludes exactly five new tables and only the four new ledger rows', () => {
   const sql = preservedManifestSql()
   assert.equal((sql.match(/version NOT IN/g) ?? []).length, 3)
   assert.equal((sql.match(/c.relname NOT IN/g) ?? []).length, 1)
-  assert.match(sql, /app_accounts','app_identity_bindings','app_sessions','app_identity_challenges/)
+  assert.match(sql, /app_accounts','app_identity_bindings','app_sessions','app_identity_challenges','identity_google_subject_claims/)
   assert.match(sql, /pg_get_functiondef/)
   assert.match(sql, /last_value::text AS last_value,is_called/)
 })
@@ -165,7 +165,7 @@ test('native projection preserves canonical migration files and never creates br
   for (const row of sources) {
     const sql = nativeIdentityMigrationSql(row)
     assert.doesNotMatch(sql, /CREATE ROLE|ALTER ROLE|DROP ROLE/i)
-    if (row.version === '20261103200000') assert.equal(sql, row.sql)
+    if (['20261103200000', '20261104090000'].includes(row.version)) assert.equal(sql, row.sql)
     else {
       assert.match(sql, /IF to_regrole\('anon'\) IS NOT NULL THEN EXECUTE 'REVOKE ALL/)
       assert.doesNotMatch(sql, /FROM PUBLIC, anon, authenticated/)
@@ -176,12 +176,12 @@ test('native projection preserves canonical migration files and never creates br
   assert.throws(() => nativeIdentityMigrationSql({ ...sources[0], sql: sources[0].sql+'\n' }))
 })
 
-test('execution projection hash is distinct source provenance and grants only the four new tables', async () => {
+test('execution projection hash is distinct source provenance and grants only the five new tables', async () => {
   const sources = await migrationSources(), projection = nativeIdentityProjection(sources), { manifest } = fixture()
   assert.match(projection.sha256, /^[a-f0-9]{64}$/)
   for (const row of projection.sourceMigrations) assert.notEqual(row.sha256, projection.sha256)
-  assert.match(projection.sql, /GRANT SELECT,INSERT,UPDATE,DELETE ON public\.app_accounts, public\.app_identity_bindings, public\.app_sessions, public\.app_identity_challenges TO xmartmenu_runtime/)
-  assert.match(projection.sql, /GRANT SELECT ON public\.app_accounts, public\.app_identity_bindings, public\.app_sessions, public\.app_identity_challenges TO xmartmenu_staging_reader/)
+  assert.match(projection.sql, /GRANT SELECT,INSERT,UPDATE,DELETE ON public\.app_accounts, public\.app_identity_bindings, public\.app_sessions, public\.app_identity_challenges, public\.identity_google_subject_claims TO xmartmenu_runtime/)
+  assert.match(projection.sql, /GRANT SELECT ON public\.app_accounts, public\.app_identity_bindings, public\.app_sessions, public\.app_identity_challenges, public\.identity_google_subject_claims TO xmartmenu_staging_reader/)
   assert.doesNotMatch(projection.sql, /ALTER DEFAULT PRIVILEGES|CREATE ROLE|ALTER ROLE|DROP ROLE/i)
   assert.match(await buildFoundationSql(manifest), new RegExp(`xmartmenu-native-projection-sha256:${projection.sha256}`))
   assert.throws(() => nativeIdentityProjection(sources.toReversed()))

@@ -4,6 +4,9 @@ import { redirect } from 'next/navigation'
 import { ownedAuthSelected } from '@/lib/auth/owned-principal'
 import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
 import { waiterAccess } from '@/lib/auth/waiter-access'
+import { readOwnedWaiter } from '@/lib/data/owned-waiter-runtime'
+import { readOwnedTenantCapabilities } from '@/lib/data/tenant-plan-runtime'
+import type { ServiceSettings } from '@/lib/service-modes'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import WaiterPage from './WaiterPage'
@@ -24,7 +27,7 @@ export default async function WaiterServerPage({ params }: Props) {
   let actor: { role: unknown; tenantId: string | null } | null = null
   if (owned) {
     const principal = await getOwnedPrincipal()
-    if (!principal) redirect(`/${slug}`)
+    if (!principal || principal.mustChangePassword) redirect(`/${slug}`)
     actor = { role: principal.role, tenantId: principal.tenantId }
   } else {
     const supabase = await createClient()
@@ -36,6 +39,33 @@ export default async function WaiterServerPage({ params }: Props) {
       .eq('id', user.id)
       .single()
     actor = profile ? { role: profile.role, tenantId: profile.tenant_id } : null
+  }
+
+  if (owned) {
+    // Native mode: tenant, tables and menu come from the owned database, never the stale Supabase copy.
+    const data = await readOwnedWaiter(slug)
+    if (!data || !waiterAccess(actor, data.tenant.id)) redirect(`/${slug}`)
+    const settings = data.settings as ServiceSettings | null
+    const capabilities = await readOwnedTenantCapabilities(data.tenant.id, settings)
+    if (!capabilities.waiterOrdering) redirect(`/${slug}`)
+    const group = <T extends { product_id: string }>(rows: T[]) => rows.reduce<Record<string, T[]>>((acc, row) => { (acc[row.product_id] ??= []).push(row); return acc }, {})
+    const colors = data.settings as { currency?: string; primary_color?: string } | null
+    return (
+      <WaiterPage
+        slug={slug}
+        tenantId={data.tenant.id}
+        tenantName={data.tenant.name}
+        tables={data.tables as never[]}
+        categories={data.categories as never[]}
+        products={data.products as never[]}
+        optionGroupsByProductId={group(data.groups) as unknown as Record<string, GroupWithOptions[]>}
+        productIngredientsByProductId={capabilities.ingredientCustomization ? group(data.ingredients) as unknown as Record<string, ProductIngredientWithIngredient[]> : {}}
+        capabilities={capabilities}
+        activeOrders={data.activeOrders as never[]}
+        currency={colors?.currency ?? 'USD'}
+        primaryColor={colors?.primary_color ?? '#F52323'}
+      />
+    )
   }
 
   const service = createServiceClient()

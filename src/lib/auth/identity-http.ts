@@ -26,9 +26,6 @@ export interface IdentityHttpDependencies {
     // Xpot-style first sign-in. Absent = this deployment links only through the explicit routes.
     googleClaim?: (googleSub: string) => Promise<AccountRef | null>
     phoneOwners?: (phone: string) => Promise<AccountRef[]>
-    issuePending?: (identity: VerifiedGoogleIdentity) => Promise<string>
-    takePending?: (token: string) => Promise<{ projectId: string; subject: string; authenticatedAt: number } | null>
-    bindPendingGoogle?: (pending: { projectId: string; subject: string; authenticatedAt: number }, userId: string) => Promise<boolean>
     createSession: (identity: VerifiedGoogleIdentity) => Promise<{ token: string; expiresAt: Date }>
     session: (token: string) => Promise<Principal | null>
     logout: (token: string) => Promise<void>
@@ -80,7 +77,6 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
   const secure = origin.protocol === 'https:'
   const sessionName = `${secure ? '__Host-' : ''}xm_identity`
   const challengeName = `${secure ? '__Host-' : ''}xm_identity_challenge`
-  const pendingName = `${secure ? '__Host-' : ''}xm_identity_pending`
   const reply = (body: object, status = 200) => Response.json(body, { status, headers: {
     'Cache-Control': 'no-store', Pragma: 'no-cache', Vary: 'Cookie', 'Referrer-Policy': 'no-referrer',
   } })
@@ -221,7 +217,6 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
       }
       const store = deps.store
       const linkedUserId = await store.owner(identity)
-      let ownerId = linkedUserId
       if (!linkedUserId) {
         const googleSub = identity.provider === 'google.com' ? identity.googleSubject : undefined
         const resolution = resolveLogin({ identity, linkedUserId,
@@ -229,26 +224,12 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
           phoneOwners: identity.phone && store.phoneOwners ? await store.phoneOwners(identity.phone) : [] })
         if (resolution.kind === 'blocked') return reply({ code: 'ACCOUNT_BLOCKED', message: 'This account cannot sign in. Contact support.' }, 403)
         if (resolution.kind === 'phone-ambiguous') return reply({ code: 'PHONE_AMBIGUOUS', message: 'This phone number is shared by more than one account. Contact support for reviewed recovery.' }, 409)
-        if (resolution.kind === 'phone-required') {
-          if (!store.issuePending) return reply({ code: 'ACCOUNT_LINK_REQUIRED', message: 'Link your existing account or request reviewed recovery.' }, 409)
-          if (!(await claimBrowser(request, body))) return reply({ message: 'Invalid or expired browser challenge.' }, 403)
-          const pending = await store.issuePending(identity)
-          // The Google identity waits 10 minutes for a verified phone; it grants nothing yet.
-          const response = reply({ code: 'phone_required', message: 'Confirm your phone number to finish signing in with Google.' }, 409)
-          setCookie(response, pendingName, pending, 600); setCookie(response, challengeName, '', 0)
-          return response
-        }
+        // Google alone never opens an account: confirm a phone first, then link Google from a recent session.
+        if (resolution.kind === 'phone-required') return reply({ code: 'phone_required', message: 'Confirm your phone number to finish signing in. You can then link Google.' }, 409)
         if (resolution.kind !== 'bind') return reply({ code: 'ACCOUNT_LINK_REQUIRED', message: 'Link your existing account or request reviewed recovery.' }, 409)
         if (!(await claimBrowser(request, body))) return reply({ message: 'Invalid or expired browser challenge.' }, 403)
         await store.bind(identity, resolution.userId, resolution.proof)
-        ownerId = resolution.userId
       } else if (!(await claimBrowser(request, body))) return reply({ message: 'Invalid or expired browser challenge.' }, 403)
-      if (ownerId && identity.provider === 'phone') {
-        // A Google sign-in that waited for this phone joins the account the phone just proved.
-        const token = cookie(request, pendingName)
-        const pending = token && OPAQUE.test(token) && store.takePending ? await store.takePending(token) : null
-        if (pending && store.bindPendingGoogle) await store.bindPendingGoogle(pending, ownerId).catch(() => false)
-      }
       const next = await store.createSession(identity)
       try {
         const old = cookie(request, sessionName)
@@ -256,7 +237,6 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
         const response = reply({ authenticated: true })
         setCookie(response, sessionName, next.token, Math.max(0, Math.floor((next.expiresAt.getTime() - Date.now()) / 1000)))
         setCookie(response, challengeName, '', 0)
-        if (cookiePresent(request, pendingName)) setCookie(response, pendingName, '', 0)
         return response
       } catch {
         await deps.store.logout(next.token).catch(() => {})
