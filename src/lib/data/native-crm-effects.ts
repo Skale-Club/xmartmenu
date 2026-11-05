@@ -48,7 +48,10 @@ export async function claimNativeCrmEffect(query:AdminMenuQuery,id:string,observ
   if(phone!==null && !/^\+[1-9]\d{7,14}$/.test(phone))throw new AdminMenuError(503,'Verified owner phone is invalid')
   const payload:NativeCrmPayload=buildSyncPayload({tenant:{id:current.tenantId,name:String(current.tenant.name),slug:String(current.tenant.slug),custom_domain:typeof current.tenant.custom_domain==='string'?current.tenant.custom_domain:null},
     owner:current.owner?{full_name:typeof current.owner.full_name==='string'?current.owner.full_name:null,role:'store-admin',email:null}:null,
-    plan:current.plan,currency:current.currency,reason:current.reason,occurredAt:new Date().toISOString(),eventId:current.eventId,tags:current.tags})
+    plan:current.plan,currency:current.currency,reason:current.reason,occurredAt:new Date().toISOString(),
+    // Internal dedup keys do not invent new timeline notes for manual resync
+    // or OAuth/disconnect, whose Source flows deliberately emitted no note.
+    eventId:current.reason==='manual'||current.eventId?.startsWith('oauth:')||current.eventId?.startsWith('disconnect:')?undefined:current.eventId,tags:current.tags})
   if(current.owner)payload.company.phone=phone
   const claimId=randomUUID(),requestDigest=tenantEffectDigest(payload)
   await query("UPDATE public.app_tenant_effects SET status='processing',claim_id=$2,claimed_at=clock_timestamp(),observed_at=$3,request_digest=$4,request_payload=$5::jsonb WHERE id=$1",[id,claimId,payload.occurred_at,requestDigest,JSON.stringify(payload)])

@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises'
 import pg from 'pg'
 import { adminMenuTransaction, createAdminMenusPool } from '../../src/lib/data/admin-menus-runtime'
 import { claimNativeStripeOAuth, completeNativeStripeOAuth, refuseNativeStripeOAuth, connectNativeStripe, disconnectNativeStripe, readNativeStripeAvailability, readNativeStripeConnection, readNativeStripeCurrency, readNativeStripeOwnerState } from '../../src/lib/data/stripe-connect'
-import type { AdminActorContext } from '../../src/lib/data/admin-actor'
+import type { NativeStripeActor } from '../../src/lib/data/stripe-connect'
 const raw = process.env.IDENTITY_TEST_DATABASE_URL
 if (!raw) throw Error('Explicit disposable Connect target required')
 const target = new URL(raw)
@@ -15,14 +15,16 @@ const admin = new pg.Pool({ connectionString: raw, max: 2, statement_timeout: 50
 const pool = createAdminMenusPool({ NODE_ENV: 'production', PROD_DATABASE_HOST: target.hostname, PROD_DATABASE_NAME: 'xmartmenu_identity_test', ADMIN_MENUS_DATABASE_URL: raw, ADMIN_MENUS_DATABASE_SSL: 'disable' })
 const tx = <T>(op: Parameters<typeof adminMenuTransaction<T>>[2]) => adminMenuTransaction(pool, true, op)
 const a = randomUUID(), b = randomUUID(), ownerA = randomUUID(), ownerB = randomUUID(), staff = randomUUID(), superadmin = randomUUID(), plan = randomUUID()
-const owner: AdminActorContext = { actorId: ownerA, role: 'store-admin', tenantId: a }, now = new Date('2026-11-04T22:00:00Z')
+const owner: NativeStripeActor = { actorId: ownerA, role: 'store-admin', tenantId: a, sessionHash: 'a'.repeat(64) }, now = new Date('2026-11-04T22:00:00Z')
 const proof = () => ({ nonceHash: randomBytes(32).toString('hex'), codeHash: randomBytes(32).toString('hex'), expiresAt: now.getTime() + 60000 })
 const connection = (id = a) => tx(query => readNativeStripeConnection(query, id))
 before(async () => {
-  await admin.query(`DROP TABLE IF EXISTS public.app_stripe_oauth_attempts,public.stripe_connections,public.tenant_settings,public.tenant_subscriptions,public.plans,public.profiles,public.app_accounts,public.tenants CASCADE;
+  await admin.query(`DROP TABLE IF EXISTS public.app_stripe_oauth_attempts,public.app_sessions,public.app_identity_bindings,public.stripe_connections,public.tenant_settings,public.tenant_subscriptions,public.plans,public.profiles,public.app_accounts,public.tenants CASCADE;
     CREATE TABLE public.tenants(id uuid PRIMARY KEY);
     CREATE TABLE public.profiles(id uuid PRIMARY KEY,tenant_id uuid REFERENCES public.tenants(id),role text,must_change_password boolean);
-    CREATE TABLE public.app_accounts(id uuid PRIMARY KEY,disabled_at timestamptz);
+    CREATE TABLE public.app_accounts(id uuid PRIMARY KEY,disabled_at timestamptz,session_version int NOT NULL DEFAULT 0);
+    CREATE TABLE public.app_identity_bindings(user_id uuid REFERENCES public.app_accounts(id),project_id text,subject text,disabled_at timestamptz);
+    CREATE TABLE public.app_sessions(user_id uuid REFERENCES public.app_accounts(id),token_hash text PRIMARY KEY,session_version int,expires_at timestamptz,project_id text,subject text);
     CREATE TABLE public.plans(id uuid PRIMARY KEY,name text,slug text,description text,monthly_price numeric,annual_price numeric,transaction_fee_pct numeric,features jsonb);
     CREATE TABLE public.tenant_subscriptions(tenant_id uuid PRIMARY KEY REFERENCES public.tenants(id),plan_id uuid REFERENCES public.plans(id),billing_cycle text,status text,override_monthly_price numeric,override_annual_price numeric,override_transaction_fee_pct numeric,override_notes text);
     CREATE TABLE public.tenant_settings(tenant_id uuid PRIMARY KEY REFERENCES public.tenants(id),currency text);
@@ -31,19 +33,23 @@ before(async () => {
   await admin.query(proposal.slice(proposal.indexOf('CREATE TABLE public.app_stripe_oauth_attempts'), proposal.indexOf('REVOKE ALL ON')))
   await admin.query('INSERT INTO public.tenants VALUES($1),($2)', [a, b])
   await admin.query("INSERT INTO public.profiles VALUES($1,$5,'store-admin',false),($2,$6,'store-admin',false),($3,$5,'store-staff',false),($4,NULL,'superadmin',false)", [ownerA, ownerB, staff, superadmin, a, b])
-  await admin.query('INSERT INTO public.app_accounts VALUES($1,NULL),($2,NULL),($3,NULL),($4,NULL)', [ownerA, ownerB, staff, superadmin])
+  await admin.query('INSERT INTO public.app_accounts(id,disabled_at) VALUES($1,NULL),($2,NULL),($3,NULL),($4,NULL)', [ownerA, ownerB, staff, superadmin])
   await admin.query("INSERT INTO public.plans VALUES($1,'Payments','payments',NULL,30,300,3,$2)", [plan, JSON.stringify(['payments','stripe-connect'])])
   await admin.query("INSERT INTO public.tenant_subscriptions(tenant_id,plan_id,billing_cycle,status) VALUES($1,$3,'monthly','active'),($2,$3,'monthly','active')", [a, b, plan])
   await admin.query("INSERT INTO public.tenant_settings VALUES($1,'BRL'),($2,NULL)", [a, b])
+  for (const [index,id] of [ownerA,ownerB,staff,superadmin].entries()) {
+    await admin.query("INSERT INTO public.app_identity_bindings VALUES($1,'skaleclub',$2,NULL)",[id,`subject-${index}`])
+    await admin.query("INSERT INTO public.app_sessions VALUES($1,$2,0,clock_timestamp()+interval '1 day','skaleclub',$3)",[id,['a','b','c','d'][index].repeat(64),`subject-${index}`])
+  }
 })
 beforeEach(async () => {
-  await admin.query('DELETE FROM public.app_stripe_oauth_attempts; UPDATE public.app_accounts SET disabled_at=NULL; UPDATE public.profiles SET must_change_password=false; UPDATE public.tenant_subscriptions SET status=\'active\'; DELETE FROM public.stripe_connections')
+  await admin.query("DELETE FROM public.app_stripe_oauth_attempts; UPDATE public.app_accounts SET disabled_at=NULL,session_version=0; UPDATE public.app_sessions SET session_version=0,expires_at=clock_timestamp()+interval '1 day'; UPDATE public.app_identity_bindings SET disabled_at=NULL; UPDATE public.profiles SET must_change_password=false; UPDATE public.tenant_subscriptions SET status='active'; DELETE FROM public.stripe_connections")
   await admin.query("UPDATE public.profiles SET role=CASE WHEN id=$1 THEN 'store-staff' WHEN id=$2 THEN 'superadmin' ELSE 'store-admin' END", [staff, superadmin])
   await admin.query("INSERT INTO public.stripe_connections(tenant_id,stripe_account_id) VALUES($1,'acct_tenanta'),($2,'acct_tenantb')", [a, b])
 })
 after(async () => {
   await pool.end()
-  try { await admin.query('DROP TABLE IF EXISTS public.app_stripe_oauth_attempts,public.stripe_connections,public.tenant_settings,public.tenant_subscriptions,public.plans,public.profiles,public.app_accounts,public.tenants CASCADE') }
+  try { await admin.query('DROP TABLE IF EXISTS public.app_stripe_oauth_attempts,public.app_sessions,public.app_identity_bindings,public.stripe_connections,public.tenant_settings,public.tenant_subscriptions,public.plans,public.profiles,public.app_accounts,public.tenants CASCADE') }
   finally { await admin.end() }
 })
 test('active connection/plan/currency readers retain tenant scope, canonical currencies and nullable lifecycle facts', async () => {
@@ -63,13 +69,31 @@ test('owner/staff/foreign-tenant and current disabled/reset/role controls govern
   await assert.rejects(tx(query => disconnectNativeStripe(query, owner, now)), { status: 403 })
   assert.equal((await connection())?.stripe_account_id, 'acct_tenanta')
 })
+test('current exact session hash, expiry, version and binding govern every Connect phase after provider lookup', async () => {
+  const changes=[
+    'UPDATE public.app_accounts SET session_version=1 WHERE id=$1',
+    'UPDATE public.app_sessions SET expires_at=clock_timestamp() WHERE user_id=$1',
+    'UPDATE public.app_identity_bindings SET disabled_at=clock_timestamp() WHERE user_id=$1',
+    "UPDATE public.app_sessions SET project_id='other-project' WHERE user_id=$1",
+  ]
+  for(const sql of changes){
+    await admin.query(sql,[ownerA])
+    await assert.rejects(tx(query=>connectNativeStripe(query,owner,'acct_stale',now)),{status:403})
+    await assert.rejects(tx(query=>disconnectNativeStripe(query,owner,now)),{status:403})
+    await admin.query('UPDATE public.app_accounts SET session_version=0 WHERE id=$1',[ownerA])
+    await admin.query("UPDATE public.app_sessions SET expires_at=clock_timestamp()+interval '1 day',project_id='skaleclub' WHERE user_id=$1",[ownerA])
+    await admin.query('UPDATE public.app_identity_bindings SET disabled_at=NULL WHERE user_id=$1',[ownerA])
+  }
+  await assert.rejects(tx(query=>connectNativeStripe(query,{...owner,sessionHash:'b'.repeat(64)},'acct_wrongsession',now)),{status:403})
+  assert.equal((await connection())?.stripe_account_id,'acct_tenanta')
+})
 test('callback persistence rechecks live plan and owner while superadmin can explicitly preview a tenant', async () => {
   await admin.query("UPDATE public.tenant_subscriptions SET status='cancelled' WHERE tenant_id=$1", [a])
   await assert.rejects(tx(query => connectNativeStripe(query, owner, 'acct_new', now)), { status: 403 })
   await admin.query("UPDATE public.tenant_subscriptions SET status='active' WHERE tenant_id=$1", [a])
   await admin.query("UPDATE public.profiles SET role='store-staff' WHERE id=$1", [ownerA])
   await assert.rejects(tx(query => connectNativeStripe(query, owner, 'acct_new', now)), { status: 403 })
-  await tx(query => connectNativeStripe(query, { actorId: superadmin, role: 'superadmin', tenantId: a }, 'acct_superpreview', now))
+  await tx(query => connectNativeStripe(query, { actorId: superadmin, role: 'superadmin', tenantId: a, sessionHash:'d'.repeat(64) }, 'acct_superpreview', now))
   assert.equal((await connection())?.stripe_account_id, 'acct_superpreview'); assert.equal((await connection(b))?.stripe_account_id, 'acct_tenantb')
 })
 test('connect/reconnect writes only lifecycle fields and disconnect stays available after plan loss', async () => {
@@ -82,7 +106,7 @@ test('connect/reconnect writes only lifecycle fields and disconnect stays availa
   assert.equal((await connection(b))?.stripe_account_id, 'acct_tenantb')
 })
 test('same-account callbacks across tenants serialize and refuse ambiguous ownership instead of assigning twice', async () => {
-  const results = await Promise.allSettled([tx(query => connectNativeStripe(query, owner, 'acct_shared', now)), tx(query => connectNativeStripe(query, { actorId: ownerB, role: 'store-admin', tenantId: b }, 'acct_shared', now))])
+  const results = await Promise.allSettled([tx(query => connectNativeStripe(query, owner, 'acct_shared', now)), tx(query => connectNativeStripe(query, { actorId: ownerB, role: 'store-admin', tenantId: b, sessionHash:'b'.repeat(64) }, 'acct_shared', now))])
   assert.equal(results.filter(result => result.status === 'fulfilled').length, 1)
   assert.equal(results.filter(result => result.status === 'rejected' && (result.reason as { status?: number }).status === 409).length, 1)
   assert.equal((await admin.query("SELECT count(*)::int AS n FROM public.stripe_connections WHERE stripe_account_id='acct_shared'")).rows[0].n, 1)

@@ -4,6 +4,7 @@ import { UUID } from '../auth/owned-principal'
 import type { SyncReason } from '../xphere/types'
 
 export const NATIVE_SYNC_REASONS = ['onboarded','plan_activated','plan_changed','past_due','churned','connect_changed','backfill','manual'] as const
+export const tenantEffectsSelected=(env:Record<string,string|undefined>=process.env)=>env.OWNED_TENANT_EFFECTS_ENABLED==='true'
 export type NativeTenantEffectInput = { tenantId:string; reason:SyncReason; eventId?:string; tags?:string[] }
 /** Internal transaction seam. The caller must authorize its actor or verify its
  * provider event before calling. This only records an intention, never delivers

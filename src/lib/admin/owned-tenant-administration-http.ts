@@ -31,7 +31,7 @@ export async function ownedTenantAdministrationHttp(kind: 'plans'|'tenants'|'set
     if (kind === 'tenants' && action === 'create' && result && typeof result === 'object' && 'tenant' in result && result.tenant && typeof result.tenant === 'object' && 'id' in result.tenant && typeof result.tenant.id === 'string') {
       // The transaction already committed its intention. Queue failure leaves
       // it pending and never retries restaurant/account creation.
-      await publishPendingNativeTenantEffects(result.tenant.id)
+      await publishPendingNativeTenantEffects(result.tenant.id).catch(() => {})
     }
     if (kind === 'tenants' && action !== 'read') { revalidatePath('/tenants'); if (result && typeof result === 'object' && 'slug' in result) revalidatePath(`/${result.slug}`,'layout') }
     return kind === 'plans' && action === 'delete' ? new NextResponse(null,{ status:204,headers:{ 'Cache-Control':'private, no-store' } }) : json(result,action === 'create' ? 201 : 200)

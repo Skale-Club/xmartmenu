@@ -5,8 +5,9 @@ import { getIdentityServices } from '../auth/identity-services'
 import { assertProviderAccountActive } from '../auth/provider-account-status'
 import { ownedAuthSelected } from '../auth/owned-principal'
 import { AdminMenuError } from './admin-menus'
+import { tenantEffectsSelected } from './tenant-effects-outbox'
+export { tenantEffectsSelected } from './tenant-effects-outbox'
 
-export const tenantEffectsSelected=(env:Record<string,string|undefined>=process.env)=>env.OWNED_TENANT_EFFECTS_ENABLED==='true'
 export async function currentTenantEffectActor(context?:TenantEffectSessionContext):Promise<TenantEffectActor> {
   if(!ownedAuthSelected() || !tenantEffectsSelected())throw new AdminMenuError(503,'Native tenant effects are unavailable')
   const candidate=context ?? await tenantAdministrationContext()
