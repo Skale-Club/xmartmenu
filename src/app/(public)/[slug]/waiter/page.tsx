@@ -1,6 +1,12 @@
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
+import { waiterAccess } from '@/lib/auth/waiter-access'
+import { readOwnedWaiter } from '@/lib/data/owned-waiter-runtime'
+import { readOwnedTenantCapabilities } from '@/lib/data/tenant-plan-runtime'
+import type { ServiceSettings } from '@/lib/service-modes'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/server'
 import WaiterPage from './WaiterPage'
@@ -14,18 +20,53 @@ interface Props {
 
 export default async function WaiterServerPage({ params }: Props) {
   const { slug } = await params
-  const supabase = await createClient()
 
-  // Must be authenticated
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect(`/${slug}`)
+  // Native mode: the session is the owned one (xm_identity); Supabase is not consulted,
+  // otherwise staff signed in natively would be sent away from the waiter screen.
+  const owned = ownedAuthSelected()
+  let actor: { role: unknown; tenantId: string | null } | null = null
+  if (owned) {
+    const principal = await getOwnedPrincipal()
+    if (!principal || principal.mustChangePassword) redirect(`/${slug}`)
+    actor = { role: principal.role, tenantId: principal.tenantId }
+  } else {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) redirect(`/${slug}`)
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('tenant_id, role')
+      .eq('id', user.id)
+      .single()
+    actor = profile ? { role: profile.role, tenantId: profile.tenant_id } : null
+  }
 
-  // Must be admin or staff on this tenant
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('tenant_id, role')
-    .eq('id', user.id)
-    .single()
+  if (owned) {
+    // Native mode: tenant, tables and menu come from the owned database, never the stale Supabase copy.
+    const data = await readOwnedWaiter(slug)
+    if (!data || !waiterAccess(actor, data.tenant.id)) redirect(`/${slug}`)
+    const settings = data.settings as ServiceSettings | null
+    const capabilities = await readOwnedTenantCapabilities(data.tenant.id, settings)
+    if (!capabilities.waiterOrdering) redirect(`/${slug}`)
+    const group = <T extends { product_id: string }>(rows: T[]) => rows.reduce<Record<string, T[]>>((acc, row) => { (acc[row.product_id] ??= []).push(row); return acc }, {})
+    const colors = data.settings as { currency?: string; primary_color?: string } | null
+    return (
+      <WaiterPage
+        slug={slug}
+        tenantId={data.tenant.id}
+        tenantName={data.tenant.name}
+        tables={data.tables as never[]}
+        categories={data.categories as never[]}
+        products={data.products as never[]}
+        optionGroupsByProductId={group(data.groups) as unknown as Record<string, GroupWithOptions[]>}
+        productIngredientsByProductId={capabilities.ingredientCustomization ? group(data.ingredients) as unknown as Record<string, ProductIngredientWithIngredient[]> : {}}
+        capabilities={capabilities}
+        activeOrders={data.activeOrders as never[]}
+        currency={colors?.currency ?? 'USD'}
+        primaryColor={colors?.primary_color ?? '#F52323'}
+      />
+    )
+  }
 
   const service = createServiceClient()
   const { data: tenant } = await service
@@ -37,11 +78,7 @@ export default async function WaiterServerPage({ params }: Props) {
 
   if (!tenant) redirect(`/${slug}`)
 
-  const isSuperadmin = profile?.role === 'superadmin' || profile?.role === 'super-admin'
-  const isStaff = profile?.role === 'store-admin' || profile?.role === 'store-staff'
-  const belongsToTenant = profile?.tenant_id === tenant.id
-
-  if (!isSuperadmin && !(isStaff && belongsToTenant)) {
+  if (!waiterAccess(actor, tenant.id)) {
     redirect(`/${slug}`)
   }
 

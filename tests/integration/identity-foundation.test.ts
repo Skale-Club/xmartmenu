@@ -111,13 +111,13 @@ test('fresh seven exact accounts commit without anon and preserve UUIDs, control
   await db.query(parts.privateSql)
   const accounts = (await db.query('SELECT id,disabled_at IS NOT NULL disabled,session_version FROM public.app_accounts ORDER BY id')).rows
   assert.deepEqual(accounts, review.users.map(row => ({ ...row, session_version: 0 })).sort((a, b) => a.id.localeCompare(b.id)))
-  assert.equal((await db.query('SELECT count(*)::int n FROM supabase_migrations.schema_migrations')).rows[0].n, 95)
+  assert.equal((await db.query('SELECT count(*)::int n FROM supabase_migrations.schema_migrations')).rows[0].n, 96)
   assert.equal((await db.query('SELECT count(*)::int n FROM public.app_identity_bindings')).rows[0].n, 0)
   assert.equal((await db.query('SELECT count(*)::int n FROM public.app_sessions')).rows[0].n, 0)
   assert.equal((await db.query("SELECT count(*)::int n FROM pg_authid WHERE rolname IN ('xmartmenu_runtime','xmartmenu_staging_reader') AND NOT rolcanlogin AND rolpassword IS NULL")).rows[0].n, 2)
   assert.equal((await db.query("SELECT count(*)::int n FROM pg_roles WHERE rolname='anon'")).rows[0].n, 0)
   assert.equal((await db.query("SELECT count(*)::int n FROM pg_default_acl WHERE defaclrole='xmartmenu_owner'::regrole AND defaclobjtype='r'")).rows[0].n, 0)
-  assert.equal((await db.query("SELECT count(*)::int n FROM pg_tables WHERE schemaname='public' AND tablename IN ('app_accounts','app_identity_bindings','app_sessions','app_identity_challenges') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'SELECT') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'INSERT') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'UPDATE') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'DELETE') AND has_table_privilege('xmartmenu_staging_reader',('public.'||tablename)::regclass,'SELECT')")).rows[0].n, 4)
+  assert.equal((await db.query("SELECT count(*)::int n FROM pg_tables WHERE schemaname='public' AND tablename IN ('app_accounts','app_identity_bindings','app_sessions','app_identity_challenges','identity_google_subject_claims') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'SELECT') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'INSERT') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'UPDATE') AND has_table_privilege('xmartmenu_runtime',('public.'||tablename)::regclass,'DELETE') AND has_table_privilege('xmartmenu_staging_reader',('public.'||tablename)::regclass,'SELECT')")).rows[0].n, 5)
 })
 
 test('retry refuses existing foundation instead of replaying migrations or enabling accounts', async () => {

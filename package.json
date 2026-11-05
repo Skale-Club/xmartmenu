@@ -33,7 +33,9 @@
     "db:local": "supabase start",
     "db:local:reset": "supabase db reset",
     "db:local:stop": "supabase stop",
-    "db:migrate": "node scripts/apply-migrations.mjs"
+    "db:migrate": "node scripts/apply-migrations.mjs",
+    "db:pull": "tsx scripts/db-pull.ts",
+    "test:dev-db-pull": "vitest run tests/unit/dev-db-pull.test.ts tests/unit/dev-db-pull.integration.test.ts tests/unit/dev-outbound-guard.test.ts tests/unit/database-target.test.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.62",

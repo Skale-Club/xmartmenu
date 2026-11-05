@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { getRequestOrigin } from '@/lib/site-url'
 import { cookies } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { listAllAuthUsers } from '@/lib/admin/list-auth-users'
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
   // The demo creates and signs in a Supabase Auth user, which owned mode never does.
   if (ownedModeActive()) return unavailable()
   const DEMO_PASSWORD = demoPassword()
-  const { origin } = new URL(request.url)
+  const origin = getRequestOrigin(request)
   const service = createServiceClient()
 
   // 1. Resolve the demo tenant. If it is not seeded, fall back to the home page.
