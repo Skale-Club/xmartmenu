@@ -12,6 +12,9 @@ import { getTenantPlan } from '@/lib/tenant-plan'
 import { isStripeEnabled } from '@/lib/stripe'
 import { createClient } from '@/lib/supabase/server'
 import SubscriptionClient, { type PlanOption } from './SubscriptionClient'
+import { adminMenusOwned } from '@/lib/data/admin-menus'
+import { readOwnedSubscriptionPage } from '@/lib/data/subscription-billing-runtime'
+import { subscriptionActor } from '@/lib/billing/subscription-http'
 
 export default async function SubscriptionPage({
   searchParams,
@@ -31,6 +34,10 @@ export default async function SubscriptionPage({
 
   const { tenantId } = effective
   const { plan: checkoutResult } = await searchParams
+  if (adminMenusOwned()) {
+    const data = await readOwnedSubscriptionPage(await subscriptionActor(effective))
+    return <SubscriptionClient tenantId={tenantId} {...data} canManage={effective.role !== 'store-staff'} checkoutResult={checkoutResult === 'success' || checkoutResult === 'cancelled' ? checkoutResult : null} />
+  }
   const supabase = await createClient()
 
   // Fetch subscription from DB

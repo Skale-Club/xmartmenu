@@ -40,7 +40,8 @@ it('connection persistence rechecks owner and plan with fixed bound metadata and
   const sql = query(); await connectNativeStripe(sql, context, 'acct_fixture', time)
   const insert = sql.mock.calls.find(([text]) => text.startsWith('INSERT INTO public.stripe_connections'))!
   expect(insert[0]).toContain('ON CONFLICT(tenant_id)'); expect(insert[0]).not.toMatch(/access_token|refresh_token|acct_fixture/)
-  expect(sql.mock.calls[0][0]).toContain('FOR NO KEY UPDATE')
+  expect(sql.mock.calls[0][0]).toContain('xmartmenu-account-authority')
+  expect(sql.mock.calls.findIndex(([text]) => text.includes('FOR NO KEY UPDATE'))).toBeGreaterThan(sql.mock.calls.findIndex(([text]) => text.includes('FROM public.profiles p JOIN')))
 })
 it('cross-tenant account ambiguity refuses before persistence', async () => {
   const sql = query({ other: true })
