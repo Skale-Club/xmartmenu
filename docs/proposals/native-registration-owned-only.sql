@@ -27,7 +27,7 @@ ALTER TABLE public.profiles DROP CONSTRAINT profiles_id_fkey;
 -- cyclic reverse FK. Registration enforces the shared UUID in one transaction.
 ALTER TABLE public.app_identity_bindings DROP CONSTRAINT app_identity_bindings_binding_proof_check;
 ALTER TABLE public.app_identity_bindings ADD CONSTRAINT app_identity_bindings_binding_proof_check
- CHECK(binding_proof IN('legacy-session','owned-session','google-subject','operator-recovery','native-registration'));
+ CHECK(binding_proof IN('legacy-session','owned-session','google-subject','operator-recovery','native-registration','phone-match'));
 -- Importer revokes public function execution and currently grants only orders.
 -- Give the existing runtime this exact onboarding function, no broad grant.
 GRANT EXECUTE ON FUNCTION public.complete_onboarding(uuid,jsonb) TO xmartmenu_runtime;

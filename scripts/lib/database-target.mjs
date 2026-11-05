@@ -1,5 +1,13 @@
 // Never let a developer command inherit the production/source DATABASE_URL.
 export const SOURCE_SUPABASE_PROJECT = 'ktogbpqookfcqilqvici'
+/** Supabase projects that hold, or held, real Xmartmenu data. Add a ref the moment one serves customers. */
+export const PRODUCTION_PROJECT_REFS = [SOURCE_SUPABASE_PROJECT]
+
+/** The known production ref found anywhere in `value` (a ref, host or URL), if any. */
+export function findProductionProjectRef(value) {
+  const lower = String(value).toLowerCase()
+  return PRODUCTION_PROJECT_REFS.find(ref => lower.includes(ref))
+}
 
 /** node-postgres query fields can override URL host/user/port or read SSL files. */
 export function assertConnectionQuery(url) {
@@ -24,10 +32,31 @@ function parseUrl(value) {
   } catch { throw new Error('Invalid PostgreSQL target (credentials omitted)') }
 }
 
+/**
+ * Only the database half of the development target: the declared Supabase development
+ * project and a DEV_DATABASE_URL that belongs to it. Used by `npm run db:pull`, which needs
+ * no API keys. Never falls back to DATABASE_URL or any production alias.
+ * @param {Record<string, string | undefined>} [env]
+ */
+export function developmentDatabaseTarget(env = process.env) {
+  const ref = env.DEV_SUPABASE_PROJECT_REF?.trim()
+  if (!ref || !/^[a-z]{20}$/.test(ref) || findProductionProjectRef(ref)) {
+    throw new Error('Set DEV_SUPABASE_PROJECT_REF to an isolated development project, distinct from the production source')
+  }
+  const database = parseUrl(env.DEV_DATABASE_URL)
+  const direct = database.hostname === `db.${ref}.supabase.co`
+  const pooler = /\.pooler\.supabase\.com$/.test(database.hostname) && decodeURIComponent(database.username) === `postgres.${ref}`
+  if ((!direct && !pooler) || database.pathname !== '/postgres' || findProductionProjectRef(database.href)) {
+    throw new Error('Development database must match the isolated Supabase project')
+  }
+  database.searchParams.set('sslmode', 'verify-full')
+  return { ref, databaseUrl: database.href, host: database.hostname }
+}
+
 /** @param {Record<string, string | undefined>} [env] */
 export function developmentConfig(env = process.env) {
   const ref = env.DEV_SUPABASE_PROJECT_REF?.trim()
-  if (!ref || !/^[a-z]{20}$/.test(ref) || ref === SOURCE_SUPABASE_PROJECT) {
+  if (!ref || !/^[a-z]{20}$/.test(ref) || findProductionProjectRef(ref)) {
     throw new Error('Set DEV_SUPABASE_PROJECT_REF to an isolated development project, distinct from the production source')
   }
   let api

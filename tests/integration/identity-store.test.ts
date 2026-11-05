@@ -25,7 +25,12 @@ const a = randomUUID(), b = randomUUID()
 const identity = (subject: string): VerifiedGoogleIdentity => ({ projectId: 'skaleclub', subject, provider: 'phone', phone: '+15551234567', authenticatedAt: Math.floor(Date.now() / 1000) })
 
 before(async () => {
-  await admin.query('CREATE ROLE anon NOLOGIN; CREATE ROLE authenticated NOLOGIN; CREATE ROLE service_role NOLOGIN BYPASSRLS;')
+  // Cluster-wide roles may already exist from another suite; create only what is missing.
+  await admin.query(`DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN BYPASSRLS; END IF;
+  END $$`)
   await admin.query(await readFile(new URL('../../supabase/migrations/20261103190000_application_identity.sql', import.meta.url), 'utf8'))
   await admin.query(await readFile(new URL('../../supabase/migrations/20261103200000_identity_session_provenance.sql', import.meta.url), 'utf8'))
   await admin.query(await readFile(new URL('../../supabase/migrations/20261103210000_identity_browser_challenges.sql', import.meta.url), 'utf8'))

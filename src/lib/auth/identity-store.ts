@@ -5,8 +5,13 @@ import { assertProviderAccountActive, type ProviderAccountStatusReader, type Pro
 import { requireCurrentPhone, type CustomerAccountStatus } from './google-customer-account'
 
 const SESSION_MS = 8 * 60 * 60 * 1000
+const E164 = /^\+[1-9]\d{7,14}$/
+const STORED_E164_MATCH = "btrim(coalesce(p.phone,'')) LIKE '+%' AND '+'||regexp_replace(p.phone,'[^0-9]','','g')=$1"
+const ELIGIBLE_PHONE_ACCOUNT = `(p.role='customer' AND coalesce(p.must_change_password,false)=false AND NOT EXISTS (
+  SELECT 1 FROM public.app_identity_bindings b WHERE b.user_id=p.id AND b.disabled_at IS NULL))`
 const digest = (token: string) => createHash('sha256').update(token).digest('hex')
-export type BindingProof = 'legacy-session' | 'owned-session' | 'google-subject' | 'operator-recovery'
+export type BindingProof = 'legacy-session' | 'owned-session' | 'native-registration' | 'google-subject' | 'phone-match' | 'operator-recovery'
+export type AccountRef = { userId: string; disabled: boolean }
 
 async function transaction<T>(pool: Pool, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect()
@@ -65,14 +70,55 @@ export class IdentityStore {
     return result.rows[0]?.user_id ?? null
   }
 
+  /** Imported Google subject -> account. Exact value only; never e-mail. */
+  async googleClaim(googleSub: string): Promise<AccountRef | null> {
+    if (!googleSub || googleSub.length > 255) return null
+    const result = await this.pool.query<{ account_id: string; disabled_at: Date | null }>(
+      `SELECT c.account_id,a.disabled_at FROM public.identity_google_subject_claims c
+       JOIN public.app_accounts a ON a.id=c.account_id WHERE c.google_sub=$1`, [googleSub])
+    const row = result.rows[0]
+    return row ? { userId: row.account_id, disabled: row.disabled_at !== null } : null
+  }
+
+  /**
+   * Accounts whose stored profile phone equals this verified number as E.164.
+   * Only a stored number with an explicit "+" can match: a national number
+   * never matches another country's international one. Only a customer
+   * account with no active binding and no forced password change is eligible
+   * (staff/admin/superadmin phones are public business data, not proof);
+   * a lone ineligible match yields no owner, several matches stay ambiguous.
+   */
+  async phoneOwners(phone: string): Promise<AccountRef[]> {
+    if (!E164.test(phone)) return []
+    const result = await this.pool.query<{ id: string; disabled_at: Date | null; eligible: boolean }>(
+      `SELECT p.id,a.disabled_at,${ELIGIBLE_PHONE_ACCOUNT} AS eligible FROM public.profiles p JOIN public.app_accounts a ON a.id=p.id
+       WHERE ${STORED_E164_MATCH} ORDER BY p.id LIMIT 2`, [phone])
+    if (result.rows.length === 1 && !result.rows[0].eligible) return []
+    return result.rows.map(row => ({ userId: row.id, disabled: row.disabled_at !== null }))
+  }
+
   async bind(identity: VerifiedGoogleIdentity, userId: string, proof: BindingProof): Promise<void> {
     await this.verifyActive(identity, true)
+    if (proof === 'phone-match') {
+      if (identity.provider !== 'phone' || !identity.phone || !this.customerAccount) throw new Error('Independent phone proof required')
+      requireCurrentPhone(await this.customerAccount(identity), identity.authenticatedAt, identity.phone)
+    }
     await transaction(this.pool, async client => {
       // One lock per provider identity, even when two different app accounts
       // try the first association concurrently. Lock releases on rollback too.
       await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [JSON.stringify([identity.projectId, identity.subject])])
       const account = await client.query('SELECT id FROM public.app_accounts WHERE id=$1 AND disabled_at IS NULL FOR UPDATE', [userId])
       if (!account.rowCount) throw new Error('Account unavailable')
+      if (proof === 'google-subject') {
+        if (identity.provider !== 'google.com' || !identity.googleSubject) throw new Error('Google subject required')
+        const claim = await client.query('SELECT 1 FROM public.identity_google_subject_claims WHERE google_sub=$1 AND account_id=$2', [identity.googleSubject, userId])
+        if (!claim.rowCount) throw new Error('Google subject is not claimed by this account')
+      }
+      if (proof === 'phone-match') {
+        const owners = await client.query<{ id: string; eligible: boolean }>(`SELECT p.id,${ELIGIBLE_PHONE_ACCOUNT} AS eligible FROM public.profiles p JOIN public.app_accounts a ON a.id=p.id
+          WHERE ${STORED_E164_MATCH} LIMIT 2`, [identity.phone])
+        if (owners.rowCount !== 1 || owners.rows[0].id !== userId || !owners.rows[0].eligible) throw new Error('Phone does not identify exactly this eligible account')
+      }
       const bound = await client.query<{ user_id: string; disabled_at: Date | null; provider: string }>('SELECT user_id,disabled_at,provider FROM public.app_identity_bindings WHERE project_id=$1 AND subject=$2 FOR UPDATE', [identity.projectId, identity.subject])
       if (bound.rows[0] && bound.rows[0].user_id !== userId) throw new Error('Identity already belongs to another account')
       if (bound.rows[0]?.disabled_at) throw new Error('Identity binding unavailable')
