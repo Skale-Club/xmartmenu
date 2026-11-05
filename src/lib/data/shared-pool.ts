@@ -49,6 +49,11 @@ export function createSharedPool(config: RuntimeConfig) {
     options: '-c lock_timeout=2000', application_name: 'xmartmenu-runtime' })
   // Idle connection errors must not crash the process or log credential details.
   created.on('error', () => {})
+  // pg-pool detaches its idle error listener while a client is checked out, so a
+  // connection the server (or the SSH transport) terminates between two statements
+  // of a transaction would emit an unhandled 'error' and kill the process. The
+  // failing statement still rejects; this only keeps the event from being fatal.
+  created.on('connect', client => { client.on('error', () => {}) })
   return created
 }
 
