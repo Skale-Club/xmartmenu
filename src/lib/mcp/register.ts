@@ -17,6 +17,8 @@ import { registerOrderReadTools } from './tools/orders'
 import { registerStaffReadTools, registerStaffWriteTools, registerStaffDestructiveTools } from './tools/staff'
 import { registerBrandingWriteTools } from './tools/branding'
 import { registerLaunchChecklistReadTools, registerLaunchChecklistWriteTools } from './tools/launch-checklist'
+import { nativeMcpSelected } from './oauth-model'
+import { registerNativeMcpTools } from './native-tools'
 
 /**
  * Registers every xmartmenu MCP tool on the server instance.
@@ -28,6 +30,7 @@ import { registerLaunchChecklistReadTools, registerLaunchChecklistWriteTools } f
  *   + a confirm:true arg (see helpers.checkDestructiveAllowed).
  */
 export function registerMcpTools(server: McpServer): void {
+  if(nativeMcpSelected()) { registerNativeMcpTools(server); return }
   // Read
   registerTenantReadTools(server)
   registerUserReadTools(server)

@@ -2,6 +2,10 @@ import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js'
 import { createServiceClient } from '@/lib/supabase/server'
 import { normalizeRole } from '@/lib/auth/role-utils'
 import { captureSecurityEvent } from '@/lib/observability'
+import { nativeMcpSelected } from './oauth-model'
+import { nativeMcpBearer } from './runtime'
+import { currentMcpIdentity } from './data/authority'
+import { markInvalidMcpOrigin } from './request-state'
 
 /**
  * MCP bearer-token gate (`withMcpAuth` verifyToken).
@@ -20,6 +24,16 @@ export async function verifyMcpToken(
   bearerToken?: string,
 ): Promise<AuthInfo | undefined> {
   if (!bearerToken) return undefined
+  if (nativeMcpSelected()) {
+    try {
+      if(_req.headers.get('authorization')?.match(/^Bearer (xm_mcp_at_[A-Za-z0-9_-]{43})$/i)?.[1]!==bearerToken) return undefined
+      const actor=await nativeMcpBearer(bearerToken),identity=currentMcpIdentity(actor.oauth)
+      const origin=_req.headers.get('origin')
+      if(origin && origin!==new URL(identity.resource).origin && !identity.clientOrigins.includes(origin)) { markInvalidMcpOrigin(_req); return undefined }
+      return { token:bearerToken,clientId:identity.clientId,scopes:identity.scopes,expiresAt:identity.expiresAt,
+        extra:{ userId:identity.userId,nativeMcpActor:actor } }
+    } catch { return undefined }
+  }
 
   const service = createServiceClient()
 
