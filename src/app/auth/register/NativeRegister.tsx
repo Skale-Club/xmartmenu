@@ -56,7 +56,7 @@ export default function NativeRegister({ config, customer, next }: { config: Ide
         }
       }) }}>
         <label htmlFor="register-phone" className="block text-sm font-semibold">Phone with country code</label>
-        <input id="register-phone" type="tel" autoComplete="tel" placeholder="+15551234567" value={phone} onChange={event => setPhone(event.target.value)} disabled={busy || sent} required className={field} />
+        <input id="register-phone" type="tel" autoComplete="tel" placeholder="+10000000000" value={phone} onChange={event => setPhone(event.target.value)} disabled={busy || sent} required className={field} />
         <div ref={container} />
         {sent ? <><label htmlFor="register-code" className="block text-sm font-semibold">SMS verification code</label>
           <input id="register-code" autoComplete="one-time-code" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={code} onChange={event => setCode(event.target.value)} disabled={busy} required className={field} /></> : null}

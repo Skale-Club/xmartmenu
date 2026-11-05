@@ -40,9 +40,9 @@ BEGIN
         '#e94560',
         'https://images.unsplash.com/photo-1514933651103-005eec06c04b?w=1200',
         '123 Main Street, New York, NY',
-        '(555) 010-8888',
+        '(000) 000-0000',
         '@demorestaurant',
-        '15550108888',
+        '10000000000',
         'USD',
         'en',
         true,
@@ -113,8 +113,8 @@ BEGIN
 
     INSERT INTO orders (tenant_id, customer_name, customer_phone, status, total, created_at, updated_at)
     VALUES
-        (v_tenant_id, 'John Silva', '15550108888', 'completed', 38.00, NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
-        (v_tenant_id, 'Maria Santos', '15550107777', 'pending', 26.00, NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '30 minutes')
+        (v_tenant_id, 'John Silva', '10000000000', 'completed', 38.00, NOW() - INTERVAL '2 days', NOW() - INTERVAL '2 days'),
+        (v_tenant_id, 'Maria Santos', '10000000001', 'pending', 26.00, NOW() - INTERVAL '30 minutes', NOW() - INTERVAL '30 minutes')
     ON CONFLICT DO NOTHING;
 
     RAISE NOTICE 'English-first seed completed successfully.';

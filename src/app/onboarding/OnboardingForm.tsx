@@ -262,7 +262,7 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                     type="tel"
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
-                    placeholder="+1 555-123-4567"
+                    placeholder="+1 000-000-0000"
                     className={inputClass}
                   />
                 </div>

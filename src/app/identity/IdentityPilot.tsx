@@ -150,7 +150,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         }
       }) }}>
         <label htmlFor="identity-phone" className="block text-sm font-semibold">Phone number</label>
-        <input id="identity-phone" data-testid="identity-phone" className={field} type="tel" autoComplete="tel" placeholder="+1 555 123 4567" required value={phone} onChange={event => setPhone(event.target.value)} disabled={busy || sent} />
+        <input id="identity-phone" data-testid="identity-phone" className={field} type="tel" autoComplete="tel" placeholder="+1 000 000 0000" required value={phone} onChange={event => setPhone(event.target.value)} disabled={busy || sent} />
         <div ref={container} />
         {sent ? <>
           <label htmlFor="identity-code" className="block text-sm font-semibold">Verification code</label>

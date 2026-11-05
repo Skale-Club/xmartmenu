@@ -173,7 +173,7 @@ function RegisterForm() {
                 required
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
-                placeholder="+1 (555) 000-0000"
+                placeholder="+1 (000) 000-0000"
                 className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
               />
             </div>
