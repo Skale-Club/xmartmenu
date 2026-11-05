@@ -27,6 +27,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase/server'
+import { assertOwnedModeStorage } from '@/lib/data/owned-mode'
 
 // ─── Bucket type ─────────────────────────────────────────────────────────────
 
@@ -221,6 +222,7 @@ class S3StorageClient implements IStorageClient {
 
 // ─── Factory ──────────────────────────────────────────────────────────────────
 
+
 let _client: IStorageClient | null = null
 
 /**
@@ -228,6 +230,7 @@ let _client: IStorageClient | null = null
  * Switch provider by setting STORAGE_PROVIDER=s3 (or leave unset for Supabase).
  */
 export function getStorageClient(): IStorageClient {
+  assertOwnedModeStorage()
   if (!_client) {
     _client = process.env.STORAGE_PROVIDER === 's3'
       ? new S3StorageClient()

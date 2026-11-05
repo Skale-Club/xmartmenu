@@ -9,6 +9,7 @@
 import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase/server'
 import { pickLegalDoc, renderLegalBody, type LegalDoc } from '@/lib/marketing/legal-doc'
+import { platformSettingsOwned } from '@/lib/data/platform-settings'
 
 export type LegalKey = 'terms' | 'privacy'
 
@@ -19,6 +20,11 @@ const FALLBACK_TITLE: Record<LegalKey, string> = {
 
 export async function getLegalDoc(key: LegalKey): Promise<LegalDoc | null> {
   try {
+    if (platformSettingsOwned()) {
+      // Own PostgreSQL only: a failure shows the placeholder, never the stale Supabase copy.
+      const { readOwnedPlatformSettings } = await import('@/lib/data/platform-settings-runtime')
+      return pickLegalDoc((await readOwnedPlatformSettings(['legal']))?.legal, key)
+    }
     const service = createServiceClient()
     const { data } = await service.from('platform_settings').select('legal').single()
     return pickLegalDoc(data?.legal, key)

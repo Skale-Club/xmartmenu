@@ -3,6 +3,8 @@ import { assertSuperadmin } from '@/lib/superadmin-auth'
 import { NextResponse } from 'next/server'
 import { withApi } from '@/lib/observability/with-api'
 import { log } from '@/lib/observability/log'
+import { ownedModeActive } from '@/lib/data/owned-mode'
+import { AdminMenuError } from '@/lib/data/admin-menus'
 
 // Lists products for a given menu | used by AI Tools per-product image seed UI (AI-09).
 // Mirrors the existing /menus/[menuId]/categories-list pattern.
@@ -15,13 +17,26 @@ async function handleGET(
   const { id: tenantId } = await params
 
   // Auth guard | assertSuperadmin returns client or null (SEC-03 pattern)
-  if (!(await assertSuperadmin())) {
+  const authorization = await assertSuperadmin()
+  if (!authorization) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { searchParams } = new URL(request.url)
   const menuId = searchParams.get('menuId')
   if (!menuId) return NextResponse.json({ error: 'menuId required' }, { status: 400 })
+
+  if (ownedModeActive()) {
+    // Own PostgreSQL only; no fallback to the stale Supabase copy.
+    try {
+      const { readOwnedTenantProductPicker } = await import('@/lib/data/superadmin-reads-runtime')
+      return NextResponse.json({ products: await readOwnedTenantProductPicker(authorization.principal.userId, tenantId, menuId) })
+    } catch (error) {
+      if (error instanceof AdminMenuError && error.status < 500) return NextResponse.json({ error: error.message }, { status: error.status })
+      log.error('GET /api/superadmin/tenants/[id]/products-list', { err: error })
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    }
+  }
 
   const service = await createServiceClient()
   const { data: products, error } = await service

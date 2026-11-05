@@ -1,5 +1,6 @@
 import pg from 'pg'
 import { postgresRuntimeConfig } from './database-config'
+import { sharedRuntimePool } from './shared-pool'
 import { readOwnedPublicMenu } from './public-menu'
 
 let pool: pg.Pool | undefined
@@ -20,7 +21,7 @@ export function assertPublicMenuTarget(env: Record<string, string | undefined> =
 }
 export async function loadOwnedPublicMenuBase(slug: string, menuSlug: string | undefined) {
   const config = assertPublicMenuTarget()
-  if (!pool) { pool = createPublicMenuPool(process.env); poolConfiguration = JSON.stringify(config) }
+  if (!pool) { pool = sharedRuntimePool('PUBLIC_MENU'); poolConfiguration = JSON.stringify(config) }
   return readPublicMenuSnapshot(pool, slug, menuSlug)
 }
 export async function readPublicMenuSnapshot(source: Pick<pg.Pool, 'connect'>, slug: string, menuSlug: string | undefined, timeoutMs = 8_000) {

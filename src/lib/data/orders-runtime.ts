@@ -1,5 +1,6 @@
 import pg from 'pg'
 import { postgresRuntimeConfig } from './database-config'
+import { sharedRuntimePool } from './shared-pool'
 import { OrderDataError, OwnedOrderRepository, type OrderContext, type OrderQuery } from './orders'
 
 let pool: pg.Pool | undefined, configuration: string | undefined
@@ -13,7 +14,7 @@ export function createOrdersPool(env: Record<string, string | undefined>) {
 function ownedPool() {
   const current = JSON.stringify(postgresRuntimeConfig(process.env, 'ORDERS'))
   if (configuration && configuration !== current) throw new OrderDataError(503, 'Order configuration changed; restart required')
-  if (!pool) { pool = createOrdersPool(process.env); configuration = current }
+  if (!pool) { pool = sharedRuntimePool('ORDERS'); configuration = current }
   return pool
 }
 /** READ COMMITTED preserves the restored function's concurrent idempotency conflict/replay semantics. */
