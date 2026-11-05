@@ -23,6 +23,9 @@ if (!['127.0.0.1', 'localhost'].includes(base.hostname) || base.pathname !== '/x
 const DATABASE = 'xmartmenu_remaining_reads_test'
 const target = new URL(raw); target.pathname = `/${DATABASE}`
 const server = new pg.Pool({ connectionString: raw, max: 1, connectionTimeoutMillis: 5_000 })
+// pg-pool resolves end() before the sockets have closed; an unhandled 'error' from a
+// connection that DROP DATABASE ... FORCE then terminates would be an uncaught exception.
+server.on('error', () => {})
 let admin: pg.Pool
 const env = { NODE_ENV: 'production', PROD_DATABASE_HOST: target.hostname, PROD_DATABASE_NAME: DATABASE,
   ADMIN_MENUS_DATABASE_URL: target.href, ADMIN_MENUS_DATABASE_SSL: 'disable',
@@ -33,6 +36,7 @@ before(async () => {
   await server.query(`DROP DATABASE IF EXISTS ${DATABASE}`)
   await server.query(`CREATE DATABASE ${DATABASE}`)
   admin = new pg.Pool({ connectionString: target.href, max: 1, connectionTimeoutMillis: 5_000 })
+  admin.on('error', () => {})
   const original = await readFile(new URL('../../supabase/migrations/004_platform_settings.sql', import.meta.url), 'utf8')
   await admin.query(original.slice(original.indexOf('CREATE TABLE'), original.indexOf('-- Insert English-first')))
   for (const file of ['045_platform_settings_columns.sql', '047_platform_favicon.sql', '057_platform_legal.sql']) {
@@ -65,6 +69,12 @@ before(async () => {
 after(async () => {
   await closeSharedRuntimePools()
   await admin?.end()
+  // Wait for the server to see the sessions gone instead of racing them with FORCE.
+  for (let attempt = 0; attempt < 40; attempt++) {
+    const open = await server.query('SELECT count(*)::int AS n FROM pg_stat_activity WHERE datname=$1', [DATABASE])
+    if (open.rows[0].n === 0) break
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
   await server.query(`DROP DATABASE IF EXISTS ${DATABASE} WITH (FORCE)`)
   await server.end()
 })
@@ -149,4 +159,22 @@ test('owned readiness reports ok, then a sanitized failure when the table is gon
   assert.equal(down.ok, false)
   assert.equal(down.error, 'database unavailable')
   await admin.query('ALTER TABLE public.plans_gone RENAME TO plans')
+})
+
+test('a connection terminated while checked out neither crashes the process nor poisons the pool', async () => {
+  const pool = sharedRuntimePool('ADMIN_MENUS', env)
+  const uncaught: unknown[] = []
+  const record = (error: unknown) => { uncaught.push(error) }
+  process.on('uncaughtException', record)
+  try {
+    const client = await pool.connect()
+    await client.query('BEGIN')
+    const pid = (await client.query('SELECT pg_backend_pid() AS pid')).rows[0].pid
+    await admin.query('SELECT pg_terminate_backend($1)', [pid])
+    await new Promise(resolve => setTimeout(resolve, 300))
+    await assert.rejects(client.query('SELECT 1'))
+    client.release(true)
+    assert.equal((await pool.query('SELECT 1 AS ok')).rows[0].ok, 1)
+  } finally { process.off('uncaughtException', record) }
+  assert.deepEqual(uncaught, [])
 })

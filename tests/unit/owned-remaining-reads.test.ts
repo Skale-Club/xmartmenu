@@ -5,7 +5,8 @@ import { SHARED_POOL_MAX, RUNTIME_ROLE_CONNECTION_LIMIT, TRANSPORT_HEARTBEAT_SLO
 import { PLATFORM_SETTINGS_LOCK, parsePlatformSettingsPatch, readPlatformSettingsRow, writePlatformSettingsRow } from '@/lib/data/platform-settings'
 import { isLoopbackCall, normalizeCustomDomainHost, readCustomDomainTenantSlug } from '@/lib/data/tenant-domain'
 import { assertOwnedModeStartup } from '@/lib/data/owned-startup'
-import { assertSingleSharedPoolTarget } from '@/lib/data/shared-pool'
+import { assertSingleSharedPoolTarget, createSharedPool } from '@/lib/data/shared-pool'
+import { EventEmitter } from 'node:events'
 import { rememberDomain, resolveOwnedDomainSlug, type DomainCacheEntry } from '@/lib/custom-domain-lookup'
 import { checkOwnedDatabase } from '@/lib/data/database-health'
 import { readPlatformBlogSitemap } from '@/lib/data/public-seo'
@@ -270,5 +271,17 @@ describe('review hardening', () => {
     expect(() => sharedPoolForConfig({ connectionString: 'postgresql://rt:pw@db:5432/other', ssl: false })).toThrow('single PostgreSQL runtime target')
     expect(sharedPoolForConfig(first)).toBeDefined()
     await closeSharedRuntimePools()
+  })
+})
+
+describe('terminated connections are never fatal', () => {
+  it('every client gets a permanent error listener, so a checked-out client cannot raise an uncaught error', async () => {
+    const pool = createSharedPool({ connectionString: 'postgresql://rt:pw@db:5432/app', ssl: false })
+    const client = new EventEmitter()
+    expect(() => client.emit('error', new Error('terminating connection due to administrator command'))).toThrow()
+    pool.emit('connect', client)
+    expect(() => client.emit('error', new Error('terminating connection due to administrator command'))).not.toThrow()
+    expect(() => pool.emit('error', new Error('idle client lost'), client)).not.toThrow()
+    await pool.end()
   })
 })
