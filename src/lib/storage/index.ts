@@ -175,15 +175,21 @@ class S3StorageClient implements IStorageClient {
     return `${base}/${path}`
   }
 
-  async download(bucket: StorageBucket, path: string): Promise<Buffer> {
+  async download(bucket: StorageBucket, path: string, maxBytes?: number): Promise<Buffer> {
     const { GetObjectCommand } = await import('@aws-sdk/client-s3')
     const client = await this.getS3Client()
     const response = await client.send(new GetObjectCommand({
       Bucket: this.bucketName(bucket),
       Key: path,
     }))
-    const chunks: Uint8Array[] = []
+    const close = () => { const body = response.Body; if (body && 'destroy' in body && typeof body.destroy === 'function') body.destroy() }
+    if (maxBytes !== undefined && (!Number.isSafeInteger(maxBytes) || maxBytes <= 0 || (response.ContentLength !== undefined && response.ContentLength > maxBytes))) {
+      close(); throw new Error('Storage object exceeds the permitted size')
+    }
+    const chunks: Uint8Array[] = []; let size = 0
     for await (const chunk of response.Body as AsyncIterable<Uint8Array>) {
+      size += chunk.byteLength
+      if (maxBytes !== undefined && size > maxBytes) { close(); throw new Error('Storage object exceeds the permitted size') }
       chunks.push(chunk)
     }
     return Buffer.concat(chunks)
@@ -226,4 +232,14 @@ export function getStorageClient(): IStorageClient {
 /** Reset cached client (for testing or hot-reload). */
 export function resetStorageClient(): void {
   _client = null
+}
+
+/** Native operations never inherit the legacy Supabase fallback or a cached
+ * Source client. Credentials are read only by the existing S3 implementation. */
+export function getNativeStorageClient(): S3StorageClient {
+  if (process.env.STORAGE_PROVIDER !== 's3' || !process.env.STORAGE_S3_ENDPOINT || !process.env.STORAGE_S3_ACCESS_KEY_ID
+    || !process.env.STORAGE_S3_SECRET_ACCESS_KEY || !process.env.STORAGE_S3_PUBLIC_URL_BASE) throw new Error('Native S3 storage is unavailable')
+  const client = getStorageClient()
+  if (!(client instanceof S3StorageClient)) throw new Error('Storage configuration changed; restart required')
+  return client
 }
