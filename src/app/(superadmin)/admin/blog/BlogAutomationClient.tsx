@@ -11,6 +11,7 @@
  * one is stored, and sends the masked sentinel to mean "leave it alone".
  */
 import { useState, useTransition } from 'react'
+import {nativeEffectFetch} from '@/lib/tenant-effects/browser'
 import {
   AlertCircle, CheckCircle2, Clock, Loader2, Play, RefreshCw, Rss, Send, Trash2,
 } from 'lucide-react'
@@ -119,7 +120,7 @@ const BTN = 'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-bo
 const BTN_PRIMARY = `${BTN} bg-zinc-950 text-white hover:bg-zinc-800`
 const BTN_GHOST = `${BTN} border border-zinc-200 text-zinc-700 hover:bg-zinc-50`
 
-export default function BlogAutomationClient({ initialState }: { initialState: BlogAutomationState }) {
+export default function BlogAutomationClient({ initialState,nativeBlog=false }: { initialState: BlogAutomationState;nativeBlog?:boolean }) {
   const [state, setState] = useState(initialState)
   const [form, setForm] = useState<SettingsForm>(() => formFrom(initialState.settings))
   const [apiKey, setApiKey] = useState('')
@@ -167,16 +168,16 @@ export default function BlogAutomationClient({ initialState }: { initialState: B
     startTransition(async () => {
       setNotice(null)
       try {
-        const res = await fetch(url, {
+        const res = await nativeEffectFetch(url, {
           ...init,
           headers: { 'Content-Type': 'application/json', ...(init.headers ?? {}) },
-        })
+        },nativeBlog)
         const body = await res.json().catch(() => ({}))
         if (!res.ok) {
           setNotice({ kind: 'error', text: body.error ?? `Request failed (${res.status})` })
           return
         }
-        setNotice({ kind: 'ok', text: success })
+        setNotice({ kind: 'ok', text: body.message??success })
         after?.()
         await refresh()
       } catch (err) {

@@ -1,3 +1,4 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
@@ -34,7 +35,7 @@ export default async function PlatformBlogYearPage({ params }: Props) {
   const year = parseYear((await params).year)
   if (!year) notFound()
 
-  const svc = createServiceClient()
+  const svc = (nativeBlogSelected()?null:createServiceClient())
   // A contagem decide: um ano sem posts é 404, não uma página vazia.
   const archive = await listArchive(svc, null)
   if (!archive.some((entry) => entry.year === year)) notFound()

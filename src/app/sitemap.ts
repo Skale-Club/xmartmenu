@@ -3,6 +3,8 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { PLATFORM_BASE } from '@/lib/seo'
 import { scopeFilter } from '@/lib/blog/scope'
 import { listArchive, listTags } from '@/lib/blog/public-queries'
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {nativePlatformSitemap} from '@/lib/blog/native/sitemap'
 import { ownedModeActive } from '@/lib/data/owned-mode'
 
 // Regenerate at most every 5 minutes (active tenants change rarely).
@@ -34,6 +36,7 @@ async function ownedSitemap(entries: MetadataRoute.Sitemap): Promise<MetadataRou
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  if(nativeBlogSelected())return nativePlatformSitemap()
   const entries: MetadataRoute.Sitemap = [
     {
       url: PLATFORM_BASE,

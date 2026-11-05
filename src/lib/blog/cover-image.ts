@@ -42,7 +42,7 @@ export interface CoverImageResult {
   durationMs: number
 }
 
-function coverPrompt(title: string, focusKeyword: string | null): string {
+export function coverPrompt(title: string, focusKeyword: string | null): string {
   return [
     `Imagem de capa fotográfica e profissional para um artigo intitulado "${title}".`,
     focusKeyword ? `O assunto é ${focusKeyword}.` : '',
@@ -110,7 +110,7 @@ async function requestImage(
  * Nunca lança: um recorte ou uma codificação que falha degrada para os bytes
  * originais. Uma capa apenas não otimizada ainda é melhor que capa nenhuma.
  */
-async function normaliseTo16x9(
+export async function normaliseTo16x9(
   bytes: Buffer,
   mime: string,
 ): Promise<{ buffer: Buffer; mime: string; extension: string }> {

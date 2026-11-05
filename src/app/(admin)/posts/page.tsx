@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 
 import { loadTenantBlogState } from './actions'
 import TenantBlogClient from './TenantBlogClient'
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
 
 /**
  * Blog do restaurante (autoblog-parity XM-14).
@@ -20,5 +21,5 @@ export default async function TenantBlogPage() {
   const state = await loadTenantBlogState()
   if (!state.ok) redirect('/dashboard')
 
-  return <TenantBlogClient initialState={state.data} />
+  return <TenantBlogClient initialState={state.data} nativeBlog={nativeBlogSelected()} />
 }

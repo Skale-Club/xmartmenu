@@ -5,6 +5,11 @@ import { createServiceClient } from '@/lib/supabase/server'
 import { nextScheduledRun } from '@/lib/blog/schedule'
 import { scopeFilter } from '@/lib/blog/scope'
 import BlogAutomationClient, { type BlogAutomationState } from './BlogAutomationClient'
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
+import {currentNativeBlogActor} from '@/lib/blog/native/authority-runtime'
+import {nativeBlogPhase} from '@/lib/blog/native/runtime'
+import {readNativeBlogState} from '@/lib/blog/native/admin-data'
+import {nativePlatformBlogState} from '@/lib/blog/native/presentation'
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +24,11 @@ export const dynamic = 'force-dynamic'
  * renders with real values instead of flashing empty.
  */
 export default async function SuperadminBlogPage() {
+  if(nativeBlogSelected()){
+    const actor=await currentNativeBlogActor(true)
+    const state=await nativeBlogPhase({kind:'browser',actor},false,(query,current)=>readNativeBlogState(query,current.kind==='browser'?current.actor:actor))
+    return <BlogAutomationClient initialState={nativePlatformBlogState(state)} nativeBlog />
+  }
   if (!(await assertSuperadmin())) redirect('/overview')
 
   const service = createServiceClient()

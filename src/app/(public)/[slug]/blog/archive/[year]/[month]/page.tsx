@@ -1,3 +1,4 @@
+import {nativeBlogSelected} from '@/lib/blog/native/selected'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
@@ -35,7 +36,7 @@ export default async function TenantBlogMonthPage({ params }: Props) {
   const blog = await resolveTenantBlog(slug)
   if (!blog) notFound()
 
-  const svc = createServiceClient()
+  const svc = (nativeBlogSelected()?null:createServiceClient())
   const archive = await listArchive(svc, blog.tenantId)
   if (!archive.some((e) => e.year === parsed.year && e.month === parsed.month)) notFound()
 

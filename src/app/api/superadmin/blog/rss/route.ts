@@ -1,3 +1,5 @@
+import {nativeBlogSelected,legacyBlogWritesBlocked,LEGACY_BLOG_WRITES_MESSAGE} from '@/lib/blog/native/selected'
+import {nativeBlogAdminHttp} from '@/lib/blog/native/admin-http'
 /**
  * RSS sources (autoblog-parity XM-05/XM-09).
  *
@@ -15,6 +17,7 @@ import { scopeColumn, scopeFilter } from '@/lib/blog/scope'
 import { withApi } from '@/lib/observability/with-api'
 
 async function handleGET() {
+  if(nativeBlogSelected())return nativeBlogAdminHttp('rss')
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
@@ -39,6 +42,8 @@ const bodySchema = z.union([
 ])
 
 async function handlePOST(request: Request) {
+  if(nativeBlogSelected())return nativeBlogAdminHttp('rss',request)
+  if(legacyBlogWritesBlocked())return NextResponse.json({error:LEGACY_BLOG_WRITES_MESSAGE},{status:503})
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = bodySchema.safeParse(await request.json().catch(() => null))

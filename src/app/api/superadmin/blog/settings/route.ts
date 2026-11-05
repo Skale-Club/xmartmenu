@@ -1,3 +1,5 @@
+import {nativeBlogSelected,legacyBlogWritesBlocked,LEGACY_BLOG_WRITES_MESSAGE} from '@/lib/blog/native/selected'
+import {nativeBlogAdminHttp} from '@/lib/blog/native/admin-http'
 /**
  * Auto-blog settings (autoblog-parity XM-09). Superadmin only: this is the
  * platform's own blog, not a tenant feature, so there is no tenant-scoped
@@ -34,6 +36,7 @@ const patchSchema = z.object({
 })
 
 async function handleGET() {
+  if(nativeBlogSelected())return nativeBlogAdminHttp('settings')
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const service = createServiceClient()
@@ -82,6 +85,8 @@ async function handleGET() {
 }
 
 async function handlePATCH(request: Request) {
+  if(nativeBlogSelected())return nativeBlogAdminHttp('settings',request)
+  if(legacyBlogWritesBlocked())return NextResponse.json({error:LEGACY_BLOG_WRITES_MESSAGE},{status:503})
   if (!(await assertSuperadmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const parsed = patchSchema.safeParse(await request.json().catch(() => null))
