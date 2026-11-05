@@ -1,4 +1,7 @@
 import { createServiceClient } from '@/lib/supabase/server'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
+import { ordersDataOwned } from '@/lib/data/orders'
+import { log } from '@/lib/observability/log'
 
 export type TrustedOrderAnalyticsEvent =
   | 'order_created'
@@ -9,12 +12,22 @@ export type TrustedOrderAnalyticsEvent =
  * Record a trusted order lifecycle event without allowing analytics failures to
  * affect the order/payment path. A stable server_event_key makes webhook and
  * status-update retries idempotent.
+ *
+ * Legacy (Supabase) path only. In owned mode every caller records through
+ * `OwnedOrderRepository.recordAnalytics` inside its own transaction and never
+ * reaches this function; the service client throws in owned mode, so a stray
+ * call would otherwise be swallowed by the catch below as a generic message.
+ * It now stops first with a distinct, searchable error (M10).
  */
 export async function recordTrustedOrderAnalyticsEvent(
   orderId: string,
   eventName: TrustedOrderAnalyticsEvent,
 ): Promise<void> {
   try {
+    if (ordersDataOwned() || ownedAuthSelected()) {
+      log.error('analytics.order_event_legacy_path_in_owned_mode', { order_id: orderId, event_name: eventName })
+      return
+    }
     const service = createServiceClient()
     const { data: order, error: orderError } = await service
       .from('orders')

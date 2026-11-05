@@ -38,7 +38,7 @@ confere que o ID da rede e o serviço `xmartmenu-private-transport` continuam ig
 **Backup fora do host (bloqueia `plan` e `preflight`):** exige `/opt/xmartmenu/offsite-backups/latest.json` com
 `{"at": <epoch>, "sha256": <64 hex>, "restored": true, "database": "xmartmenu"}` com menos de 26 h. Quem grava esse recibo
 é o perfil Xmartmenu do mecanismo `xmail-owned-backup`/`xmail-offsite-backup` (chave dedicada, receptor forçado em 188,
-diretório e banco próprios). Esse perfil **não está nesta branch**: vai em PR próprio. Até lá, `apply` recusa.
+diretório e banco próprios). O perfil está em `docs/xmartmenu-offsite-backup.md` (`scripts/ops/xmartmenu-offsite-backup.py`); até ele ser instalado e rodar uma vez, `apply` recusa.
 
 Trava de execução: enquanto o operador tem o app, a variável `XM_CUTOVER_ACTIVE` existe no Coolify e
 `scripts/coolify-deploy.sh` (deploy normal) se recusa a rodar. Em produção o operador também toma
@@ -155,4 +155,4 @@ Rode-o como `xmartmenu_owner` com `psql` no contêiner do PostgreSQL. O `plan` j
 
 ## Ficou de fora desta branch
 
-Perfil de backup fora do host (PR próprio); tráfego público fechado até a verificação terminar (o deploy do Coolify já expõe o app; precisa de regra no Traefik); revisão da ordem das métricas de pedidos em modo próprio (item M10); o porte em Python do importador Google não é executado em CI contra o Admin API real.
+Perfil de backup fora do host (agora em `docs/xmartmenu-offsite-backup.md`, falta só instalar); tráfego público fechado até a verificação terminar (o deploy do Coolify já expõe o app; precisa de regra no Traefik); o porte em Python do importador Google não é executado em CI contra o Admin API real.

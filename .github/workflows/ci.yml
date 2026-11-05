@@ -83,6 +83,8 @@ jobs:
           python3 -B scripts/ops/test_apply_xmartmenu_identity_foundation.py
           bash -n scripts/ops/run-xmartmenu-final-cutover.sh
           python3 -B scripts/ops/test_xmartmenu_final_cutover.py
+          python3 -B scripts/ops/test_xmartmenu_offsite_backup.py
+          python3 -B scripts/ops/install-xmartmenu-offsite-backup.py --plan > /dev/null
 
       - name: Xphere contract checks
         run: npm run xphere:check:all
@@ -282,8 +284,22 @@ jobs:
           XM_TEST_PG_CONTAINER: xm-cutover-ci
         run: python3 -B scripts/ops/test_xmartmenu_final_cutover.py
 
+  offsite-backup-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Disposable PostgreSQL 17 (the source database and the image used for the throwaway restore)
+        run: |
+          docker run -d --name xm-offsite-ci -e POSTGRES_USER=xmail_owner -e POSTGRES_PASSWORD=disposable_ci_only postgres:17-alpine
+          for i in $(seq 1 30); do docker exec xm-offsite-ci pg_isready -U xmail_owner && break; sleep 2; done
+      - name: Dump, encrypt, restore in a limited throwaway container, compare, receipt, retention, locks
+        env:
+          XM_TEST_PG_CONTAINER: xm-offsite-ci
+        run: python3 -B scripts/ops/test_xmartmenu_offsite_backup.py
+
   deploy:
-    needs: [checks, e2e, identity-postgres, cutover-postgres]
+    needs: [checks, e2e, identity-postgres, cutover-postgres, offsite-backup-postgres]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
