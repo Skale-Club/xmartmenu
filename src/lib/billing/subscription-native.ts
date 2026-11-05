@@ -96,7 +96,7 @@ async function localChange(context: SubscriptionActor, input: SubscriptionInput,
   const result = await deps.database.run(true, async query => {
     const current = await subscriptionSnapshot(query, context, true, input.mode === 'admin')
     if (hashFacts(baseline(current.subscription)) !== hashFacts(baseline(initial.subscription))) throw billingUnavailable()
-    return writeSubscriptionPatch(query, context, patch, current.subscription)
+    return writeSubscriptionPatch(query, context, patch, current.subscription, input.mode === 'admin')
   })
   if (input.mode === 'cycle') return { body: { success: true, subscription: { billing_cycle: cycle } } }
   return changedResponse(context, input, { warning: warningNeeded, existing: !!initial.subscription, slug: initial.slug }, result)

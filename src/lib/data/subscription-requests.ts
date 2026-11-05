@@ -96,7 +96,7 @@ export async function finishSubscriptionRequest(query: AdminMenuQuery, context: 
   let subscription: Json | undefined
   if (patch) {
     const snapshot = await subscriptionSnapshot(query, context, true, current.facts.mode === 'admin')
-    subscription = await writeSubscriptionPatch(query, context, patch, snapshot.subscription)
+    subscription = await writeSubscriptionPatch(query, context, patch, snapshot.subscription, current.facts.mode === 'admin', `subscription:${current.id}`)
   }
   if (current.operation === 'expire_checkout') {
     const related = current.facts.relatedRequestId

@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server'
 import { revalidatePath } from 'next/cache'
+import { createHash } from 'node:crypto'
+import { headers } from 'next/headers'
 import { getEffectiveTenant } from '../get-effective-tenant'
-import { adminChatContext } from '../admin/chat-context'
+import { getOwnedPrincipal } from '../auth/owned-principal-runtime'
+import { ownedAuthSelected, ownedSessionToken } from '../auth/owned-principal'
+import { getIdentityServices } from '../auth/identity-services'
 import { assertSuperadmin } from '../superadmin-auth'
 import { AdminMenuError } from '../data/admin-menus'
 import { readOwnedSubscriptionApi, readOwnedSuperSubscription, subscriptionTransactions } from '../data/subscription-billing-runtime'
 import { validateSubscriptionPatch, type SubscriptionActor } from '../data/subscription-billing'
-import { enqueueXphereSync } from '../xphere/queue'
 import { subscriptionGateway } from './subscription-provider'
 import { changeNativeSubscription, nativeSubscriptionPortal } from './subscription-native'
 import { PlanChangeError } from './plan-change-model'
@@ -14,12 +17,25 @@ import { PlanChangeError } from './plan-change-model'
 export async function subscriptionActor(effective?: Awaited<ReturnType<typeof getEffectiveTenant>>): Promise<SubscriptionActor> {
   const value = effective ?? await getEffectiveTenant()
   if (!value) throw new AdminMenuError(401, 'Unauthorized')
-  return adminChatContext(value)
+  const { principal, sessionHash } = await subscriptionSession()
+  if (principal.role !== value.role || (principal.role !== 'superadmin' && principal.tenantId !== value.tenantId)) throw new AdminMenuError(403, 'Forbidden')
+  return { actorId: principal.userId, tenantId: value.tenantId, role: value.role, sessionHash }
+}
+async function subscriptionSession() {
+  if (!ownedAuthSelected()) throw new AdminMenuError(503, 'Native account authentication is required')
+  const principal = await getOwnedPrincipal()
+  if (!principal || principal.mustChangePassword) throw new AdminMenuError(401, 'Unauthorized')
+  const current = await headers(), { config } = getIdentityServices()
+  const token = ownedSessionToken(current.get('cookie'), new URL(config.origin).protocol === 'https:')
+  if (!token) throw new AdminMenuError(401, 'Sign in again')
+  return { principal, sessionHash: createHash('sha256').update(token).digest('hex') }
 }
 async function superActor(tenantId: string): Promise<SubscriptionActor> {
   const authorization = await assertSuperadmin()
   if (!authorization) throw new AdminMenuError(401, 'Unauthorized')
-  return { actorId: authorization.principal.userId, tenantId, role: 'superadmin' }
+  const { principal, sessionHash } = await subscriptionSession()
+  if (authorization.mode !== 'owned' || principal.userId !== authorization.principal.userId || principal.role !== 'superadmin') throw new AdminMenuError(403, 'Forbidden')
+  return { actorId: principal.userId, tenantId, role: 'superadmin', sessionHash }
 }
 const dependencies = () => ({ database: subscriptionTransactions, gateway: subscriptionGateway, baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000' })
 function errorResponse(error: unknown, portal = false) {
@@ -56,9 +72,12 @@ export async function nativeSuperSubscriptionPut(tenantId: string, request: Requ
   try {
     const context = await superActor(tenantId), body = await request.json().catch(() => null), patch = validateSubscriptionPatch(body)
     const output = await changeNativeSubscription(context, { mode: 'admin', patch, planId: patch.plan_id, cycle: patch.billing_cycle }, dependencies())
-    revalidatePath('/tenants')
-    if (output.slug) revalidatePath(`/${output.slug}`, 'layout')
-    if (output.sync) await enqueueXphereSync(output.sync.tenantId, output.sync.reason)
+    // The CRM intention committed with the subscription. Cache invalidation
+    // cannot turn an already committed billing change into a false 503.
+    try {
+      revalidatePath('/tenants')
+      if (output.slug) revalidatePath(`/${output.slug}`, 'layout')
+    } catch { /* A later read observes the committed state. */ }
     return NextResponse.json(output.body)
   } catch (error) { return errorResponse(error) }
 }

@@ -2,10 +2,11 @@ import { AdminMenuError, type AdminMenuQuery } from './admin-menus'
 import { normalizeRole } from '../auth/role-utils'
 import { readNativeTenantPlan, reconcileNativeTenantPlan } from './tenant-plan'
 import { readNativeStripeAvailability } from './stripe-connect'
+import { enqueueNativeTenantEffect } from './tenant-effects-outbox'
 import type { UserRole, TenantSubscription } from '@/types/database'
 import type { BillingCycle } from '../plan-billing'
 
-export interface SubscriptionActor { actorId: string; tenantId: string; role: UserRole }
+export interface SubscriptionActor { actorId: string; tenantId: string; role: UserRole; sessionHash: string }
 export type SubscriptionView = Pick<TenantSubscription, 'billing_cycle' | 'status' | 'stripe_subscription_id' | 'current_period_end' | 'cancel_at_period_end'>
 export interface SubscriptionPlanOption { id: string; name: string; slug: string; description: string | null; monthly_price: number; annual_price: number; features: string[]; sort_order: number }
 export interface BillingPlan { id: string; slug: string; is_active: boolean; stripe_price_monthly_id: string | null; stripe_price_annual_id: string | null }
@@ -20,9 +21,14 @@ const reference = (value: unknown): string | null => { if (value == null || valu
 const number = (value: unknown) => { if (typeof value !== 'number' || !Number.isFinite(value)) throw billingUnavailable(); return value }
 export async function authorizeSubscription(query: AdminMenuQuery, context: SubscriptionActor, write = false, superadmin = false) {
   id(context.actorId); id(context.tenantId)
+  if (!/^[a-f0-9]{64}$/.test(context.sessionHash)) throw new AdminMenuError(403, 'Forbidden')
   if (!['store-admin', 'superadmin', ...(write ? [] : ['store-staff'])].includes(context.role) || (superadmin && context.role !== 'superadmin')) throw new AdminMenuError(403, 'Forbidden')
   if (write) await query("SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-account-authority',0))")
-  const result = await query(`SELECT p.id,p.role,p.tenant_id,p.must_change_password,a.disabled_at FROM public.profiles p JOIN public.app_accounts a ON a.id=p.id WHERE p.id=$1${write ? ' FOR SHARE OF p,a' : ''}`, [context.actorId])
+  const result = await query(`SELECT p.id,p.role,p.tenant_id,p.must_change_password,a.disabled_at
+    FROM public.profiles p JOIN public.app_accounts a ON a.id=p.id JOIN public.app_sessions s ON s.user_id=a.id
+    JOIN public.app_identity_bindings b ON b.user_id=a.id AND b.project_id=s.project_id AND b.subject=s.subject
+    WHERE p.id=$1 AND s.token_hash=$2 AND s.session_version=a.session_version AND s.expires_at>now()
+      AND b.disabled_at IS NULL${write ? ' FOR SHARE OF p,a,s,b' : ''}`, [context.actorId, context.sessionHash])
   const profile = one(result.rows), role = normalizeRole(profile?.role)
   if (!profile || role !== context.role || profile.disabled_at !== null || profile.must_change_password === true || (role !== 'superadmin' && profile.tenant_id !== context.tenantId)) throw new AdminMenuError(403, 'Forbidden')
   if (write && !(await query('SELECT id FROM public.tenants WHERE id=$1 FOR NO KEY UPDATE', [context.tenantId])).rows.length) throw new AdminMenuError(404, 'Tenant not found')
@@ -102,7 +108,7 @@ export function validateSubscriptionPatch(body: unknown): SubscriptionPatch {
   return patch
 }
 /** Called after provider decisions, inside a fresh authorized write transaction. */
-export async function writeSubscriptionPatch(query: AdminMenuQuery, context: SubscriptionActor, patch: SubscriptionPatch, current: SubscriptionRecord | null) {
+export async function writeSubscriptionPatch(query: AdminMenuQuery, context: SubscriptionActor, patch: SubscriptionPatch, current: SubscriptionRecord | null, recordSync = false, eventId?: string) {
   patch = validateSubscriptionPatch(patch)
   await authorizeSubscription(query, context, true, Object.keys(patch).some(key => key !== 'billing_cycle'))
   if (patch.plan_id) {
@@ -119,5 +125,6 @@ export async function writeSubscriptionPatch(query: AdminMenuQuery, context: Sub
   await reconcileNativeTenantPlan(query, context.tenantId)
   const updated = await readSubscriptionRecord(query, context.tenantId)
   if (!updated) throw billingUnavailable()
+  if (recordSync && context.role === 'superadmin') await enqueueNativeTenantEffect(query, { tenantId: context.tenantId, reason: current ? 'plan_changed' : 'plan_activated', ...(eventId ? { eventId } : {}) })
   return joinedSubscription(query, updated)
 }
