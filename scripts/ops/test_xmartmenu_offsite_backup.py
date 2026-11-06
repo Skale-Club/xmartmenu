@@ -265,6 +265,19 @@ INSERT INTO public.orders(account_id, total, blob) SELECT id, 10.5, '\\xdeadbeef
         # plaintext never survives next to the ciphertext
         self.assertNotIn(b'PGDMP', b''.join(p.read_bytes() for p in published[0].iterdir()))
 
+    def test_default_transport_receives_the_config(self):
+        # backup() without an injected sender must call ssh_send(cfg, header, cipher_path)
+        inner = self.sender()
+        seen = []
+        def fake_ssh_send(cfg, header, cipher_path):
+            seen.append(cfg)
+            return inner(header, cipher_path)
+        with mock.patch.object(ob, 'ssh_send', fake_ssh_send):
+            result = ob.backup(self.cfg)
+        self.assertEqual(seen, [self.cfg])
+        self.assertTrue(result['offsiteBackupVerified'] and result['receiptWritten'])
+        self.no_dr_containers()
+
     def test_retention_keeps_the_last_seven(self):
         cfg = dataclasses.replace(self.cfg, keep=2)
         for _ in range(3):

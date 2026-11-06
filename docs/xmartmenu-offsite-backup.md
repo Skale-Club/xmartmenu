@@ -45,7 +45,7 @@ KEY=$(ssh root@49.13.197.250 "$I --prepare-transport --role source --backup-scri
 printf '{"transportPublicKey":"%s"}' "$KEY" | ssh root@188.245.112.3 "$I --apply --role target --backup-script-sha256 $SHA" > /tmp/target.json
 
 # 4. No 49: fixa o certificado e a chave de host do 188 (o instalador confere o SHA-256 da chave de host) e instala unidade e timer
-HOSTKEY=$(ssh-keyscan -t ed25519 188.245.112.3 2>/dev/null | head -1)
+HOSTKEY=$(ssh-keyscan -t ed25519 188.245.112.3 2>/dev/null | grep -v '^#' | head -1)   # confira contra o known_hosts
 python3 - <<PY | ssh root@49.13.197.250 "$I --apply --role source --backup-script-sha256 $SHA"
 import json
 print(json.dumps({"recipientPublicPem": json.load(open('/tmp/target.json'))["recipientPublicPem"], "targetKnownHost": """$HOSTKEY"""}))
