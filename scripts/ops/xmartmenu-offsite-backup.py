@@ -319,7 +319,7 @@ def manifest_sql(tables, ledger):
            "FROM (SELECT md5(t::text) AS m FROM public.\"%s\" t) q)")
     # jsonb_build_object takes at most 100 arguments; jsonb_object_agg over VALUES has no such limit
     rows = "(SELECT coalesce(jsonb_object_agg(k,v),'{}'::jsonb) FROM (VALUES " + ','.join("('%s',%s)" % (name, one % name) for name in tables) + ") x(k,v))" if tables else "'{}'::jsonb"
-    ledger_sql = ("(SELECT jsonb_build_object('count',count(*),'sha256',encode(sha256(convert_to(coalesce(string_agg(to_jsonb(t)::text,E'\n' ORDER BY to_jsonb(t)::text),''),'UTF8')),'hex')) "
+    ledger_sql = ("(SELECT jsonb_build_object('count',count(*),'sha256',encode(sha256(convert_to(coalesce(string_agg(to_jsonb(t)::text,E'\n' ORDER BY to_jsonb(t)::text COLLATE \"C\"),''),'UTF8')),'hex')) "
                   "FROM supabase_migrations.schema_migrations t)") if ledger else 'NULL::jsonb'
     return ("SELECT jsonb_build_object("
             "'version',1,"

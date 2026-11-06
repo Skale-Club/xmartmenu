@@ -164,6 +164,11 @@ class OfflineTests(unittest.TestCase):
         many = ob.manifest_sql(['t%d' % i for i in range(300)], False)  # more than 100 tables must not hit jsonb_build_object's argument limit
         self.assertIn('jsonb_object_agg(k,v)', many)
 
+    def test_ledger_digest_order_does_not_depend_on_the_database_collation(self):
+        # source is en_US.UTF-8 (glibc), the restore container is Alpine/musl: a text ORDER BY must pin "C"
+        sql = ob.manifest_sql([], True)
+        self.assertIn('ORDER BY to_jsonb(t)::text COLLATE "C"', sql)
+
     def test_compare_classifies_without_values(self):
         base = {'tables': ['a', 'b'], 'schema': {'a': ['1' * 64] * 5 + [False, False], 'b': ['2' * 64] * 5 + [False, False]}, 'functions': {}, 'types': {}, 'sequences': {}, 'ledger': None,
                 'policyRoles': [], 'rows': {'a': {'count': 1, 'sum': '1:1'}, 'b': {'count': 2, 'sum': '2:2'}}}
