@@ -109,6 +109,8 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 OPENER = urllib.request.build_opener(_NoRedirect)
+# Cloudflare in front of the public URL answers 403 to the default 'Python-urllib/x' agent.
+OPENER.addheaders = [('User-Agent', 'xmartmenu-cutover/1')]
 
 
 class Refused(Exception):

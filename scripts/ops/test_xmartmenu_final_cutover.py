@@ -24,6 +24,11 @@ SHA = 'a' * 40
 
 
 class OfflineTests(unittest.TestCase):
+    def test_http_requests_carry_an_explicit_user_agent(self):
+        # Cloudflare answers 403 to the default Python-urllib agent (seen on the first production plan)
+        agents = [v for k, v in cut.OPENER.addheaders if k.lower() == 'user-agent']
+        self.assertEqual(agents, ['xmartmenu-cutover/1'])
+
     def test_scram_format(self):
         v = cut.scram_verifier('x' * 48, salt=b'\0' * 16)
         self.assertRegex(v, r'^SCRAM-SHA-256\$4096:[A-Za-z0-9+/=]+\$[A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+$')

@@ -543,7 +543,7 @@ def remote_failure(raw):
 
 def backup(cfg, send=None, now=None):
     """Runs on the PostgreSQL host. `send(header, cipher_path) -> proof` defaults to the forced-command SSH."""
-    send = send or ssh_send
+    send = send or (lambda header, cipher_path: ssh_send(cfg, header, cipher_path))
     private_dir(cfg, cfg.ops)
     held = [lock_file(cfg, cfg.ops / 'backup.lock', label='lock')]
     try:
