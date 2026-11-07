@@ -18,6 +18,8 @@ function fixture(patch: Record<string, unknown[]> = {}) {
   const queries: Array<{ text: string; values: unknown[] }> = []
   const query: PublicMenuQuery = async (text, values = []) => {
     queries.push({ text, values })
+    // Readability probe of the optional AR table: readable when the fixture has it.
+    if (text.includes("'readable'")) return { rows: [{ row: { readable: 'product_ar_models' in data } }] }
     const table = /FROM public\.([a-z_]+)/.exec(text)?.[1]
     if (!table || !(table in data)) throw new Error('Unexpected SQL')
     return { rows: data[table].map(row => ({ row })) }
@@ -41,7 +43,9 @@ describe('independent PostgreSQL public catalog', () => {
     expect(result.optionGroupsByProductId[productId][0].options[0].price_modifier).toBe(2.5)
     expect(result.productIngredientsByProductId[productId][0].ingredient.name).toBe('Onion')
     expect(result.productMediaByProductId[productId]).toHaveLength(1)
-    for (const { text, values } of queries.filter(item => !/FROM public\.(tenants|platform_settings)\b/.test(item.text))) {
+    expect(result.productArModelByProductId).toEqual({})
+    expect(queries.some(item => /FROM public\.product_ar_models\b/.test(item.text))).toBe(false)
+    for (const { text, values } of queries.filter(item => !/FROM public\.(tenants|platform_settings)\b/.test(item.text) && !item.text.includes("'readable'"))) {
       expect(values[0]).toBe(tenantId)
       expect(text).toContain('$1')
     }
@@ -51,6 +55,17 @@ describe('independent PostgreSQL public catalog', () => {
       expect(text).toContain('p.menu_id=$2')
     }
     expect(queries.every(item => !/SELECT\s+\*|auth\.|storage\.|api_key|stripe_|xphere_/i.test(item.text))).toBe(true)
+  })
+  it('reads 3D models only once the AR table is readable, scoped to tenant, menu and dishes', async () => {
+    const model = { product_id: productId, glb_url: 'https://cdn.example/dish.glb', usdz_url: null, poster_url: null, real_scale: true }
+    const { query, queries } = fixture({ product_ar_models: [model] })
+    const result = await readOwnedPublicMenu(query, 'restaurant', undefined)
+    if (result.kind !== 'menu') throw Error()
+    expect(result.productArModelByProductId).toEqual({ [productId]: model })
+    const read = queries.find(item => /FROM public\.product_ar_models\b/.test(item.text))
+    expect(read?.values).toEqual([tenantId, menuId, [productId]])
+    expect(read?.text).toContain('p.menu_id=$2')
+    expect(read?.text).not.toMatch(/storage_path|_bytes/)
   })
   it('does not query details or a foreign tenant when the slug is missing/inactive', async () => {
     const { query, queries } = fixture({ tenants: [] })

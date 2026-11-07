@@ -1,4 +1,5 @@
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
+import type { PublicProductArModel } from '@/types/database'
 
 export interface MenuLike { id: string; slug?: string | null; is_default?: boolean | null }
 function single<T>(rows: readonly T[], predicate: (row: T) => boolean): T | null {
@@ -15,6 +16,16 @@ export function pickSectionMenu<M extends MenuLike>(menus: readonly M[], slug: s
 export function groupByProductId<T extends { product_id: string }>(rows: readonly T[] | null | undefined): Record<string, T[]> {
   const result: Record<string, T[]> = {}
   for (const row of rows ?? []) (result[row.product_id] ??= []).push(row)
+  return result
+}
+/**
+ * 3D models by product (one per dish), keeping only rows with a model URL.
+ * Before the product_ar_models table exists the loaders pass null: the menu
+ * then simply has no 3D views.
+ */
+export function arModelsByProductId(rows: readonly PublicProductArModel[] | null | undefined): Record<string, PublicProductArModel> {
+  const result: Record<string, PublicProductArModel> = {}
+  for (const row of rows ?? []) if (row.glb_url) result[row.product_id] = row
   return result
 }
 export function buildOptionGroupsByProductId(groups: readonly GroupWithOptions[] | null | undefined): Record<string, GroupWithOptions[]> {

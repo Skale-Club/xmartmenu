@@ -1,9 +1,9 @@
 import type { CachedPublicMenu } from '../menu/public-menu-data'
-import { buildOptionGroupsByProductId, groupByProductId, pickDefaultMenu, pickSectionMenu } from '../menu/public-menu-model'
+import { arModelsByProductId, buildOptionGroupsByProductId, groupByProductId, pickDefaultMenu, pickSectionMenu } from '../menu/public-menu-model'
 import { resolveTenantCapabilities, type ServiceSettings } from '../service-modes'
 import { hasAnyChannel, resolveChatChannels } from '../chat-channels'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
-import type { DeliveryZone, ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
+import type { DeliveryZone, ProductIngredientWithIngredient, ProductMedia, PublicProductArModel } from '@/types/database'
 
 export type PublicMenuQuery = (text: string, values?: unknown[]) => Promise<{ rows: Array<{ row: unknown }> }>
 type Row = Record<string, unknown>
@@ -25,6 +25,7 @@ export const PUBLIC_MENU_COLUMNS = {
   ingredient: 'id tenant_id name image_url default_extra_price default_add_price is_available position translations created_at updated_at',
   productIngredient: 'product_id ingredient_id tenant_id is_default extra_price_override add_price_override position',
   media: 'id product_id tenant_id type url storage_path display_order created_at',
+  arModel: 'product_id glb_url usdz_url poster_url real_scale',
   zone: 'id tenant_id name fee_cents zipcode_prefixes is_active created_at updated_at',
 } as const
 
@@ -99,7 +100,7 @@ export async function readOwnedPublicMenu(query: PublicMenuQuery, slug: string, 
       'JOIN public.menus m ON m.id=c.menu_id AND m.tenant_id=c.tenant_id WHERE c.tenant_id=$1 AND c.menu_id=$2 AND c.is_active=true AND m.is_active=true', 'c.position, c.id', 1000), [tenantId, menu.id], 1000) : []
     const products = menu?.id ? await rows<Row & { id: string }>(query, publicSelect('products', 'p', PUBLIC_MENU_COLUMNS.product,
       'JOIN public.menus m ON m.id=p.menu_id AND m.tenant_id=p.tenant_id WHERE p.tenant_id=$1 AND p.menu_id=$2 AND p.is_available=true AND m.is_active=true', 'p.position, p.id', 2000), [tenantId, menu.id], 2000) : []
-    let groups: GroupWithOptions[] = [], ingredients: ProductIngredientWithIngredient[] = [], media: ProductMedia[] = []
+    let groups: GroupWithOptions[] = [], ingredients: ProductIngredientWithIngredient[] = [], media: ProductMedia[] = [], arModels: PublicProductArModel[] = []
     if (products.length && menu?.id) {
       const ids = products.map(product => product.id)
       const groupRows = await rows<Row>(query, publicSelect('product_option_groups', 'g', PUBLIC_MENU_COLUMNS.group,
@@ -116,10 +117,20 @@ export async function readOwnedPublicMenu(query: PublicMenuQuery, slug: string, 
       }
       media = await rows<Row>(query, publicSelect('product_media', 'pm', PUBLIC_MENU_COLUMNS.media,
         'JOIN public.products p ON p.id=pm.product_id AND p.tenant_id=pm.tenant_id WHERE pm.tenant_id=$1 AND p.menu_id=$2 AND p.is_available=true AND pm.product_id=ANY($3::uuid[])', 'pm.display_order, pm.id', 10000), [tenantId, menu.id, ids], 10000) as unknown as ProductMedia[]
+      // Augmented reality. Any error aborts the whole snapshot, so the table is
+      // read only once it exists and the runtime may read it: until the schema
+      // step runs, menus simply have no 3D views.
+      const arReadable = one(await rows<Row>(query,
+        `SELECT jsonb_build_object('readable', CASE WHEN to_regclass('public.product_ar_models') IS NULL THEN false
+         ELSE has_table_privilege(to_regclass('public.product_ar_models'), 'SELECT') END) AS row`, [], 1))
+      if (arReadable?.readable === true) {
+        arModels = await rows<Row>(query, publicSelect('product_ar_models', 'ar', PUBLIC_MENU_COLUMNS.arModel,
+          'JOIN public.products p ON p.id=ar.product_id AND p.tenant_id=ar.tenant_id WHERE ar.tenant_id=$1 AND p.menu_id=$2 AND p.is_available=true AND ar.product_id=ANY($3::uuid[])', 'ar.product_id', 2000), [tenantId, menu.id, ids], 2000) as unknown as PublicProductArModel[]
+      }
     }
     return { kind: 'menu', tenant, footerBrand, menu, location, categories, products, capabilities,
       optionGroupsByProductId: buildOptionGroupsByProductId(groups), productIngredientsByProductId: groupByProductId(ingredients),
-      productMediaByProductId: groupByProductId(media), deliveryZones: zones as unknown as DeliveryZone[],
+      productMediaByProductId: groupByProductId(media), productArModelByProductId: arModelsByProductId(arModels), deliveryZones: zones as unknown as DeliveryZone[],
       chatAddonEnabled: chatActive && chat?.enabled === true && hasAnyChannel(channels), chatAddonAudioEnabled: channels.voice,
       chatAddonTextEnabled: channels.text, tables: tableRows }
   } catch { throw new Error('Public menu is unavailable') }

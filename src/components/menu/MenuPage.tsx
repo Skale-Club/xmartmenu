@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import { getInitials } from '@/lib/utils'
 import { MenuAnalyticsTracker } from '@/lib/analytics/client'
-import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia } from '@/types/database'
+import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia, PublicProductArModel } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { type CartItem, type CartAddedVia, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed, summarizeOptions } from './menu-utils'
 import { getGuestCopy } from './guest-copy'
@@ -106,6 +106,8 @@ interface Props {
   productIngredientsByProductId?: Record<string, ProductIngredientWithIngredient[]>
   deliveryZones?: DeliveryZone[]
   productMediaByProductId?: Record<string, ProductMedia[]>
+  /** Dishes with a 3D model: "View in 3D" and AR in the dish detail. */
+  productArModelByProductId?: Record<string, PublicProductArModel>
   chatAddonEnabled?: boolean
   chatAddonAudioEnabled?: boolean
   /** Typed messages in the AI chat (the restaurant can allow voice notes only). */
@@ -133,7 +135,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true, capabilities = NO_CAPABILITIES, table = null, waiterCallTable = null }: Props) {
+export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, productArModelByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true, capabilities = NO_CAPABILITIES, table = null, waiterCallTable = null }: Props) {
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
   const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
@@ -1320,6 +1322,17 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           ingredientCustomizationEnabled={ingredientCustomizationEnabled}
           productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
+          arModel={productArModelByProductId[selectedProduct.id] ?? null}
+          onModelViewerOpened={() => analyticsTracker?.track({
+            event_name: 'model_viewer_opened',
+            product_id: selectedProduct.id,
+            source: 'detail',
+          })}
+          onArLaunched={() => analyticsTracker?.track({
+            event_name: 'ar_launched',
+            product_id: selectedProduct.id,
+            source: 'detail',
+          })}
           initialEditorState={editingItem?.editorState ?? null}
           onCustomizationStarted={directOrdersEnabled ? () => analyticsTracker?.track({
             event_name: 'product_customization_started',

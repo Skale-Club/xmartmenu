@@ -24,6 +24,9 @@ export const clientAnalyticsEventNames = [
   'upsell_shown',
   'upsell_accepted',
   'upsell_skipped',
+  // Augmented reality: the 3D view of a dish was opened / placed on the table.
+  'model_viewer_opened',
+  'ar_launched',
 ] as const
 
 export const serverAnalyticsEventNames = [
@@ -45,6 +48,8 @@ const productEventNames = new Set<string>([
   'upsell_shown',
   'upsell_accepted',
   'upsell_skipped',
+  'model_viewer_opened',
+  'ar_launched',
 ])
 
 const uuidSchema = z.string().uuid()
