@@ -1,5 +1,14 @@
 # Dados reais em desenvolvimento: `npm run db:pull`
 
+> **Atualização 2026-11-07 (decisão do dono):** produção roda só no PostgreSQL próprio desde o
+> cutover de 2026-11-06. O antigo projeto Supabase de produção (`ktogbpqookfcqilqvici`) passou a
+> ser o projeto de **desenvolvimento**: as variáveis `DEV_SUPABASE_*`, `DEV_DATABASE_URL` e
+> `DEV_MIGRATION_DATABASE_URL` do `.env.local` apontam para ele, e o bloqueio de escrita do
+> cutover (`xm_cutover_fence`) foi removido. Não há clientes e o login é Google Identity, então
+> esses dados não são protegidos. Com isso, o aviso abaixo sobre "candidato congelado" ficou
+> desatualizado: o banco `xmartmenu` do cluster **é** a produção, e o `db:pull` traz dados atuais
+> (precisa de `XMARTMENU_PROD_SSH` e acesso SSH ao host do cluster).
+
 `npm run dev` usa um projeto Supabase de **desenvolvimento** (`DEV_DATABASE_URL`).
 `npm run db:pull` copia, sob demanda, um retrato do banco `xmartmenu` do cluster
 PostgreSQL compartilhado para esse projeto. `npm run dev` **nunca** copia nada sozinho.

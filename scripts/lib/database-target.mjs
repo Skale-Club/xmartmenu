@@ -1,12 +1,23 @@
-// Never let a developer command inherit the production/source DATABASE_URL.
+// Never let a developer command inherit the production DATABASE_URL.
+/** The Supabase project that was production until the 2026-11-06 cutover to the owned PostgreSQL. */
 export const SOURCE_SUPABASE_PROJECT = 'ktogbpqookfcqilqvici'
-/** Supabase projects that hold, or held, real Xmartmenu data. Add a ref the moment one serves customers. */
-export const PRODUCTION_PROJECT_REFS = [SOURCE_SUPABASE_PROJECT]
+/**
+ * Owner decision 2026-11-07: production lives only in the owned PostgreSQL, and the retired
+ * source project above is now the Supabase DEVELOPMENT project (`npm run dev`, `db:pull`).
+ * XmartMenu had no paying customers at the cutover, so the old data is not protected data.
+ */
+export const DEVELOPMENT_SUPABASE_PROJECT = SOURCE_SUPABASE_PROJECT
+/**
+ * Supabase projects that serve real customers today. None: production is the owned
+ * PostgreSQL. Add a ref here the moment a Supabase project serves customers again.
+ * @type {string[]}
+ */
+export const PRODUCTION_PROJECT_REFS = []
 
 /** The known production ref found anywhere in `value` (a ref, host or URL), if any. */
-export function findProductionProjectRef(value) {
+export function findProductionProjectRef(value, refs = PRODUCTION_PROJECT_REFS) {
   const lower = String(value).toLowerCase()
-  return PRODUCTION_PROJECT_REFS.find(ref => lower.includes(ref))
+  return refs.find(ref => lower.includes(ref))
 }
 
 /** node-postgres query fields can override URL host/user/port or read SSL files. */

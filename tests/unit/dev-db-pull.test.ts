@@ -28,7 +28,15 @@ describe('db:pull destination (pure)', () => {
         DEV_DATABASE_URL: `postgresql://postgres.${productionRef}:${secret}@aws-1-us-east-1.pooler.supabase.com:5432/postgres`,
       }))).toThrow()
     }
-    expect(PRODUCTION_PROJECT_REFS).toContain(SOURCE_SUPABASE_PROJECT)
+    // Owner decision 2026-11-07: no Supabase project serves customers; production is the owned PostgreSQL.
+    expect(PRODUCTION_PROJECT_REFS).not.toContain(SOURCE_SUPABASE_PROJECT)
+  })
+
+  it('accepts the retired source project as the development destination', () => {
+    expect(assertPullDestination(good({
+      DEV_SUPABASE_PROJECT_REF: SOURCE_SUPABASE_PROJECT,
+      DEV_DATABASE_URL: `postgresql://postgres.${SOURCE_SUPABASE_PROJECT}:${secret}@aws-1-us-east-1.pooler.supabase.com:5432/postgres`,
+    })).projectRef).toBe(SOURCE_SUPABASE_PROJECT)
   })
 
   it('refuses a production URL smuggled under a development ref, other hosts, aliases and NODE_ENV=production', () => {

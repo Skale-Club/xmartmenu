@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import pg from 'pg'
-import { developmentConfig, migrationTarget, SOURCE_SUPABASE_PROJECT } from '../../scripts/lib/database-target.mjs'
+import { developmentConfig, findProductionProjectRef, migrationTarget, SOURCE_SUPABASE_PROJECT } from '../../scripts/lib/database-target.mjs'
 
 const ref = 'abcdefghijklmnopqrst'
 const dev = () => ({ DEV_SUPABASE_PROJECT_REF: ref, DEV_SUPABASE_URL: `https://${ref}.supabase.co`,
@@ -12,8 +12,15 @@ describe('explicit database targets', () => {
     expect(() => migrationTarget({ DATABASE_URL: 'postgresql://prod:example@prod/app' })).toThrow()
     expect(migrationTarget({ ...dev(), DATABASE_URL: 'postgresql://prod:example@prod/app' })).toContain(ref)
   })
-  it('rejects the source production project as development', () => {
-    expect(() => developmentConfig({ ...dev(), DEV_SUPABASE_PROJECT_REF: SOURCE_SUPABASE_PROJECT })).toThrow()
+  it('accepts the retired source project as the development project (owner decision 2026-11-07)', () => {
+    const source = SOURCE_SUPABASE_PROJECT
+    const config = developmentConfig({ ...dev(), DEV_SUPABASE_PROJECT_REF: source, DEV_SUPABASE_URL: `https://${source}.supabase.co`,
+      DEV_DATABASE_URL: `postgresql://postgres.${source}:example@aws-1-us-east-1.pooler.supabase.com:5432/postgres` })
+    expect(config.ref).toBe(source)
+  })
+  it('still rejects a development ref that is listed as production', () => {
+    expect(findProductionProjectRef(`postgres.${ref}@pooler`, [ref])).toBe(ref)
+    expect(findProductionProjectRef(`postgres.${ref}@pooler`)).toBeUndefined()
   })
   it.each([
     { DEV_SUPABASE_URL: 'https://other.supabase.co' },
