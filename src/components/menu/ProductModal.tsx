@@ -2,10 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Camera, Check, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
+import dynamic from 'next/dynamic'
+import { Box, Camera, Check, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
+import { getArCopy } from '@/components/ar/ar-copy'
 import type { DishDetail } from '@/lib/public-dish-details'
 import DishDetails from './DishDetails'
-import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia } from '@/types/database'
+import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia, PublicProductArModel } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { getProductImages, type CartEditorState } from './menu-utils'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
@@ -15,6 +17,9 @@ import { getGuestCopy } from './guest-copy'
 import { contactLinks, displayPrice, optionPriceList, orderedItemText, showcaseItemText } from './showcase'
 import ModalPortal from '@/components/ui/ModalPortal'
 import { halfAndHalfUnit } from '@/lib/menu/option-pricing'
+
+// The 3D/AR view pulls in model-viewer + three.js: loaded only when opened.
+const ArViewerSheet = dynamic(() => import('@/components/ar/ArViewerSheet'), { ssr: false })
 
 type MediaSlide = { type: 'image'; url: string } | { type: 'video'; url: string }
 
@@ -69,7 +74,11 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [] }: {
+export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [], arModel = null, onModelViewerOpened, onArLaunched }: {
+  /** The dish's 3D model: shows "View in 3D" (and AR on phones that support it). */
+  arModel?: PublicProductArModel | null
+  onModelViewerOpened?: () => void
+  onArLaunched?: () => void
   /** Photos shown after the dish's own (e.g. the whole cake). */
   extraImages?: string[]
   /** Ingredient and allergen notes, shown right after the description. */
@@ -125,8 +134,11 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
   const [touchOffsetX, setTouchOffsetX] = useState(0)
   const [isDraggingImage, setIsDraggingImage] = useState(false)
 
+  const [viewing3d, setViewing3d] = useState(false)
+
   useEffect(() => {
     setSlideIndex(0)
+    setViewing3d(false)
   }, [product.id])
 
   const [singleSelections, setSingleSelections] = useState<Record<string, string>>(initialEditorState?.singleSelections ?? {})
@@ -425,6 +437,17 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
     </button>
   )
 
+  const view3dButton = arModel ? (
+    <button
+      type="button"
+      onClick={() => { setViewing3d(true); onModelViewerOpened?.() }}
+      className="flex h-10 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-sm font-semibold text-zinc-900 shadow-sm transition-[scale] hover:bg-white active:scale-95"
+    >
+      <Box className="size-4" aria-hidden />
+      {getArCopy(lang).view3d}
+    </button>
+  ) : null
+
   // Phones: a sheet from the bottom. Larger screens: centred, never taller than the viewport.
   return (
     <ModalPortal onClose={onClose}>
@@ -472,6 +495,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                   sizes="(max-width: 640px) 100vw, 512px"
                 />
               )}
+              {view3dButton && <div className="absolute top-3 left-3 z-10">{view3dButton}</div>}
               <div className="absolute top-3 right-3 z-10">{closeButton}</div>
               {hasManySlides && (
                 <>
@@ -506,7 +530,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
               )}
             </div>
           ) : (
-            <div className="flex justify-end px-3 pt-3">{closeButton}</div>
+            <div className={`flex px-3 pt-3 ${view3dButton ? 'justify-between' : 'justify-end'}`}>{view3dButton}{closeButton}</div>
           )}
 
           <div className="space-y-4 px-5 pt-4 pb-6" onTouchStart={handleBodyTouchStart} onTouchEnd={handleBodyTouchEnd}>
@@ -854,6 +878,17 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
       </div>
       </div>
     </div>
+    {viewing3d && arModel && (
+      <ArViewerSheet
+        model={arModel}
+        name={product.name}
+        fallbackPoster={images[0] ?? null}
+        lang={lang}
+        closeLabel={copy.close}
+        onClose={() => setViewing3d(false)}
+        onArLaunch={onArLaunched}
+      />
+    )}
     </ModalPortal>
   )
 }

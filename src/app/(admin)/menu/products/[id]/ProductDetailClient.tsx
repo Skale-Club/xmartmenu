@@ -9,6 +9,7 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import type { Product, ProductOption, OptionGroupType, Ingredient, ProductIngredient } from '@/types/database'
 import { type GroupWithOptions } from './page'
 import ProductMediaTab from './ProductMediaTab'
+import ProductArTab from './ProductArTab'
 import ProductTranslationsTab from './ProductTranslationsTab'
 import ProductUpsellCard, { type UpsellCandidate } from './ProductUpsellCard'
 import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
@@ -1189,7 +1190,10 @@ export default function ProductDetailClient({
 
       {/* Media tab */}
       {activeTab === 'media' && (
-        <ProductMediaTab productId={product.id} tenantId={_tenantId} />
+        <>
+          <ProductMediaTab productId={product.id} tenantId={_tenantId} />
+          <ProductArTab productId={product.id} tenantId={_tenantId} canManage={canManage} />
+        </>
       )}
 
       {/* Translations tab */}

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PUBLIC_MENU_CACHE_SECONDS, menuCacheKey, menuCacheTags, menuSlugTag, PLATFORM_MENU_TAG, publicMenuCacheSeconds } from '@/lib/menu/public-menu-cache'
 import { menuCacheActionFor } from '@/lib/menu/menu-cache-hooks'
-import { pickTable, withoutPrivateContent } from '@/lib/menu/public-menu-data'
+import { arModelsByProductId, pickTable, withoutPrivateContent } from '@/lib/menu/public-menu-data'
 
 describe('public menu cache keys and tags', () => {
   it('keys one entry per restaurant and section, case-insensitively', () => {
@@ -75,6 +75,7 @@ describe('per-request part of the public menu', () => {
       optionGroupsByProductId: { p: [{ id: 'g' }] },
       productIngredientsByProductId: { p: [{ id: 'i' }] },
       productMediaByProductId: { p: [{ id: 'm' }] },
+      productArModelByProductId: { p: { product_id: 'p', glb_url: 'https://cdn/x.glb' } },
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const stripped = withoutPrivateContent(data as any)
@@ -84,5 +85,18 @@ describe('per-request part of the public menu', () => {
     expect(stripped.optionGroupsByProductId).toEqual({})
     expect(stripped.productIngredientsByProductId).toEqual({})
     expect(stripped.productMediaByProductId).toEqual({})
+    expect(stripped.productArModelByProductId).toEqual({})
+  })
+})
+
+describe('arModelsByProductId', () => {
+  const model = (product_id: string, glb_url: string) => ({ product_id, glb_url, usdz_url: null, poster_url: null, real_scale: true })
+
+  it('maps each dish to its model and skips rows without a GLB', () => {
+    expect(arModelsByProductId([model('a', 'https://cdn/a.glb'), model('b', '')])).toEqual({ a: model('a', 'https://cdn/a.glb') })
+  })
+
+  it('is empty when the table is missing (query error -> null rows)', () => {
+    expect(arModelsByProductId(null)).toEqual({})
   })
 })

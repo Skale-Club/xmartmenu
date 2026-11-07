@@ -13,7 +13,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 // What a restaurant can see changed in its own account.
 const OWNER_TABLES = [
   'tenant_settings', 'menus', 'categories', 'products', 'product_option_groups', 'product_options',
-  'product_media', 'ingredients', 'product_ingredients', 'restaurant_tables', 'locations',
+  'product_media', 'product_ar_models', 'ingredients', 'product_ingredients', 'restaurant_tables', 'locations',
   'delivery_zones', 'chat_addon_settings', 'tenant_ai_settings', 'qr_codes', 'profiles', 'orders',
   'tenant_subscriptions', 'tenants',
 ] as const

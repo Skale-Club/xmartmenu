@@ -49,6 +49,7 @@ export const TABLE_LABELS: Record<string, string> = {
   product_option_groups: 'Option group',
   product_options: 'Option',
   product_media: 'Dish media',
+  product_ar_models: 'Dish 3D model',
   ingredients: 'Ingredient',
   product_ingredients: 'Dish ingredient',
   restaurant_tables: 'Table',

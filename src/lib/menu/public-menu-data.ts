@@ -26,7 +26,7 @@ import { getTenantCapabilities } from '@/lib/tenant-plan'
 import { getChatAddonStatus } from '@/lib/chat-addon'
 import { hasAnyChannel, resolveChatChannels } from '@/lib/chat-channels'
 import type { TenantCapabilities } from '@/lib/service-modes'
-import type { DeliveryZone, ProductIngredientWithIngredient, ProductMedia } from '@/types/database'
+import type { DeliveryZone, ProductIngredientWithIngredient, ProductMedia, PublicProductArModel } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { menuCacheKey, menuCacheTags, publicMenuCacheSeconds } from '@/lib/menu/public-menu-cache'
 import { effectiveMultiplier, scaleOptionGroups, scaleProductIngredients, scaleProducts } from '@/components/menu/price-multiplier'
@@ -82,6 +82,19 @@ export function groupByProductId<T extends { product_id: string }>(rows: readonl
   return byProduct
 }
 
+/**
+ * 3D models by product (one per dish), keeping only rows with a model URL.
+ * Before the product_ar_models migration runs the query errors and `rows` is
+ * null: the menu then simply has no 3D views.
+ */
+export function arModelsByProductId(rows: readonly PublicProductArModel[] | null | undefined): Record<string, PublicProductArModel> {
+  const byProduct: Record<string, PublicProductArModel> = {}
+  for (const row of rows ?? []) {
+    if (row.glb_url) byProduct[row.product_id] = row
+  }
+  return byProduct
+}
+
 /** Option groups by product, each keeping only its available options. */
 export function buildOptionGroupsByProductId(rawGroups: readonly GroupWithOptions[] | null | undefined): Record<string, GroupWithOptions[]> {
   return groupByProductId(
@@ -129,6 +142,8 @@ export interface PublicMenuData {
   optionGroupsByProductId: Record<string, GroupWithOptions[]>
   productIngredientsByProductId: Record<string, ProductIngredientWithIngredient[]>
   productMediaByProductId: Record<string, ProductMedia[]>
+  /** The dish's 3D model for "View in 3D" / AR (product_ar_models). */
+  productArModelByProductId: Record<string, PublicProductArModel>
   deliveryZones: DeliveryZone[]
   chatAddonEnabled: boolean
   chatAddonAudioEnabled: boolean
@@ -234,7 +249,7 @@ export async function loadPublicMenuBase(slug: string, menuSlug: string | undefi
   // per request for a caller who may not see it (withoutDetails).
   const productIds = products.map(p => p.id)
   const loadDetails = productIds.length > 0
-  const [{ data: rawGroups }, { data: rawIngredients }, { data: rawMedia }] = await Promise.all([
+  const [{ data: rawGroups }, { data: rawIngredients }, { data: rawMedia }, { data: rawArModels }] = await Promise.all([
     loadDetails
       ? supabase
           .from('product_option_groups')
@@ -250,6 +265,10 @@ export async function loadPublicMenuBase(slug: string, menuSlug: string | undefi
     loadDetails
       ? supabase.from('product_media').select('*').in('product_id', productIds).order('display_order')
       : Promise.resolve({ data: [] }),
+    // Augmented reality: one 3D model per dish, only the fields guests need.
+    loadDetails
+      ? supabase.from('product_ar_models').select('product_id, glb_url, usdz_url, poster_url, real_scale').in('product_id', productIds)
+      : Promise.resolve({ data: [] }),
   ])
 
   return {
@@ -264,6 +283,7 @@ export async function loadPublicMenuBase(slug: string, menuSlug: string | undefi
     optionGroupsByProductId: buildOptionGroupsByProductId(rawGroups as GroupWithOptions[] | null),
     productIngredientsByProductId: groupByProductId(rawIngredients as ProductIngredientWithIngredient[] | null),
     productMediaByProductId: groupByProductId(rawMedia as ProductMedia[] | null),
+    productArModelByProductId: arModelsByProductId(rawArModels as PublicProductArModel[] | null),
     deliveryZones,
     chatAddonEnabled: chatStatus.enabled && hasAnyChannel(chatChannels),
     chatAddonAudioEnabled: chatChannels.voice,
@@ -313,7 +333,7 @@ export function pickTable(
  * Stripping only the details still sent every dish, category and price in the
  * HTML/RSC payload, the JSON API and the JSON-LD, whatever the page showed.
  */
-export function withoutPrivateContent<T extends Pick<PublicMenuData, 'categories' | 'products' | 'optionGroupsByProductId' | 'productIngredientsByProductId' | 'productMediaByProductId'>>(data: T): T {
+export function withoutPrivateContent<T extends Pick<PublicMenuData, 'categories' | 'products' | 'optionGroupsByProductId' | 'productIngredientsByProductId' | 'productMediaByProductId' | 'productArModelByProductId'>>(data: T): T {
   return {
     ...data,
     categories: [],
@@ -321,6 +341,7 @@ export function withoutPrivateContent<T extends Pick<PublicMenuData, 'categories
     optionGroupsByProductId: {},
     productIngredientsByProductId: {},
     productMediaByProductId: {},
+    productArModelByProductId: {},
   }
 }
 
