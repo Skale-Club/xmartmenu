@@ -132,7 +132,7 @@ CREATE TABLE public.menu_events(id bigserial PRIMARY KEY, event_name text NOT NU
   'product_engagement'::text, 'product_detail_opened'::text, 'media_started'::text, 'media_completed'::text, 'media_swiped'::text,
   'category_selected'::text, 'search_performed'::text, 'add_to_cart'::text, 'upsell_shown'::text, 'order_created'::text])));
 INSERT INTO public.menu_events(event_name) VALUES ('upsell_shown'), ('order_created');
-GRANT SELECT ON public.products TO xmartmenu_runtime;""", 'xmartmenu')
+GRANT SELECT ON public.products, public.tenants TO xmartmenu_runtime;""", 'xmartmenu')
         self.tmp = Path(tempfile.mkdtemp())
         self.cfg = ops.Config(container=CONTAINER, root=self.tmp / 'root', cutover_lock=self.tmp / 'n1', xmail_deploy_lock=self.tmp / 'n2')
         text = (REPO / 'docs/owned-schema' / AR_FILE).read_text()
