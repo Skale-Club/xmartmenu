@@ -1,4 +1,15 @@
-# Dados reais em desenvolvimento: `npm run db:pull`
+# Dados reais em desenvolvimento: `npm run db:pull` (só emergência)
+
+> **Política (regra universal do dono, 2026-11-07, `skaleclub-apps/agents/RULES.md` §4):** o banco
+> de desenvolvimento usa um conjunto **fictício** e robusto (empresas fictícias cobrindo todo
+> plano, status e caso extremo), descrito em [`docs/dev-fake-dataset.md`](../dev-fake-dataset.md).
+> Produção **nunca** é copiada para desenvolvimento por padrão. O `db:pull` abaixo é ferramenta de
+> **emergência** (por exemplo, reproduzir um bug que só aparece com dados reais): cada execução
+> precisa do OK explícito do dono, e depois o banco de dev volta ao conjunto fictício. Não é passo
+> de rotina nem pendência.
+>
+> Estado em 2026-11-08: o projeto de dev ainda guarda os dados reais de quando era produção (até o
+> cutover de 2026-11-06). Eles serão substituídos pelo conjunto fictício conforme o plano.
 
 > **Atualização 2026-11-07 (decisão do dono):** produção roda só no PostgreSQL próprio desde o
 > cutover de 2026-11-06. O antigo projeto Supabase de produção (`ktogbpqookfcqilqvici`) passou a
