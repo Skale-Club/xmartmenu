@@ -227,6 +227,8 @@ export interface PullOptions {
   /** Destination connection string, only used for the production-ref refusal. */
   destUrl: string
   excluded?: readonly string[]
+  /** Supabase refs treated as production (defaults to PRODUCTION_PROJECT_REFS). */
+  productionRefs?: readonly string[]
   /** Allow the copy to run user triggers when `session_replication_role` cannot be set. */
   allowTriggers?: boolean
   log?: (message: string) => void
@@ -254,7 +256,8 @@ const CHUNK = 500
 export async function pullDatabase(options: PullOptions): Promise<PullResult> {
   const { prod, dest, destUrl, excluded = EXCLUDED_TABLES, allowTriggers = false } = options
   const log = options.log ?? (() => undefined)
-  if (findProductionProjectRef(destUrl)) throw new Error('Refusing: the destination resolves to a production database.')
+  const productionRefs = options.productionRefs ? [...options.productionRefs] : undefined
+  if (findProductionProjectRef(destUrl, productionRefs)) throw new Error('Refusing: the destination resolves to a production database.')
 
   await prod.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
   let destOpen = false

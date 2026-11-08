@@ -173,9 +173,10 @@ describe.skipIf(!enabled)('db:pull rehearsal on disposable PostgreSQL', () => {
   })
 
   it('refuses a production destination before connecting to anything', async () => {
+    // No Supabase project is production since 2026-11-07 (owned PostgreSQL); the guard still works for a listed ref.
     await expect(pullDatabase({
-      prod: src, dest: dst,
-      destUrl: 'postgresql://postgres.ktogbpqookfcqilqvici:pw@aws-1-us-east-1.pooler.supabase.com:5432/postgres',
+      prod: src, dest: dst, productionRefs: ['prodrefprodrefprodre'],
+      destUrl: 'postgresql://postgres.prodrefprodrefprodre:pw@aws-1-us-east-1.pooler.supabase.com:5432/postgres',
     })).rejects.toThrow(/production/)
   })
 
