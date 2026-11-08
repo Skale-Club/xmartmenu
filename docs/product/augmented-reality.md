@@ -53,24 +53,21 @@ writes with a clear message, and the legacy loader ignores the query error.
 No dish can have a model before the schema step, so no `ar_launched` event can
 reach `menu_events` before its CHECK allows it (the same SQL does both).
 
-## Before it works in production
+## Production setup
 
-1. **Run the schema step on the owned database.** As `xmartmenu_owner` on
-   database `xmartmenu`, inside the PostgreSQL container on the database host:
-   `psql -v ON_ERROR_STOP=1 -f 20261107090000_product_ar_models.sql`. One
-   transaction, idempotent, ends with a grant sentinel. Do **not** run
-   `npm run db:migrate`: `.env.local` still points at the frozen Supabase.
-2. **CORS on the R2 bucket `xmartmenu-product-images`.** `<model-viewer>`
-   downloads the GLB with `fetch`, which needs `Access-Control-Allow-Origin`.
-   The R2 custom domains returned no CORS headers (checked 2026-11-07).
-   Restaurants also use custom domains, so allow any origin for reads:
+1. **Schema on the owned database.** Applied by the *Owned schema* workflow
+   (`.github/workflows/owned-schema.yml`, see `docs/owned-schema/README.md`):
+   run it with `mode=plan`, then `mode=apply` and `confirm_sha`. Do **not**
+   run `npm run db:migrate`: `.env.local` still points at the frozen Supabase.
+2. **CORS on the R2 bucket `xmartmenu-product-images`** — done 2026-11-08
+   (Cloudflare dashboard › R2 › bucket › Settings › CORS policy).
+   `<model-viewer>` downloads the GLB with `fetch`, so reads need
+   `Access-Control-Allow-Origin`; restaurants also use custom domains:
 
    ```json
    [{ "AllowedOrigins": ["*"], "AllowedMethods": ["GET", "HEAD"], "AllowedHeaders": ["*"], "MaxAgeSeconds": 86400 }]
    ```
 
-   The shared `CLOUDFLARE_TOKEN` is DNS-only; use the Cloudflare dashboard
-   (R2 › bucket › Settings › CORS policy) or an R2 token with admin rights.
 3. Test on a real Android phone and a real iPhone (AR cannot be emulated).
 
 ## Model guidelines for restaurants
