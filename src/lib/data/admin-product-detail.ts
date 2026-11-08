@@ -5,8 +5,9 @@ import { findAdminProduct, guardProductDeletion } from './admin-products'
 import { PUBLIC_MENU_COLUMNS } from './public-menu'
 import { planCeiling } from '../service-modes'
 import { sanitizeTranslations } from '../menu-translations'
+import { mutateArModel } from './admin-product-ar'
 
-type Entity = 'groups' | 'options' | 'ingredients' | 'media' | 'translations'
+type Entity = 'groups' | 'options' | 'ingredients' | 'media' | 'translations' | 'ar'
 type Action = 'list' | 'create' | 'patch' | 'delete' | 'reorder'
 export type DetailOperation = { entity: Entity; action: Action; id?: unknown; groupId?: unknown; ingredientId?: unknown; values?: unknown; firstId?: unknown; secondId?: unknown }
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -26,9 +27,10 @@ function fields(value: unknown, allowed: readonly string[]) {
 }
 export function detailOperation(value: unknown): DetailOperation {
   const body = fields(value, ['entity', 'action', 'id', 'groupId', 'ingredientId', 'values', 'firstId', 'secondId'])
-  if (typeof body.entity !== 'string' || !['groups', 'options', 'ingredients', 'media', 'translations'].includes(body.entity)
+  if (typeof body.entity !== 'string' || !['groups', 'options', 'ingredients', 'media', 'translations', 'ar'].includes(body.entity)
     || typeof body.action !== 'string' || !['list', 'create', 'patch', 'delete', 'reorder'].includes(body.action)
-    || (body.action === 'list' && body.entity !== 'media') || (body.entity === 'ingredients' && body.action === 'reorder')
+    || (body.action === 'list' && body.entity !== 'media' && body.entity !== 'ar')
+    || (body.entity === 'ar' && !['list', 'patch', 'delete'].includes(body.action)) || (body.entity === 'ingredients' && body.action === 'reorder')
     || (body.entity === 'media' && body.action === 'patch') || (body.entity === 'translations' && body.action !== 'patch')) throw bad()
   return body as DetailOperation
 }
@@ -227,6 +229,7 @@ export async function mutateProductDetail(query: AdminMenuQuery, context: AdminM
   }
   if (operation.entity === 'ingredients') return mutateIngredients(query, context, product.id, operation)
   if (operation.entity === 'media') return mutateMedia(query, context, product.id, operation)
+  if (operation.entity === 'ar') return mutateArModel(query, context, product.id, operation.action, operation.values)
   throw bad()
 }
 

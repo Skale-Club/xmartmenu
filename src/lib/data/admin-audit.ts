@@ -4,7 +4,7 @@ import { TABLE_LABELS } from '../observability/audit-format'
 
 export const OWNER_AUDIT_TABLES = [
   'tenant_settings', 'menus', 'categories', 'products', 'product_option_groups', 'product_options',
-  'product_media', 'ingredients', 'product_ingredients', 'restaurant_tables', 'locations',
+  'product_media', 'product_ar_models', 'ingredients', 'product_ingredients', 'restaurant_tables', 'locations',
   'delivery_zones', 'chat_addon_settings', 'tenant_ai_settings', 'qr_codes', 'profiles', 'orders',
   'tenant_subscriptions', 'tenants',
 ] as const

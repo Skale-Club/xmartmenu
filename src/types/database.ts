@@ -253,6 +253,11 @@ export type MenuAnalyticsEventName =
   | 'add_to_cart'
   | 'remove_from_cart'
   | 'checkout_started'
+  | 'upsell_shown'
+  | 'upsell_accepted'
+  | 'upsell_skipped'
+  | 'model_viewer_opened'
+  | 'ar_launched'
   | 'order_created'
   | 'order_completed'
   | 'order_cancelled'
@@ -404,6 +409,29 @@ export interface ProductMedia {
   display_order: number
   created_at: string
 }
+
+// Augmented reality: the dish's 3D model (product_ar_models, one per dish).
+// glb_url drives the 3D viewer, Android Scene Viewer and WebXR; usdz_url is an
+// optional hand-made file for iOS Quick Look (otherwise converted on the fly).
+export interface ProductArModel {
+  id: string
+  product_id: string
+  tenant_id: string
+  glb_url: string
+  glb_storage_path: string | null
+  glb_bytes: number | null
+  usdz_url: string | null
+  usdz_storage_path: string | null
+  usdz_bytes: number | null
+  poster_url: string | null
+  /** AR at the modelled size (metres) instead of letting guests resize it. */
+  real_scale: boolean
+  created_at: string
+  updated_at: string
+}
+
+/** What the public menu sends to guests: no storage keys or sizes. */
+export type PublicProductArModel = Pick<ProductArModel, 'product_id' | 'glb_url' | 'usdz_url' | 'poster_url' | 'real_scale'>
 
 // SEED-023: restaurant table in the table catalog
 export interface RestaurantTable {

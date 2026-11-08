@@ -155,6 +155,7 @@ export default async function PublicMenuSlugPage({ params, searchParams }: Props
       productIngredientsByProductId={productIngredientsByProductId}
       deliveryZones={data.deliveryZones}
       productMediaByProductId={data.productMediaByProductId}
+      productArModelByProductId={data.productArModelByProductId}
       chatAddonEnabled={data.chatAddonEnabled}
       chatAddonAudioEnabled={data.chatAddonAudioEnabled}
       chatAddonTextEnabled={data.chatAddonTextEnabled}
