@@ -1,0 +1,59 @@
+name: Owned schema (apply docs/owned-schema to production PostgreSQL)
+
+# Schema changes after the final cutover. Started by hand, only from main.
+#   plan   read only: which docs/owned-schema/*.sql are applied, pending or changed
+#   apply  lock, schema-only dump, apply pending files as xmartmenu_owner, record them
+# Operator: scripts/ops/xmartmenu-owned-schema.py. Secrets: CUTOVER_SSH_HOST, CUTOVER_SSH_KEY, CUTOVER_SSH_HOST_KEY.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: plan | apply
+        required: true
+        type: choice
+        options: [plan, apply]
+        default: plan
+      confirm_sha:
+        description: First 8 characters of the main commit (required for apply)
+        required: false
+        type: string
+
+# Never overlaps a build/deploy or the cutover.
+concurrency:
+  group: build-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  owned-schema:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Same protected environment as the cutover (restricted to main, holds the SSH secrets' approval).
+    environment: final-cutover
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Guard (apply)
+        if: inputs.mode == 'apply'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRM: ${{ inputs.confirm_sha }}
+          SHA: ${{ github.sha }}
+        run: |
+          [[ "${CONFIRM}" == "${SHA:0:8}" ]] || { echo "::error::confirm_sha must be ${SHA:0:8}"; exit 1; }
+          ok="$(gh run list --workflow ci.yml --branch main --commit "${SHA}" --status success --json databaseId --jq 'length')"
+          [[ "${ok}" != "0" ]] || { echo "::error::No successful CI run on main for ${SHA}."; exit 1; }
+
+      - name: Run
+        env:
+          CUTOVER_SSH_HOST: ${{ secrets.CUTOVER_SSH_HOST }}
+          CUTOVER_SSH_KEY: ${{ secrets.CUTOVER_SSH_KEY }}
+          CUTOVER_SSH_HOST_KEY: ${{ secrets.CUTOVER_SSH_HOST_KEY }}
+        run: bash scripts/ops/run-xmartmenu-owned-schema.sh "${{ inputs.mode }}" "${{ github.sha }}"

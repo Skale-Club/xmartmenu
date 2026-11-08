@@ -86,7 +86,9 @@ DO $$ DECLARE def text; names text[]; BEGIN
  IF 'model_viewer_opened' = ANY(names) AND 'ar_launched' = ANY(names) THEN RETURN; END IF;
  names := ARRAY(SELECT DISTINCT n FROM unnest(names || ARRAY['model_viewer_opened','ar_launched']) n ORDER BY n);
  ALTER TABLE public.menu_events DROP CONSTRAINT menu_events_event_name_check;
- EXECUTE format('ALTER TABLE public.menu_events ADD CONSTRAINT menu_events_event_name_check CHECK (event_name = ANY (%L::text[])) NOT VALID', names);
+ -- Same ARRAY['..'::text] shape as before, so a later run can read it back.
+ EXECUTE format('ALTER TABLE public.menu_events ADD CONSTRAINT menu_events_event_name_check CHECK (event_name = ANY (ARRAY[%s])) NOT VALID',
+  (SELECT string_agg(quote_literal(n) || '::text', ', ' ORDER BY n) FROM unnest(names) n));
  ALTER TABLE public.menu_events VALIDATE CONSTRAINT menu_events_event_name_check;
 END $$;
 
