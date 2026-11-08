@@ -1,5 +1,7 @@
 -- Augmented reality: 3D dish models on the owned PostgreSQL (production).
 -- Owned-database counterpart of supabase/migrations/20261107090000_product_ar_models.sql.
+-- Lives in docs/owned-schema/ (schema changes after the final cutover), not in
+-- docs/proposals/, which is the cutover operator's fixed list.
 --
 -- Run once as xmartmenu_owner on database xmartmenu (psql in the PostgreSQL
 -- container), in one transaction. Idempotent: running it again changes nothing.

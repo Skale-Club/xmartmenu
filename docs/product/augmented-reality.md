@@ -23,7 +23,7 @@ opens the 3D view, so menus without models never download it.
 
 | Layer | File |
 |---|---|
-| Schema, production (owned PostgreSQL) | `docs/proposals/product-ar-models-owned-only.sql` |
+| Schema, production (owned PostgreSQL) | `docs/owned-schema/20261107090000_product_ar_models.sql` |
 | Schema, legacy Supabase | `supabase/migrations/20261107090000_product_ar_models.sql` |
 | Types | `ProductArModel`, `PublicProductArModel` in `src/types/database.ts` |
 | File checks (GLB magic/version/length, USDZ zip, 25 MB cap, 5 MB warning) | `src/lib/ar/model-file.ts` |
@@ -57,7 +57,7 @@ reach `menu_events` before its CHECK allows it (the same SQL does both).
 
 1. **Run the schema step on the owned database.** As `xmartmenu_owner` on
    database `xmartmenu`, inside the PostgreSQL container on the database host:
-   `psql -v ON_ERROR_STOP=1 -f product-ar-models-owned-only.sql`. One
+   `psql -v ON_ERROR_STOP=1 -f 20261107090000_product_ar_models.sql`. One
    transaction, idempotent, ends with a grant sentinel. Do **not** run
    `npm run db:migrate`: `.env.local` still points at the frozen Supabase.
 2. **CORS on the R2 bucket `xmartmenu-product-images`.** `<model-viewer>`
