@@ -543,7 +543,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
               <div className="flex items-start justify-between gap-4">
                 <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900">{product.name}</h2>
                 {!hasFooterPrice && <div className="shrink-0 text-right">
-                  <p className="text-[20px] font-semibold tabular-nums tracking-tight" style={{ color: priceColor }}>
+                  <p className="text-[20px] font-bold tabular-nums tracking-tight" style={{ color: priceColor }}>
                     {headerPrice.from ? fill(guestCopy.fromPrice, { price: money(headerPrice.amount) }) : money(headerPrice.amount)}
                   </p>
                   {!headerPrice.from && product.original_price && product.original_price > product.price && (
@@ -814,7 +814,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                     {footerPriceLabel}
                     {footerPromo && <span className="tabular-nums text-zinc-400 line-through">{money(footerPromo)}</span>}
                   </p>
-                  <p className="text-[20px] font-semibold leading-tight tabular-nums tracking-tight" style={{ color: priceColor }}>{money(finalUnitPrice)}</p>
+                  <p className="text-[20px] font-bold leading-tight tabular-nums tracking-tight" style={{ color: priceColor }}>{money(finalUnitPrice)}</p>
                 </div>
                 <button
                   type="button"

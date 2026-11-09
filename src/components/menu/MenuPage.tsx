@@ -1127,7 +1127,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                       : <DishPlaceholder />}
                   </div>
                   <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-zinc-900 sm:text-[15px]">{p.name}</p>
-                  <p className="mt-0.5 text-[14px] font-semibold tabular-nums" style={{ color: accentText }}>{priceOf(p).text}</p>
+                  <p className="mt-0.5 text-[14px] font-bold tabular-nums" style={{ color: accentText }}>{priceOf(p).text}</p>
                 </button>
               )
             })}
@@ -1633,7 +1633,7 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
         {/* Pinned to the bottom, level with the photo's foot, whatever the text above: one line, never wrapped. */}
         <div className="mt-auto flex items-center gap-2 pt-2">
           <span className="flex min-w-0 items-baseline gap-2 whitespace-nowrap [text-box:trim-end_cap_alphabetic]">
-            <span className="text-[15px] font-semibold tabular-nums" style={{ color: accentText }}>{price.text}</span>
+            <span className="text-[15px] font-bold tabular-nums" style={{ color: accentText }}>{price.text}</span>
             {promo && <span className="text-[13px] tabular-nums text-zinc-400 line-through">{formatMoney(promo, currency, lang)}</span>}
           </span>
           {showAdd && (
