@@ -9,6 +9,7 @@ export interface ServiceSwitchValues {
   orders_enabled: boolean | null
   direct_orders_enabled: boolean | null
   table_management_enabled: boolean | null
+  ingredient_customization_enabled: boolean | null
   tips_enabled: boolean | null
   delivery_enabled: boolean | null
   upsell_enabled: boolean | null
@@ -30,6 +31,7 @@ const SWITCHES: readonly SwitchDef[] = [
   { key: 'orders_enabled', label: 'Orders', hint: 'Master switch: off turns every ordering mode off at once.', needs: null, fallback: true },
   { key: 'direct_orders_enabled', label: 'Guest ordering', hint: 'Guests build a cart and check out from the menu.', needs: 'payments', fallback: false },
   { key: 'table_management_enabled', label: 'Tables and waiter app', hint: 'Staff take orders at the table; table links and QR codes.', needs: 'orders', fallback: false },
+  { key: 'ingredient_customization_enabled', label: 'Ingredient customization', hint: 'Guests remove or double a dish\'s ingredients; enables the Ingredients catalog in the admin.', needs: 'orders', fallback: false },
   { key: 'tips_enabled', label: 'Tips', hint: 'Tip suggestions at guest checkout.', needs: 'payments', fallback: false },
   { key: 'delivery_enabled', label: 'Delivery', hint: 'Delivery orders with a fee and address.', needs: 'payments', fallback: false },
   { key: 'upsell_enabled', label: 'Upsell suggestions', hint: '"Complete your order" suggestions after a dish is added.', needs: 'payments', fallback: true },

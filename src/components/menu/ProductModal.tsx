@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Camera, Check, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
 import ArButton from '@/components/ar/ArButton'
 import type { DishDetail } from '@/lib/public-dish-details'
 import DishDetails from './DishDetails'
@@ -141,6 +141,9 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
   const [itemNote, setItemNote] = useState(initialEditorState?.note ?? '')
   const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>(initialEditorState?.ingredientSteppers ?? {})
   const [addedIngredients, setAddedIngredients] = useState<string[]>(initialEditorState?.addedIngredients ?? [])
+  // Ingredients start collapsed to save space; they open on demand, or when an edited item already changed them.
+  const hasIngredientChanges = (steppers?: Record<string, number>) => Object.values(steppers ?? {}).some(v => v !== 0)
+  const [ingredientsOpen, setIngredientsOpen] = useState(() => hasIngredientChanges(initialEditorState?.ingredientSteppers))
   const [quantity, setQuantity] = useState(1)
   // The sheet stays in what the phone keyboard leaves visible (typing a note).
   const box = useVisibleBox()
@@ -155,6 +158,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
     setItemNote(initialEditorState?.note ?? '')  // Pitfall 6: reset note when new product opens
     setIngredientSteppers(initialEditorState?.ingredientSteppers ?? {})
     setAddedIngredients(initialEditorState?.addedIngredients ?? [])
+    setIngredientsOpen(hasIngredientChanges(initialEditorState?.ingredientSteppers))
     setQuantity(1)
     setAttentionGroupId(null)
     customizationTrackedRef.current = false
@@ -473,7 +477,8 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
         </button>
       )}
       <div role="dialog" aria-modal="true" aria-label={product.name} className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:rounded-3xl">
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        {/* No scrollbar gutter: a desktop scrollbar would cut a strip beside the photo and square its corner. */}
+        <div className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {mediaSlides.length > 0 ? (
             <div
               className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-100"
@@ -706,10 +711,35 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
 
             {!showcase && ingredientCustomizationEnabled && defaultIngredients.length > 0 && (
               <section className="overflow-hidden rounded-2xl bg-white shadow-card">
-                <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2">
-                  <h3 className="text-[15px] font-semibold text-zinc-900">{copy.ingredients}</h3>
-                  <span className="text-[12px] font-medium text-zinc-500">{copy.ingredientsHint}</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIngredientsOpen(open => !open)}
+                  aria-expanded={ingredientsOpen}
+                  aria-controls={`ingredients-${product.id}`}
+                  className={`flex w-full items-center justify-between gap-3 px-4 text-left ${ingredientsOpen ? 'pt-4 pb-2' : 'py-4'}`}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-semibold text-zinc-900">{copy.ingredients}</span>
+                    {!ingredientsOpen && (
+                      <span className="mt-0.5 block truncate text-[13px] text-zinc-500">
+                        {(() => {
+                          const changes = defaultIngredients.flatMap(pi => {
+                            const v = ingredientSteppers[pi.ingredient_id] ?? 0
+                            if (v === -1) return [fill(copy.withoutNamed, { name: pi.ingredient.name })]
+                            if (v === 1) return [fill(copy.extraNamed, { name: pi.ingredient.name })]
+                            return []
+                          })
+                          return changes.length > 0 ? changes.join(' · ') : defaultIngredients.map(pi => pi.ingredient.name).join(', ')
+                        })()}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-zinc-500">
+                    {ingredientsOpen ? copy.ingredientsHint : copy.edit}
+                    <ChevronDown className={`size-4 transition-transform ${ingredientsOpen ? 'rotate-180' : ''}`} />
+                  </span>
+                </button>
+                {ingredientsOpen && <div id={`ingredients-${product.id}`}>
                 {defaultIngredients.map(pi => {
                   const value = ingredientSteppers[pi.ingredient_id] ?? 0
                   const count = value + 1
@@ -740,6 +770,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                   )
                 })}
                 <div className="h-1" />
+                </div>}
               </section>
             )}
 
