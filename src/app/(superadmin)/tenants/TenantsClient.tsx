@@ -446,7 +446,7 @@ export default function TenantsClient({ clients: initial }: { clients: ClientRow
         {withTenant.map(client => {
           const td = tenantData[client.id!]
           const isExpanded = expandedId === client.id
-          const tab = expandedTab[client.id!] ?? 'staff'
+          const tab = expandedTab[client.id!] ?? 'menus'
 
           return (
             <motion.div 

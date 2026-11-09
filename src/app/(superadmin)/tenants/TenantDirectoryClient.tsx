@@ -653,7 +653,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans, 
           const tenantId = client.id!
           const data = tenantData[tenantId]
           const expanded = expandedId === tenantId
-          const tab = expandedTab[tenantId] ?? 'staff'
+          const tab = expandedTab[tenantId] ?? 'menus'
           return (
             <section key={tenantId} className="overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-shadow duration-150 hover:shadow-sm">
               <div className="p-4 sm:p-5">
@@ -720,7 +720,7 @@ export default function TenantDirectoryClient({ clients: initialClients, plans, 
                   ) : (
                     <>
                       <div className="flex gap-1 border-b border-zinc-100 bg-zinc-50 px-5 pt-2">
-                        {(['staff', 'menus'] as const).map(item => <button key={item} onClick={() => setExpandedTab(current => ({ ...current, [tenantId]: item }))} className={`border-b-2 px-4 py-3 text-xs font-bold capitalize ${tab === item ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-400'}`}>{item} ({item === 'staff' ? data?.staff.length ?? 0 : data?.menus.length ?? 0})</button>)}
+                        {(['menus', 'staff'] as const).map(item => <button key={item} onClick={() => setExpandedTab(current => ({ ...current, [tenantId]: item }))} className={`border-b-2 px-4 py-3 text-xs font-bold capitalize ${tab === item ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-zinc-400'}`}>{item} ({item === 'staff' ? data?.staff.length ?? 0 : data?.menus.length ?? 0})</button>)}
                       </div>
                       {tab === 'staff' && native ? <div className="p-4 sm:p-6"><OwnedStaffManagement tenantId={tenantId} /></div> : tab === 'staff' ? (
                         <div className="space-y-5 p-4 sm:p-6">

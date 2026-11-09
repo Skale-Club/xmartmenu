@@ -140,7 +140,7 @@ export default function TenantDetailClient({
   native?: boolean
   nativeEffects?: boolean
 }) {
-  const [tab, setTab] = useState<'staff' | 'menus' | 'subscription'>('staff')
+  const [tab, setTab] = useState<'staff' | 'menus' | 'subscription'>('menus')
   const [staff, setStaff] = useState(initialStaff)
   const [menus] = useState(initialMenus)
 
@@ -646,7 +646,7 @@ export default function TenantDetailClient({
 
       {/* Tabs */}
       <nav aria-label="Restaurant management sections" className="mb-4 grid grid-cols-3 gap-1 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm">
-        {(['staff', 'menus', 'subscription'] as const).map(t => (
+        {(['menus', 'staff', 'subscription'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
