@@ -72,7 +72,7 @@ function VideoSlide({ url }: { url: string }) {
 }
 
 export default function ProductModal({ product, primaryColor, priceColor = '#18181b', currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [], arModel = null, onModelViewerOpened, onArLaunched }: {
-  /** The dish's 3D model: shows "View in 3D" (and AR on phones that support it). */
+  /** The dish's 3D model: shows "See it on your table" on phones with an AR camera. */
   arModel?: PublicProductArModel | null
   onModelViewerOpened?: () => void
   onArLaunched?: () => void

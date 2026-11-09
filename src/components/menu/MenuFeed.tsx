@@ -4,7 +4,8 @@ import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
-import type { Product, ProductMedia } from '@/types/database'
+import type { Product, ProductMedia, PublicProductArModel } from '@/types/database'
+import ArButton from '@/components/ar/ArButton'
 import FeedDescription from './FeedDescription'
 import FeedSizeSheet from './FeedSizeSheet'
 import type { FeedSize } from './feed-sizes'
@@ -50,6 +51,10 @@ interface FeedProps {
   onIndexChange?: (index: number) => void
   /** The price as shown on the dish ("From $15.00" for a dish with sizes); defaults to its own price. */
   priceLabel?: (product: Product) => string
+  /** The dish's 3D model: a round cube button opens it on the guest's table (phones with an AR camera only). */
+  arModelFor?: (product: Product) => PublicProductArModel | null
+  onArOpened?: (product: Product) => void
+  onArLaunched?: (product: Product) => void
 }
 
 export default function MenuFeed({
@@ -78,6 +83,9 @@ export default function MenuFeed({
   initialIndex = 0,
   onIndexChange,
   priceLabel,
+  arModelFor,
+  onArOpened,
+  onArLaunched,
 }: FeedProps) {
   const copy = getMenuCopy(lang)
   const feedScrollerRef = useRef<HTMLDivElement | null>(null)
@@ -201,6 +209,20 @@ export default function MenuFeed({
                 {product.description ? <FeedDescription text={product.description} details={detailsFor(product)} seeMore={copy.seeMore} seeLess={copy.seeLess} /> : null}
 
                 <div className="pointer-events-auto mt-5 flex items-center gap-3">
+                  {(() => {
+                    const arModel = arModelFor?.(product)
+                    return arModel ? (
+                      <ArButton
+                        iconOnly
+                        model={arModel}
+                        name={product.name}
+                        lang={lang}
+                        onOpen={() => onArOpened?.(product)}
+                        onArLaunch={() => onArLaunched?.(product)}
+                        className="flex size-12 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-xl transition active:scale-90"
+                      />
+                    ) : null
+                  })()}
                   {/* View-only menu: "View dish" below is the one action. */}
                   {directOrdersEnabled ? (
                     <button

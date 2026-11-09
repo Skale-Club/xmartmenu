@@ -78,7 +78,7 @@ export interface PublicMenuData {
   optionGroupsByProductId: Record<string, GroupWithOptions[]>
   productIngredientsByProductId: Record<string, ProductIngredientWithIngredient[]>
   productMediaByProductId: Record<string, ProductMedia[]>
-  /** The dish's 3D model for "View in 3D" / AR (product_ar_models). */
+  /** The dish's 3D model for "See it on your table" (AR) (product_ar_models). */
   productArModelByProductId: Record<string, PublicProductArModel>
   deliveryZones: DeliveryZone[]
   chatAddonEnabled: boolean

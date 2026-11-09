@@ -24,6 +24,7 @@ import { dishDetailsFor } from '@/lib/public-dish-details'
 import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
+import { ArBadge } from '@/components/ar/ArButton'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
   CART_TTL_MS,
@@ -108,7 +109,7 @@ interface Props {
   productIngredientsByProductId?: Record<string, ProductIngredientWithIngredient[]>
   deliveryZones?: DeliveryZone[]
   productMediaByProductId?: Record<string, ProductMedia[]>
-  /** Dishes with a 3D model: "View in 3D" and AR in the dish detail. */
+  /** Dishes with a 3D model: "See it on your table" (AR) in the dish detail, a cube on the card and in the feed. */
   productArModelByProductId?: Record<string, PublicProductArModel>
   chatAddonEnabled?: boolean
   chatAddonAudioEnabled?: boolean
@@ -1185,6 +1186,9 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
               updateCartQuantity(key, quantity - 1)
             }}
             priceLabel={product => priceOf(product).text}
+            arModelFor={product => productArModelByProductId[product.id] ?? null}
+            onArOpened={product => analyticsTracker?.track({ event_name: 'model_viewer_opened', product_id: product.id, source: 'feed' })}
+            onArLaunched={product => analyticsTracker?.track({ event_name: 'ar_launched', product_id: product.id, source: 'feed' })}
             onMediaEvent={(eventName, product, mediaType, mediaIndex) => analyticsTracker?.track({
               event_name: eventName,
               product_id: product.id,
@@ -1237,6 +1241,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                         accentColor={accentColor}
                         accentText={accentText}
                         price={priceOf(p)}
+                        hasArModel={!!productArModelByProductId[p.id]}
                         onOpen={() => openProduct(p, 'grid')}
                         {...(directOrdersEnabled ? {
                           cartQuantity: customizable ? 0 : qty,
@@ -1581,8 +1586,10 @@ function ContactCard({ href, icon, caption, value, color, external, numeric, wra
  * Larger screens: a card with the photo on top. The whole card opens the dish.
  * The add button and the stepper sit in the price row, never on the photo.
  */
-function ProductCard({ product, lang, currency, primaryColor, accentColor, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement }: {
+function ProductCard({ product, lang, currency, primaryColor, accentColor, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement, hasArModel = false }: {
   product: Product; lang: string; currency: string; primaryColor: string; onOpen: () => void
+  /** The dish has a 3D model: a small cube in the photo's corner says it can be seen on the table. */
+  hasArModel?: boolean
   /** The restaurant's secondary colour (tags) and the same colour made readable as text (price). */
   accentColor: string; accentText: string
   /** The price as shown ("From $15.00" for a dish with sizes). */
@@ -1654,6 +1661,9 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
         {image
           ? <Image src={image} alt="" fill sizes="(max-width: 640px) 120px, (max-width: 1024px) 50vw, 33vw" className="object-cover object-center transition-transform duration-500 sm:group-hover:scale-[1.03]" />
           : <DishPlaceholder />}
+        {hasArModel && (
+          <ArBadge lang={lang} className="absolute top-1.5 left-1.5 flex size-6 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm sm:top-3 sm:left-3" />
+        )}
       </div>
     </article>
   )
