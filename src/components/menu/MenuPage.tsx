@@ -25,6 +25,7 @@ import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import { ArBadge } from '@/components/ar/ArButton'
+import BagPlus from './BagPlus'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
   CART_TTL_MS,
@@ -1643,7 +1644,7 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
               style={{ backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) }}
               className="pointer-events-auto relative z-10 ml-auto flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm transition-[scale] active:scale-90"
             >
-              <Plus className="size-[18px]" strokeWidth={2.5} />
+              <BagPlus className="size-5" strokeWidth={2} />
             </button>
           )}
           {showStepper && (

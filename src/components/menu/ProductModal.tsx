@@ -6,6 +6,7 @@ import { Camera, Check, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, 
 import ArButton from '@/components/ar/ArButton'
 import type { DishDetail } from '@/lib/public-dish-details'
 import DishDetails from './DishDetails'
+import BagPlus from './BagPlus'
 import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia, PublicProductArModel } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { getProductImages, type CartEditorState } from './menu-utils'
@@ -825,7 +826,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                 >
                   {isEditing
                     ? <Check className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />
-                    : <Plus className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />}
+                    : <BagPlus className="size-5 shrink-0" strokeWidth={2} aria-hidden="true" />}
                   <span className="truncate">{isEditing ? copy.updateItem : copy.addToOrder}</span>
                 </button>
               </div>
