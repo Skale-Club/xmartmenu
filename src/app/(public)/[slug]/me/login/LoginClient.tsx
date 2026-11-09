@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Phone, ArrowRight, ChevronLeft } from 'lucide-react'
+import { ArrowRight, ChevronLeft } from 'lucide-react'
 import { readLoginAuthority, requireLoginAuthority, type LoginAuthority } from '@/lib/auth/browser-login-authority'
 import Link from 'next/link'
-import Image from 'next/image'
+import GuestSignInHeader from '@/components/auth/GuestSignInHeader'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import { fill, getMenuCopy, type LoginCopy } from '@/components/menu/menu-i18n'
 import { phoneLabel, phoneRegion, toE164Phone, type PhoneContext } from '@/components/menu/showcase'
@@ -171,41 +171,10 @@ export default function LoginClient({ slug, primaryColor, onSuccess, logoUrl, re
   return (
     <div className={inPopup ? '' : 'flex min-h-screen items-center justify-center bg-zinc-50 px-4'} style={{ '--accent': accent } as React.CSSProperties}>
       <div className={inPopup ? 'w-full' : 'w-full max-w-sm overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-xl'}>
-        {/* The restaurant's banner with its logo cutting the bottom edge, as in the menu header.
-            Always the photo here, even if the menu header one day plays a video. Height 80 px (56 px compact):
-            LoginModal centres its close button on it. */}
-        <div
-          className={`relative overflow-hidden transition-[height] ${compact ? 'h-14' : 'h-20'}`}
-          style={!bannerUrl ? { background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 30%, white), color-mix(in srgb, ${accent} 10%, white))` } : undefined}
-        >
-          {bannerUrl && (
-            <>
-              <Image src={bannerUrl} alt="" fill sizes="400px" className="object-cover" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/10" />
-            </>
-          )}
-        </div>
-        <div className="px-6">
-          {logoUrl ? (
-            <div className={`relative overflow-hidden rounded-2xl bg-white shadow-[0_2px_8px_rgb(0_0_0/0.12)] ring-1 ring-black/5 ${compact ? '-mt-6 size-12' : '-mt-9 size-[72px]'}`}>
-              <Image src={logoUrl} alt="" fill sizes="72px" className="object-contain p-2" />
-            </div>
-          ) : (
-            <div className={`flex items-center justify-center rounded-2xl shadow-[0_2px_8px_rgb(0_0_0/0.12)] ${compact ? '-mt-6 size-12' : '-mt-9 size-[72px]'}`} style={btnStyle}>
-              <Phone className="size-6" aria-hidden="true" />
-            </div>
-          )}
-          {restaurantName && <p className="mt-3 text-[14px] font-medium text-zinc-500">{restaurantName}</p>}
-          <h1 className={`text-[24px] font-semibold leading-tight tracking-tight text-zinc-950 ${restaurantName ? 'mt-0.5' : 'mt-3'}`}>
-            {step === 'phone' ? copy.loginTitle : copy.loginVerifyTitle}
-          </h1>
-          {/* With the keyboard up the phone step drops its intro; where the code went always stays. */}
-          {!(compact && step === 'phone') && (
-            <p className="mt-1.5 text-[15px] font-normal leading-relaxed text-zinc-600" style={{ textWrap: 'balance' } as React.CSSProperties}>
-              {step === 'phone' ? copy.loginSubtitle : fill(copy.loginCodeSent, { phone: sentTo })}
-            </p>
-          )}
-        </div>
+        <GuestSignInHeader bannerUrl={bannerUrl} logoUrl={logoUrl} restaurantName={restaurantName} accent={accent} onAccent={onAccent} compact={compact}
+          title={step === 'phone' ? copy.loginTitle : copy.loginVerifyTitle}
+          // With the keyboard up the phone step drops its intro; where the code went always stays.
+          subtitle={compact && step === 'phone' ? null : step === 'phone' ? copy.loginSubtitle : fill(copy.loginCodeSent, { phone: sentTo })} />
 
         <div className="space-y-4 px-6 pb-6 pt-5">
           {error && (

@@ -5,6 +5,14 @@ import { googleProof, phoneProof, type IdentityWebConfig } from '@/lib/auth/iden
 import { requireLoginAuthority } from '@/lib/auth/browser-login-authority'
 import { completeOwnedLogin, ownedLoginDestination, OwnedLoginError } from '@/lib/auth/browser-owned-login'
 import Link from 'next/link'
+import { ArrowRight, ChevronLeft } from 'lucide-react'
+import type { GuestBrand } from '@/lib/auth/guest-brand'
+import GuestSignInHeader from '@/components/auth/GuestSignInHeader'
+import PhoneField from '@/components/ui/PhoneField'
+import { keepFieldVisible } from '@/components/ui/keyboard-fields'
+import { computePrimaryForeground } from '@/lib/color-utils'
+import { fill, getMenuCopy, localeFor } from '@/components/menu/menu-i18n'
+import { phoneLabel, toE164Phone } from '@/components/menu/showcase'
 
 class IdentityRequestError extends Error { constructor(message: string, readonly code?: string) { super(message) } }
 
@@ -24,12 +32,16 @@ function googleEmail(token: string): string {
   } catch { return 'this Google account' }
 }
 
-export default function IdentityPilot({ config, continueToApp = false, existingAccountLink = false, next = '/',customerFlow = false,linkCurrentAccount = false,staffAccess,embedded = false }: {
+export default function IdentityPilot({ config, continueToApp = false, existingAccountLink = false, next = '/',customerFlow = false,linkCurrentAccount = false,staffAccess,embedded = false,brand = null }: {
   config: IdentityWebConfig; continueToApp?: boolean; existingAccountLink?: boolean; next?: string; customerFlow?: boolean; linkCurrentAccount?: boolean; staffAccess?: {kind:'invite'|'recovery';code:string}
   /** Inside the menu's sign-in popup (a same-origin frame): no full-screen page, no card border; the popup is the card. */
   embedded?: boolean
+  /** The restaurant the guest signs in from (embedded customer sign-in): its look, country and language. */
+  brand?: GuestBrand | null
 }) {
   const [phone, setPhone] = useState('')
+  /** Branded sign-in: the number the code went to, shown while the code is typed. */
+  const [sentPhone, setSentPhone] = useState('')
   const [code, setCode] = useState('')
   const [busy, setBusy] = useState(false)
   const [sent, setSent] = useState(false)
@@ -124,6 +136,86 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
 
   const field = 'w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-50'
   const button = 'w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground transition-colors hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary disabled:opacity-50'
+
+
+  // ── Inside a restaurant's menu: the guest sign-in in the restaurant's look, language and country.
+  if (brand && embedded && continueToApp && customerFlow && !existingAccountLink && !staffAccess) {
+    const copy = getMenuCopy(brand.lang)
+    const accent = brand.primaryColor
+    const onAccent = computePrimaryForeground(accent)
+    const context = { country: brand.country, currency: brand.currency }
+    const brandQuery = `&embed=1&tenant=${encodeURIComponent(brand.slug)}&lang=${encodeURIComponent(brand.lang)}`
+    const fieldClass = 'block h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 text-[16px] text-zinc-950 placeholder:text-zinc-500 transition-[border-color,box-shadow] focus:border-[var(--accent)] focus:outline-none focus:ring-[3px] focus:ring-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:bg-zinc-50'
+    const primary = 'flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[16px] font-semibold transition-[scale,filter] active:scale-[0.98] enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50'
+    const accentStyle = { backgroundColor: accent, color: onAccent }
+    const label = 'mb-1.5 block text-[14px] font-medium text-zinc-700'
+    const submit = () => void run(async () => {
+      if (sent) {
+        const current = attempt.current
+        if (!current) throw new IdentityRequestError('Request another verification code.')
+        try { await complete(await current.confirm(code)) }
+        finally { attempt.current = null; setSent(false); setCode('') }
+        return
+      }
+      const e164 = toE164Phone(phone)
+      if (!e164) throw new IdentityRequestError(copy.loginInvalidPhone)
+      if (!container.current) return
+      attempt.current = await phoneProof(config, e164, container.current)
+      setSentPhone(e164); setSent(true); setMessage('')
+    })
+    return <main className="bg-white text-zinc-950" style={{ '--accent': accent } as React.CSSProperties}>
+      <section aria-labelledby="identity-title">
+        <GuestSignInHeader bannerUrl={brand.bannerUrl} logoUrl={brand.logoUrl} restaurantName={brand.name} accent={accent} onAccent={onAccent}
+          title={sent ? copy.loginVerifyTitle : copy.loginTitle}
+          subtitle={sent ? fill(copy.loginCodeSent, { phone: phoneLabel(sentPhone, context) || sentPhone }) : copy.loginSubtitle} />
+        <div className="space-y-4 px-6 pb-6 pt-5">
+          {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-medium leading-snug text-red-800">{error}</p> : null}
+          {message ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[14px] font-medium leading-snug text-emerald-800">{message}</p> : null}
+          <form className="space-y-4" onSubmit={event => { event.preventDefault(); submit() }}>
+            {sent ? <div>
+              <label htmlFor="identity-code" className={label}>{copy.loginCodeLabel}</label>
+              <input id="identity-code" className={`${fieldClass} text-center text-[22px] font-semibold tracking-[0.4em] tabular-nums`} inputMode="numeric" autoComplete="one-time-code"
+                enterKeyHint="done" pattern="[0-9]*" maxLength={6} placeholder="000000" required autoFocus value={code}
+                onChange={event => setCode(event.target.value.replace(/\D/g, ''))} onFocus={keepFieldVisible} disabled={busy} />
+            </div> : <div>
+              <label htmlFor="identity-phone" className={label}>{copy.loginPhoneLabel}</label>
+              <PhoneField id="identity-phone" value={phone} onChange={setPhone} phoneContext={context} locale={localeFor(brand.lang)}
+                countryLabel={copy.loginCountry} countrySearchLabel={copy.loginCountrySearch} enterKeyHint="send" autoFocus required
+                onFocus={keepFieldVisible} className={fieldClass} />
+            </div>}
+            <div ref={container} />
+            <button data-testid="identity-phone-submit" className={primary} style={accentStyle}
+              disabled={busy || (sent ? code.length < 6 : phone.replace(/\D/g, '').length < 6)}>
+              {busy ? (sent ? copy.loginVerifying : copy.loginSending) : sent ? copy.loginVerify : <>{copy.loginSendCode}<ArrowRight className="size-4" aria-hidden="true" /></>}
+            </button>
+            {sent ? <button type="button" disabled={busy}
+              onClick={() => { attempt.current?.cancel(); attempt.current = null; setSent(false); setCode(''); setError('') }}
+              className="mx-auto flex h-11 items-center justify-center gap-1 rounded-lg px-3 text-[15px] font-medium text-zinc-700 underline-offset-4 hover:text-zinc-950 hover:underline">
+              <ChevronLeft className="size-4" aria-hidden="true" /> {copy.loginChangePhone}
+            </button> : null}
+          </form>
+          {!sent ? <>
+            <div className="flex items-center gap-3 text-[13px] font-medium text-zinc-500" aria-hidden="true">
+              <span className="h-px flex-1 bg-zinc-200" />{copy.loginOr}<span className="h-px flex-1 bg-zinc-200" />
+            </div>
+            <button type="button" disabled={busy} onClick={() => void run(async () => { await complete(await googleProof(config)) })}
+              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-zinc-300 bg-white text-[16px] font-semibold text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-50">
+              <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.34-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+              {copy.loginGoogle}
+            </button>
+            <Link className="block text-[14px] font-medium leading-snug text-zinc-700 underline underline-offset-4 hover:text-zinc-950"
+              href={`/auth/login?action=existing-account-link&flow=customer&from=${encodeURIComponent(next)}${brandQuery}`}>{copy.loginExistingAccount}</Link>
+            <p className="text-[13px] leading-snug text-zinc-600">{copy.loginRecovery}</p>
+          </> : null}
+          {signedIn ? <div className="space-y-2 border-t border-zinc-200 pt-4">
+            <button type="button" className={primary} style={accentStyle} disabled={busy} onClick={() => void run(continueToDashboard)}>{copy.loginContinueAccount}</button>
+            <button type="button" className="h-11 w-full text-[15px] font-medium text-zinc-700 hover:text-zinc-950 disabled:opacity-50" disabled={busy}
+              onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false) })}>{copy.loginSignOut}</button>
+          </div> : null}
+        </div>
+      </section>
+    </main>
+  }
 
   return <main className={embedded ? 'bg-zinc-950 text-white' : 'grid min-h-screen place-items-center bg-zinc-950 px-5 py-10 text-white'}>
     <section aria-labelledby="identity-title" className={embedded ? 'w-full px-6 pb-6 pt-7' : 'w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-900/60 p-6 sm:p-8'}>
