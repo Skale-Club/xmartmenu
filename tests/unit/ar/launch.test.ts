@@ -33,15 +33,15 @@ describe('sceneViewerIntentUrl', () => {
   const glbUrl = 'https://cdn.example.com/t/ar/1-abc.glb'
   const fallbackUrl = 'https://menu.example.com/aurora?table=4#ar-unavailable'
 
-  it('builds an AR-only intent for Google Play Services for AR', () => {
+  it('builds an AR-preferred intent opened by the Google app', () => {
     const url = sceneViewerIntentUrl({ glbUrl, title: 'Ham & Cheese', fallbackUrl, realScale: true })
     expect(url.startsWith('intent://arvr.google.com/scene-viewer/1.0?')).toBe(true)
-    expect(url).toContain('#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;')
+    expect(url).toContain('#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;')
     expect(url.endsWith(';end;')).toBe(true)
 
     const query = new URLSearchParams(url.slice(url.indexOf('?') + 1, url.indexOf('#')))
     expect(query.get('file')).toBe(glbUrl)
-    expect(query.get('mode')).toBe('ar_only')
+    expect(query.get('mode')).toBe('ar_preferred')
     expect(query.get('title')).toBe('Ham & Cheese')
     expect(query.get('resizable')).toBe('false')
 
