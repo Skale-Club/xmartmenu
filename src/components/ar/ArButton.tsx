@@ -5,14 +5,23 @@
  * at its real size, through the phone's own AR viewer (src/lib/ar/launch.ts).
  * There is no 3D view in the page.
  *
- *   Android   Scene Viewer (AR only). Without Google Play Services for AR the
- *             browser comes back with AR_UNAVAILABLE_HASH and a notice shows.
+ *   Android   WebXR in the browser through <model-viewer>, the way Google's own
+ *             AR demo opens: the camera starts in the page and the dish sits on
+ *             the table. The viewer is prepared (hidden) while the dish is open,
+ *             so the tap starts the AR session at once (WebXR needs the tap).
+ *             Where WebXR is missing, <model-viewer> opens Scene Viewer itself.
+ *             If the library could not load, the Scene Viewer intent is used;
+ *             without the Google app the browser comes back with
+ *             AR_UNAVAILABLE_HASH and a notice shows.
+ *             (Opening Scene Viewer directly only flashed and returned on a
+ *             Galaxy S24, where WebXR works: 2026-11-09.)
  *   iPhone    AR Quick Look with the dish's USDZ; an old model without one is
  *             converted on the phone first (three.js, loaded only then).
  *   other     no button: a computer (or an iPhone in-app browser) has no AR camera.
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { createPortal } from 'react-dom'
 import { Box, Loader2 } from 'lucide-react'
 import type { PublicProductArModel } from '@/types/database'
 import {
@@ -39,12 +48,33 @@ export interface ArButtonProps {
   className?: string
 }
 
+type ModelViewerElement = HTMLElement & { canActivateAR?: boolean; activateAR?: () => Promise<void> }
+type ArStatus = 'not-presenting' | 'session-started' | 'object-placed' | 'failed'
+
+let modelViewerLoad: Promise<unknown> | null = null
+function loadModelViewer(): Promise<unknown> {
+  modelViewerLoad ??= import('@google/model-viewer').catch(error => {
+    modelViewerLoad = null
+    throw error
+  })
+  return modelViewerLoad
+}
+
+/** Hidden until the AR session starts; then WebXR shows its overlay full screen. */
+const VIEWER_HIDDEN: CSSProperties = { position: 'fixed', right: 0, bottom: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }
+const VIEWER_ACTIVE: CSSProperties = { position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 90, background: 'transparent' }
+
 export default function ArButton({ model, name, lang, onOpen, onArLaunch, className }: ArButtonProps) {
   const copy = getArCopy(lang)
   // Known only in the browser; nothing renders on the server or without an AR camera.
   const [platform, setPlatform] = useState<ArPlatform | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [preparing, setPreparing] = useState(false)
+  // Android: <model-viewer> ready to start WebXR, and whether an AR session is on screen.
+  const [viewerReady, setViewerReady] = useState(false)
+  const [viewerFailed, setViewerFailed] = useState(false)
+  const [arActive, setArActive] = useState(false)
+  const viewerRef = useRef<ModelViewerElement | null>(null)
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the device is only known after mount
@@ -62,6 +92,29 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
     window.addEventListener('hashchange', check)
     return () => window.removeEventListener('hashchange', check)
   }, [copy.arUnavailable])
+
+  // Android: load <model-viewer> as soon as the dish is open, so the tap starts AR at once.
+  useEffect(() => {
+    if (platform !== 'scene-viewer') return
+    let cancelled = false
+    loadModelViewer()
+      .then(() => { if (!cancelled) setViewerReady(true) })
+      .catch(() => { if (!cancelled) setViewerFailed(true) })
+    return () => { cancelled = true }
+  }, [platform])
+
+  useEffect(() => {
+    const el = viewerRef.current
+    if (!viewerReady || !el) return
+    const onStatus = (event: Event) => {
+      const status = (event as CustomEvent<{ status?: ArStatus }>).detail?.status
+      if (status === 'session-started' || status === 'object-placed') setArActive(true)
+      else if (status === 'not-presenting') setArActive(false)
+      else if (status === 'failed') { setArActive(false); setNotice(copy.arUnavailable) }
+    }
+    el.addEventListener('ar-status', onStatus)
+    return () => el.removeEventListener('ar-status', onStatus)
+  }, [viewerReady, copy.arUnavailable])
 
   useEffect(() => {
     if (!notice) return
@@ -98,6 +151,19 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
     if (preparing || !platform) return
     onOpen?.()
     if (platform === 'scene-viewer') {
+      const viewer = viewerRef.current
+      if (viewerReady && viewer?.activateAR) {
+        // Called inside the tap: WebXR only starts from a user gesture.
+        onArLaunch?.()
+        viewer.activateAR().catch(() => setNotice(copy.arUnavailable))
+        return
+      }
+      if (!viewerFailed) {
+        // Still loading (a slow connection): the next tap starts AR.
+        setPreparing(true)
+        loadModelViewer().finally(() => setPreparing(false))
+        return
+      }
       onArLaunch?.()
       window.location.href = sceneViewerIntentUrl({
         glbUrl: model.glb_url,
@@ -125,6 +191,25 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
       </button>
 
       {notice && <ArNotice text={notice} />}
+
+      {platform === 'scene-viewer' && viewerReady && createPortal(
+        <model-viewer
+          ref={viewerRef}
+          src={model.glb_url}
+          alt={name}
+          ar
+          ar-modes="webxr scene-viewer"
+          ar-scale={model.real_scale ? 'fixed' : 'auto'}
+          ar-placement="floor"
+          loading="eager"
+          style={arActive ? VIEWER_ACTIVE : VIEWER_HIDDEN}
+          aria-hidden={!arActive}
+        >
+          {/* The button above starts AR; model-viewer's own button stays hidden. */}
+          <span slot="ar-button" hidden />
+        </model-viewer>,
+        document.body,
+      )}
     </>
   )
 }
