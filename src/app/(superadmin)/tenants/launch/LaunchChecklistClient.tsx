@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, CheckCircle2, ChevronDown, ExternalLink, Loader2, MessageSquare, Rocket, Search, XCircle } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, ChevronDown, ExternalLink, Loader2, MessageSquare, Rocket, Search, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   LAUNCH_CHECKLIST_CATEGORIES,
@@ -97,6 +97,35 @@ export default function LaunchChecklistClient({ initial, initialOpenTenantId }: 
       return true
     })
   }, [tenants, search, progressFilter, missingItem])
+
+  // Opened from a restaurant's page: that restaurant's checklist only.
+  const focused = initialOpenTenantId ? tenants.find((t) => t.id === initialOpenTenantId) : undefined
+  if (focused) {
+    return (
+      <main className="mx-auto w-full max-w-4xl px-4 py-5 sm:p-6 lg:p-8">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <Link href={`/tenants/${focused.id}`} className="inline-flex min-h-10 items-center gap-2 rounded-xl px-2 text-sm font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
+            <ArrowLeft className="size-4" aria-hidden="true" />{focused.name}
+          </Link>
+          <Link href="/tenants/launch" className="min-h-10 content-center rounded-xl px-2 text-xs font-bold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900">All restaurants</Link>
+        </div>
+        <h1 className="mb-4 flex items-center gap-2 text-xl font-black tracking-tight text-zinc-950 sm:text-2xl">
+          <Rocket className="size-5 text-indigo-600" aria-hidden="true" />Launch checklist
+        </h1>
+        {initial.setupRequired && (
+          <div role="alert" className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
+            The checklist table does not exist yet. Apply <code className="font-mono">supabase/migrations/20261009120000_launch_checklist_items.sql</code> to start ticking items.
+          </div>
+        )}
+        {error && (
+          <div role="alert" className="mb-4 flex items-center gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            <XCircle className="size-5 shrink-0" aria-hidden="true" /><span className="min-w-0 flex-1">{error}</span>
+          </div>
+        )}
+        <TenantCard tenant={focused} open onToggle={() => {}} save={save} disabled={initial.setupRequired} />
+      </main>
+    )
+  }
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-5 sm:p-6 lg:p-8">

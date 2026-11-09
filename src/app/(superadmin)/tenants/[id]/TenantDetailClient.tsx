@@ -27,6 +27,7 @@ import {
   Store,
   UserPlus,
   Users,
+  Wrench,
   X,
 } from 'lucide-react'
 
@@ -140,7 +141,7 @@ export default function TenantDetailClient({
   native?: boolean
   nativeEffects?: boolean
 }) {
-  const [tab, setTab] = useState<'staff' | 'menus' | 'subscription'>('menus')
+  const [tab, setTab] = useState<'staff' | 'menus' | 'subscription' | 'tools'>('menus')
   const [staff, setStaff] = useState(initialStaff)
   const [menus] = useState(initialMenus)
 
@@ -592,31 +593,31 @@ export default function TenantDetailClient({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 lg:flex lg:shrink-0">
+          <div className="grid grid-cols-[repeat(3,minmax(0,1fr))] gap-2 lg:flex lg:shrink-0">
             <a
               href={`/${tenant.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               aria-label={`View live menu for ${tenant.name}`}
-              className="group flex min-h-11 items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 text-xs font-bold text-white shadow-sm shadow-zinc-200 transition-[background-color,box-shadow,scale] duration-150 hover:bg-zinc-800 hover:shadow-md active:scale-96"
+              className="group flex min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-zinc-900 px-2 sm:px-4 text-xs font-bold text-white shadow-sm shadow-zinc-200 transition-[background-color,box-shadow,scale] duration-150 hover:bg-zinc-800 hover:shadow-md active:scale-96"
             >
               <Eye className="size-4" />
-              Live menu
-              <ExternalLink className="size-3.5 opacity-60 transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+              Menu
+              <ExternalLink className="hidden size-3.5 opacity-60 sm:block transition-transform duration-150 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             </a>
             <a
               href={`/api/admin/enter-preview?tenant=${tenant.id}`}
-              className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 text-xs font-bold text-zinc-700 transition-[background-color,scale] duration-150 hover:bg-zinc-200 active:scale-96"
+              className="flex min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-zinc-100 px-2 sm:px-4 text-xs font-bold text-zinc-700 transition-[background-color,scale] duration-150 hover:bg-zinc-200 active:scale-96"
             >
               <LayoutDashboard className="size-4" />
               Dashboard
             </a>
             <Link
               href={`/tenants/launch?tenant=${tenant.id}`}
-              className="col-span-2 flex min-h-11 items-center justify-center gap-2 rounded-xl bg-zinc-100 px-4 text-xs font-bold text-zinc-700 transition-[background-color,scale] duration-150 hover:bg-zinc-200 active:scale-96 lg:col-span-1"
+              className="flex min-h-11 items-center justify-center gap-1.5 sm:gap-2 rounded-xl bg-zinc-100 px-2 sm:px-4 text-xs font-bold text-zinc-700 transition-[background-color,scale] duration-150 hover:bg-zinc-200 active:scale-96"
             >
               <Rocket className="size-4" />
-              Launch checklist
+              Checklist
             </Link>
           </div>
         </div>
@@ -645,17 +646,17 @@ export default function TenantDetailClient({
       )}
 
       {/* Tabs */}
-      <nav aria-label="Restaurant management sections" className="mb-4 grid grid-cols-3 gap-1 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm">
-        {(['menus', 'staff', 'subscription'] as const).map(t => (
+      <nav aria-label="Restaurant management sections" className={`mb-4 grid gap-1 rounded-xl border border-zinc-200 bg-white p-1 shadow-sm ${canUseAiTools ? 'grid-cols-4' : 'grid-cols-[repeat(3,minmax(0,1fr))]'}`}>
+        {(canUseAiTools ? ['menus', 'staff', 'subscription', 'tools'] as const : ['menus', 'staff', 'subscription'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             aria-current={tab === t ? 'page' : undefined}
             className={`flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-lg px-2 text-xs font-bold transition-[background-color,color,box-shadow,scale] duration-150 active:scale-96 sm:px-4 sm:text-sm ${tab === t ? 'bg-zinc-900 text-white shadow-sm' : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900'}`}
           >
-            {t === 'staff' ? <Users className="size-4 shrink-0" /> : t === 'menus' ? <MenuIcon className="size-4 shrink-0" /> : <CreditCard className="size-4 shrink-0" />}
-            <span className="truncate">{t === 'staff' ? 'Staff' : t === 'menus' ? 'Menus' : 'Subscription'}</span>
-            {t !== 'subscription' && !(native && t === 'staff') && <span className={`hidden min-w-6 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums sm:inline-flex sm:justify-center ${tab === t ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-500'}`}>{t === 'staff' ? staff.length : menus.length}</span>}
+            {t === 'staff' ? <Users className="size-4 shrink-0" /> : t === 'menus' ? <MenuIcon className="size-4 shrink-0" /> : t === 'tools' ? <Wrench className="size-4 shrink-0" /> : <CreditCard className="size-4 shrink-0" />}
+            <span className="truncate">{t === 'staff' ? 'Staff' : t === 'menus' ? 'Menus' : t === 'tools' ? 'Tools' : 'Plan'}</span>
+            {(t === 'menus' || (t === 'staff' && !native)) && <span className={`hidden min-w-6 rounded-full px-1.5 py-0.5 text-[10px] tabular-nums sm:inline-flex sm:justify-center ${tab === t ? 'bg-white/15 text-white' : 'bg-zinc-100 text-zinc-500'}`}>{t === 'staff' ? staff.length : menus.length}</span>}
           </button>
         ))}
       </nav>
@@ -1037,9 +1038,9 @@ export default function TenantDetailClient({
         </>
       )}
 
-      {/* AI Tools section | D-02: placed below Tabs, always visible */}
-      {canUseAiTools && (
-      <details className="group mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
+      {/* Tools tab: AI tools, AI billing and CRM sync. */}
+      {tab === 'tools' && canUseAiTools && <div className="space-y-4">
+      <details open className="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 transition-colors hover:bg-zinc-50 [&::-webkit-details-marker]:hidden sm:px-5">
           <span className="flex min-w-0 items-center gap-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><Sparkles className="size-4" /></span>
@@ -1339,13 +1340,12 @@ export default function TenantDetailClient({
         )}
         </div>
       </details>
-      )}
 
-      {canUseAiTools && <TenantAiCard tenantId={tenant.id} />}
+      <TenantAiCard tenantId={tenant.id} />
 
       {/* CRM Sync section | OBS-01: surface Xphere sync state + manual re-sync */}
-      {canUseAiTools && (hasXphereConnection || nativeEffects) && (
-      <section className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
+      {(hasXphereConnection || nativeEffects) && (
+      <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4 flex items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600"><RefreshCw className="size-4" /></span>
           <div>
@@ -1396,6 +1396,7 @@ export default function TenantDetailClient({
         )}
       </section>
       )}
+      </div>}
       </div>
     </div>
   )

@@ -89,7 +89,7 @@ export default function TenantAiCard({ tenantId }: { tenantId: string }) {
   const shownMode = (mode || data?.effective_mode || 'platform') as AiBillingMode
 
   return (
-    <section className="mt-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="tenant-ai-title">
+    <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-5" aria-labelledby="tenant-ai-title">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600"><Sparkles className="size-4" /></span>
