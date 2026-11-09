@@ -8,7 +8,7 @@
  * opens on Android (Scene Viewer) and iPhone (Quick Look) alike. A hand-made
  * USDZ can replace the generated one.
  *
- * Guests tap "View in 3D" in the dish detail and the phone's camera opens with
+ * Guests tap "See it on your table" in the dish detail and the phone's camera opens with
  * the dish on their table (src/components/ar/ArButton.tsx). The preview here is
  * only for the restaurant to check the model.
  */
@@ -196,7 +196,7 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
 
   async function removeModel() {
     if (!model) return
-    if (!window.confirm('Remove the 3D model from this dish? Guests will no longer see "View in 3D".')) return
+    if (!window.confirm('Remove the 3D model from this dish? Guests will no longer see "See it on your table".')) return
     setBusy('save')
     setError(null)
     try {
@@ -221,7 +221,7 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
           </h3>
           <p className="text-xs text-zinc-500 mt-0.5 max-w-xl">
             Upload a 3D model of the dish (.glb, modelled in metres at its real size, ideally under {formatModelSize(RECOMMENDED_AR_MODEL_BYTES)}).
-            Guests tap &ldquo;View in 3D&rdquo; and their phone&rsquo;s camera shows the dish on their table. Use a plain glTF 2.0 file (no Draco or meshopt compression, up to 100k triangles, textures up to 2048 px): Android&rsquo;s AR viewer cannot open compressed models.
+            Guests tap &ldquo;See it on your table&rdquo; and their phone&rsquo;s camera shows the dish on their table. Use a plain glTF 2.0 file (no Draco or meshopt compression, up to 100k triangles, textures up to 2048 px): Android&rsquo;s AR viewer cannot open compressed models.
           </p>
         </div>
         {canManage && (

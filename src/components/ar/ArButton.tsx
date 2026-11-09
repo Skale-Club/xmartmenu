@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * "View in 3D" on a dish: opens the phone's camera with the dish on the table
+ * "See it on your table" on a dish: opens the phone's camera with the dish on the table
  * at its real size, through the phone's own AR viewer (src/lib/ar/launch.ts).
  * There is no 3D view in the page.
  *
@@ -46,6 +46,8 @@ export interface ArButtonProps {
   /** The phone's AR viewer was launched. */
   onArLaunch?: () => void
   className?: string
+  /** Only the cube, named for screen readers (the feed's round buttons). */
+  iconOnly?: boolean
 }
 
 type ModelViewerElement = HTMLElement & { canActivateAR?: boolean; activateAR?: () => Promise<void> }
@@ -64,10 +66,34 @@ function loadModelViewer(): Promise<unknown> {
 const VIEWER_HIDDEN: CSSProperties = { position: 'fixed', right: 0, bottom: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }
 const VIEWER_ACTIVE: CSSProperties = { position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 90, background: 'transparent' }
 
-export default function ArButton({ model, name, lang, onOpen, onArLaunch, className }: ArButtonProps) {
-  const copy = getArCopy(lang)
-  // Known only in the browser; nothing renders on the server or without an AR camera.
+/** The phone's AR viewer, known only in the browser: null on the server, on a computer or without an AR camera. */
+export function useArPlatform(): ArPlatform | null {
   const [platform, setPlatform] = useState<ArPlatform | null>(null)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the device is only known after mount
+    setPlatform(arPlatform(currentArEnvironment()))
+  }, [])
+  return platform
+}
+
+/**
+ * The small cube on a dish card's photo: "this dish can be seen on your table".
+ * Not a button (the card opens the dish, where the AR button is); hidden where AR cannot open.
+ */
+export function ArBadge({ lang, className }: { lang: string; className?: string }) {
+  const platform = useArPlatform()
+  if (!platform) return null
+  return (
+    <span role="img" aria-label={getArCopy(lang).available} title={getArCopy(lang).available} className={className}>
+      <Box className="size-3.5" strokeWidth={2} aria-hidden />
+    </span>
+  )
+}
+
+export default function ArButton({ model, name, lang, onOpen, onArLaunch, className, iconOnly = false }: ArButtonProps) {
+  const copy = getArCopy(lang)
+  // Nothing renders on the server or without an AR camera.
+  const platform = useArPlatform()
   const [notice, setNotice] = useState<string | null>(null)
   const [preparing, setPreparing] = useState(false)
   // Android: <model-viewer> ready to start WebXR, and whether an AR session is on screen.
@@ -75,11 +101,6 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
   const [viewerFailed, setViewerFailed] = useState(false)
   const [arActive, setArActive] = useState(false)
   const viewerRef = useRef<ModelViewerElement | null>(null)
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the device is only known after mount
-    setPlatform(arPlatform(currentArEnvironment()))
-  }, [])
 
   // Android without Google Play Services for AR comes back to the menu with the hash.
   useEffect(() => {
@@ -184,10 +205,11 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
         type="button"
         onClick={() => void handleClick()}
         aria-busy={preparing}
+        aria-label={iconOnly ? (preparing ? copy.preparing : copy.viewOnTable) : undefined}
         className={className ?? 'inline-flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-zinc-900 shadow-sm backdrop-blur'}
       >
         {preparing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Box className="size-4" aria-hidden />}
-        {preparing ? copy.preparing : copy.view3d}
+        {iconOnly ? null : preparing ? copy.preparing : copy.viewOnTable}
       </button>
 
       {notice && <ArNotice text={notice} />}

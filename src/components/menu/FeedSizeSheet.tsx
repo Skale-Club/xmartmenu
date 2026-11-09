@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, X } from 'lucide-react'
+import { Check, Plus, X } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { formatMoney, getMenuCopy } from './menu-i18n'
@@ -81,9 +81,9 @@ export default function FeedSizeSheet({
             style={{ backgroundColor: primaryColor, color: onPrimary }}
             className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-4 text-base font-semibold shadow-float transition-[opacity,scale] hover:opacity-95 active:scale-[0.98]"
           >
-            <span className="truncate">{copy.orderNow}</span>
-            <span aria-hidden="true" className="opacity-70">·</span>
-            <span className="tabular-nums">{formatMoney(selected.price, currency, lang)}</span>
+            {/* The chosen size's price is in its row above; the button is one short word. */}
+            <Plus className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />
+            <span className="truncate">{copy.addToOrder}</span>
           </button>
         </div>
       </div>

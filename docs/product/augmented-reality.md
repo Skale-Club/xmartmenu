@@ -1,6 +1,6 @@
 # Augmented reality (3D dishes)
 
-Guests open a dish, tap **View in 3D**, and the phone's camera opens with the
+Guests open a dish, tap **See it on your table** (pt: **Ver na sua mesa**), and the phone's camera opens with the
 dish placed on their table at its real size, like a shop's "view in your
 room". There is no 3D view in the page (owner decision, 2026-11-09): the only
 point is seeing the portion on the table. Restaurants upload the model in the

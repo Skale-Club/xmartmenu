@@ -24,6 +24,7 @@ import { dishDetailsFor } from '@/lib/public-dish-details'
 import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
+import { ArBadge } from '@/components/ar/ArButton'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
   CART_TTL_MS,
@@ -59,6 +60,7 @@ import {
   Sparkles,
   Plus,
   Minus,
+  ShoppingBag,
   Languages,
   ChevronDown,
   UtensilsCrossed,
@@ -108,7 +110,7 @@ interface Props {
   productIngredientsByProductId?: Record<string, ProductIngredientWithIngredient[]>
   deliveryZones?: DeliveryZone[]
   productMediaByProductId?: Record<string, ProductMedia[]>
-  /** Dishes with a 3D model: "View in 3D" and AR in the dish detail. */
+  /** Dishes with a 3D model: "See it on your table" (AR) in the dish detail, a cube on the card and in the feed. */
   productArModelByProductId?: Record<string, PublicProductArModel>
   chatAddonEnabled?: boolean
   chatAddonAudioEnabled?: boolean
@@ -914,7 +916,13 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   // "From $15.00" for a dish whose sizes set the price (showcase.ts).
   const priceOf = (product: Product) => {
     const shown = displayPrice(product.price, optionGroupsByProductId[product.id])
-    return { text: shown.from ? fill(guestCopy.fromPrice, { price: money(shown.amount) }) : money(shown.amount), from: shown.from }
+    return {
+      text: shown.from ? fill(guestCopy.fromPrice, { price: money(shown.amount) }) : money(shown.amount),
+      from: shown.from,
+      // Split for the price tag on the card photo: "From" on its own small line above the amount.
+      amount: money(shown.amount),
+      fromLabel: shown.from ? fill(guestCopy.fromPrice, { price: '' }).trim() : null,
+    }
   }
   const hasCustomization = (productId: string) =>
     (optionGroupsByProductId[productId]?.length ?? 0) > 0
@@ -1125,7 +1133,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                       : <DishPlaceholder />}
                   </div>
                   <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-zinc-900 sm:text-[15px]">{p.name}</p>
-                  <p className="mt-0.5 text-[14px] font-semibold tabular-nums" style={{ color: accentText }}>{priceOf(p).text}</p>
+                  <p className="mt-0.5 text-[14px] font-bold tabular-nums" style={{ color: accentText }}>{priceOf(p).text}</p>
                 </button>
               )
             })}
@@ -1185,6 +1193,9 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
               updateCartQuantity(key, quantity - 1)
             }}
             priceLabel={product => priceOf(product).text}
+            arModelFor={product => productArModelByProductId[product.id] ?? null}
+            onArOpened={product => analyticsTracker?.track({ event_name: 'model_viewer_opened', product_id: product.id, source: 'feed' })}
+            onArLaunched={product => analyticsTracker?.track({ event_name: 'ar_launched', product_id: product.id, source: 'feed' })}
             onMediaEvent={(eventName, product, mediaType, mediaIndex) => analyticsTracker?.track({
               event_name: eventName,
               product_id: product.id,
@@ -1237,6 +1248,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                         accentColor={accentColor}
                         accentText={accentText}
                         price={priceOf(p)}
+                        hasArModel={!!productArModelByProductId[p.id]}
                         onOpen={() => openProduct(p, 'grid')}
                         {...(directOrdersEnabled ? {
                           cartQuantity: customizable ? 0 : qty,
@@ -1321,6 +1333,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           onPrevProduct={!editingCartKey && !upsell?.choosing && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
           onNextProduct={!editingCartKey && !upsell?.choosing && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           primaryColor={primaryColor}
+          priceColor={accentText}
           currency={currency}
           whatsapp={whatsapp}
           lang={selectedLanguage}
@@ -1574,26 +1587,35 @@ function ContactCard({ href, icon, caption, value, color, external, numeric, wra
 }
 
 /**
- * One dish. Phones: a row — text left, photo right with the add button on it.
+ * One dish. Phones: a row, text left and photo right. The name starts level with
+ * the photo's top, the price is a tag in the photo's top-right corner and the
+ * bag button (or "- 1 +") sits on the photo's foot, left-aligned, on every card.
+ * The photo is square when the text is short and grows taller (never squashed,
+ * it crops) when the text is long.
  * Larger screens: a card with the photo on top. The whole card opens the dish.
+ * The add button and the stepper never sit on the photo.
  */
-function ProductCard({ product, lang, currency, primaryColor, accentColor, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement }: {
+function ProductCard({ product, lang, currency, primaryColor, accentColor, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement, hasArModel = false }: {
   product: Product; lang: string; currency: string; primaryColor: string; onOpen: () => void
+  /** The dish has a 3D model: a small cube in the photo's corner says it can be seen on the table. */
+  hasArModel?: boolean
   /** The restaurant's secondary colour (tags) and the same colour made readable as text (price). */
   accentColor: string; accentText: string
-  /** The price as shown ("From $15.00" for a dish with sizes). */
-  price: { text: string; from: boolean }
+  /** The price as shown ("From $15.00" for a dish with sizes); amount and fromLabel split it for the photo tag. */
+  price: { text: string; from: boolean; amount: string; fromLabel: string | null }
   cartQuantity?: number; onAdd?: () => void; onIncrement?: () => void; onDecrement?: () => void
 }) {
   const copy = getMenuCopy(lang)
   const image = getProductImages(product)[0]
   const quantity = cartQuantity ?? 0
   const promo = !price.from && product.original_price && product.original_price > product.price ? product.original_price : null
+  const showAdd = !!onAdd && quantity === 0
+  const showStepper = !!onIncrement && !!onDecrement && quantity > 0
   return (
     <article
       data-analytics-product-id={product.id}
       data-analytics-source="grid"
-      className="group relative flex gap-3 rounded-2xl bg-white p-3 shadow-card transition-shadow hover:shadow-[0_2px_6px_rgb(0_0_0/0.06),0_12px_32px_rgb(0_0_0/0.08)] sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0"
+      className="group relative flex items-stretch gap-3 rounded-2xl bg-white p-3 shadow-card transition-shadow hover:shadow-[0_2px_6px_rgb(0_0_0/0.06),0_12px_32px_rgb(0_0_0/0.08)] sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0"
     >
       <button
         type="button"
@@ -1602,9 +1624,11 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
         className="absolute inset-0 z-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
       />
       <div className="pointer-events-none flex min-w-0 flex-1 flex-col sm:order-2 sm:p-4">
-        <h3 className="line-clamp-2 text-[16px] font-semibold leading-snug text-zinc-900">{product.name}</h3>
+        {/* Pulled up by the half-leading + ascender gap (~0.32em in Inter) so the photo's top meets the top of
+            the capitals. Not text-box-trim: with line-clamp's overflow it would clip accents (Á, É). */}
+        <h3 className="mt-[-0.32em] line-clamp-2 text-[16px] font-semibold leading-snug text-zinc-900 sm:mt-0">{product.name}</h3>
         {product.description && (
-          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-zinc-500">{product.description}</p>
+          <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-zinc-500">{product.description}</p>
         )}
         {product.tags?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
@@ -1613,38 +1637,50 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
             ))}
           </div>
         )}
-        <div className="mt-auto flex items-baseline gap-2 pt-2">
-          <span className="text-[15px] font-semibold tabular-nums" style={{ color: accentText }}>{price.text}</span>
-          {promo && <span className="text-[13px] tabular-nums text-zinc-400 line-through">{formatMoney(promo, currency, lang)}</span>}
-        </div>
-      </div>
-      <div className="pointer-events-none relative size-[104px] shrink-0 sm:order-1 sm:aspect-[4/3] sm:size-auto sm:w-full">
-        <div className="relative size-full overflow-hidden rounded-xl bg-zinc-100 sm:rounded-none">
-          {image
-            ? <Image src={image} alt="" fill sizes="(max-width: 640px) 104px, (max-width: 1024px) 50vw, 33vw" className="object-cover object-top transition-transform duration-500 sm:group-hover:scale-[1.03]" />
-            : <DishPlaceholder />}
-        </div>
-        {onAdd && quantity === 0 && (
-          <button
-            type="button"
-            onClick={onAdd}
-            aria-label={fill(copy.addNamed, { name: product.name })}
-            style={{ color: primaryColor }}
-            className="pointer-events-auto absolute right-1.5 bottom-1.5 z-10 flex size-9 items-center justify-center rounded-full bg-white shadow-[0_1px_4px_rgb(0_0_0/0.18)] transition-[scale] active:scale-90 sm:right-3 sm:bottom-3"
-          >
-            <Plus className="size-[18px]" strokeWidth={2.5} />
-          </button>
-        )}
-        {onIncrement && onDecrement && quantity > 0 && (
-          <div className="pointer-events-auto absolute right-1.5 bottom-1.5 z-10 flex h-9 items-center rounded-full bg-white px-0.5 shadow-[0_1px_4px_rgb(0_0_0/0.18)] sm:right-3 sm:bottom-3">
-            <button type="button" onClick={onDecrement} aria-label={fill(copy.removeNamed, { name: product.name })} className="flex size-8 items-center justify-center rounded-full text-zinc-800">
-              <Minus className="size-3.5" strokeWidth={2.5} />
-            </button>
-            <span className="min-w-4 text-center text-[14px] font-semibold tabular-nums text-zinc-900">{quantity}</span>
-            <button type="button" onClick={onIncrement} aria-label={fill(copy.addNamed, { name: product.name })} style={{ color: primaryColor }} className="flex size-8 items-center justify-center rounded-full">
-              <Plus className="size-3.5" strokeWidth={2.5} />
-            </button>
+        {/* The bag button on the photo's foot, left-aligned: the card reads name (top left), price (photo, top
+            right), action (bottom left). The "- 1 +" it turns into keeps the same place and size. */}
+        {(showAdd || showStepper) && (
+          <div className="mt-auto flex pt-2">
+            {showAdd && (
+              <button
+                type="button"
+                onClick={onAdd}
+                aria-label={fill(copy.addNamed, { name: product.name })}
+                style={{ backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) }}
+                className="pointer-events-auto relative z-10 flex h-9 w-[86px] shrink-0 items-center justify-center gap-2 rounded-full shadow-sm transition-[scale] active:scale-95"
+              >
+                {/* Bag and plus as two signs: "add to bag". */}
+                <ShoppingBag className="size-[18px]" strokeWidth={2} aria-hidden="true" />
+                <Plus className="size-4" strokeWidth={2.5} aria-hidden="true" />
+              </button>
+            )}
+            {showStepper && (
+              <div className="pointer-events-auto relative z-10 flex h-9 w-[86px] shrink-0 items-center justify-between rounded-full border border-zinc-200 bg-white px-0.5">
+                <button type="button" onClick={onDecrement} aria-label={fill(copy.removeNamed, { name: product.name })} className="flex size-8 items-center justify-center rounded-full text-zinc-800">
+                  <Minus className="size-3.5" strokeWidth={2.5} />
+                </button>
+                <span className="min-w-4 text-center text-[14px] font-semibold tabular-nums text-zinc-900">{quantity}</span>
+                <button type="button" onClick={onIncrement} aria-label={fill(copy.addNamed, { name: product.name })} style={{ color: primaryColor }} className="flex size-8 items-center justify-center rounded-full">
+                  <Plus className="size-3.5" strokeWidth={2.5} />
+                </button>
+              </div>
+            )}
           </div>
+        )}
+      </div>
+      {/* self-stretch + min-height = width: square at least, as tall as the text when it runs longer. */}
+      <div className="pointer-events-none relative min-h-30 w-30 shrink-0 self-stretch overflow-hidden rounded-xl bg-zinc-100 sm:order-1 sm:aspect-[4/3] sm:min-h-0 sm:w-full sm:self-auto sm:rounded-none">
+        {image
+          ? <Image src={image} alt="" fill sizes="(max-width: 640px) 120px, (max-width: 1024px) 50vw, 33vw" className="object-cover object-center transition-transform duration-500 sm:group-hover:scale-[1.03]" />
+          : <DishPlaceholder />}
+        {/* The price as a tag in the photo's top-right corner (usually background, not food). */}
+        <span className={`absolute top-1.5 right-1.5 flex max-w-[calc(100%-0.75rem)] flex-col items-end bg-white/95 px-2 text-right leading-tight shadow-sm sm:top-3 sm:right-3 ${price.fromLabel || promo ? 'rounded-xl py-1' : 'rounded-full py-0.5'}`}>
+          {price.fromLabel && <span className="text-[10px] font-medium text-zinc-500">{price.fromLabel}</span>}
+          {promo && <span className="text-[11px] tabular-nums text-zinc-400 line-through">{formatMoney(promo, currency, lang)}</span>}
+          <span className="whitespace-nowrap text-[13px] font-bold tabular-nums" style={{ color: accentText }}>{price.amount}</span>
+        </span>
+        {hasArModel && (
+          <ArBadge lang={lang} className="absolute top-1.5 left-1.5 flex size-6 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm sm:top-3 sm:left-3" />
         )}
       </div>
     </article>
