@@ -6,8 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { captureSecurityEvent } from '@/lib/observability'
 import { ArrowRight, ChevronLeft, X } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
+import SignInFrameDialog from '@/components/auth/SignInFrameDialog'
 import { readLoginAuthority, requireLoginAuthority, type LoginAuthority } from '@/lib/auth/browser-login-authority'
-import Link from 'next/link'
 
 interface Props {
   open: boolean
@@ -107,16 +107,19 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
 
   if (!open) return null
 
-  if (authority !== 'legacy') return <ModalPortal closeOnEscape={false}>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
-      <section role="dialog" aria-modal="true" aria-label="Admin sign in" className="relative w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-950 p-8 text-white" onClick={event => event.stopPropagation()}>
-        <button aria-label="Close sign in" onClick={onClose} className="absolute right-4 top-4 p-2"><X className="size-4" /></button>
-        <h2 className="text-2xl font-bold">Sign in to XmartMenu</h2>
-        {authority === 'owned' ? <><p className="mt-3 text-sm leading-6 text-zinc-400">Use your verified phone number or Google account.</p><Link href="/auth/login" className="mt-6 block rounded-full bg-primary px-5 py-3 text-center font-bold text-primary-foreground">Continue to sign in</Link></>
-          : <p role={authority === 'unavailable' ? 'alert' : 'status'} className="mt-4 text-sm text-zinc-400">{authority === 'unavailable' ? 'Sign-in is temporarily unavailable. Reload and try again.' : 'Checking sign-in availability…'}</p>}
-      </section>
-    </div>
-  </ModalPortal>
+  // The platform's own sign-in, right here in the popup (as in Xpot): the sign-in page on its dark card in a
+  // same-origin frame; when it finishes, this page goes where the sign-in wanted to go (the panel).
+  if (authority !== 'legacy') return <SignInFrameDialog
+    src={authority === 'owned' ? '/auth/login?embed=1' : null}
+    unavailable={authority === 'unavailable'}
+    title="Sign in to XmartMenu"
+    closeLabel="Close sign in"
+    tone="dark"
+    // Centred on the card's logo row (24 px from the top, 40 px tall); the button is 40 px.
+    closeTop={24}
+    onClose={onClose}
+    onSignedIn={path => window.location.assign(new URL(path, window.location.origin).href)}
+  />
 
   return (
     <ModalPortal closeOnEscape={false}>

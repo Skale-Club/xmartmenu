@@ -32,7 +32,7 @@ interface Option { iso: CountryCode; name: string; code: string }
  * language) and the restaurant's country first. The list is measured against
  * what the phone keyboard leaves visible, so it never opens behind it.
  */
-export default function PhoneCountryPicker({ value, onChange, label, searchLabel, locale, first }: {
+export default function PhoneCountryPicker({ value, onChange, label, searchLabel, locale, first, tone = 'light' }: {
   value: CountryCode
   onChange: (iso: CountryCode) => void
   /** Accessible name ("Country"). */
@@ -42,7 +42,10 @@ export default function PhoneCountryPicker({ value, onChange, label, searchLabel
   locale: string
   /** The restaurant's country: top of the list. */
   first?: CountryCode | null
+  /** 'dark' on the platform's dark sign-in card. */
+  tone?: 'light' | 'dark'
 }) {
+  const dark = tone === 'dark'
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -170,20 +173,20 @@ export default function PhoneCountryPicker({ value, onChange, label, searchLabel
         aria-controls={POPUP_ID}
         aria-label={`${label}: ${current?.name ?? value} +${callingCode}`}
         data-testid="phone-country"
-        className="flex h-12 items-center gap-1.5 rounded-xl border border-zinc-300 bg-white pl-2.5 pr-2 text-[16px] text-zinc-950 transition-[border-color,box-shadow] hover:border-zinc-400 focus:border-[var(--accent,#18181b)] focus:outline-none focus:ring-[3px] focus:ring-[color-mix(in_srgb,var(--accent,#18181b)_22%,transparent)]"
+        className={`flex h-12 items-center gap-1.5 rounded-xl border pl-2.5 pr-2 text-[16px] transition-[border-color,box-shadow] focus:border-[var(--accent,#18181b)] focus:outline-none focus:ring-[3px] focus:ring-[color-mix(in_srgb,var(--accent,#18181b)_22%,transparent)] ${dark ? 'border-white/15 bg-white/[0.04] text-white hover:border-white/25' : 'border-zinc-300 bg-white text-zinc-950 hover:border-zinc-400'}`}
       >
         <CountryFlag iso={value} />
         <span className="tabular-nums">+{callingCode}</span>
-        <ChevronDown className={`size-4 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+        <ChevronDown className={`size-4 transition-transform ${dark ? 'text-white/50' : 'text-zinc-500'} ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
       </button>
       {open && position && createPortal(
         <div
           ref={popupRef}
           style={position}
-          className="fixed z-[100] flex flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_12px_40px_rgb(0_0_0/0.18)]"
+          className={`fixed z-[100] flex flex-col overflow-hidden rounded-xl border shadow-[0_12px_40px_rgb(0_0_0/0.18)] ${dark ? 'border-white/10 bg-zinc-900 text-white' : 'border-zinc-200 bg-white'}`}
         >
-          <div className="relative border-b border-zinc-200 p-2">
-            <Search className="pointer-events-none absolute left-5 top-1/2 size-4 -translate-y-1/2 text-zinc-500" aria-hidden="true" />
+          <div className={`relative border-b p-2 ${dark ? 'border-white/10' : 'border-zinc-200'}`}>
+            <Search className={`pointer-events-none absolute left-5 top-1/2 size-4 -translate-y-1/2 ${dark ? 'text-white/50' : 'text-zinc-500'}`} aria-hidden="true" />
             <input
               ref={searchRef}
               type="search"
@@ -194,7 +197,7 @@ export default function PhoneCountryPicker({ value, onChange, label, searchLabel
               aria-label={searchLabel}
               aria-controls={POPUP_ID}
               enterKeyHint="done"
-              className="h-10 w-full rounded-lg bg-zinc-100 pl-9 pr-3 text-[16px] text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-300"
+              className={`h-10 w-full rounded-lg pl-9 pr-3 text-[16px] focus:outline-none focus:ring-2 ${dark ? 'bg-white/10 text-white placeholder:text-white/45 focus:ring-white/20' : 'bg-zinc-100 text-zinc-950 placeholder:text-zinc-500 focus:ring-zinc-300'}`}
             />
           </div>
           <ul id={POPUP_ID} role="listbox" aria-label={label} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1">
@@ -207,12 +210,12 @@ export default function PhoneCountryPicker({ value, onChange, label, searchLabel
                 onPointerEnter={() => setActive(i)}
                 onPointerDown={e => e.preventDefault()}
                 onClick={() => pick(o.iso)}
-                className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2.5 text-[15px] text-zinc-900 ${i === active ? 'bg-zinc-100' : ''} ${!query && i === top.length ? 'mt-1 border-t border-zinc-200 pt-1' : ''}`}
+                className={`flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2.5 text-[15px] ${dark ? 'text-white' : 'text-zinc-900'} ${i === active ? (dark ? 'bg-white/10' : 'bg-zinc-100') : ''} ${!query && i === top.length ? `mt-1 border-t pt-1 ${dark ? 'border-white/10' : 'border-zinc-200'}` : ''}`}
               >
                 <CountryFlag iso={o.iso} />
                 <span className="min-w-0 flex-1 truncate">{o.name}</span>
-                <span className="tabular-nums text-zinc-600">+{o.code}</span>
-                {o.iso === value ? <Check className="size-4 text-zinc-900" aria-hidden="true" /> : <span className="size-4" />}
+                <span className={`tabular-nums ${dark ? 'text-white/55' : 'text-zinc-600'}`}>+{o.code}</span>
+                {o.iso === value ? <Check className={`size-4 ${dark ? 'text-white' : 'text-zinc-900'}`} aria-hidden="true" /> : <span className="size-4" />}
               </li>
             ))}
           </ul>

@@ -37,7 +37,7 @@ export function phoneFieldDisplay(value: string, fallback: CountryCode): { count
  */
 export default function PhoneField({
   id, value, onChange, phoneContext = null, locale = 'en', countryLabel, countrySearchLabel,
-  enterKeyHint = 'next', autoFocus = false, required = false, onFocus, onKeyDown, className = '', describedBy,
+  enterKeyHint = 'next', autoFocus = false, required = false, onFocus, onKeyDown, className = '', describedBy, tone = 'light',
 }: {
   id: string
   value: string
@@ -54,6 +54,8 @@ export default function PhoneField({
   /** Classes for the number input (height, border, focus ring). */
   className?: string
   describedBy?: string
+  /** 'dark' on the platform's dark sign-in card (the country picker follows). */
+  tone?: 'light' | 'dark'
 }) {
   const home = phoneRegion(phoneContext)
   const [state, setState] = useState(() => ({ ...phoneFieldDisplay(value, home), emitted: value }))
@@ -87,7 +89,7 @@ export default function PhoneField({
 
   return (
     <div className="flex gap-2">
-      <PhoneCountryPicker value={country} onChange={choose} label={countryLabel} searchLabel={countrySearchLabel} locale={locale} first={home} />
+      <PhoneCountryPicker value={country} onChange={choose} label={countryLabel} searchLabel={countrySearchLabel} locale={locale} first={home} tone={tone} />
       <input
         id={id}
         type="tel"
