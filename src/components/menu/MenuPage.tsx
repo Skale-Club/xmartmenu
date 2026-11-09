@@ -1575,8 +1575,11 @@ function ContactCard({ href, icon, caption, value, color, external, numeric, wra
 }
 
 /**
- * One dish. Phones: a row — text left, photo right with the add button on it.
+ * One dish. Phones: a row, text left and photo right. The photo spans the text
+ * block, from the top of the name to the bottom of the price row: square when
+ * the text is short, taller (never squashed, it crops) when the text is long.
  * Larger screens: a card with the photo on top. The whole card opens the dish.
+ * The add button and the stepper sit in the price row, never on the photo.
  */
 function ProductCard({ product, lang, currency, primaryColor, accentColor, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement }: {
   product: Product; lang: string; currency: string; primaryColor: string; onOpen: () => void
@@ -1590,11 +1593,13 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
   const image = getProductImages(product)[0]
   const quantity = cartQuantity ?? 0
   const promo = !price.from && product.original_price && product.original_price > product.price ? product.original_price : null
+  const showAdd = !!onAdd && quantity === 0
+  const showStepper = !!onIncrement && !!onDecrement && quantity > 0
   return (
     <article
       data-analytics-product-id={product.id}
       data-analytics-source="grid"
-      className="group relative flex gap-3 rounded-2xl bg-white p-3 shadow-card transition-shadow hover:shadow-[0_2px_6px_rgb(0_0_0/0.06),0_12px_32px_rgb(0_0_0/0.08)] sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0"
+      className="group relative flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card transition-shadow hover:shadow-[0_2px_6px_rgb(0_0_0/0.06),0_12px_32px_rgb(0_0_0/0.08)] sm:flex-col sm:items-stretch sm:gap-0 sm:overflow-hidden sm:p-0"
     >
       <button
         type="button"
@@ -1603,9 +1608,10 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
         className="absolute inset-0 z-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
       />
       <div className="pointer-events-none flex min-w-0 flex-1 flex-col sm:order-2 sm:p-4">
-        <h3 className="line-clamp-2 text-[16px] font-semibold leading-snug text-zinc-900">{product.name}</h3>
+        {/* Trimmed to the cap height so the photo's top meets the top of the letters. */}
+        <h3 className="line-clamp-2 text-[16px] font-semibold leading-snug text-zinc-900 [text-box:trim-start_cap_alphabetic]">{product.name}</h3>
         {product.description && (
-          <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-zinc-500">{product.description}</p>
+          <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-zinc-500">{product.description}</p>
         )}
         {product.tags?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
@@ -1614,39 +1620,40 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
             ))}
           </div>
         )}
-        <div className="mt-auto flex items-baseline gap-2 pt-2">
-          <span className="text-[15px] font-semibold tabular-nums" style={{ color: accentText }}>{price.text}</span>
-          {promo && <span className="text-[13px] tabular-nums text-zinc-400 line-through">{formatMoney(promo, currency, lang)}</span>}
+        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2">
+          <span className="flex min-w-0 items-baseline gap-2 [text-box:trim-end_cap_alphabetic]">
+            <span className="text-[15px] font-semibold tabular-nums" style={{ color: accentText }}>{price.text}</span>
+            {promo && <span className="text-[13px] tabular-nums text-zinc-400 line-through">{formatMoney(promo, currency, lang)}</span>}
+          </span>
+          {showAdd && (
+            <button
+              type="button"
+              onClick={onAdd}
+              aria-label={fill(copy.addNamed, { name: product.name })}
+              style={{ backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) }}
+              className="pointer-events-auto relative z-10 ml-auto flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm transition-[scale] active:scale-90"
+            >
+              <Plus className="size-[18px]" strokeWidth={2.5} />
+            </button>
+          )}
+          {showStepper && (
+            <div className="pointer-events-auto relative z-10 ml-auto flex h-9 shrink-0 items-center rounded-full border border-zinc-200 bg-white px-0.5">
+              <button type="button" onClick={onDecrement} aria-label={fill(copy.removeNamed, { name: product.name })} className="flex size-8 items-center justify-center rounded-full text-zinc-800">
+                <Minus className="size-3.5" strokeWidth={2.5} />
+              </button>
+              <span className="min-w-4 text-center text-[14px] font-semibold tabular-nums text-zinc-900">{quantity}</span>
+              <button type="button" onClick={onIncrement} aria-label={fill(copy.addNamed, { name: product.name })} style={{ color: primaryColor }} className="flex size-8 items-center justify-center rounded-full">
+                <Plus className="size-3.5" strokeWidth={2.5} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
-      <div className="pointer-events-none relative size-[104px] shrink-0 sm:order-1 sm:aspect-[4/3] sm:size-auto sm:w-full">
-        <div className="relative size-full overflow-hidden rounded-xl bg-zinc-100 sm:rounded-none">
-          {image
-            ? <Image src={image} alt="" fill sizes="(max-width: 640px) 104px, (max-width: 1024px) 50vw, 33vw" className="object-cover object-top transition-transform duration-500 sm:group-hover:scale-[1.03]" />
-            : <DishPlaceholder />}
-        </div>
-        {onAdd && quantity === 0 && (
-          <button
-            type="button"
-            onClick={onAdd}
-            aria-label={fill(copy.addNamed, { name: product.name })}
-            style={{ color: primaryColor }}
-            className="pointer-events-auto absolute right-1.5 bottom-1.5 z-10 flex size-9 items-center justify-center rounded-full bg-white shadow-[0_1px_4px_rgb(0_0_0/0.18)] transition-[scale] active:scale-90 sm:right-3 sm:bottom-3"
-          >
-            <Plus className="size-[18px]" strokeWidth={2.5} />
-          </button>
-        )}
-        {onIncrement && onDecrement && quantity > 0 && (
-          <div className="pointer-events-auto absolute right-1.5 bottom-1.5 z-10 flex h-9 items-center rounded-full bg-white px-0.5 shadow-[0_1px_4px_rgb(0_0_0/0.18)] sm:right-3 sm:bottom-3">
-            <button type="button" onClick={onDecrement} aria-label={fill(copy.removeNamed, { name: product.name })} className="flex size-8 items-center justify-center rounded-full text-zinc-800">
-              <Minus className="size-3.5" strokeWidth={2.5} />
-            </button>
-            <span className="min-w-4 text-center text-[14px] font-semibold tabular-nums text-zinc-900">{quantity}</span>
-            <button type="button" onClick={onIncrement} aria-label={fill(copy.addNamed, { name: product.name })} style={{ color: primaryColor }} className="flex size-8 items-center justify-center rounded-full">
-              <Plus className="size-3.5" strokeWidth={2.5} />
-            </button>
-          </div>
-        )}
+      {/* self-stretch + min-height = width: square at least, as tall as the text when it runs longer. */}
+      <div className="pointer-events-none relative min-h-30 w-30 shrink-0 self-stretch overflow-hidden rounded-xl bg-zinc-100 sm:order-1 sm:aspect-[4/3] sm:min-h-0 sm:w-full sm:self-auto sm:rounded-none">
+        {image
+          ? <Image src={image} alt="" fill sizes="(max-width: 640px) 120px, (max-width: 1024px) 50vw, 33vw" className="object-cover object-center transition-transform duration-500 sm:group-hover:scale-[1.03]" />
+          : <DishPlaceholder />}
       </div>
     </article>
   )

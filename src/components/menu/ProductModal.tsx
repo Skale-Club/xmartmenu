@@ -143,7 +143,6 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
   const [itemNote, setItemNote] = useState(initialEditorState?.note ?? '')
   const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>(initialEditorState?.ingredientSteppers ?? {})
   const [addedIngredients, setAddedIngredients] = useState<string[]>(initialEditorState?.addedIngredients ?? [])
-  const [quantity, setQuantity] = useState(1)
   // The sheet stays in what the phone keyboard leaves visible (typing a note).
   const box = useVisibleBox()
   const [attentionGroupId, setAttentionGroupId] = useState<string | null>(null)
@@ -157,7 +156,6 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
     setItemNote(initialEditorState?.note ?? '')  // Pitfall 6: reset note when new product opens
     setIngredientSteppers(initialEditorState?.ingredientSteppers ?? {})
     setAddedIngredients(initialEditorState?.addedIngredients ?? [])
-    setQuantity(1)
     setAttentionGroupId(null)
     customizationTrackedRef.current = false
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -325,6 +323,12 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
   const headerPrice = displayPrice(product.price, optionGroups)
   const onPrimary = computePrimaryForeground(primaryColor)
   const isEditing = !!initialEditorState
+  // Ordering: the price lives once, in the footer next to "Add" (live with the choices). View-only: in the header.
+  const hasFooterPrice = !showcase && !!onAddToCart
+  // A dish with sizes still unchosen reads "From"; otherwise the label is "Total".
+  const footerPriceLabel = headerPrice.from && !canAddToCart ? fill(guestCopy.fromPrice, { price: '' }).trim() : copy.total
+  const footerPromo = !headerPrice.from && product.original_price && product.original_price > product.price && finalUnitPrice === product.price
+    ? product.original_price : null
   const defaultIngredients = productIngredients.filter(pi => pi.is_default)
   const extraIngredients = productIngredients.filter(pi => !pi.is_default)
 
@@ -415,7 +419,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
       addedIngredients,
       note: itemNote,
     }
-    onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods, editorState, isEditing ? 1 : quantity)
+    onAddToCart(opts, finalUnitPrice, itemNote || undefined, mods, editorState, 1)
   }
 
   // Showcase footer: how to reach the restaurant about this dish. WhatsApp is
@@ -538,14 +542,14 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
             <div>
               <div className="flex items-start justify-between gap-4">
                 <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900">{product.name}</h2>
-                <div className="shrink-0 text-right">
+                {!hasFooterPrice && <div className="shrink-0 text-right">
                   <p className="text-[20px] font-semibold tabular-nums tracking-tight" style={{ color: priceColor }}>
                     {headerPrice.from ? fill(guestCopy.fromPrice, { price: money(headerPrice.amount) }) : money(headerPrice.amount)}
                   </p>
                   {!headerPrice.from && product.original_price && product.original_price > product.price && (
                     <p className="text-[13px] tabular-nums text-zinc-400 line-through">{money(product.original_price)}</p>
                   )}
-                </div>
+                </div>}
               </div>
               {product.description && <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">{product.description}</p>}
               <DishDetails details={details} />
@@ -802,36 +806,16 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
           <div className="shrink-0 space-y-2 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {!showcase && onAddToCart && (
               <>
-              {/* The total sits above the button, never inside it: the button stays one short word in every language. */}
-              <div className="flex items-baseline justify-between gap-3 px-1">
-                <span className="text-[13px] font-medium text-zinc-500">{copy.total}</span>
-                <span aria-live="polite" className="text-[20px] font-semibold tabular-nums tracking-tight" style={{ color: priceColor }}>
-                  {money(finalUnitPrice * (isEditing ? 1 : quantity))}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                {!isEditing && (
-                  <div className="flex h-[52px] shrink-0 items-center rounded-2xl border border-zinc-200 bg-white px-1">
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                      disabled={quantity <= 1}
-                      aria-label={copy.decrease}
-                      className="flex size-10 items-center justify-center rounded-xl text-zinc-800 transition-colors hover:bg-zinc-100 disabled:text-zinc-300"
-                    >
-                      <Minus className="size-4" />
-                    </button>
-                    <span className="min-w-7 text-center text-[16px] font-semibold tabular-nums text-zinc-900" aria-label={copy.quantity}>{quantity}</span>
-                    <button
-                      type="button"
-                      onClick={() => setQuantity(q => Math.min(99, q + 1))}
-                      aria-label={copy.increase}
-                      className="flex size-10 items-center justify-center rounded-xl text-zinc-800 transition-colors hover:bg-zinc-100"
-                    >
-                      <Plus className="size-4" />
-                    </button>
-                  </div>
-                )}
+              {/* One price, beside the button and never inside it: the button stays one short word in every
+                  language. No quantity picker before adding: "+1, +2" appears on the dish card once it is in the bag. */}
+              <div className="flex items-center gap-4">
+                <div className="shrink-0 pl-1" aria-live="polite">
+                  <p className="flex items-baseline gap-1.5 text-[12px] font-medium text-zinc-500">
+                    {footerPriceLabel}
+                    {footerPromo && <span className="tabular-nums text-zinc-400 line-through">{money(footerPromo)}</span>}
+                  </p>
+                  <p className="text-[20px] font-semibold leading-tight tabular-nums tracking-tight" style={{ color: priceColor }}>{money(finalUnitPrice)}</p>
+                </div>
                 <button
                   type="button"
                   onClick={submit}
@@ -839,16 +823,10 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                   style={{ backgroundColor: primaryColor, color: onPrimary }}
                   className={`flex h-[52px] min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-[16px] font-semibold shadow-float transition-[opacity,scale] active:scale-[0.98] ${canAddToCart ? 'hover:opacity-95' : 'opacity-50'}`}
                 >
-                  {canAddToCart ? (
-                    <>
-                      {isEditing
-                        ? <Check className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />
-                        : <Plus className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />}
-                      <span className="truncate">{isEditing ? copy.updateItem : copy.addToOrder}</span>
-                    </>
-                  ) : (
-                    <span className="truncate text-[15px]">{copy.chooseRequired}</span>
-                  )}
+                  {isEditing
+                    ? <Check className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />
+                    : <Plus className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />}
+                  <span className="truncate">{isEditing ? copy.updateItem : copy.addToOrder}</span>
                 </button>
               </div>
               </>
