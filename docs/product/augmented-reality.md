@@ -12,7 +12,7 @@ This document covers the foundation that is in place and what is still open.
 
 | Device | Route | File used |
 |---|---|---|
-| Android | Google Scene Viewer, AR only (`com.google.ar.core` intent, `resizable=false` at real scale). Without Google Play Services for AR the browser returns to the menu with `#ar-unavailable` and a notice shows | GLB |
+| Android | Google Scene Viewer through the Google app (`com.google.android.googlequicksearchbox` intent, `mode=ar_preferred`, `resizable=false` at real scale): AR camera when the phone supports it (Scene Viewer asks to install Google Play Services for AR if missing), the dish in 3D otherwise. Without the Google app the browser returns to the menu with `#ar-unavailable` and a notice shows. (An AR-only `com.google.ar.core` intent did nothing on a Galaxy S24 without that app, 2026-11-09.) | GLB |
 | iPhone / iPad (Safari, any browser with `rel="ar"`) | AR Quick Look (`#allowsContentScaling=0` at real scale) | USDZ; an old model without one is converted on the phone first |
 | Computer, iOS in-app browsers | no button | — |
 
