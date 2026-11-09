@@ -25,7 +25,6 @@ import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import { ArBadge } from '@/components/ar/ArButton'
-import BagPlus from './BagPlus'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
   CART_TTL_MS,
@@ -61,6 +60,7 @@ import {
   Sparkles,
   Plus,
   Minus,
+  ShoppingBag,
   Languages,
   ChevronDown,
   UtensilsCrossed,
@@ -1642,9 +1642,12 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
               onClick={onAdd}
               aria-label={fill(copy.addNamed, { name: product.name })}
               style={{ backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) }}
-              className="pointer-events-auto relative z-10 ml-auto flex size-9 shrink-0 items-center justify-center rounded-full shadow-sm transition-[scale] active:scale-90"
+              className="pointer-events-auto relative z-10 ml-auto flex h-9 w-[86px] shrink-0 items-center justify-center gap-2 rounded-full shadow-sm transition-[scale] active:scale-95"
             >
-              <BagPlus className="size-5" strokeWidth={2} />
+              {/* Bag and plus as two signs: "add to bag". Same size as the "- 1 +" it turns into, with the "+" on the
+                  same side, so the button keeps its place when the dish goes into the bag. */}
+              <ShoppingBag className="size-[18px]" strokeWidth={2} aria-hidden="true" />
+              <Plus className="size-4" strokeWidth={2.5} aria-hidden="true" />
             </button>
           )}
           {showStepper && (

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, X } from 'lucide-react'
-import BagPlus from './BagPlus'
+import { Check, Plus, X } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { formatMoney, getMenuCopy } from './menu-i18n'
@@ -83,7 +82,7 @@ export default function FeedSizeSheet({
             className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-4 text-base font-semibold shadow-float transition-[opacity,scale] hover:opacity-95 active:scale-[0.98]"
           >
             {/* The chosen size's price is in its row above; the button is one short word. */}
-            <BagPlus className="size-5 shrink-0" strokeWidth={2} aria-hidden="true" />
+            <Plus className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />
             <span className="truncate">{copy.addToOrder}</span>
           </button>
         </div>
