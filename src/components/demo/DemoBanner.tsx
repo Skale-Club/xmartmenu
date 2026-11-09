@@ -28,11 +28,10 @@ export default function DemoBanner() {
         <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
           <Sparkles className="h-4 w-4" />
         </span>
-        <p className="flex-1 text-sm font-medium leading-snug">
-          <span className="font-bold">You&apos;re exploring the XmartMenu demo.</span>{' '}
-          <span className="hidden text-zinc-400 sm:inline">
-            Create your own digital menu in minutes.
-          </span>
+        {/* One sentence per line: the title, then a short neutral line. */}
+        <p className="flex flex-1 flex-col text-sm font-medium leading-snug">
+          <span className="font-bold">You&apos;re exploring the XmartMenu demo.</span>
+          <span className="hidden text-zinc-400 sm:block">Take a look around.</span>
         </p>
         <button
           onClick={() => setModalOpen(true)}

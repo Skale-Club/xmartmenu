@@ -7,6 +7,7 @@ import { captureSecurityEvent } from '@/lib/observability'
 import { ArrowRight, ChevronLeft, X } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
 import SignInFrameDialog from '@/components/auth/SignInFrameDialog'
+import GradientTopLine from '@/components/ui/GradientTopLine'
 import { readLoginAuthority, requireLoginAuthority, type LoginAuthority } from '@/lib/auth/browser-login-authority'
 
 interface Props {
@@ -115,8 +116,8 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
     title="Sign in to XmartMenu"
     closeLabel="Close sign in"
     tone="dark"
-    // Centred on the card's logo row (24 px from the top, 40 px tall); the button is 40 px.
-    closeTop={24}
+    // Top corner, as on the site's e-mail sign-in card.
+    closeTop={12}
     onClose={onClose}
     onSignedIn={path => window.location.assign(new URL(path, window.location.origin).href)}
   />
@@ -135,6 +136,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
         className="relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-[1.25rem] border border-white/10 bg-zinc-900/95 p-5 shadow-2xl backdrop-blur-xl sm:p-8"
         onClick={e => e.stopPropagation()}
       >
+        <GradientTopLine />
         <button
           onClick={onClose}
           aria-label="Close"

@@ -397,94 +397,105 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
         {menus.map(menu => {
           const isEditing = selectedMenuId === menu.id
           return (
-            <div 
-              key={menu.id} 
+            <div
+              key={menu.id}
               className={cn(
-                "group bg-white border rounded-lg p-8 transition-all duration-300 flex flex-col sm:flex-row gap-8 items-start sm:items-center",
-                isEditing ? "border-primary ring-4 ring-primary/10 shadow-lg shadow-primary/5" : "border-zinc-100 hover:border-zinc-200"
+                'flex flex-col gap-5 rounded-2xl border bg-white p-6 transition-[border-color,box-shadow] duration-200',
+                isEditing ? 'border-primary ring-4 ring-primary/10' : 'border-zinc-200 hover:border-zinc-300'
               )}
             >
-              <div className="flex-1 min-w-0 space-y-3">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h3 className="text-2xl font-black text-zinc-950 truncate tracking-tight">{menu.name}</h3>
-                  <div className="flex gap-2">
-                    {menu.is_default && <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-950 text-white px-2.5 py-1 rounded-full">Default</span>}
-                    {isEditing && <span className="text-[9px] font-black uppercase tracking-widest bg-primary text-primary-foreground px-2.5 py-1 rounded-full">Editing</span>}
-                    {!menu.is_active && <span className="text-[9px] font-black uppercase tracking-widest bg-zinc-100 text-zinc-400 px-2.5 py-1 rounded-full">Off</span>}
-                    {menu.is_private && <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full flex items-center gap-1"><Lock className="w-2.5 h-2.5" />Private</span>}
+              {/* Top: name and badges, then where it lives; view and edit as quiet icons. */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-xl font-black tracking-tight text-zinc-950">{menu.name}</h3>
+                    {menu.is_default && <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Default</span>}
+                    {isEditing && <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">Editing</span>}
+                    {!menu.is_active && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600">Hidden</span>}
+                    {menu.is_private && <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800"><Lock className="size-2.5" />Private</span>}
                   </div>
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[13px] font-medium text-zinc-500">
+                    <span className="font-mono">/{menu.slug}</span>
+                    <span aria-hidden="true" className="text-zinc-300">·</span>
+                    <span className="uppercase">{menu.language}</span>
+                    <span aria-hidden="true" className="text-zinc-300">·</span>
+                    <span className="capitalize">{menu.purpose}</span>
+                  </p>
                 </div>
-                <div className="flex items-center gap-4 text-xs font-bold text-zinc-400">
-                  <span className="flex items-center gap-1.5 font-mono">/{menu.slug}</span>
-                  <span className="opacity-30">•</span>
-                  <span className="flex items-center gap-1.5 uppercase tracking-wider">{menu.language}</span>
-                  <span className="opacity-30">•</span>
-                  <span className="flex items-center gap-1.5 capitalize">{menu.purpose}</span>
+                <div className="flex shrink-0 gap-1.5">
+                  <Link
+                    href={`/${tenantSlug}${menu.is_default ? '' : `/${menu.slug}`}`}
+                    target="_blank"
+                    className="flex size-10 items-center justify-center rounded-lg border border-zinc-200 text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-950"
+                    title="View public menu"
+                    aria-label="View public menu"
+                  >
+                    <Eye className="size-4" />
+                  </Link>
+                  <button
+                    onClick={() => startEdit(menu)}
+                    className="flex size-10 items-center justify-center rounded-lg border border-zinc-200 text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-950"
+                    title="Edit settings"
+                    aria-label="Edit settings"
+                  >
+                    <Edit3 className="size-4" />
+                  </button>
                 </div>
-                <div className="pt-2 flex flex-wrap gap-2">
-                  {(menu.supported_languages?.length ? menu.supported_languages : [menu.language]).map(lang => (
-                    <span key={lang} className="text-[10px] font-black uppercase tracking-tighter text-zinc-300 border border-zinc-100 px-2 py-0.5 rounded-md">{lang}</span>
-                  ))}
-                </div>
-                {menu.description && <p className="text-sm font-medium text-zinc-500 line-clamp-2 leading-relaxed">{menu.description}</p>}
               </div>
 
-              <div className="flex flex-wrap sm:flex-col gap-2 flex-shrink-0 w-full sm:w-auto">
+              {menu.description && <p className="-mt-1 line-clamp-2 text-sm leading-relaxed text-zinc-600">{menu.description}</p>}
+
+              {/* Languages as tags only when there is more than the one already named above. */}
+              {(menu.supported_languages?.length ?? 0) > 1 && (
+                <div className="-mt-1 flex flex-wrap gap-1.5">
+                  {menu.supported_languages!.map(lang => (
+                    <span key={lang} className="rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] font-bold uppercase text-zinc-600">{lang}</span>
+                  ))}
+                </div>
+              )}
+
+              {/* Bottom: the main action, visibility as a switch, then default and delete. */}
+              <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-zinc-100 pt-4">
                 <button
                   onClick={async () => {
                     await selectMenu(menu.id)
                     router.push('/menu/categories')
                   }}
-                  className="flex-1 sm:w-40 flex items-center justify-between gap-2 px-5 py-3 rounded-lg bg-zinc-950 text-white text-xs font-black hover:bg-primary hover:text-primary-foreground transition-all active:scale-95 group/btn"
+                  className="group/btn flex h-10 items-center gap-2 rounded-lg bg-zinc-950 px-4 text-[13px] font-bold text-white transition-colors hover:bg-primary hover:text-primary-foreground active:scale-[0.98]"
                 >
-                  Manage Items
-                  <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
+                  Manage items
+                  <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </button>
-                <div className="grid grid-cols-2 gap-2 w-full">
-                  <Link
-                    href={`/${tenantSlug}${menu.is_default ? '' : `/${menu.slug}`}`}
-                    target="_blank"
-                    className="flex items-center justify-center p-3 rounded-lg border border-zinc-100 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950 transition-all"
-                    title="View Public Menu"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </Link>
-                  <button 
-                    onClick={() => startEdit(menu)} 
-                    className="flex items-center justify-center p-3 rounded-lg border border-zinc-100 text-zinc-500 hover:bg-zinc-50 hover:text-zinc-950 transition-all"
-                    title="Edit Settings"
-                  >
-                    <Edit3 className="w-4 h-4" />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={menu.is_active}
+                  onClick={() => handleToggle(menu, 'is_active')}
+                  className="flex items-center gap-2 text-[13px] font-semibold text-zinc-700"
+                >
+                  <span className={cn('relative h-5 w-9 rounded-full transition-colors', menu.is_active ? 'bg-emerald-500' : 'bg-zinc-300')}>
+                    <span className={cn('absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-[left]', menu.is_active ? 'left-[18px]' : 'left-0.5')} />
+                  </span>
+                  Visible
+                </button>
                 {!menu.is_default && (
-                  <button 
-                    onClick={() => handleToggle(menu, 'is_default')} 
-                    className="text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border border-zinc-100 text-zinc-400 hover:text-zinc-950 hover:border-zinc-300 transition-all"
-                  >
-                    Set Default
-                  </button>
-                )}
-                <div className="flex gap-2 w-full">
-                  <button 
-                    onClick={() => handleToggle(menu, 'is_active')} 
-                    className={cn(
-                      "flex-1 text-[10px] font-black uppercase tracking-widest py-2 rounded-lg border transition-all",
-                      menu.is_active ? "border-zinc-100 text-zinc-400 hover:text-zinc-950" : "border-green-100 text-green-500 bg-green-50/50"
-                    )}
-                  >
-                    {menu.is_active ? 'Off' : 'On'}
-                  </button>
-                  {!menu.is_default && (
-                    <button 
-                      onClick={() => setConfirmId(menu.id)} 
-                      className="p-2 rounded-lg border border-red-50 text-red-300 hover:bg-red-50 hover:text-red-500 transition-all"
-                      title="Delete Instance"
+                  <div className="ml-auto flex items-center gap-1">
+                    <button
+                      onClick={() => handleToggle(menu, 'is_default')}
+                      className="h-9 rounded-lg px-3 text-[13px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      Set as default
                     </button>
-                  )}
-                </div>
+                    <button
+                      onClick={() => setConfirmId(menu.id)}
+                      className="flex size-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                      title="Delete menu"
+                      aria-label="Delete menu"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )

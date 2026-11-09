@@ -172,6 +172,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       setSentPhone(e164); setSent(true); setMessage('')
     })
     return <main className="bg-white text-zinc-950" style={{ '--accent': accent } as React.CSSProperties}>
+      <style>{'html,body{background:#fff;color-scheme:light}'}</style>
       <section aria-labelledby="identity-title">
         <GuestSignInHeader bannerUrl={brand.bannerUrl} logoUrl={brand.logoUrl} restaurantName={brand.name} accent={accent} onAccent={onAccent}
           title={sent ? copy.loginVerifyTitle : copy.loginTitle}
@@ -187,7 +188,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
                 onChange={event => setCode(event.target.value.replace(/\D/g, ''))} onFocus={keepFieldVisible} disabled={busy} />
             </div> : <div>
               <label htmlFor="identity-phone" className={label}>{copy.loginPhoneLabel}</label>
-              <PhoneField id="identity-phone" value={phone} onChange={setPhone} phoneContext={context} locale={localeFor(brand.lang)}
+              <PhoneField ghost id="identity-phone" value={phone} onChange={setPhone} phoneContext={context} locale={localeFor(brand.lang)}
                 countryLabel={copy.loginCountry} countrySearchLabel={copy.loginCountrySearch} enterKeyHint="send" autoFocus required
                 onFocus={keepFieldVisible} className={fieldClass} />
             </div>}
@@ -226,11 +227,12 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
   }
 
 
-  // ── Inside the marketing site's popup: the platform sign-in on its dark card, as in Xpot.
+  // ── Inside the marketing site's popup: the platform sign-in on the site's own dark card (logo, Google first,
+  // then the phone with its country), so nobody leaves the page to sign in.
   if (embedded && !brand && continueToApp && !customerFlow && !existingAccountLink && !staffAccess) {
-    const fieldClass = 'block h-12 w-full rounded-xl border border-white/15 bg-white/[0.04] px-4 text-[16px] text-white placeholder:text-white/40 transition-[border-color,box-shadow] focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/30 disabled:opacity-50'
-    const primary = 'flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary text-[16px] font-semibold text-primary-foreground transition-[scale,filter] active:scale-[0.98] enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50'
-    const label = 'mb-1.5 block text-[14px] font-medium text-white/80'
+    const fieldClass = 'block h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-[16px] text-white placeholder:text-zinc-500 transition-[border-color,box-shadow] focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50'
+    const primary = 'flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-base font-black text-primary-foreground transition-all enabled:hover:scale-[1.02] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50'
+    const label = 'mb-2 ml-1 block text-[11px] font-bold uppercase tracking-widest text-zinc-400'
     const submit = () => void run(async () => {
       if (sent) {
         const current = attempt.current
@@ -245,61 +247,62 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       attempt.current = await phoneProof(config, e164, container.current)
       setSentPhone(e164); setSent(true); setMessage('')
     })
-    return <main className="bg-zinc-950 text-white" style={{ colorScheme: 'dark' }}>
-      <section aria-labelledby="identity-title" className="px-6 pb-6 pt-6">
-        <div className="flex h-10 items-center gap-3 pr-12">
+    return <main className="relative overflow-hidden bg-zinc-900 px-6 pb-6 pt-8 text-white" style={{ colorScheme: 'dark' }}>
+      {/* The frame's page must share the card's colour and scheme, or the browser paints a white backdrop
+          behind it that shows as a light edge around the popup. */}
+      <style>{'html,body{background:#18181b;color-scheme:dark}'}</style>
+      {/* Soft brand glow under the popup's gradient top line. */}
+      <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 h-24 w-48 -translate-x-1/2 rounded-full bg-[#F52323]/10 blur-3xl" />
+      <section aria-labelledby="identity-title" className="relative">
+        <div className="mb-8 text-center">
           {/* eslint-disable-next-line @next/next/no-img-element -- platform logo URL from settings; any host. */}
-          {platformLogo ? <img src={platformLogo} alt="" className="size-10 rounded-xl bg-white object-contain p-1" /> : <span aria-hidden="true" className="size-10 rounded-xl bg-primary" />}
-          <span className="text-[15px] font-semibold tracking-tight">XmartMenu</span>
+          {platformLogo ? <img src={platformLogo} alt="" className="mx-auto mb-5 size-12 object-contain" /> : <span aria-hidden="true" className="mx-auto mb-5 block size-12 rounded-xl bg-primary" />}
+          <h1 id="identity-title" className="text-2xl font-black tracking-tight">XmartMenu</h1>
+          <p className="mt-2 text-sm font-bold text-zinc-400">{sent ? `Enter the code we sent to ${phoneLabel(sentPhone) || sentPhone}` : 'Sign in to your menu dashboard'}</p>
         </div>
-        <h1 id="identity-title" className="mt-6 text-[24px] font-semibold leading-tight tracking-tight">{sent ? 'Enter the code' : 'Sign in'}</h1>
-        <p className="mt-1.5 text-[15px] leading-relaxed text-white/65" style={{ textWrap: 'balance' }}>
-          {sent ? `We sent a 6-digit code to ${phoneLabel(sentPhone) || sentPhone}.` : 'Use your phone number or your Google account.'}
-        </p>
-        <div className="mt-5 space-y-4">
-          {error ? <p role="alert" className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-[14px] font-medium leading-snug text-red-200">{error}</p> : null}
-          {message ? <p role="status" className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-[14px] font-medium leading-snug text-emerald-200">{message}</p> : null}
-          <form className="space-y-4" onSubmit={event => { event.preventDefault(); submit() }}>
-            {sent ? <div>
-              <label htmlFor="identity-code" className={label}>Verification code</label>
-              <input id="identity-code" className={`${fieldClass} text-center text-[22px] font-semibold tracking-[0.4em] tabular-nums`} inputMode="numeric" autoComplete="one-time-code"
-                enterKeyHint="done" pattern="[0-9]*" maxLength={6} placeholder="000000" required autoFocus value={code}
-                onChange={event => setCode(event.target.value.replace(/\D/g, ''))} onFocus={keepFieldVisible} disabled={busy} />
-            </div> : <div>
-              <label htmlFor="identity-phone" className={label}>Phone number</label>
-              <PhoneField id="identity-phone" value={phone} onChange={setPhone} tone="dark"
-                countryLabel="Country" countrySearchLabel="Search country" enterKeyHint="send" autoFocus required
-                onFocus={keepFieldVisible} className={fieldClass} />
-            </div>}
-            <div ref={container} />
-            <button data-testid="identity-phone-submit" className={primary} disabled={busy || (sent ? code.length < 6 : phone.replace(/\D/g, '').length < 6)}>
-              {busy ? 'Please wait…' : sent ? 'Verify and continue' : <>Send code<ArrowRight className="size-4" aria-hidden="true" /></>}
-            </button>
-            {sent ? <button type="button" disabled={busy}
-              onClick={() => { attempt.current?.cancel(); attempt.current = null; setSent(false); setCode(''); setError('') }}
-              className="mx-auto flex h-11 items-center justify-center gap-1 rounded-lg px-3 text-[15px] font-medium text-white/75 underline-offset-4 hover:text-white hover:underline">
-              <ChevronLeft className="size-4" aria-hidden="true" /> Use another number
-            </button> : null}
-          </form>
-          {!sent ? <>
-            <div className="flex items-center gap-3 text-[13px] font-medium text-white/45" aria-hidden="true">
-              <span className="h-px flex-1 bg-white/10" />or<span className="h-px flex-1 bg-white/10" />
-            </div>
-            <button type="button" disabled={busy} onClick={() => void run(async () => { await complete(await googleProof(config)) })}
-              className="flex h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-white/15 bg-white/[0.04] text-[16px] font-semibold text-white transition-colors hover:bg-white/[0.08] disabled:opacity-50">
-              <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.34-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
-              Continue with Google
-            </button>
-            <Link className="block text-[14px] font-medium leading-snug text-white/75 underline underline-offset-4 hover:text-white"
-              href={`/auth/login?action=existing-account-link&embed=1`}>Have an account with e-mail and password? Enter it once to add your phone</Link>
-            <p className="text-[13px] leading-snug text-white/50">If your account requires recovery or no longer has access to its previous sign-in, contact support for reviewed recovery.</p>
-          </> : null}
-          {signedIn ? <div className="space-y-2 border-t border-white/10 pt-4">
-            <button type="button" className={primary} disabled={busy} onClick={() => void run(continueToDashboard)}>Continue to your account</button>
-            <button type="button" className="h-11 w-full text-[15px] font-medium text-white/70 hover:text-white disabled:opacity-50" disabled={busy}
-              onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false) })}>Sign out</button>
-          </div> : null}
-        </div>
+        {error ? <p role="alert" className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-[14px] font-medium leading-snug text-red-200">{error}</p> : null}
+        {message ? <p role="status" className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-[14px] font-medium leading-snug text-emerald-200">{message}</p> : null}
+        {sent ? <button type="button" disabled={busy}
+          onClick={() => { attempt.current?.cancel(); attempt.current = null; setSent(false); setCode(''); setError('') }}
+          className="mb-4 flex min-h-11 items-center gap-1 text-xs font-bold text-zinc-400 transition-colors hover:text-zinc-200">
+          <ChevronLeft className="size-3.5" aria-hidden="true" /> Use another number
+        </button> : null}
+        {/* The phone comes first: it is how the platform signs people in. */}
+        <form className="space-y-4" onSubmit={event => { event.preventDefault(); submit() }}>
+          {sent ? <div>
+            <label htmlFor="identity-code" className={label}>Verification code</label>
+            <input id="identity-code" className={`${fieldClass} text-center text-[22px] font-semibold tracking-[0.4em] tabular-nums`} inputMode="numeric" autoComplete="one-time-code"
+              enterKeyHint="done" pattern="[0-9]*" maxLength={6} placeholder="000000" required autoFocus value={code}
+              onChange={event => setCode(event.target.value.replace(/\D/g, ''))} onFocus={keepFieldVisible} disabled={busy} />
+          </div> : <div>
+            <label htmlFor="identity-phone" className={label}>Phone</label>
+            <PhoneField ghost id="identity-phone" value={phone} onChange={setPhone} tone="dark"
+              countryLabel="Country" countrySearchLabel="Search country" enterKeyHint="send" required
+              onFocus={keepFieldVisible} className={fieldClass} />
+          </div>}
+          <div ref={container} />
+          <button data-testid="identity-phone-submit" className={primary} disabled={busy || (sent ? code.length < 6 : phone.replace(/\D/g, '').length < 6)}>
+            {busy ? 'Please wait…' : sent ? 'Sign in' : 'Continue'}{busy ? null : <ArrowRight className="size-4" aria-hidden="true" />}
+          </button>
+        </form>
+        {signedIn ? <div className="mt-4 space-y-2 border-t border-white/10 pt-4">
+          <button type="button" className={primary} disabled={busy} onClick={() => void run(continueToDashboard)}>Continue to your account</button>
+          <button type="button" className="h-11 w-full text-[15px] font-medium text-zinc-300 hover:text-white disabled:opacity-50" disabled={busy}
+            onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false) })}>Sign out</button>
+        </div> : null}
+        {!sent ? <>
+          <div className="my-6 flex items-center gap-3" aria-hidden="true">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">or</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+          <button type="button" disabled={busy} onClick={() => void run(async () => { await complete(await googleProof(config)) })}
+            className="flex w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-bold text-white transition-all hover:scale-[1.02] hover:bg-white/10 active:scale-95 disabled:opacity-50">
+            <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.34-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
+            Continue with Google
+          </button>
+        </> : null}
+        <p className="mt-6 px-4 text-center text-[11px] font-medium leading-relaxed text-zinc-500">By signing in, you agree to the platform terms of use and privacy policy.</p>
       </section>
     </main>
   }

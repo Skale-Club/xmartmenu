@@ -232,3 +232,15 @@ input[type="file"] {
 @media (prefers-reduced-motion: reduce) {
   .menu-order-bar-in { animation: none; }
 }
+
+/* The "Install app" pill sits bottom-left on every page. In the admin panel that is
+   where the sidebar's "Sign out" is: beside the sidebar on wide screens (lg:w-64),
+   hidden while the phone drawer is open. */
+@media (min-width: 1024px) {
+  body:has([data-admin-sidebar]) [data-install-prompt] {
+    left: calc(16rem + 1rem);
+  }
+}
+body:has([data-admin-sidebar][data-open="true"]) [data-install-prompt] {
+  display: none;
+}

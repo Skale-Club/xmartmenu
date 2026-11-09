@@ -145,8 +145,9 @@ export default function AdminSidebar({
   return (
     <aside className="flex h-full w-full flex-col border-r border-zinc-800 bg-zinc-950 text-zinc-400">
       <div className="border-b border-zinc-800/50 p-6 pr-16 lg:pr-6">
-        <div className="flex items-center gap-2 mb-4">
-          <img src={logoUrl ?? '/icon.png'} alt="Logo" className="w-6 h-6 object-contain object-center rounded-sm" />
+        <div className="flex items-center gap-2.5 mb-4">
+          {/* The platform icon (crossed fork and knife) needs room: at 24 px it read as an "X". */}
+          <img src={logoUrl ?? '/icon.png'} alt="" className="size-8 rounded-lg object-contain object-center" />
           <Link href="/" className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] hover:text-primary transition-colors">{appName}</Link>
         </div>
         <p className="text-lg font-black text-white truncate tracking-tight">{tenantName}</p>
@@ -189,7 +190,7 @@ export default function AdminSidebar({
                   : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
               )}
             >
-              <Icon className={cn('w-4 h-4 transition-transform group-hover:scale-110', active ? 'text-zinc-950' : 'text-zinc-500 group-hover:text-primary')} />
+              <Icon className={cn('w-4 h-4 transition-transform group-hover:scale-110', active ? 'text-primary-foreground' : 'text-zinc-500 group-hover:text-primary')} />
               {label}
             </Link>
           )

@@ -22,3 +22,22 @@ describe('PhoneField value', () => {
     expect(phoneFieldDisplay('11 9999', 'BR')).toEqual({ country: 'BR', display: '11 9999' })
   })
 })
+
+describe('phone placeholder', () => {
+  it('shows a local example for the chosen country', async () => {
+    const { phonePlaceholder } = await import('@/components/ui/PhoneField')
+    expect(phonePlaceholder('US')).toBe('(201) 555-0123')
+    expect(phonePlaceholder('BR')).toBe('(11) 96123-4567')
+  })
+})
+
+describe('phone ghost', () => {
+  it('shows the rest of the example while the typed part keeps its shape', async () => {
+    const { phoneGhost } = await import('@/components/ui/PhoneField')
+    expect(phoneGhost('(11) 9', '(11) 96123-4567')).toBe('6123-4567')
+    expect(phoneGhost('(330) 3', '(201) 555-0123')).toBe('55-0123')
+    expect(phoneGhost('', '(201) 555-0123')).toBe('')
+    expect(phoneGhost('+44 7', '(201) 555-0123')).toBe('')
+    expect(phoneGhost('(201) 555-0123', '(201) 555-0123')).toBe('')
+  })
+})

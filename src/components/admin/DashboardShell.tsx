@@ -74,6 +74,8 @@ export default function DashboardShell({
       />
 
       <div
+        data-admin-sidebar
+        data-open={open ? 'true' : 'false'}
         onClickCapture={(event) => {
           if ((event.target as HTMLElement).closest('a')) setOpen(false)
         }}

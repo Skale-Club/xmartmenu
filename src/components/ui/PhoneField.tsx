@@ -1,10 +1,30 @@
 'use client'
 
 import { useState, type FocusEvent, type KeyboardEvent } from 'react'
-import { AsYouType, getCountryCallingCode, parsePhoneNumberFromString, type CountryCode } from 'libphonenumber-js/core'
+import { AsYouType, getCountryCallingCode, getExampleNumber, parsePhoneNumberFromString, validatePhoneNumberLength, type CountryCode } from 'libphonenumber-js/core'
 import metadata from 'libphonenumber-js/min/metadata'
+import examples from 'libphonenumber-js/mobile/examples'
 import PhoneCountryPicker from './PhoneCountryPicker'
 import { phoneRegion, toE164Phone, type PhoneContext } from '@/components/menu/showcase'
+
+/** A mobile number of that country written the local way ("(201) 555-0123", "(11) 96123-4567"): the field's placeholder. */
+export function phonePlaceholder(country: CountryCode): string {
+  return getExampleNumber(country, examples, metadata)?.formatNational() ?? ''
+}
+
+/**
+ * The part of the country's example still to type, shown faintly after what was typed:
+ * "(11) 9" + "6123-4567". Only while what was typed keeps the example's shape (same
+ * brackets, spaces and dashes in the same places); empty otherwise.
+ */
+export function phoneGhost(display: string, template: string): string {
+  if (!display || display.length >= template.length) return ''
+  for (let i = 0; i < display.length; i++) {
+    const typed = display[i], expected = template[i]
+    if (/\d/.test(expected) ? !/\d/.test(typed) : typed !== expected) return ''
+  }
+  return template.slice(display.length)
+}
 
 /** What the parent keeps: the international number when it is a real one, else what was typed with its country code. */
 export function phoneFieldValue(display: string, country: CountryCode): string {
@@ -37,7 +57,7 @@ export function phoneFieldDisplay(value: string, fallback: CountryCode): { count
  */
 export default function PhoneField({
   id, value, onChange, phoneContext = null, locale = 'en', countryLabel, countrySearchLabel,
-  enterKeyHint = 'next', autoFocus = false, required = false, onFocus, onKeyDown, className = '', describedBy, tone = 'light',
+  enterKeyHint = 'next', autoFocus = false, required = false, onFocus, onKeyDown, className = '', describedBy, tone = 'light', ghost = false,
 }: {
   id: string
   value: string
@@ -56,6 +76,8 @@ export default function PhoneField({
   describedBy?: string
   /** 'dark' on the platform's dark sign-in card (the country picker follows). */
   tone?: 'light' | 'dark'
+  /** Show the rest of the country's example faintly while typing (the field must use px-4 and 16px text). */
+  ghost?: boolean
 }) {
   const home = phoneRegion(phoneContext)
   const [state, setState] = useState(() => ({ ...phoneFieldDisplay(value, home), emitted: value }))
@@ -81,30 +103,44 @@ export default function PhoneField({
     }
     let digits = next.replace(/\D/g, '')
     if (next.length < display.length && digits === display.replace(/\D/g, '')) digits = digits.slice(0, -1)
+    // The mask: no more digits than a number of that country can have.
+    if (validatePhoneNumberLength(digits, country, metadata) === 'TOO_LONG') return
     commit(asTyped(digits, country), country)
   }
   const choose = (iso: CountryCode) => {
     commit(display.trim().startsWith('+') ? display : asTyped(display.replace(/\D/g, ''), iso), iso)
   }
 
+  const ghostText = ghost ? phoneGhost(display, phonePlaceholder(country)) : ''
+
   return (
     <div className="flex gap-2">
       <PhoneCountryPicker value={country} onChange={choose} label={countryLabel} searchLabel={countrySearchLabel} locale={locale} first={home} tone={tone} />
-      <input
-        id={id}
-        type="tel"
-        inputMode="tel"
-        autoComplete="tel-national"
-        enterKeyHint={enterKeyHint}
-        value={display}
-        onChange={e => type(e.target.value)}
-        onFocus={onFocus}
-        onKeyDown={onKeyDown}
-        autoFocus={autoFocus}
-        required={required}
-        aria-describedby={describedBy}
-        className={`min-w-0 flex-1 tabular-nums ${className}`}
-      />
+      <div className="relative min-w-0 flex-1">
+        <input
+          id={id}
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel-national"
+          placeholder={phonePlaceholder(country)}
+          enterKeyHint={enterKeyHint}
+          value={display}
+          onChange={e => type(e.target.value)}
+          onFocus={onFocus}
+          onKeyDown={onKeyDown}
+          autoFocus={autoFocus}
+          required={required}
+          aria-describedby={describedBy}
+          className={`w-full tabular-nums ${className}`}
+        />
+        {ghostText ? (
+          // Same box and type as the input: the typed part is invisible, the rest of the example shows faintly.
+          <span aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center overflow-hidden whitespace-pre border border-transparent px-4 text-[16px] tabular-nums">
+            <span className="invisible">{display}</span>
+            <span className={tone === 'dark' ? 'text-white/25' : 'text-zinc-400'}>{ghostText}</span>
+          </span>
+        ) : null}
+      </div>
     </div>
   )
 }

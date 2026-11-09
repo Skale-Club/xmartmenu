@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
 import { useVisibleViewport } from '@/components/ui/use-visible-viewport'
+import GradientTopLine from '@/components/ui/GradientTopLine'
 
 /** Paths that are still part of signing in; leaving them means the person is signed in. */
 const SIGN_IN_PATHS = ['/auth/', '/identity']
@@ -87,15 +88,16 @@ export default function SignInFrameDialog({ src, unavailable, title, closeLabel,
             role="dialog"
             aria-modal="true"
             aria-label={title}
-            className={`relative w-full max-w-[400px] overflow-hidden rounded-2xl shadow-[0_24px_80px_rgba(0,0,0,0.45)] ${dark ? 'border border-white/10 bg-zinc-950' : 'bg-white'}`}
+            className={`relative w-full overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.45)] ${dark ? 'max-w-sm rounded-[1.25rem] border border-white/10 bg-zinc-900' : 'max-w-[400px] rounded-2xl bg-white'}`}
             onClick={e => e.stopPropagation()}
           >
+            {dark ? <GradientTopLine glow={false} /> : null}
             <button
               type="button"
               onClick={onClose}
               aria-label={closeLabel}
               style={{ top: closeTop }}
-              className={`absolute right-3 z-10 flex size-10 items-center justify-center rounded-full transition-colors ${dark ? 'bg-white/10 text-white hover:bg-white/20' : 'bg-white/95 text-zinc-900 shadow-sm hover:bg-white'}`}
+              className={`absolute right-3 z-10 flex size-11 items-center justify-center rounded-full transition-colors ${dark ? 'bg-white/5 text-zinc-300 hover:bg-white/10' : 'bg-white/95 text-zinc-900 shadow-sm hover:bg-white'}`}
             >
               <X className="size-[18px]" />
             </button>

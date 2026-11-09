@@ -41,6 +41,9 @@ const nextConfig: NextConfig = {
     ],
   },
   images: {
+    // Development never contacts external hosts from the server (scripts/lib/dev-outbound-guard.mjs), so the
+    // optimizer cannot fetch CDN images there; the browser loads them directly instead.
+    unoptimized: process.env.NODE_ENV === 'development',
     formats: ['image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     // All unversioned local assets remain allowed. Celes' rebuilt menu photos
