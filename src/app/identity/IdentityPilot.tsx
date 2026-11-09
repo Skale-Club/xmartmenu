@@ -192,11 +192,17 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       <style>{'html,body{background:#fff;color-scheme:light}'}</style>
       <section aria-labelledby="identity-title">
         <GuestSignInHeader bannerUrl={brand.bannerUrl} logoUrl={brand.logoUrl} restaurantName={brand.name} accent={accent} onAccent={onAccent}
-          title={sent ? copy.loginVerifyTitle : copy.loginTitle}
-          subtitle={sent ? fill(copy.loginCodeSent, { phone: phoneLabel(sentPhone, context) || sentPhone }) : copy.loginSubtitle} />
+          title={signedIn ? copy.myAccount : sent ? copy.loginVerifyTitle : copy.loginTitle}
+          subtitle={signedIn ? null : sent ? fill(copy.loginCodeSent, { phone: phoneLabel(sentPhone, context) || sentPhone }) : copy.loginSubtitle} />
         <div className="space-y-4 px-6 pb-6 pt-5">
           {error ? <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] font-medium leading-snug text-red-800">{error}</p> : null}
           {message ? <p role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-[14px] font-medium leading-snug text-emerald-800">{message}</p> : null}
+          {/* Already signed in: no sign-in form, just the way to the account. */}
+          {signedIn ? <div className="space-y-2">
+            <button type="button" className={primary} style={accentStyle} disabled={busy} onClick={() => void run(continueToDashboard)}>{copy.loginContinueAccount}<ArrowRight className="size-4" aria-hidden="true" /></button>
+            <button type="button" className="mx-auto block h-10 px-3 text-[14px] font-medium text-zinc-600 underline-offset-4 hover:text-zinc-950 hover:underline disabled:opacity-50" disabled={busy}
+              onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false) })}>{copy.loginSignOut}</button>
+          </div> : <>
           <form className="space-y-4" onSubmit={event => { event.preventDefault(); submit() }}>
             {sent ? <div>
               <label htmlFor="identity-code" className={label}>{copy.loginCodeLabel}</label>
@@ -233,11 +239,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
               href={`/auth/login?action=existing-account-link&flow=customer&from=${encodeURIComponent(next)}${brandQuery}`}>{copy.loginExistingAccount}</Link>
             <p className="text-[13px] leading-snug text-zinc-600">{copy.loginRecovery}</p>
           </> : null}
-          {signedIn ? <div className="space-y-2 border-t border-zinc-200 pt-4">
-            <button type="button" className={primary} style={accentStyle} disabled={busy} onClick={() => void run(continueToDashboard)}>{copy.loginContinueAccount}</button>
-            <button type="button" className="h-11 w-full text-[15px] font-medium text-zinc-700 hover:text-zinc-950 disabled:opacity-50" disabled={busy}
-              onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false) })}>{copy.loginSignOut}</button>
-          </div> : null}
+          </>}
         </div>
       </section>
     </main>
@@ -289,10 +291,16 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
           {/* eslint-disable-next-line @next/next/no-img-element -- platform logo URL from settings; any host. */}
           {platformLogo ? <img src={platformLogo} alt="" className="mx-auto mb-5 size-12 object-contain" /> : <span aria-hidden="true" className="mx-auto mb-5 block size-12 rounded-xl bg-primary" />}
           <h1 id="identity-title" className="text-2xl font-black tracking-tight">XmartMenu</h1>
-          <p className="mt-2 text-sm font-bold text-zinc-400">{sent ? `Enter the code we sent to ${phoneLabel(sentPhone) || sentPhone}` : 'Sign in to your menu dashboard'}</p>
+          <p className="mt-2 text-sm font-bold text-zinc-400">{signedIn ? "You're signed in" : sent ? `Enter the code we sent to ${phoneLabel(sentPhone) || sentPhone}` : 'Sign in to your menu dashboard'}</p>
         </div>
         {error ? <p role="alert" className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-[14px] font-medium leading-snug text-red-200">{error}</p> : null}
         {message ? <p role="status" className="mb-4 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-[14px] font-medium leading-snug text-emerald-200">{message}</p> : null}
+        {/* Already signed in: no sign-in form, just the way to the dashboard. */}
+        {signedIn ? <div className="space-y-2">
+          <button type="button" className={primary} disabled={busy} onClick={() => void run(continueToDashboard)}>Go to dashboard<ArrowRight className="size-4" aria-hidden="true" /></button>
+          <button type="button" className="mx-auto block h-10 px-3 text-[13px] font-bold text-zinc-400 underline-offset-4 hover:text-zinc-200 hover:underline disabled:opacity-50" disabled={busy}
+            onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false) })}>Sign out</button>
+        </div> : <>
         {sent ? <button type="button" disabled={busy}
           onClick={() => { attempt.current?.cancel(); attempt.current = null; setSent(false); setCode(''); setError('') }}
           className="mb-4 flex min-h-11 items-center gap-1 text-xs font-bold text-zinc-400 transition-colors hover:text-zinc-200">
@@ -316,11 +324,6 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
             {busy ? 'Please wait…' : sent ? 'Sign in' : 'Continue'}{busy ? null : <ArrowRight className="size-4" aria-hidden="true" />}
           </button>
         </form>
-        {signedIn ? <div className="mt-4 space-y-2 border-t border-white/10 pt-4">
-          <button type="button" className={primary} disabled={busy} onClick={() => void run(continueToDashboard)}>Continue to your account</button>
-          <button type="button" className="h-11 w-full text-[15px] font-medium text-zinc-300 hover:text-white disabled:opacity-50" disabled={busy}
-            onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false) })}>Sign out</button>
-        </div> : null}
         {!sent ? <>
           <div className="my-6 flex items-center gap-3" aria-hidden="true">
             <div className="h-px flex-1 bg-white/10" />
@@ -333,6 +336,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
             Continue with Google
           </button>
         </> : null}
+        </>}
         <p className="mt-6 px-4 text-center text-[11px] font-medium leading-relaxed text-zinc-500">By signing in, you agree to the platform terms of use and privacy policy.</p>
       </section>
     </main>

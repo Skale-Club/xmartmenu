@@ -9,6 +9,7 @@ import ModalPortal from '@/components/ui/ModalPortal'
 import SignInFrameDialog from '@/components/auth/SignInFrameDialog'
 import GradientTopLine from '@/components/ui/GradientTopLine'
 import { readLoginAuthority, requireLoginAuthority, type LoginAuthority } from '@/lib/auth/browser-login-authority'
+import { ownedLoginDestination } from '@/lib/auth/browser-owned-login'
 
 interface Props {
   open: boolean
@@ -30,7 +31,18 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
     if (!open) return
     let active = true
     setAuthority(null)
-    void readLoginAuthority().then(value => { if (active) setAuthority(value) }).catch(() => { if (active) setAuthority('unavailable') })
+    void readLoginAuthority().then(async value => {
+      // Already signed in: "Start" goes straight to the panel instead of showing a sign-in card
+      // (the dialog keeps its loading state until the page changes).
+      if (value === 'owned') {
+        const session = await fetch('/api/identity/session', { credentials: 'same-origin', cache: 'no-store' }).catch(() => null)
+        if (session?.ok) {
+          window.location.assign(new URL(await ownedLoginDestination('/'), window.location.origin).href)
+          return
+        }
+      }
+      if (active) setAuthority(value)
+    }).catch(() => { if (active) setAuthority('unavailable') })
     return () => { active = false }
   },[open])
 
