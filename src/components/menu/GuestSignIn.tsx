@@ -1,20 +1,15 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { GUEST_BANNER_HEIGHT } from '@/components/auth/GuestSignInHeader'
-import { UserRound, X } from 'lucide-react'
-import ModalPortal from '@/components/ui/ModalPortal'
+import { UserRound } from 'lucide-react'
+import SignInFrameDialog from '@/components/auth/SignInFrameDialog'
 import { readLoginAuthority, type LoginAuthority } from '@/lib/auth/browser-login-authority'
-import { useVisibleViewport } from '@/components/ui/use-visible-viewport'
 import type { MenuCopy } from './menu-i18n'
 import type { PhoneContext } from './showcase'
 
 const LoginModal = dynamic(() => import('./LoginModal'), { ssr: false })
-
-/** Paths that are still part of signing in; leaving them means the guest is signed in. */
-const SIGN_IN_PATHS = ['/auth/', '/identity']
-const isSignInPath = (path: string) => SIGN_IN_PATHS.some(prefix => path.startsWith(prefix))
 
 /**
  * The guest's account entry on the menu: an icon beside the search button
@@ -83,7 +78,7 @@ export function GuestAccountButton({ slug, primaryColor, copy, lang, locale, pho
         <LoginModal open onClose={() => setOpen(false)} slug={slug} primaryColor={primaryColor} onSuccess={done} logoUrl={logoUrl} restaurantName={restaurantName} copy={copy} phoneContext={phoneContext} locale={locale} bannerUrl={bannerUrl} />
       )}
       {open && authority !== 'legacy' && (
-        <SignInFramePopup
+        <SignInFrameDialog
           // The sign-in page draws the restaurant's card itself (banner, logo, colour, country, language) from these.
           src={authority === 'owned' ? `/auth/login?flow=customer&embed=1&tenant=${encodeURIComponent(slug)}&lang=${encodeURIComponent(lang)}&from=${encodeURIComponent(`/${slug}/me`)}` : null}
           unavailable={authority === 'unavailable'}
@@ -91,115 +86,10 @@ export function GuestAccountButton({ slug, primaryColor, copy, lang, locale, pho
           closeLabel={copy.close}
           onClose={() => setOpen(false)}
           onSignedIn={done}
+          // Centred on the card's banner (drawn inside the frame); the button is 40 px.
+          closeTop={(GUEST_BANNER_HEIGHT - 40) / 2}
         />
       )}
     </>
-  )
-}
-
-/** The platform sign-in in a same-origin frame, sized to its content, over a dimmed menu. */
-function SignInFramePopup({ src, unavailable, title, closeLabel, onClose, onSignedIn }: {
-  /** Null while the sign-in mode is still being read. */
-  src: string | null
-  unavailable: boolean
-  title: string
-  closeLabel: string
-  onClose: () => void
-  onSignedIn: () => void
-}) {
-  const frameRef = useRef<HTMLIFrameElement | null>(null)
-  // Placed in what the phone keyboard leaves visible, like the phone-code popup.
-  const view = useVisibleViewport()
-  const [height, setHeight] = useState(440)
-  const [ready, setReady] = useState(false)
-
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-
-  // The sign-in ends with a navigation inside the frame (to the guest's panel):
-  // as soon as the frame is off the sign-in pages, stop it and close.
-  useEffect(() => {
-    if (!src) return
-    let finished = false
-    const check = () => {
-      const frame = frameRef.current
-      if (finished || !frame) return
-      let path: string
-      try { path = frame.contentWindow?.location.pathname ?? '' } catch { return }
-      if (path && path !== 'blank' && !isSignInPath(path)) {
-        finished = true
-        frame.src = 'about:blank'
-        onSignedIn()
-      }
-    }
-    const timer = window.setInterval(check, 200)
-    return () => window.clearInterval(timer)
-  }, [src, onSignedIn])
-
-  const onLoad = () => {
-    const frame = frameRef.current
-    const doc = (() => { try { return frame?.contentDocument ?? null } catch { return null } })()
-    if (!frame || !doc?.body) return
-    setReady(true)
-    const content = doc.querySelector('main') ?? doc.body
-    const measure = () => setHeight(Math.ceil(content.getBoundingClientRect().height))
-    measure()
-    new ResizeObserver(measure).observe(content)
-  }
-
-  return (
-    <ModalPortal closeOnEscape={false}>
-      <div className="fixed inset-0 z-50" onClick={onClose}>
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-        <div
-          className="absolute inset-x-0 flex items-center justify-center p-4"
-          style={view.height ? { top: view.top, height: view.height } : { inset: 0 }}
-        >
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-          className="relative w-full max-w-[400px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
-          onClick={e => e.stopPropagation()}
-        >
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={closeLabel}
-            // Centred on the card's banner (GUEST_BANNER_HEIGHT, drawn inside the frame); the button is 40 px.
-            style={{ top: (GUEST_BANNER_HEIGHT - 40) / 2 }}
-            className="absolute right-3 z-10 flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-900 shadow-sm transition-colors hover:bg-white"
-          >
-            <X className="size-[18px]" />
-          </button>
-          {unavailable ? (
-            <p className="px-6 py-12 text-center text-[15px] leading-6 text-zinc-700">Sign-in is temporarily unavailable. Please try again later.</p>
-          ) : (
-            <>
-              {!ready && (
-                <div className="flex h-[440px] items-center justify-center" aria-hidden="true">
-                  <span className="size-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-700" />
-                </div>
-              )}
-              {src && (
-                <iframe
-                  ref={frameRef}
-                  src={src}
-                  title={title}
-                  onLoad={onLoad}
-                  className={ready ? 'block w-full border-0' : 'absolute h-0 w-full opacity-0'}
-                  // Never taller than what the keyboard leaves: the sign-in then scrolls inside the frame.
-                  style={ready ? { height: view.height ? Math.min(height, view.height - 32) : height } : undefined}
-                />
-              )}
-            </>
-          )}
-        </div>
-        </div>
-      </div>
-    </ModalPortal>
   )
 }
