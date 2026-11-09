@@ -122,7 +122,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
     setError(null)
   }
 
-  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
 
   return (
     <div className="p-8 w-full space-y-8">
@@ -190,7 +190,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
       <Modal size={otherLanguages.length ? 'lg' : 'md'} open={canManage && showForm && !!menuId} title={editingId ? 'Refine Category' : 'Create Category'} onClose={cancelForm}>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Category Name *</label>
+            <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Category Name *</label>
             <input
               required
               value={name}
@@ -200,7 +200,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
             />
           </div>
           <div>
-            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Short Description</label>
+            <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Short Description</label>
             <input
               value={description}
               onChange={e => setDescription(e.target.value)}
@@ -209,7 +209,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
             />
           </div>
           <div>
-            <label htmlFor="category-course" className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Role in the meal</label>
+            <label htmlFor="category-course" className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Role in the meal</label>
             <select
               id="category-course"
               value={course}
@@ -219,7 +219,7 @@ export default function CategoriesClient({ categories: initial, tenantId, menuId
               <option value="">Not part of “Complete your order”</option>
               {COURSES.map(c => <option key={c} value={c}>{COURSE_LABELS[c]}</option>)}
             </select>
-            <p className="text-[11px] text-zinc-400 mt-2 ml-1">After a guest adds a main course, the menu offers sides, drinks and desserts they don’t have yet.</p>
+            <p className="text-[13px] text-zinc-600 mt-2 ml-1">After a guest adds a main course, the menu offers sides, drinks and desserts they don’t have yet.</p>
           </div>
           {otherLanguages.length > 0 && (
             <details className="group rounded-xl border border-zinc-200 p-4 open:pb-5">

@@ -7,6 +7,10 @@
  * typed as "(555) 123-4567" or an Instagram saved as "@handle" or a full URL
  * still produces a working link.
  */
+import { getCountryCallingCode, isSupportedCountry, parsePhoneNumberFromString, type CountryCode, type PhoneNumber } from 'libphonenumber-js/core'
+// Explicit metadata (core API): the same min dataset the default entry uses, and it
+// also loads under the node test runner, where the default entry's JSON import breaks.
+import metadata from 'libphonenumber-js/min/metadata'
 import { buildSameAs } from '@/lib/seo'
 
 /** The price-relevant part of an option group (GroupWithOptions satisfies it). */
@@ -102,22 +106,93 @@ export function whatsappDigits(raw: string | null | undefined): string | null {
 }
 
 /** https://wa.me/<digits>[?text=…], or null without a usable number. */
-export function whatsappUrl(raw: string | null | undefined, message?: string | null): string | null {
-  const digits = whatsappDigits(raw)
+export function whatsappUrl(raw: string | null | undefined, message?: string | null, context?: PhoneContext | null): string | null {
+  const parsed = parsePhone(raw, phoneRegion(context))
+  const digits = parsed ? parsed.number.slice(1) : whatsappDigits(raw)
   if (!digits) return null
   return message ? `https://wa.me/${digits}?text=${encodeURIComponent(message)}` : `https://wa.me/${digits}`
 }
 
-/** tel: link keeping only a leading + and digits; null without a usable number. */
-/** "(330) 313-0832" for a US number (10 digits, or 11 with a leading 1); anything else as typed. */
-export function phoneLabel(raw: string | null | undefined): string {
-  const trimmed = (raw ?? '').trim()
-  const digits = trimmed.replace(/\D/g, '')
-  const national = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits.length === 10 ? digits : null
-  return national ? `(${national.slice(0, 3)}) ${national.slice(3, 6)}-${national.slice(6)}` : trimmed
+// ── Phone numbers ───────────────────────────────────────────────────────────
+
+/** Where the restaurant is, as the settings say it (ISO code or a common name), else its currency. */
+export interface PhoneContext {
+  country?: string | null
+  currency?: string | null
 }
 
-export function telUrl(raw: string | null | undefined): string | null {
+const COUNTRY_NAMES: Record<string, CountryCode> = {
+  BRAZIL: 'BR', BRASIL: 'BR', USA: 'US', 'UNITED STATES': 'US', CANADA: 'CA', PORTUGAL: 'PT',
+  SPAIN: 'ES', ESPANA: 'ES', 'ESPAÑA': 'ES', MEXICO: 'MX', 'MÉXICO': 'MX', ARGENTINA: 'AR', CHILE: 'CL',
+  COLOMBIA: 'CO', PERU: 'PE', 'PERÚ': 'PE', URUGUAY: 'UY', PARAGUAY: 'PY', UK: 'GB', 'UNITED KINGDOM': 'GB',
+  FRANCE: 'FR', GERMANY: 'DE', ITALY: 'IT', ITALIA: 'IT',
+}
+
+const CURRENCY_COUNTRY: Record<string, CountryCode> = {
+  USD: 'US', BRL: 'BR', CAD: 'CA', MXN: 'MX', ARS: 'AR', CLP: 'CL', COP: 'CO', PEN: 'PE', UYU: 'UY',
+  PYG: 'PY', GBP: 'GB', CHF: 'CH', AUD: 'AU', NZD: 'NZ', JPY: 'JP', KRW: 'KR', CNY: 'CN', INR: 'IN',
+  TRY: 'TR', PLN: 'PL', RUB: 'RU',
+}
+
+/** The country a number typed without a country code was typed in; the app's default (US) when unknown. */
+export function phoneRegion(context?: PhoneContext | null): CountryCode {
+  const country = context?.country?.trim().toUpperCase()
+  if (country) {
+    if (isSupportedCountry(country as CountryCode, metadata)) return country as CountryCode
+    if (COUNTRY_NAMES[country]) return COUNTRY_NAMES[country]
+  }
+  const currency = context?.currency?.trim().toUpperCase()
+  return (currency && CURRENCY_COUNTRY[currency]) || 'US'
+}
+
+/**
+ * The number as the restaurant meant it: "+55 11 99999-8888", "(11) 99999-8888",
+ * "11999998888" and the WhatsApp-style "5511999998888" are all the same São
+ * Paulo mobile for a Brazilian restaurant. Null when it is not a real number.
+ */
+function parsePhone(raw: string | null | undefined, region: CountryCode): PhoneNumber | null {
+  const text = (raw ?? '').trim()
+  const digits = text.replace(/\D/g, '')
+  if (digits.length < 6) return null
+  const international = text.startsWith('+') ? text : text.startsWith('00') ? `+${digits.slice(2)}` : null
+  const tries = international ? [international] : [text, `+${digits}`]
+  for (const attempt of tries) {
+    const parsed = parsePhoneNumberFromString(attempt, region, metadata)
+    if (parsed?.isValid()) return parsed
+  }
+  return null
+}
+
+/**
+ * The number written the way people in the restaurant's country write it —
+ * "(11) 99999-8888" in Brazil, "(330) 313-0832" in the US — and a foreign one
+ * with its country code ("+1 330 313 0832"). Anything unrecognizable as typed.
+ */
+export function phoneLabel(raw: string | null | undefined, context?: PhoneContext | null): string {
+  const region = phoneRegion(context)
+  const parsed = parsePhone(raw, region)
+  if (!parsed) return (raw ?? '').trim()
+  return parsed.country === region ? parsed.formatNational() : parsed.formatInternational()
+}
+
+/** "+55 " for a Brazilian restaurant: what a phone field starts with, so guests only type their own number. */
+export function callingCodePrefix(context?: PhoneContext | null): string {
+  return `+${getCountryCallingCode(phoneRegion(context), metadata)} `
+}
+
+/**
+ * A number a guest typed, in E.164 ("+5511999998888"), read in the
+ * restaurant's country when it has no country code; null when it is not a
+ * real number. For sign-in, where the code must reach the right phone.
+ */
+export function toE164Phone(raw: string | null | undefined, context?: PhoneContext | null): string | null {
+  return parsePhone(raw, phoneRegion(context))?.number ?? null
+}
+
+/** tel: link with the full international number; a recognizable-but-odd number keeps its digits. */
+export function telUrl(raw: string | null | undefined, context?: PhoneContext | null): string | null {
+  const parsed = parsePhone(raw, phoneRegion(context))
+  if (parsed) return `tel:${parsed.number}`
   const trimmed = (raw ?? '').trim()
   const digits = trimmed.replace(/\D/g, '')
   if (digits.length < 3) return null
@@ -148,19 +223,23 @@ export function instagramProfile(raw: string | null | undefined): { url: string;
 
 export interface ContactLinks {
   whatsapp: string | null
+  /** The WhatsApp number written for people (same rules as the phone). */
+  whatsappLabel: string | null
   phone: { url: string; label: string } | null
   instagram: { url: string; handle: string } | null
 }
 
 /** The contact links a restaurant filled in, normalized; each null when missing or unusable. */
 export function contactLinks(
-  settings: { whatsapp?: string | null; phone?: string | null; instagram?: string | null } | null | undefined,
+  settings: ({ whatsapp?: string | null; phone?: string | null; instagram?: string | null } & PhoneContext) | null | undefined,
   whatsappMessage?: string | null,
 ): ContactLinks {
-  const tel = telUrl(settings?.phone)
+  const tel = telUrl(settings?.phone, settings)
+  const whatsapp = whatsappUrl(settings?.whatsapp, whatsappMessage, settings)
   return {
-    whatsapp: whatsappUrl(settings?.whatsapp, whatsappMessage),
-    phone: tel ? { url: tel, label: phoneLabel(settings!.phone) } : null,
+    whatsapp,
+    whatsappLabel: whatsapp ? phoneLabel(settings?.whatsapp, settings) : null,
+    phone: tel ? { url: tel, label: phoneLabel(settings!.phone, settings) } : null,
     instagram: instagramProfile(settings?.instagram),
   }
 }

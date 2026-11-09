@@ -53,8 +53,8 @@ export default function PasswordPage() {
     setLoading(false)
   }
 
-  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-  const labelClassName = "block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1"
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-2xl text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const labelClassName = "block text-[14px] font-semibold text-zinc-700 mb-2 ml-1"
 
   return (
     <div className="p-8 w-full space-y-10">
@@ -155,7 +155,7 @@ export default function PasswordPage() {
           </form>
         </div>
 
-        <p className="mt-8 text-[10px] font-medium text-zinc-400 text-center uppercase tracking-widest leading-relaxed px-10">
+        <p className="mt-8 text-[13px] font-medium text-zinc-600 text-center uppercase tracking-widest leading-relaxed px-10">
           Make sure to use a strong password that you don't use elsewhere. After updating, you will need to use the new password for all future sessions.
         </p>
       </div>

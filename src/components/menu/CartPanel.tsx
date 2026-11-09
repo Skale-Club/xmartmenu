@@ -156,7 +156,7 @@ export default function CartPanel({
               <div className="flex size-14 items-center justify-center rounded-full bg-zinc-100">
                 <ShoppingBag className="size-6 text-zinc-400" />
               </div>
-              <p className="text-[15px] font-medium text-zinc-500">{copy.cartEmpty}</p>
+              <p className="text-[15px] font-medium text-zinc-600">{copy.cartEmpty}</p>
             </div>
           ) : (
             cart.map(item => {
@@ -178,18 +178,18 @@ export default function CartPanel({
                         <button
                           type="button"
                           onClick={() => onRemove(item.cartKey)}
-                          className="-mr-1 -mt-1 flex size-8 flex-shrink-0 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                          className="-mr-1 -mt-1 flex size-8 flex-shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-red-50 hover:text-red-600"
                           aria-label={fill(copy.removeNamed, { name: item.product.name })}
                         >
                           <Trash2 className="size-4" />
                         </button>
                       </div>
 
-                      {optionsText && <p className="mt-0.5 line-clamp-2 text-[13px] text-zinc-500">{optionsText}</p>}
+                      {optionsText && <p className="mt-0.5 line-clamp-2 text-[13px] text-zinc-600">{optionsText}</p>}
                       {ingredientLabels.length > 0 && (
-                        <p className="mt-0.5 line-clamp-2 text-[13px] text-zinc-500">{ingredientLabels.join(' · ')}</p>
+                        <p className="mt-0.5 line-clamp-2 text-[13px] text-zinc-600">{ingredientLabels.join(' · ')}</p>
                       )}
-                      {item.note && <p className="mt-0.5 line-clamp-1 text-[13px] italic text-zinc-400">&ldquo;{item.note}&rdquo;</p>}
+                      {item.note && <p className="mt-0.5 line-clamp-1 text-[13px] italic text-zinc-500">&ldquo;{item.note}&rdquo;</p>}
 
                       <div className="mt-2 flex items-center justify-between gap-2">
                         <div className="flex h-9 items-center rounded-full border border-zinc-200 bg-white px-0.5">
@@ -217,7 +217,7 @@ export default function CartPanel({
                       <button
                         type="button"
                         onClick={() => onEdit(item.cartKey)}
-                        className="mt-1.5 text-[13px] font-medium text-zinc-500 underline-offset-2 transition-colors hover:text-zinc-900 hover:underline"
+                        className="mt-1.5 py-1 text-[14px] font-medium text-zinc-700 underline-offset-2 transition-colors hover:text-zinc-900 hover:underline"
                       >
                         {copy.edit}
                       </button>
@@ -233,7 +233,7 @@ export default function CartPanel({
         {cart.length > 0 && (
           <div className="space-y-3 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <div className="flex items-baseline justify-between">
-              <span className="text-[15px] font-medium text-zinc-500">{copy.subtotal} · {itemsLabel(copy, count, lang)}</span>
+              <span className="text-[15px] font-medium text-zinc-600">{copy.subtotal} · {itemsLabel(copy, count, lang)}</span>
               <span className="text-xl font-semibold tabular-nums text-zinc-900">{money(subtotal)}</span>
             </div>
             <button

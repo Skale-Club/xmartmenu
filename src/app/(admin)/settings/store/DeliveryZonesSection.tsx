@@ -84,8 +84,8 @@ export default function DeliveryZonesSection() {
     setPrefixInput('')
   }
 
-  const inputCls = "w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-  const labelCls = "block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1"
+  const inputCls = "w-full px-4 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const labelCls = "block text-[14px] font-semibold text-zinc-700 mb-2 ml-1"
 
   const isCreating = mode === 'creating'
   const isEditing = mode !== 'idle' && mode !== 'creating'
@@ -133,7 +133,7 @@ export default function DeliveryZonesSection() {
             ))}
           </div>
         )}
-        <p className="text-[10px] font-medium text-zinc-400 ml-1 mt-2">Prefix "1010" matches any zipcode starting with 1010</p>
+        <p className="text-[13px] font-medium text-zinc-600 ml-1 mt-2">Prefix "1010" matches any zipcode starting with 1010</p>
       </div>
       {isEditing && (
         <div
@@ -174,10 +174,10 @@ export default function DeliveryZonesSection() {
         )}
       </div>
 
-      {loading && <p className="text-xs text-zinc-400 font-medium">Loading zones...</p>}
+      {loading && <p className="text-[13px] text-zinc-600 font-medium">Loading zones...</p>}
       {isCreating && zoneForm}
       {zones.length === 0 && !loading && !isCreating && (
-        <p className="text-xs text-zinc-400 font-medium py-2">No delivery zones configured — using the flat fee above. Add zones to set different fees by area.</p>
+        <p className="text-[13px] text-zinc-600 font-medium py-2">No delivery zones configured — using the flat fee above. Add zones to set different fees by area.</p>
       )}
 
       <div className="space-y-3">

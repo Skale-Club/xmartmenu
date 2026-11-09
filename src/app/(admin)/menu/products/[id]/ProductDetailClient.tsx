@@ -253,7 +253,7 @@ function OptionForm({
               className="flex-1 px-3 py-2 text-sm focus:outline-none"
             />
           </div>
-          <p className="text-xs text-zinc-400 mt-0.5">{priceHint}</p>
+          <p className="text-[13px] text-zinc-600 mt-0.5">{priceHint}</p>
         </div>
       </div>
       <label className="flex items-center gap-2 cursor-pointer">
@@ -1241,7 +1241,7 @@ export default function ProductDetailClient({
                       <div className="grid grid-cols-2 gap-3">
                         {/* is_default toggle */}
                         <div className="col-span-2 flex items-center gap-3">
-                          <label className="text-sm text-zinc-600">Product default</label>
+                          <label className="text-sm text-zinc-700">Product default</label>
                           <button
                             type="button"
                             disabled={!canManage || ingLoading === pi.ingredient_id}
@@ -1257,7 +1257,7 @@ export default function ProductDetailClient({
                         </div>
                         {/* extra_price_override */}
                         <div>
-                          <label className="block text-xs font-medium text-zinc-600 mb-1">Extra price for this product</label>
+                          <label className="block text-[14px] font-medium text-zinc-700 mb-1">Extra price for this product</label>
                           <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
                             <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">
                               {CURRENCY_SYMBOL[currency] ?? currency}
@@ -1283,7 +1283,7 @@ export default function ProductDetailClient({
                         </div>
                         {/* add_price_override */}
                         <div>
-                          <label className="block text-xs font-medium text-zinc-600 mb-1">Add-on price for this product</label>
+                          <label className="block text-[14px] font-medium text-zinc-700 mb-1">Add-on price for this product</label>
                           <div className="flex items-center border border-zinc-300 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-zinc-900">
                             <span className="px-3 py-2 bg-zinc-50 text-sm text-zinc-500 border-r border-zinc-300 select-none">
                               {CURRENCY_SYMBOL[currency] ?? currency}

@@ -139,6 +139,11 @@ export interface MenuCopy {
   yourTable: string; tableServed: string
   // Footer
   poweredBy: string
+  // Guest account and contact
+  signIn: string; myAccount: string
+  contactTitle: string; contactPhone: string; contactEmail: string; contactAddress: string
+  // Guest sign-in popup (phone code)
+  loginTitle: string; loginSubtitle: string; loginPhoneLabel: string; loginCountry: string; loginCountrySearch: string; loginSendCode: string; loginSending: string; loginVerifyTitle: string; loginCodeSent: string; loginCodeLabel: string; loginVerify: string; loginVerifying: string; loginChangePhone: string; loginInvalidPhone: string; loginUnavailable: string
 }
 
 const en: MenuCopy = {
@@ -176,6 +181,23 @@ const en: MenuCopy = {
   upsellTitle: 'Complete your order', upsellAdded: '{name} added', upsellPairs: 'Goes well with {name}', upsellSide: 'Add a side?', upsellDrink: 'Something to drink?', upsellDessert: 'Room for dessert?', upsellSkip: 'No, thanks', upsellContinue: 'Continue', upsellDone: 'Done', upsellChoose: 'Choose', upsellInOrder: 'In your order', upsellStep: 'Step {current} of {total}',
   yourTable: 'Your table', tableServed: "We'll bring your order to this table.",
   poweredBy: 'Powered by',
+  signIn: 'Sign in', myAccount: 'My account',
+  contactTitle: 'Get in touch', contactPhone: 'Phone', contactEmail: 'Email', contactAddress: 'Address',
+  loginTitle: "Sign in",
+  loginSubtitle: "We'll text you a code to confirm your number.",
+  loginPhoneLabel: "Phone number",
+  loginCountry: "Country",
+  loginCountrySearch: "Search country",
+  loginSendCode: "Send code",
+  loginSending: "Sending…",
+  loginVerifyTitle: "Enter the code",
+  loginCodeSent: "We sent a 6-digit code to {phone}.",
+  loginCodeLabel: "Verification code",
+  loginVerify: "Confirm",
+  loginVerifying: "Confirming…",
+  loginChangePhone: "Use another number",
+  loginInvalidPhone: "Check the number and the selected country.",
+  loginUnavailable: "Signing in with your phone is not available yet. Please ask the staff for help.",
 }
 
 const pt: MenuCopy = {
@@ -213,6 +235,23 @@ const pt: MenuCopy = {
   upsellTitle: 'Complete seu pedido', upsellAdded: '{name} adicionado', upsellPairs: 'Combina com {name}', upsellSide: 'Que tal um acompanhamento?', upsellDrink: 'Algo para beber?', upsellDessert: 'Uma sobremesa?', upsellSkip: 'Não, obrigado', upsellContinue: 'Continuar', upsellDone: 'Pronto', upsellChoose: 'Escolher', upsellInOrder: 'No pedido', upsellStep: 'Etapa {current} de {total}',
   yourTable: 'Sua mesa', tableServed: 'Levamos seu pedido até esta mesa.',
   poweredBy: 'Feito com',
+  signIn: 'Entrar', myAccount: 'Minha conta',
+  contactTitle: 'Fale com a gente', contactPhone: 'Telefone', contactEmail: 'E-mail', contactAddress: 'Endereço',
+  loginTitle: "Entrar",
+  loginSubtitle: "Enviaremos um código por SMS para confirmar seu número.",
+  loginPhoneLabel: "Telefone",
+  loginCountry: "País",
+  loginCountrySearch: "Buscar país",
+  loginSendCode: "Enviar código",
+  loginSending: "Enviando…",
+  loginVerifyTitle: "Digite o código",
+  loginCodeSent: "Enviamos um código de 6 dígitos para {phone}.",
+  loginCodeLabel: "Código de verificação",
+  loginVerify: "Confirmar",
+  loginVerifying: "Confirmando…",
+  loginChangePhone: "Usar outro número",
+  loginInvalidPhone: "Confira o número e o país selecionado.",
+  loginUnavailable: "O acesso pelo telefone ainda não está disponível. Peça ajuda à equipe.",
 }
 
 const es: MenuCopy = {
@@ -250,6 +289,23 @@ const es: MenuCopy = {
   upsellTitle: 'Completa tu pedido', upsellAdded: '{name} añadido', upsellPairs: 'Combina con {name}', upsellSide: '¿Un acompañamiento?', upsellDrink: '¿Algo de beber?', upsellDessert: '¿Un postre?', upsellSkip: 'No, gracias', upsellContinue: 'Continuar', upsellDone: 'Listo', upsellChoose: 'Elegir', upsellInOrder: 'En tu pedido', upsellStep: 'Paso {current} de {total}',
   yourTable: 'Tu mesa', tableServed: 'Llevaremos tu pedido a esta mesa.',
   poweredBy: 'Hecho con',
+  signIn: 'Iniciar sesión', myAccount: 'Mi cuenta',
+  contactTitle: 'Contáctanos', contactPhone: 'Teléfono', contactEmail: 'Correo', contactAddress: 'Dirección',
+  loginTitle: "Iniciar sesión",
+  loginSubtitle: "Te enviaremos un código por SMS para confirmar tu número.",
+  loginPhoneLabel: "Teléfono",
+  loginCountry: "País",
+  loginCountrySearch: "Buscar país",
+  loginSendCode: "Enviar código",
+  loginSending: "Enviando…",
+  loginVerifyTitle: "Ingresa el código",
+  loginCodeSent: "Enviamos un código de 6 dígitos a {phone}.",
+  loginCodeLabel: "Código de verificación",
+  loginVerify: "Confirmar",
+  loginVerifying: "Confirmando…",
+  loginChangePhone: "Usar otro número",
+  loginInvalidPhone: "Revisa el número y el país seleccionado.",
+  loginUnavailable: "El acceso con teléfono aún no está disponible. Pide ayuda al personal.",
 }
 
 const fr: MenuCopy = {
@@ -287,6 +343,23 @@ const fr: MenuCopy = {
   upsellTitle: 'Complétez votre commande', upsellAdded: '{name} ajouté', upsellPairs: 'Se marie bien avec {name}', upsellSide: 'Un accompagnement ?', upsellDrink: 'Quelque chose à boire ?', upsellDessert: 'Une petite douceur ?', upsellSkip: 'Non, merci', upsellContinue: 'Continuer', upsellDone: 'Terminé', upsellChoose: 'Choisir', upsellInOrder: 'Dans la commande', upsellStep: 'Étape {current} sur {total}',
   yourTable: 'Votre table', tableServed: 'Nous apporterons votre commande à cette table.',
   poweredBy: 'Propulsé par',
+  signIn: 'Se connecter', myAccount: 'Mon compte',
+  contactTitle: 'Nous contacter', contactPhone: 'Téléphone', contactEmail: 'E-mail', contactAddress: 'Adresse',
+  loginTitle: "Se connecter",
+  loginSubtitle: "Nous vous enverrons un code par SMS pour confirmer votre numéro.",
+  loginPhoneLabel: "Numéro de téléphone",
+  loginCountry: "Pays",
+  loginCountrySearch: "Rechercher un pays",
+  loginSendCode: "Envoyer le code",
+  loginSending: "Envoi…",
+  loginVerifyTitle: "Saisissez le code",
+  loginCodeSent: "Nous avons envoyé un code à 6 chiffres au {phone}.",
+  loginCodeLabel: "Code de vérification",
+  loginVerify: "Confirmer",
+  loginVerifying: "Confirmation…",
+  loginChangePhone: "Utiliser un autre numéro",
+  loginInvalidPhone: "Vérifiez le numéro et le pays choisi.",
+  loginUnavailable: "La connexion par téléphone n'est pas encore disponible. Demandez de l'aide au personnel.",
 }
 
 const de: MenuCopy = {
@@ -324,6 +397,23 @@ const de: MenuCopy = {
   upsellTitle: 'Bestellung vervollständigen', upsellAdded: '{name} hinzugefügt', upsellPairs: 'Passt gut zu {name}', upsellSide: 'Eine Beilage dazu?', upsellDrink: 'Etwas zu trinken?', upsellDessert: 'Noch ein Dessert?', upsellSkip: 'Nein, danke', upsellContinue: 'Weiter', upsellDone: 'Fertig', upsellChoose: 'Auswählen', upsellInOrder: 'In der Bestellung', upsellStep: 'Schritt {current} von {total}',
   yourTable: 'Ihr Tisch', tableServed: 'Wir bringen Ihre Bestellung an diesen Tisch.',
   poweredBy: 'Bereitgestellt von',
+  signIn: 'Anmelden', myAccount: 'Mein Konto',
+  contactTitle: 'Kontakt', contactPhone: 'Telefon', contactEmail: 'E-Mail', contactAddress: 'Adresse',
+  loginTitle: "Anmelden",
+  loginSubtitle: "Wir senden dir per SMS einen Code, um deine Nummer zu bestätigen.",
+  loginPhoneLabel: "Telefonnummer",
+  loginCountry: "Land",
+  loginCountrySearch: "Land suchen",
+  loginSendCode: "Code senden",
+  loginSending: "Wird gesendet…",
+  loginVerifyTitle: "Code eingeben",
+  loginCodeSent: "Wir haben einen 6-stelligen Code an {phone} gesendet.",
+  loginCodeLabel: "Bestätigungscode",
+  loginVerify: "Bestätigen",
+  loginVerifying: "Wird bestätigt…",
+  loginChangePhone: "Andere Nummer verwenden",
+  loginInvalidPhone: "Prüfe die Nummer und das gewählte Land.",
+  loginUnavailable: "Die Anmeldung per Telefon ist noch nicht verfügbar. Bitte frag das Personal.",
 }
 
 const it: MenuCopy = {
@@ -361,6 +451,23 @@ const it: MenuCopy = {
   upsellTitle: "Completa l'ordine", upsellAdded: '{name} aggiunto', upsellPairs: 'Si abbina a {name}', upsellSide: 'Un contorno?', upsellDrink: 'Qualcosa da bere?', upsellDessert: 'Un dolce?', upsellSkip: 'No, grazie', upsellContinue: 'Continua', upsellDone: 'Fatto', upsellChoose: 'Scegli', upsellInOrder: "Nell'ordine", upsellStep: 'Passo {current} di {total}',
   yourTable: 'Il tuo tavolo', tableServed: "Ti porteremo l'ordine a questo tavolo.",
   poweredBy: 'Realizzato con',
+  signIn: 'Accedi', myAccount: 'Il mio account',
+  contactTitle: 'Contattaci', contactPhone: 'Telefono', contactEmail: 'E-mail', contactAddress: 'Indirizzo',
+  loginTitle: "Accedi",
+  loginSubtitle: "Ti invieremo un codice via SMS per confermare il tuo numero.",
+  loginPhoneLabel: "Numero di telefono",
+  loginCountry: "Paese",
+  loginCountrySearch: "Cerca paese",
+  loginSendCode: "Invia codice",
+  loginSending: "Invio…",
+  loginVerifyTitle: "Inserisci il codice",
+  loginCodeSent: "Abbiamo inviato un codice di 6 cifre al {phone}.",
+  loginCodeLabel: "Codice di verifica",
+  loginVerify: "Conferma",
+  loginVerifying: "Conferma in corso…",
+  loginChangePhone: "Usa un altro numero",
+  loginInvalidPhone: "Controlla il numero e il paese selezionato.",
+  loginUnavailable: "L'accesso con il telefono non è ancora disponibile. Chiedi aiuto al personale.",
 }
 
 const nl: MenuCopy = {
@@ -398,6 +505,23 @@ const nl: MenuCopy = {
   upsellTitle: 'Maak je bestelling compleet', upsellAdded: '{name} toegevoegd', upsellPairs: 'Past goed bij {name}', upsellSide: 'Een bijgerecht erbij?', upsellDrink: 'Iets te drinken?', upsellDessert: 'Nog een dessert?', upsellSkip: 'Nee, bedankt', upsellContinue: 'Doorgaan', upsellDone: 'Klaar', upsellChoose: 'Kiezen', upsellInOrder: 'In je bestelling', upsellStep: 'Stap {current} van {total}',
   yourTable: 'Je tafel', tableServed: 'We brengen je bestelling naar deze tafel.',
   poweredBy: 'Mogelijk gemaakt door',
+  signIn: 'Inloggen', myAccount: 'Mijn account',
+  contactTitle: 'Contact', contactPhone: 'Telefoon', contactEmail: 'E-mail', contactAddress: 'Adres',
+  loginTitle: "Inloggen",
+  loginSubtitle: "We sturen je een sms-code om je nummer te bevestigen.",
+  loginPhoneLabel: "Telefoonnummer",
+  loginCountry: "Land",
+  loginCountrySearch: "Land zoeken",
+  loginSendCode: "Code versturen",
+  loginSending: "Versturen…",
+  loginVerifyTitle: "Voer de code in",
+  loginCodeSent: "We hebben een 6-cijferige code gestuurd naar {phone}.",
+  loginCodeLabel: "Verificatiecode",
+  loginVerify: "Bevestigen",
+  loginVerifying: "Bevestigen…",
+  loginChangePhone: "Ander nummer gebruiken",
+  loginInvalidPhone: "Controleer het nummer en het gekozen land.",
+  loginUnavailable: "Inloggen met je telefoon is nog niet beschikbaar. Vraag het personeel om hulp.",
 }
 
 const pl: MenuCopy = {
@@ -435,6 +559,23 @@ const pl: MenuCopy = {
   upsellTitle: 'Uzupełnij zamówienie', upsellAdded: 'Dodano {name}', upsellPairs: 'Pasuje do {name}', upsellSide: 'Dodatek do dania?', upsellDrink: 'Coś do picia?', upsellDessert: 'Może deser?', upsellSkip: 'Nie, dziękuję', upsellContinue: 'Dalej', upsellDone: 'Gotowe', upsellChoose: 'Wybierz', upsellInOrder: 'W zamówieniu', upsellStep: 'Krok {current} z {total}',
   yourTable: 'Twój stolik', tableServed: 'Przyniesiemy zamówienie do tego stolika.',
   poweredBy: 'Obsługiwane przez',
+  signIn: 'Zaloguj się', myAccount: 'Moje konto',
+  contactTitle: 'Kontakt', contactPhone: 'Telefon', contactEmail: 'E-mail', contactAddress: 'Adres',
+  loginTitle: "Zaloguj się",
+  loginSubtitle: "Wyślemy SMS z kodem, aby potwierdzić Twój numer.",
+  loginPhoneLabel: "Numer telefonu",
+  loginCountry: "Kraj",
+  loginCountrySearch: "Szukaj kraju",
+  loginSendCode: "Wyślij kod",
+  loginSending: "Wysyłanie…",
+  loginVerifyTitle: "Wpisz kod",
+  loginCodeSent: "Wysłaliśmy 6-cyfrowy kod na numer {phone}.",
+  loginCodeLabel: "Kod weryfikacyjny",
+  loginVerify: "Potwierdź",
+  loginVerifying: "Potwierdzanie…",
+  loginChangePhone: "Użyj innego numeru",
+  loginInvalidPhone: "Sprawdź numer i wybrany kraj.",
+  loginUnavailable: "Logowanie telefonem nie jest jeszcze dostępne. Poproś obsługę o pomoc.",
 }
 
 const tr: MenuCopy = {
@@ -472,6 +613,23 @@ const tr: MenuCopy = {
   upsellTitle: 'Siparişini tamamla', upsellAdded: '{name} eklendi', upsellPairs: '{name} ile çok iyi gider', upsellSide: 'Yanına bir garnitür?', upsellDrink: 'İçecek bir şey?', upsellDessert: 'Tatlıya yer var mı?', upsellSkip: 'Hayır, teşekkürler', upsellContinue: 'Devam', upsellDone: 'Tamam', upsellChoose: 'Seç', upsellInOrder: 'Siparişte', upsellStep: 'Adım {current}/{total}',
   yourTable: 'Masanız', tableServed: 'Siparişinizi bu masaya getireceğiz.',
   poweredBy: 'Altyapı:',
+  signIn: 'Giriş yap', myAccount: 'Hesabım',
+  contactTitle: 'Bize ulaşın', contactPhone: 'Telefon', contactEmail: 'E-posta', contactAddress: 'Adres',
+  loginTitle: "Giriş yap",
+  loginSubtitle: "Numaranı doğrulamak için SMS ile bir kod göndereceğiz.",
+  loginPhoneLabel: "Telefon numarası",
+  loginCountry: "Ülke",
+  loginCountrySearch: "Ülke ara",
+  loginSendCode: "Kod gönder",
+  loginSending: "Gönderiliyor…",
+  loginVerifyTitle: "Kodu gir",
+  loginCodeSent: "{phone} numarasına 6 haneli bir kod gönderdik.",
+  loginCodeLabel: "Doğrulama kodu",
+  loginVerify: "Onayla",
+  loginVerifying: "Onaylanıyor…",
+  loginChangePhone: "Başka bir numara kullan",
+  loginInvalidPhone: "Numarayı ve seçili ülkeyi kontrol et.",
+  loginUnavailable: "Telefonla giriş henüz kullanılamıyor. Lütfen personelden yardım iste.",
 }
 
 const ru: MenuCopy = {
@@ -509,6 +667,23 @@ const ru: MenuCopy = {
   upsellTitle: 'Дополните заказ', upsellAdded: '{name} добавлено', upsellPairs: 'Хорошо сочетается с {name}', upsellSide: 'Добавить гарнир?', upsellDrink: 'Что-нибудь выпить?', upsellDessert: 'Может, десерт?', upsellSkip: 'Нет, спасибо', upsellContinue: 'Дальше', upsellDone: 'Готово', upsellChoose: 'Выбрать', upsellInOrder: 'В заказе', upsellStep: 'Шаг {current} из {total}',
   yourTable: 'Ваш столик', tableServed: 'Мы принесём заказ к этому столику.',
   poweredBy: 'Работает на',
+  signIn: 'Войти', myAccount: 'Мой аккаунт',
+  contactTitle: 'Связаться с нами', contactPhone: 'Телефон', contactEmail: 'Эл. почта', contactAddress: 'Адрес',
+  loginTitle: "Войти",
+  loginSubtitle: "Мы отправим SMS с кодом, чтобы подтвердить ваш номер.",
+  loginPhoneLabel: "Номер телефона",
+  loginCountry: "Страна",
+  loginCountrySearch: "Поиск страны",
+  loginSendCode: "Отправить код",
+  loginSending: "Отправка…",
+  loginVerifyTitle: "Введите код",
+  loginCodeSent: "Мы отправили 6-значный код на {phone}.",
+  loginCodeLabel: "Код подтверждения",
+  loginVerify: "Подтвердить",
+  loginVerifying: "Подтверждение…",
+  loginChangePhone: "Другой номер",
+  loginInvalidPhone: "Проверьте номер и выбранную страну.",
+  loginUnavailable: "Вход по телефону пока недоступен. Обратитесь к персоналу.",
 }
 
 const hi: MenuCopy = {
@@ -546,6 +721,23 @@ const hi: MenuCopy = {
   upsellTitle: 'अपना ऑर्डर पूरा करें', upsellAdded: '{name} जोड़ा गया', upsellPairs: '{name} के साथ खूब जमता है', upsellSide: 'साथ में कुछ साइड?', upsellDrink: 'कुछ पीने को?', upsellDessert: 'मीठे में कुछ?', upsellSkip: 'नहीं, धन्यवाद', upsellContinue: 'आगे बढ़ें', upsellDone: 'हो गया', upsellChoose: 'चुनें', upsellInOrder: 'ऑर्डर में', upsellStep: 'चरण {current} / {total}',
   yourTable: 'आपकी टेबल', tableServed: 'हम आपका ऑर्डर इसी टेबल पर लाएँगे।',
   poweredBy: 'संचालित:',
+  signIn: 'साइन इन करें', myAccount: 'मेरा खाता',
+  contactTitle: 'संपर्क करें', contactPhone: 'फ़ोन', contactEmail: 'ईमेल', contactAddress: 'पता',
+  loginTitle: "साइन इन करें",
+  loginSubtitle: "आपका नंबर पुष्टि करने के लिए हम SMS से एक कोड भेजेंगे।",
+  loginPhoneLabel: "फ़ोन नंबर",
+  loginCountry: "देश",
+  loginCountrySearch: "देश खोजें",
+  loginSendCode: "कोड भेजें",
+  loginSending: "भेजा जा रहा है…",
+  loginVerifyTitle: "कोड दर्ज करें",
+  loginCodeSent: "हमने {phone} पर 6 अंकों का कोड भेजा है।",
+  loginCodeLabel: "सत्यापन कोड",
+  loginVerify: "पुष्टि करें",
+  loginVerifying: "पुष्टि हो रही है…",
+  loginChangePhone: "दूसरा नंबर इस्तेमाल करें",
+  loginInvalidPhone: "नंबर और चुना गया देश जाँचें।",
+  loginUnavailable: "फ़ोन से साइन इन अभी उपलब्ध नहीं है। कृपया स्टाफ़ से मदद लें।",
 }
 
 const ja: MenuCopy = {
@@ -583,6 +775,23 @@ const ja: MenuCopy = {
   upsellTitle: 'ご注文を仕上げましょう', upsellAdded: '{name}を追加しました', upsellPairs: '{name}によく合います', upsellSide: 'サイドメニューはいかがですか？', upsellDrink: 'お飲み物はいかがですか？', upsellDessert: 'デザートはいかがですか？', upsellSkip: 'いいえ、結構です', upsellContinue: '次へ', upsellDone: '完了', upsellChoose: '選ぶ', upsellInOrder: '注文に追加済み', upsellStep: 'ステップ {current}/{total}',
   yourTable: 'お席', tableServed: 'ご注文はこちらのお席までお持ちします。',
   poweredBy: 'Powered by',
+  signIn: 'ログイン', myAccount: 'マイアカウント',
+  contactTitle: 'お問い合わせ', contactPhone: '電話', contactEmail: 'メール', contactAddress: '住所',
+  loginTitle: "ログイン",
+  loginSubtitle: "番号確認のため、SMSでコードを送信します。",
+  loginPhoneLabel: "電話番号",
+  loginCountry: "国",
+  loginCountrySearch: "国を検索",
+  loginSendCode: "コードを送信",
+  loginSending: "送信中…",
+  loginVerifyTitle: "コードを入力",
+  loginCodeSent: "{phone} に6桁のコードを送信しました。",
+  loginCodeLabel: "確認コード",
+  loginVerify: "確認",
+  loginVerifying: "確認中…",
+  loginChangePhone: "別の番号を使う",
+  loginInvalidPhone: "番号と選択した国を確認してください。",
+  loginUnavailable: "電話でのログインはまだご利用いただけません。スタッフにお声がけください。",
 }
 
 const ko: MenuCopy = {
@@ -620,6 +829,23 @@ const ko: MenuCopy = {
   upsellTitle: '주문을 완성해 보세요', upsellAdded: '{name} 추가됨', upsellPairs: '{name}와(과) 잘 어울려요', upsellSide: '사이드 메뉴도 추가할까요?', upsellDrink: '음료도 하시겠어요?', upsellDessert: '디저트도 드실래요?', upsellSkip: '괜찮아요', upsellContinue: '계속', upsellDone: '완료', upsellChoose: '선택', upsellInOrder: '주문에 담김', upsellStep: '{current}/{total}단계',
   yourTable: '내 테이블', tableServed: '주문하신 메뉴를 이 테이블로 가져다 드릴게요.',
   poweredBy: 'Powered by',
+  signIn: '로그인', myAccount: '내 계정',
+  contactTitle: '문의하기', contactPhone: '전화', contactEmail: '이메일', contactAddress: '주소',
+  loginTitle: "로그인",
+  loginSubtitle: "번호 확인을 위해 SMS로 코드를 보내드립니다.",
+  loginPhoneLabel: "전화번호",
+  loginCountry: "국가",
+  loginCountrySearch: "국가 검색",
+  loginSendCode: "코드 보내기",
+  loginSending: "보내는 중…",
+  loginVerifyTitle: "코드 입력",
+  loginCodeSent: "{phone}(으)로 6자리 코드를 보냈습니다.",
+  loginCodeLabel: "인증 코드",
+  loginVerify: "확인",
+  loginVerifying: "확인 중…",
+  loginChangePhone: "다른 번호 사용",
+  loginInvalidPhone: "번호와 선택한 국가를 확인하세요.",
+  loginUnavailable: "전화번호 로그인은 아직 사용할 수 없습니다. 직원에게 도움을 요청하세요.",
 }
 
 const zh: MenuCopy = {
@@ -657,6 +883,23 @@ const zh: MenuCopy = {
   upsellTitle: '完善您的订单', upsellAdded: '已添加{name}', upsellPairs: '与{name}很搭', upsellSide: '来份配菜吗？', upsellDrink: '来点喝的吗？', upsellDessert: '来份甜点吗？', upsellSkip: '不用了，谢谢', upsellContinue: '继续', upsellDone: '完成', upsellChoose: '选择', upsellInOrder: '已在订单中', upsellStep: '第 {current}/{total} 步',
   yourTable: '您的餐桌', tableServed: '我们会将餐点送到这张餐桌。',
   poweredBy: '技术支持',
+  signIn: '登录', myAccount: '我的账户',
+  contactTitle: '联系我们', contactPhone: '电话', contactEmail: '邮箱', contactAddress: '地址',
+  loginTitle: "登录",
+  loginSubtitle: "我们将通过短信发送验证码，以确认你的号码。",
+  loginPhoneLabel: "手机号码",
+  loginCountry: "国家/地区",
+  loginCountrySearch: "搜索国家/地区",
+  loginSendCode: "发送验证码",
+  loginSending: "发送中…",
+  loginVerifyTitle: "输入验证码",
+  loginCodeSent: "我们已向 {phone} 发送了 6 位验证码。",
+  loginCodeLabel: "验证码",
+  loginVerify: "确认",
+  loginVerifying: "确认中…",
+  loginChangePhone: "使用其他号码",
+  loginInvalidPhone: "请检查号码和所选国家/地区。",
+  loginUnavailable: "暂不支持手机号登录，请向店员寻求帮助。",
 }
 
 const zhTW: MenuCopy = {
@@ -694,6 +937,23 @@ const zhTW: MenuCopy = {
   upsellTitle: '完成您的訂單', upsellAdded: '已加入{name}', upsellPairs: '和{name}很搭', upsellSide: '來份配菜嗎？', upsellDrink: '來點喝的嗎？', upsellDessert: '來份甜點嗎？', upsellSkip: '不用了，謝謝', upsellContinue: '繼續', upsellDone: '完成', upsellChoose: '選擇', upsellInOrder: '已在訂單中', upsellStep: '第 {current}/{total} 步',
   yourTable: '您的餐桌', tableServed: '我們會將餐點送到這張餐桌。',
   poweredBy: '技術支援',
+  signIn: '登入', myAccount: '我的帳戶',
+  contactTitle: '聯絡我們', contactPhone: '電話', contactEmail: '電子郵件', contactAddress: '地址',
+  loginTitle: "登入",
+  loginSubtitle: "我們會以簡訊傳送驗證碼，以確認你的號碼。",
+  loginPhoneLabel: "手機號碼",
+  loginCountry: "國家／地區",
+  loginCountrySearch: "搜尋國家／地區",
+  loginSendCode: "傳送驗證碼",
+  loginSending: "傳送中…",
+  loginVerifyTitle: "輸入驗證碼",
+  loginCodeSent: "我們已傳送 6 位數驗證碼至 {phone}。",
+  loginCodeLabel: "驗證碼",
+  loginVerify: "確認",
+  loginVerifying: "確認中…",
+  loginChangePhone: "使用其他號碼",
+  loginInvalidPhone: "請檢查號碼和所選國家／地區。",
+  loginUnavailable: "目前尚無法以手機登入，請向店員尋求協助。",
 }
 
 const COPY: Record<string, MenuCopy> = { en, pt, es, fr, de, it, nl, pl, tr, ru, hi, ja, ko, zh, 'zh-TW': zhTW }
@@ -722,3 +982,6 @@ const TAG_COPY: Record<string, Record<string, string>> = {
 export function translateTag(tag: string, lang: string): string {
   return TAG_COPY[tag]?.[lang] ?? tag
 }
+
+/** The strings the guest sign-in popup uses (see LoginClient). */
+export type LoginCopy = Pick<MenuCopy, 'loginTitle' | 'loginSubtitle' | 'loginPhoneLabel' | 'loginCountry' | 'loginCountrySearch' | 'loginSendCode' | 'loginSending' | 'loginVerifyTitle' | 'loginCodeSent' | 'loginCodeLabel' | 'loginVerify' | 'loginVerifying' | 'loginChangePhone' | 'loginInvalidPhone' | 'loginUnavailable' | 'close'>

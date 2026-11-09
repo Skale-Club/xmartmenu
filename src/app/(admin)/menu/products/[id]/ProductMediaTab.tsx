@@ -317,7 +317,7 @@ export default function ProductMediaTab({ productId, tenantId, ownedSource = fal
       {addingVideo && (
         <div className="mb-4 flex gap-2 items-end">
           <div className="flex-1">
-            <label className="block text-xs font-medium text-zinc-600 mb-1">Video URL (YouTube, Vimeo, or .mp4)</label>
+            <label className="block text-[14px] font-medium text-zinc-700 mb-1">Video URL (YouTube, Vimeo, or .mp4)</label>
             <input
               type="url"
               value={videoUrl}

@@ -63,7 +63,7 @@ function OrderStatusBar({ order, primaryColor }: { order: OrderWithItems; primar
 
   if (isCancelled) {
     return (
-      <div className="flex items-center gap-2 text-red-500 font-bold text-sm">
+      <div className="flex items-center gap-2 text-red-700 font-bold text-sm">
         <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />
         {order.status === 'cancelled' ? 'Cancelled' : 'Payment failed'}
       </div>
@@ -80,7 +80,7 @@ function OrderStatusBar({ order, primaryColor }: { order: OrderWithItems; primar
             <div className={`w-full h-1.5 rounded-full transition-all ${done || active ? '' : 'bg-zinc-200'}`}
               style={done || active ? { backgroundColor: primaryColor } : {}} />
             {active && (
-              <span className="text-[10px] font-black text-zinc-700 uppercase tracking-widest whitespace-nowrap">{step.label}</span>
+              <span className="text-[12px] font-black text-zinc-800 uppercase tracking-widest whitespace-nowrap">{step.label}</span>
             )}
           </div>
         )
@@ -123,21 +123,22 @@ export default function PanelClient({ tenant, orders, customerPhone,ownedAuth = 
       <div className="px-4 pt-8 pb-6" style={{ backgroundColor: primaryColor + '20' }}>
         <div className="max-w-lg mx-auto flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-1">My Orders</p>
+            <p className="text-[12px] font-black text-zinc-600 uppercase tracking-widest mb-1">My Orders</p>
             <h1 className="text-2xl font-black text-zinc-950 tracking-tight">{tenant.name}</h1>
-            <p className="text-xs text-zinc-500 font-medium mt-0.5">{customerPhone}</p>
+            <p className="text-[14px] text-zinc-600 font-medium mt-0.5">{customerPhone}</p>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.refresh()}
-              className="p-2.5 rounded-xl bg-white/60 hover:bg-white transition-all text-zinc-400 hover:text-zinc-700"
+              className="p-2.5 rounded-xl bg-white/60 hover:bg-white transition-all text-zinc-700 hover:text-zinc-950"
+              aria-label="Refresh"
               title="Refresh"
             >
               <RefreshCw className="w-4 h-4" />
             </button>
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/60 hover:bg-white transition-all text-xs font-black text-zinc-500 hover:text-zinc-900 uppercase tracking-widest"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/60 hover:bg-white transition-all text-[13px] font-black text-zinc-700 hover:text-zinc-950 uppercase tracking-widest"
             >
               <LogOut className="w-3.5 h-3.5" />
               Sign out
@@ -156,7 +157,7 @@ export default function PanelClient({ tenant, orders, customerPhone,ownedAuth = 
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: primaryColor }} />
-              <h2 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Active Orders</h2>
+              <h2 className="text-[12px] font-black text-zinc-600 uppercase tracking-widest">Active Orders</h2>
             </div>
             {activeOrders.map(order => (
               <div key={order.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
@@ -164,11 +165,11 @@ export default function PanelClient({ tenant, orders, customerPhone,ownedAuth = 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       {TypeIcon(order.order_type)}
-                      <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                      <span className="text-[12px] font-black text-zinc-600 uppercase tracking-widest">
                         {order.order_type === 'dine_in' ? 'Dine-In' : order.order_type === 'pickup' ? 'Pick-Up' : 'Delivery'}
                       </span>
                     </div>
-                    <span className="font-mono text-xs font-black text-zinc-400">#{order.id.slice(0, 8).toUpperCase()}</span>
+                    <span className="font-mono text-[13px] font-black text-zinc-600">#{order.id.slice(0, 8).toUpperCase()}</span>
                   </div>
 
                   <OrderStatusBar order={order} primaryColor={primaryColor} />
@@ -176,18 +177,18 @@ export default function PanelClient({ tenant, orders, customerPhone,ownedAuth = 
                   <div className="space-y-1.5 border-t border-zinc-50 pt-3">
                     {order.order_items.map((item, i) => (
                       <div key={i} className="flex items-center justify-between gap-2">
-                        <span className="text-xs text-zinc-600">{item.product_name} ×{item.quantity}</span>
-                        <span className="text-xs font-bold text-zinc-900">{formatPrice(item.unit_price * item.quantity, currency)}</span>
+                        <span className="text-[14px] text-zinc-700">{item.product_name} ×{item.quantity}</span>
+                        <span className="text-[14px] font-bold text-zinc-900">{formatPrice(item.unit_price * item.quantity, currency)}</span>
                       </div>
                     ))}
                   </div>
 
                   <div className="flex items-center justify-between border-t border-zinc-100 pt-3">
-                    <span className="text-xs font-bold text-zinc-500">Total</span>
-                    <span className="text-base font-black text-zinc-950" style={{ color: primaryColor }}>{formatPrice(order.total, currency)}</span>
+                    <span className="text-[14px] font-bold text-zinc-600">Total</span>
+                    <span className="text-base font-black text-zinc-950">{formatPrice(order.total, currency)}</span>
                   </div>
 
-                  <p className="text-[10px] font-medium text-zinc-400">
+                  <p className="text-[13px] font-medium text-zinc-600">
                     Placed at {new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </div>
@@ -199,36 +200,36 @@ export default function PanelClient({ tenant, orders, customerPhone,ownedAuth = 
         {/* Past Orders */}
         {pastOrders.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Order History</h2>
+            <h2 className="text-[12px] font-black text-zinc-600 uppercase tracking-widest">Order History</h2>
             {pastOrders.map(order => (
               <div key={order.id} className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     {TypeIcon(order.order_type)}
-                    <span className="font-mono text-xs font-black text-zinc-400">#{order.id.slice(0, 8).toUpperCase()}</span>
+                    <span className="font-mono text-[13px] font-black text-zinc-600">#{order.id.slice(0, 8).toUpperCase()}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {order.status === 'done' ? (
-                      <span className="text-[10px] font-black text-green-600 uppercase tracking-widest flex items-center gap-1">
+                      <span className="text-[12px] font-black text-green-700 uppercase tracking-widest flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" /> Done
                       </span>
                     ) : (
-                      <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">
+                      <span className="text-[12px] font-black text-red-700 uppercase tracking-widest">
                         {order.status === 'cancelled' ? 'Cancelled' : 'Failed'}
                       </span>
                     )}
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">{new Date(order.created_at).toLocaleDateString()}</span>
+                  <span className="text-[14px] text-zinc-600">{new Date(order.created_at).toLocaleDateString()}</span>
                   <span className="text-sm font-black text-zinc-950">{formatPrice(order.total, currency)}</span>
                 </div>
                 <div className="mt-2 space-y-0.5">
                   {order.order_items.slice(0, 3).map((item, i) => (
-                    <p key={i} className="text-[11px] text-zinc-400">{item.product_name} ×{item.quantity}</p>
+                    <p key={i} className="text-[14px] text-zinc-600">{item.product_name} ×{item.quantity}</p>
                   ))}
                   {order.order_items.length > 3 && (
-                    <p className="text-[11px] text-zinc-400">+{order.order_items.length - 3} more items</p>
+                    <p className="text-[14px] text-zinc-600">+{order.order_items.length - 3} more items</p>
                   )}
                 </div>
               </div>
@@ -241,31 +242,31 @@ export default function PanelClient({ tenant, orders, customerPhone,ownedAuth = 
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: primaryColor + '20' }}>
               <Package className="w-8 h-8" style={{ color: primaryColor }} />
             </div>
-            <p className="text-sm font-bold text-zinc-500">No orders yet</p>
-            <p className="text-xs text-zinc-400 mt-1">Your order history will appear here</p>
+            <p className="text-sm font-bold text-zinc-700">No orders yet</p>
+            <p className="text-[14px] text-zinc-600 mt-1">Your order history will appear here</p>
           </div>
         )}
 
         {/* Restaurant Info */}
         {(tenant.settings.address || tenant.settings.phone) && (
           <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-5 space-y-3">
-            <h2 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">Restaurant Info</h2>
+            <h2 className="text-[12px] font-black text-zinc-600 uppercase tracking-widest">Restaurant Info</h2>
             {tenant.settings.address && (
               <div className="flex items-start gap-3">
-                <MapPin className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+                <MapPin className="w-4 h-4 text-zinc-500 shrink-0 mt-0.5" />
                 <span className="text-sm font-medium text-zinc-700">{tenant.settings.address}</span>
               </div>
             )}
             {tenant.settings.phone && (
               <div className="flex items-center gap-3">
-                <PhoneIcon className="w-4 h-4 text-zinc-400 shrink-0" />
+                <PhoneIcon className="w-4 h-4 text-zinc-500 shrink-0" />
                 <span className="text-sm font-medium text-zinc-700">{tenant.settings.phone}</span>
               </div>
             )}
           </div>
         )}
 
-        <p className="text-center text-[10px] text-zinc-300 pb-4">
+        <p className="text-center text-[12px] text-zinc-500 pb-4">
           Powered by XmartMenu
         </p>
       </div>

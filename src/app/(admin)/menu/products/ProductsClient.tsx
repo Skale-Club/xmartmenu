@@ -352,7 +352,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
     }))
   }
 
-  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
 
   return (
     <div className="p-8 w-full space-y-8">
@@ -437,7 +437,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="md:col-span-2 space-y-6">
                 <div>
-                  <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Product Name *</label>
+                  <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Product Name *</label>
                   <input
                     required
                     value={form.name}
@@ -447,7 +447,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Description</label>
+                  <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Description</label>
                   <textarea
                     rows={3}
                     value={form.description}
@@ -459,7 +459,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Price *</label>
+                <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Price *</label>
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-zinc-400">{CURRENCY_SYMBOL[currency] ?? currency}</span>
                   <input
@@ -476,7 +476,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Original Price (Was)</label>
+                <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Original Price (Was)</label>
                 <div className="relative">
                   <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-zinc-300">{CURRENCY_SYMBOL[currency] ?? currency}</span>
                   <input
@@ -492,7 +492,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Category</label>
+                <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Category</label>
                 <select
                   value={form.category_id}
                   onChange={e => setForm(f => ({ ...f, category_id: e.target.value }))}
@@ -506,7 +506,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
               </div>
 
               <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Product Media</label>
+                <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Product Media</label>
                 <div className="relative">
                   <input
                     type="file"
@@ -518,7 +518,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
                   />
                   <label 
                     htmlFor="image-upload"
-                    className="flex items-center justify-center gap-2 w-full px-5 py-3.5 bg-white border-2 border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-primary hover:bg-zinc-50 transition-all text-sm font-bold text-zinc-500"
+                    className="flex items-center justify-center gap-2 w-full px-5 py-3.5 bg-white border-2 border-dashed border-zinc-200 rounded-lg cursor-pointer hover:border-primary hover:bg-zinc-50 transition-all text-sm font-bold text-zinc-700"
                   >
                     <ImageIcon className="w-5 h-5" />
                     {uploadingImage ? 'Uploading...' : 'Choose Photos'}
@@ -529,7 +529,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
 
             {form.image_urls.length > 0 && (
               <div className="space-y-3">
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Media Preview</label>
+                <label className="block text-[14px] font-semibold text-zinc-700 ml-1">Media Preview</label>
                 <div className="flex gap-4 overflow-x-auto pb-4 pt-2">
                   {form.image_urls.map((url, idx) => (
                     <div key={`${url}-${idx}`} className="relative flex-shrink-0 group">
@@ -549,7 +549,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
             )}
 
             <div className="space-y-4">
-              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest ml-1">Product Attributes</label>
+              <label className="block text-[14px] font-semibold text-zinc-700 ml-1">Product Attributes</label>
               <div className="flex flex-wrap gap-2">
                 {TAGS.map(tag => {
                   const isActive = form.tags.includes(tag)

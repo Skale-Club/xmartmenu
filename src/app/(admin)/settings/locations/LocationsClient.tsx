@@ -5,6 +5,7 @@ import { MapPin, Plus, Pencil, Building2, ToggleLeft, ToggleRight, AlertCircle, 
 import { cn } from '@/lib/utils'
 import type { Location } from '@/types/database'
 import ModalPortal from '@/components/ui/ModalPortal'
+import { useVisibleBox } from '@/components/ui/keyboard-fields'
 
 const DAYS = [
   { key: 'mon', label: 'Monday' },
@@ -18,8 +19,8 @@ const DAYS = [
 
 const EMPTY_HOURS = Object.fromEntries(DAYS.map(d => [d.key, '']))
 
-const inputClassName = "w-full px-5 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-const labelClassName = "block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1"
+const inputClassName = "w-full px-5 py-3 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+const labelClassName = "block text-[14px] font-semibold text-zinc-700 mb-2 ml-1"
 
 function slugify(str: string) {
   return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
@@ -67,25 +68,29 @@ function LocationModal({
   onClose: () => void
   onSave: () => void
 }) {
+  const box = useVisibleBox()
   if (!open) return null
   return (
     <ModalPortal onClose={onClose}>
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/50 p-3 backdrop-blur-sm sm:p-4" onClick={onClose}>
-      <div
+    <div className="fixed inset-0 z-50 bg-zinc-950/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="fixed inset-x-0 flex items-center justify-center p-3 sm:p-4" style={box.style}>
+      <form
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="flex max-h-[calc(100dvh-1.5rem)] w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:max-w-lg sm:rounded-[1.5rem]"
+        noValidate
+        className="flex max-h-full w-full flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-w-lg sm:rounded-[1.5rem]"
         onClick={e => e.stopPropagation()}
+        onSubmit={e => { e.preventDefault(); if (!loading) onSave() }}
       >
         <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-4 sm:px-8 sm:py-6">
           <h2 className="text-lg font-black text-zinc-950 tracking-tight">{title}</h2>
-          <button onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-zinc-100 transition-colors">
-            <X className="w-4 h-4 text-zinc-500" />
+          <button type="button" onClick={onClose} aria-label="Close" className="flex min-h-11 min-w-11 items-center justify-center rounded-full hover:bg-zinc-100 transition-colors">
+            <X className="w-4 h-4 text-zinc-600" />
           </button>
         </div>
 
-        <div className="flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-8 sm:py-6">
           {error && (
             <div className="bg-red-50 border border-red-100 rounded-xl px-5 py-3 text-sm font-bold text-red-600 flex items-center gap-3">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -115,7 +120,7 @@ function LocationModal({
                 placeholder="downtown"
                 className={inputClassName}
               />
-              <p className="text-[10px] font-medium text-zinc-400 mt-1 ml-1">Lowercase letters, numbers and hyphens only</p>
+              <p className="text-[13px] font-medium text-zinc-600 mt-1 ml-1">Lowercase letters, numbers and hyphens only</p>
             </div>
 
             <div>
@@ -221,7 +226,7 @@ function LocationModal({
                   </option>
                 ))}
               </select>
-              <p className="text-[10px] font-medium text-zinc-400 mt-1 ml-1">
+              <p className="text-[13px] font-medium text-zinc-600 mt-1 ml-1">
                 Assign a specific menu to this branch or leave shared to use the default
               </p>
             </div>
@@ -241,30 +246,32 @@ function LocationModal({
                     value={form.hours[day.key] ?? ''}
                     onChange={e => setForm(f => ({ ...f, hours: { ...f.hours, [day.key]: e.target.value } }))}
                     placeholder="Closed"
-                    className="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-900 font-medium placeholder-zinc-300 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                    className="flex-1 px-3 py-2 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-900 font-medium placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                   />
                 </div>
               ))}
-              <p className="text-[10px] font-medium text-zinc-400 ml-1">Example: 09:00 - 22:00</p>
+              <p className="text-[13px] font-medium text-zinc-600 ml-1">Example: 09:00 - 22:00</p>
             </div>
           </div>
         </div>
 
         <div className="flex gap-3 border-t border-zinc-100 px-4 py-4 sm:px-8 sm:py-5">
           <button
+            type="button"
             onClick={onClose}
-            className="flex-1 py-3 rounded-full border border-zinc-200 text-sm font-black text-zinc-500 hover:bg-zinc-50 transition-all"
+            className="flex-1 py-3 rounded-full border border-zinc-300 text-sm font-black text-zinc-700 hover:bg-zinc-50 transition-all"
           >
             Cancel
           </button>
           <button
-            onClick={onSave}
+            type="submit"
             disabled={loading}
             className="flex-1 py-3 rounded-full bg-primary text-primary-foreground text-sm font-black hover:bg-zinc-950 hover:text-white transition-all disabled:opacity-50"
           >
             {loading ? 'Saving...' : 'Save Location'}
           </button>
         </div>
+      </form>
       </div>
     </div>
     </ModalPortal>

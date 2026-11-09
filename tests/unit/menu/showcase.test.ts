@@ -123,10 +123,11 @@ describe('contact links', () => {
   it('returns only the links that are present', () => {
     expect(contactLinks({ whatsapp: '(555) 123-4567', phone: null, instagram: '@celes' }, 'Hi')).toEqual({
       whatsapp: 'https://wa.me/5551234567?text=Hi',
+      whatsappLabel: '(555) 123-4567',
       phone: null,
       instagram: { url: 'https://instagram.com/celes', handle: '@celes' },
     })
-    expect(contactLinks(null)).toEqual({ whatsapp: null, phone: null, instagram: null })
+    expect(contactLinks(null)).toEqual({ whatsapp: null, whatsappLabel: null, phone: null, instagram: null })
     expect(contactLinks({ phone: ' +1 555 0100 ' }).phone).toEqual({ url: 'tel:+15550100', label: '+1 555 0100' })
   })
 })

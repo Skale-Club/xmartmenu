@@ -6,7 +6,11 @@ import type { Product, IngredientModifications } from '@/types/database'
 import type { CartEditorState } from './menu-utils'
 import type { CartSnapshotItem, ResolvedCartItem } from '@/lib/chat-agent'
 import { getGuestCopy } from './guest-copy'
-import { fill } from './menu-i18n'
+import { fill, getMenuCopy } from './menu-i18n'
+import type { PhoneContext } from './showcase'
+import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
+import PhoneField from '@/components/ui/PhoneField'
+import { useVisibleBox } from '@/components/ui/keyboard-fields'
 
 interface Props {
   tenantSlug: string
@@ -33,6 +37,10 @@ interface Props {
   canOrder?: boolean
   /** restaurant_tables.id when the guest opened a table link. */
   tableId?: string | null
+  /** The restaurant's country: the phone gate starts on its calling code. */
+  phoneContext?: PhoneContext | null
+  /** BCP 47 locale for country names in the phone gate. */
+  locale?: string
 }
 
 // Server-side cap (MAX_USER_MESSAGE_CHARS in chat-agent.ts).
@@ -57,8 +65,14 @@ interface Message {
 
 const SESSION_KEY_PREFIX = 'aiChat:'
 
-export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false, language = 'en', cart = null, canOrder = true, tableId = null }: Props) {
+export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false, language = 'en', cart = null, canOrder = true, tableId = null, phoneContext = null, locale = 'en' }: Props) {
   const copy = getGuestCopy(language)
+  const menuCopy = getMenuCopy(language)
+  // Text and icons on the brand colour: black or white, whichever reads (never a fixed one).
+  const brand = safeCssColor(primaryColor, '#18181b')
+  const onBrand = computePrimaryForeground(brand)
+  // Phones: the panel fills what the keyboard leaves visible, so the input bar sits right above it.
+  const box = useVisibleBox()
   const [open, setOpen] = useState(false)
   const [phone, setPhone] = useState('')
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -274,51 +288,66 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
         <button
           onClick={() => setOpen(true)}
           className={`fixed ${orderBarVisible ? 'bottom-24 lg:bottom-6' : 'bottom-6'} right-6 ${cartOpen ? 'lg:right-[404px]' : ''} z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-105`}
-          style={{ backgroundColor: primaryColor }}
+          style={{ backgroundColor: brand, color: onBrand }}
           aria-label={copy.openChat}
         >
-          <MessageCircle className="w-6 h-6 text-zinc-900" />
+          <MessageCircle className="w-6 h-6" />
         </button>
       )}
 
       {/* Panel */}
       {open && (
-        <div className={`fixed inset-0 z-50 sm:inset-auto sm:bottom-6 sm:right-6 ${cartOpen ? 'lg:right-[404px]' : ''} sm:w-[400px] sm:h-[640px] sm:max-h-[80vh] flex flex-col bg-white sm:rounded-2xl shadow-2xl overflow-hidden`}>
+        <div
+          className={`fixed inset-0 z-50 sm:inset-auto sm:bottom-6 sm:right-6 ${cartOpen ? 'lg:right-[404px]' : ''} sm:w-[400px] sm:h-[640px] sm:max-h-[80vh] flex flex-col bg-white sm:rounded-2xl shadow-2xl overflow-hidden`}
+          style={box.keyboard ? { top: box.style.top, height: box.style.height, bottom: 'auto' } : undefined}
+        >
           {/* Header */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-100" style={{ backgroundColor: primaryColor }}>
-            <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
-              <Bot className="w-4 h-4 text-zinc-900" />
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-100" style={{ backgroundColor: brand, color: onBrand }}>
+            <div className="w-8 h-8 rounded-full bg-white/25 flex items-center justify-center">
+              <Bot className="w-4 h-4" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold text-zinc-900 truncate">{fill(copy.askName, { name: tenantName })}</p>
-              <p className="text-[10px] text-zinc-700 font-medium">{copy.aiAssistant}</p>
+              <p className="text-[15px] font-bold truncate">{fill(copy.askName, { name: tenantName })}</p>
+              <p className="text-[12px] font-medium opacity-90">{copy.aiAssistant}</p>
             </div>
-            <button onClick={() => setOpen(false)} aria-label={copy.close} className="p-1.5 text-zinc-700 hover:text-zinc-900">
+            <button onClick={() => setOpen(false)} aria-label={copy.close} className="flex size-10 items-center justify-center rounded-full hover:bg-white/15">
               <X className="w-5 h-5" />
             </button>
           </div>
 
           {/* Phone gate */}
           {!conversationId && (
-            <div className="flex-1 flex flex-col justify-center px-6 space-y-4">
+            <form
+              className={`flex-1 overflow-y-auto flex flex-col px-6 py-5 space-y-4 ${box.short ? 'justify-start' : 'justify-center'}`}
+              style={{ '--accent': brand } as React.CSSProperties}
+              onSubmit={(e) => { e.preventDefault(); if (!phoneSubmitting && phone.trim()) void handlePhoneSubmit() }}
+            >
               <h3 className="text-lg font-bold text-zinc-900">{copy.gateTitle}</h3>
-              <p className="text-sm text-zinc-600">{copy.gateBody}</p>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1 000 000 0000"
-                className="w-full px-4 py-3 border border-zinc-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-              />
-              {phoneError && <p className="text-sm text-red-600">{phoneError}</p>}
+              {!box.short && <p className="text-[15px] leading-relaxed text-zinc-600">{copy.gateBody}</p>}
+              <div>
+                <label htmlFor="chat-phone" className="mb-1.5 block text-[14px] font-medium text-zinc-700">{menuCopy.loginPhoneLabel}</label>
+                <PhoneField
+                  id="chat-phone"
+                  value={phone}
+                  onChange={setPhone}
+                  phoneContext={phoneContext}
+                  locale={locale}
+                  countryLabel={menuCopy.loginCountry}
+                  countrySearchLabel={menuCopy.loginCountrySearch}
+                  enterKeyHint="go"
+                  describedBy={phoneError ? 'chat-phone-error' : undefined}
+                  className="h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 text-[16px] text-zinc-950 placeholder:text-zinc-500 focus:border-zinc-900 focus:outline-none focus:ring-[3px] focus:ring-zinc-900/10"
+                />
+              </div>
+              {phoneError && <p id="chat-phone-error" role="alert" className="text-[14px] font-medium text-red-700">{phoneError}</p>}
               <button
-                onClick={handlePhoneSubmit}
+                type="submit"
                 disabled={phoneSubmitting || !phone.trim()}
-                className="w-full py-3 bg-zinc-900 text-white text-sm font-bold rounded-xl hover:bg-zinc-800 disabled:opacity-50 transition-colors"
+                className="w-full h-12 bg-zinc-900 text-white text-[16px] font-semibold rounded-xl hover:bg-zinc-800 disabled:bg-zinc-100 disabled:text-zinc-600 transition-colors"
               >
                 {phoneSubmitting ? copy.starting : copy.startChat}
               </button>
-            </div>
+            </form>
           )}
 
           {/* Conversation */}
@@ -328,7 +357,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                 {messages.map((m) => (
                   <div key={m.id} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
                     <div
-                      className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      className={`max-w-[85%] px-3.5 py-2.5 rounded-2xl text-[15px] leading-relaxed ${
                         m.role === 'user'
                           ? 'bg-zinc-900 text-white rounded-br-md'
                           : 'bg-white border border-zinc-200 text-zinc-800 rounded-bl-md'
@@ -338,7 +367,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                       {m.cartItems && m.cartItems.length > 0 && (
                         <div className={`flex flex-wrap gap-1.5 ${m.content ? 'mt-2 pt-2 border-t border-zinc-100' : ''}`}>
                           {m.cartItems.map((ci, i) => (
-                            <span key={i} className="inline-flex items-center gap-1 text-[10px] font-bold bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+                            <span key={i} className="inline-flex items-center gap-1 text-[12px] font-bold bg-green-50 text-green-800 px-2 py-0.5 rounded-full">
                               <ShoppingBag className="w-3 h-3" />
                               {ci.quantity}× {ci.name}
                             </span>
@@ -347,7 +376,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                             <button
                               type="button"
                               onClick={onOpenCart}
-                              className="inline-flex items-center text-[10px] font-bold text-zinc-700 underline underline-offset-2 hover:text-zinc-900 px-1"
+                              className="inline-flex items-center text-[12px] font-bold text-zinc-800 underline underline-offset-2 hover:text-zinc-900 px-1"
                             >
                               {copy.viewCart}
                             </button>
@@ -369,7 +398,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                   </div>
                 )}
                 {error && (
-                  <div className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  <div role="alert" className="text-[14px] font-medium text-red-800 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
                     {error}
                   </div>
                 )}
@@ -378,7 +407,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
               {/* Input bar */}
               <div className="px-3 py-3 border-t border-zinc-100 bg-white">
                 {remaining !== null && remaining <= 5 && (
-                  <p className="text-[10px] text-amber-600 font-bold mb-1.5 px-1">{fill(copy.remainingToday, { n: remaining })}</p>
+                  <p className="text-[12px] text-amber-800 font-bold mb-1.5 px-1">{fill(copy.remainingToday, { n: remaining })}</p>
                 )}
                 {recording ? (
                   <div className="flex items-center gap-2" role="status" aria-live="polite">
@@ -414,8 +443,8 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                     type="button"
                     onClick={startRecording}
                     disabled={sending || transcribing || !audioEnabled}
-                    className="w-full min-h-12 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold text-white disabled:opacity-60"
-                    style={{ backgroundColor: primaryColor }}
+                    className="w-full min-h-12 rounded-xl flex items-center justify-center gap-2 text-[16px] font-semibold disabled:opacity-60"
+                    style={{ backgroundColor: brand, color: onBrand }}
                   >
                     {transcribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mic className="w-4 h-4" />}
                     {transcribing ? copy.transcribing : sending ? copy.sending : fill(copy.tapToRecord, { s: MAX_VOICE_SECONDS })}
@@ -433,9 +462,11 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
                     }}
                     rows={1}
                     maxLength={MAX_MESSAGE_CHARS}
+                    enterKeyHint="send"
+                    aria-label={copy.askMenu}
                     placeholder={transcribing ? copy.transcribing : audioEnabled && canOrder ? copy.typeOrRecord : copy.askMenu}
                     disabled={sending || transcribing}
-                    className="flex-1 px-3 py-2 border border-zinc-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:bg-zinc-50 max-h-24"
+                    className="flex-1 min-h-10 px-3 py-2 border border-zinc-300 rounded-xl text-[16px] leading-6 text-zinc-950 placeholder:text-zinc-500 resize-none focus:outline-none focus:border-zinc-900 focus:ring-[3px] focus:ring-zinc-900/10 disabled:bg-zinc-50 max-h-24"
                   />
                   {audioEnabled && (
                     <button

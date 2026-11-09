@@ -16,6 +16,7 @@ import { baseName } from '@/lib/menu-translations'
 import { getGuestCopy } from './guest-copy'
 import { contactLinks, displayPrice, optionPriceList, orderedItemText, showcaseItemText } from './showcase'
 import ModalPortal from '@/components/ui/ModalPortal'
+import { keepFieldVisible, useVisibleBox } from '@/components/ui/keyboard-fields'
 import { halfAndHalfUnit } from '@/lib/menu/option-pricing'
 
 // The 3D/AR view pulls in model-viewer + three.js: loaded only when opened.
@@ -148,6 +149,8 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
   const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>(initialEditorState?.ingredientSteppers ?? {})
   const [addedIngredients, setAddedIngredients] = useState<string[]>(initialEditorState?.addedIngredients ?? [])
   const [quantity, setQuantity] = useState(1)
+  // The sheet stays in what the phone keyboard leaves visible (typing a note).
+  const box = useVisibleBox()
   const [attentionGroupId, setAttentionGroupId] = useState<string | null>(null)
   const customizationTrackedRef = useRef(false)
 
@@ -451,8 +454,9 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
   // Phones: a sheet from the bottom. Larger screens: centred, never taller than the viewport.
   return (
     <ModalPortal onClose={onClose}>
-    <div className="menu-root fixed inset-0 z-50 flex items-end justify-center bg-zinc-950/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
-      <div className="relative w-full sm:max-w-lg" onClick={e => e.stopPropagation()}>
+    <div className="menu-root fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-[2px]" onClick={onClose}>
+      <div className="fixed inset-x-0 flex items-end justify-center sm:items-center sm:p-4" style={box.style}>
+      <div className={`relative flex max-h-full w-full flex-col sm:max-w-lg ${box.short ? '' : 'max-sm:max-h-[94%]'}`} onClick={e => e.stopPropagation()}>
       {onPrevProduct && (
         <button
           type="button"
@@ -473,7 +477,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
           <ChevronRight className="size-5" />
         </button>
       )}
-      <div role="dialog" aria-modal="true" aria-label={product.name} className="flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:max-h-[calc(100dvh-2rem)] sm:rounded-3xl">
+      <div role="dialog" aria-modal="true" aria-label={product.name} className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:rounded-3xl">
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {mediaSlides.length > 0 ? (
             <div
@@ -788,7 +792,9 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                   placeholder={copy.notesPlaceholder}
                   rows={2}
                   maxLength={140}
-                  className="mt-2 w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[16px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-zinc-900/5"
+                  enterKeyHint="done"
+                  onFocus={keepFieldVisible}
+                  className="mt-2 w-full resize-none rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-[16px] text-zinc-950 outline-none transition-[border-color,box-shadow] placeholder:text-zinc-500 focus:border-zinc-900 focus:ring-[3px] focus:ring-zinc-900/10"
                 />
               </section>
             )}
@@ -875,6 +881,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
             )}
           </div>
         )}
+      </div>
       </div>
       </div>
     </div>

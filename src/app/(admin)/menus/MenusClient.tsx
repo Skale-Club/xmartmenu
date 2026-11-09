@@ -87,7 +87,7 @@ function MenuFormFields({
   draft: MenuDraft
   setDraft: Dispatch<SetStateAction<MenuDraft>>
 }) {
-  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
   
   const supported = draft.supported_languages.includes(draft.language)
     ? draft.supported_languages
@@ -124,29 +124,29 @@ function MenuFormFields({
     <div className="space-y-6">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <div>
-          <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Menu Name *</label>
+          <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Menu Name *</label>
           <input required className={inputClassName} value={draft.name} onChange={e => setDraft(f => ({ ...f, name: e.target.value }))} placeholder="Dinner Menu" />
         </div>
         <div>
-          <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Purpose</label>
+          <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Purpose</label>
           <select className={inputClassName} value={draft.purpose} onChange={e => setDraft(f => ({ ...f, purpose: e.target.value }))}>
             {PURPOSES.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Default language</label>
+          <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Default language</label>
           <select className={inputClassName} value={draft.language} onChange={e => setBaseLanguage(e.target.value)}>
             {LANGUAGES.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Brief Description</label>
+          <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Brief Description</label>
           <input className={inputClassName} value={draft.description} onChange={e => setDraft(f => ({ ...f, description: e.target.value }))} placeholder="Optional" />
         </div>
       </div>
 
       <div>
-        <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-3 ml-1">Enable multi-language support</label>
+        <label className="block text-[14px] font-semibold text-zinc-700 mb-3 ml-1">Enable multi-language support</label>
         <div className="flex flex-wrap gap-2">
           {LANGUAGES.map(lang => {
             const checked = supported.includes(lang.value)
@@ -195,7 +195,7 @@ function MenuFormFields({
         </div>
         {draft.is_private && (
           <div className="space-y-2 px-4">
-            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest">Price Multiplier</label>
+            <label className="block text-[14px] font-semibold text-zinc-700">Price Multiplier</label>
             <input
               type="number"
               min={1.0}
@@ -205,7 +205,7 @@ function MenuFormFields({
               onChange={e => setDraft(f => ({ ...f, price_multiplier: Math.max(1, Number(Number(e.target.value).toFixed(2))) }))}
               className={inputClassName}
             />
-            <p className="text-[10px] font-medium text-zinc-400 ml-1">
+            <p className="text-[13px] font-medium text-zinc-600 ml-1">
               1.00 = no change · 1.15 = 15% higher than public prices
             </p>
           </div>
@@ -220,7 +220,7 @@ function MenuFormFields({
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Translated name</label>
+              <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Translated name</label>
               <input
                 className={inputClassName}
                 value={draft.translations[lang]?.name ?? ''}
@@ -228,7 +228,7 @@ function MenuFormFields({
               />
             </div>
             <div>
-              <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Translated description</label>
+              <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Translated description</label>
               <input
                 className={inputClassName}
                 value={draft.translations[lang]?.description ?? ''}

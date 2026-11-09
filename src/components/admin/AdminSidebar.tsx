@@ -153,7 +153,7 @@ export default function AdminSidebar({
         
         {menus.length > 0 && (
           <div className="mt-4">
-            <label className="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1.5 ml-1">Active menu</label>
+            <label className="block text-[14px] font-bold text-zinc-400 mb-1.5 ml-1">Active menu</label>
             <div className="relative">
               <select
                 value={selectedMenuId ?? ''}
@@ -186,7 +186,7 @@ export default function AdminSidebar({
                 'group flex min-h-11 items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-bold transition-[background-color,color,scale] duration-150 active:scale-[0.98]',
                 active
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-zinc-500 hover:bg-zinc-900 hover:text-white'
+                  : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
               )}
             >
               <Icon className={cn('w-4 h-4 transition-transform group-hover:scale-110', active ? 'text-zinc-950' : 'text-zinc-500 group-hover:text-primary')} />
@@ -203,7 +203,7 @@ export default function AdminSidebar({
               'w-full group flex min-h-11 items-center justify-between gap-3 px-4 py-2.5 rounded-lg text-sm font-bold transition-[background-color,color,scale] duration-150 active:scale-[0.98]',
               isInSettings 
                 ? 'bg-zinc-900 text-white' 
-                : 'text-zinc-500 hover:bg-zinc-900 hover:text-white'
+                : 'text-zinc-400 hover:bg-zinc-900 hover:text-white'
             )}
           >
             <span className="flex items-center gap-3">
