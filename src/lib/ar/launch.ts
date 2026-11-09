@@ -2,9 +2,12 @@
  * Augmented reality: opens a dish straight in the phone's own AR camera, the
  * way a shop's "view in your room" does. There is no 3D view in the page.
  *
- *   Android   Google Scene Viewer in AR-only mode (Google Play Services for AR),
- *             through an intent URL. Without it, Android sends the browser to
- *             the fallback URL, which carries AR_UNAVAILABLE_HASH.
+ *   Android   Google Scene Viewer through the Google app (on almost every
+ *             Android phone), AR preferred: the camera opens with the dish on
+ *             the table; Scene Viewer asks to install Google Play Services for
+ *             AR when it is missing, and shows the dish in 3D on a phone with
+ *             no AR. Without the Google app, Android sends the browser to the
+ *             fallback URL, which carries AR_UNAVAILABLE_HASH.
  *   iOS       AR Quick Look with the dish's USDZ (made from the GLB when the
  *             model is uploaded; made on the phone if it is missing).
  *   other     no AR camera: the caller shows a QR code to open on a phone.
@@ -51,16 +54,20 @@ export function currentArEnvironment(): ArEnvironment {
 }
 
 /**
- * Scene Viewer intent, AR only: the camera opens with the dish on the table.
- * `fallbackUrl` is where Android goes when Google Play Services for AR is missing.
+ * Scene Viewer intent, AR preferred, opened by the Google app (the way
+ * Google's <model-viewer> does). An AR-only intent for Google Play Services
+ * for AR (com.google.ar.core) did nothing on phones without that app, which
+ * many Android phones do not have installed; the Google app is on almost all
+ * of them and handles the install prompt and the no-AR case itself.
+ * `fallbackUrl` is where Android goes when the Google app is missing.
  */
 export function sceneViewerIntentUrl(opts: { glbUrl: string; title: string; fallbackUrl: string; realScale: boolean }): string {
-  const params = new URLSearchParams({ file: opts.glbUrl, mode: 'ar_only' })
+  const params = new URLSearchParams({ file: opts.glbUrl, mode: 'ar_preferred' })
   const title = opts.title.trim().slice(0, 60)
   if (title) params.set('title', title)
   if (opts.realScale) params.set('resizable', 'false')
   return `intent://arvr.google.com/scene-viewer/1.0?${params.toString()}`
-    + '#Intent;scheme=https;package=com.google.ar.core;action=android.intent.action.VIEW;'
+    + '#Intent;scheme=https;package=com.google.android.googlequicksearchbox;action=android.intent.action.VIEW;'
     + `S.browser_fallback_url=${encodeURIComponent(opts.fallbackUrl)};end;`
 }
 
