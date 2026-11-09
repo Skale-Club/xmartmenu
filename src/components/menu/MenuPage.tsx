@@ -1093,7 +1093,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             >
               {showSearch ? <X className="size-5" /> : <Search className="size-5" />}
             </button>
-            <GuestAccountButton slug={tenant.slug} primaryColor={primaryColor} copy={copy} locale={localeFor(selectedLanguage)} phoneContext={{ country: settings?.country, currency }} bannerUrl={settings?.banner_url} logoUrl={settings?.logo_url} restaurantName={tenant.name} />
+            <GuestAccountButton slug={tenant.slug} primaryColor={primaryColor} copy={copy} lang={selectedLanguage} locale={localeFor(selectedLanguage)} phoneContext={{ country: settings?.country, currency }} bannerUrl={settings?.banner_url} logoUrl={settings?.logo_url} restaurantName={tenant.name} />
           </div>
         </nav>
       )}

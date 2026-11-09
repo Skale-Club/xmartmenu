@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import Image from 'next/image'
+import { GUEST_BANNER_HEIGHT } from '@/components/auth/GuestSignInHeader'
 import { UserRound, X } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
 import { readLoginAuthority, type LoginAuthority } from '@/lib/auth/browser-login-authority'
@@ -27,11 +27,13 @@ const isSignInPath = (path: string) => SIGN_IN_PATHS.some(prefix => path.startsW
  * sign-in pages the popup closes and the icon shows the signed-in dot.
  * Signed in it goes to the guest's panel (/<slug>/me).
  */
-export function GuestAccountButton({ slug, primaryColor, copy, locale, phoneContext, bannerUrl, logoUrl, restaurantName }: {
+export function GuestAccountButton({ slug, primaryColor, copy, lang, locale, phoneContext, bannerUrl, logoUrl, restaurantName }: {
   slug: string
   primaryColor: string
   /** The menu's texts in the guest's language (labels and the sign-in popup). */
   copy: MenuCopy
+  /** Menu language code, passed to the embedded platform sign-in. */
+  lang: string
   /** BCP 47 locale of the menu (country names in the phone picker). */
   locale: string
   /** The restaurant's country/currency, for the phone field. */
@@ -82,12 +84,11 @@ export function GuestAccountButton({ slug, primaryColor, copy, locale, phoneCont
       )}
       {open && authority !== 'legacy' && (
         <SignInFramePopup
-          src={authority === 'owned' ? `/auth/login?flow=customer&embed=1&from=${encodeURIComponent(`/${slug}/me`)}` : null}
+          // The sign-in page draws the restaurant's card itself (banner, logo, colour, country, language) from these.
+          src={authority === 'owned' ? `/auth/login?flow=customer&embed=1&tenant=${encodeURIComponent(slug)}&lang=${encodeURIComponent(lang)}&from=${encodeURIComponent(`/${slug}/me`)}` : null}
           unavailable={authority === 'unavailable'}
           title={copy.signIn}
           closeLabel={copy.close}
-          logoUrl={logoUrl}
-          restaurantName={restaurantName}
           onClose={() => setOpen(false)}
           onSignedIn={done}
         />
@@ -97,14 +98,12 @@ export function GuestAccountButton({ slug, primaryColor, copy, locale, phoneCont
 }
 
 /** The platform sign-in in a same-origin frame, sized to its content, over a dimmed menu. */
-function SignInFramePopup({ src, unavailable, title, closeLabel, logoUrl, restaurantName, onClose, onSignedIn }: {
+function SignInFramePopup({ src, unavailable, title, closeLabel, onClose, onSignedIn }: {
   /** Null while the sign-in mode is still being read. */
   src: string | null
   unavailable: boolean
   title: string
   closeLabel: string
-  logoUrl?: string | null
-  restaurantName: string
   onClose: () => void
   onSignedIn: () => void
 }) {
@@ -145,9 +144,10 @@ function SignInFramePopup({ src, unavailable, title, closeLabel, logoUrl, restau
     const doc = (() => { try { return frame?.contentDocument ?? null } catch { return null } })()
     if (!frame || !doc?.body) return
     setReady(true)
-    const measure = () => setHeight(Math.ceil(doc.documentElement.scrollHeight))
+    const content = doc.querySelector('main') ?? doc.body
+    const measure = () => setHeight(Math.ceil(content.getBoundingClientRect().height))
     measure()
-    new ResizeObserver(measure).observe(doc.body)
+    new ResizeObserver(measure).observe(content)
   }
 
   return (
@@ -162,33 +162,26 @@ function SignInFramePopup({ src, unavailable, title, closeLabel, logoUrl, restau
           role="dialog"
           aria-modal="true"
           aria-label={title}
-          className="relative max-h-full w-full max-w-[400px] overflow-y-auto overscroll-contain rounded-2xl bg-zinc-950 shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
+          className="relative w-full max-w-[400px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(0,0,0,0.45)]"
           onClick={e => e.stopPropagation()}
         >
           <button
             type="button"
             onClick={onClose}
             aria-label={closeLabel}
-            className="absolute right-3 top-3 z-10 flex size-10 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25"
+            // Centred on the card's banner (GUEST_BANNER_HEIGHT, drawn inside the frame); the button is 40 px.
+            style={{ top: (GUEST_BANNER_HEIGHT - 40) / 2 }}
+            className="absolute right-3 z-10 flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-900 shadow-sm transition-colors hover:bg-white"
           >
-            <X className="size-4" />
+            <X className="size-[18px]" />
           </button>
-          {/* The restaurant on top, so the guest knows whose account this is. */}
-          <div className="flex items-center gap-3 border-b border-white/10 px-6 pb-4 pt-6 pr-14">
-            {logoUrl && (
-              <div className="relative size-11 shrink-0 overflow-hidden rounded-xl bg-white">
-                <Image src={logoUrl} alt="" fill sizes="44px" className="object-contain p-1" />
-              </div>
-            )}
-            <p className="min-w-0 truncate text-[15px] font-semibold text-white">{restaurantName}</p>
-          </div>
           {unavailable ? (
-            <p className="px-6 py-10 text-center text-sm leading-6 text-zinc-300">Sign-in is temporarily unavailable. Please try again later.</p>
+            <p className="px-6 py-12 text-center text-[15px] leading-6 text-zinc-700">Sign-in is temporarily unavailable. Please try again later.</p>
           ) : (
             <>
               {!ready && (
                 <div className="flex h-[440px] items-center justify-center" aria-hidden="true">
-                  <span className="size-6 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                  <span className="size-6 animate-spin rounded-full border-2 border-zinc-200 border-t-zinc-700" />
                 </div>
               )}
               {src && (
@@ -198,7 +191,8 @@ function SignInFramePopup({ src, unavailable, title, closeLabel, logoUrl, restau
                   title={title}
                   onLoad={onLoad}
                   className={ready ? 'block w-full border-0' : 'absolute h-0 w-full opacity-0'}
-                  style={ready ? { height } : undefined}
+                  // Never taller than what the keyboard leaves: the sign-in then scrolls inside the frame.
+                  style={ready ? { height: view.height ? Math.min(height, view.height - 32) : height } : undefined}
                 />
               )}
             </>

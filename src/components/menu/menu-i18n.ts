@@ -143,7 +143,7 @@ export interface MenuCopy {
   signIn: string; myAccount: string
   contactTitle: string; contactPhone: string; contactEmail: string; contactAddress: string
   // Guest sign-in popup (phone code)
-  loginTitle: string; loginSubtitle: string; loginPhoneLabel: string; loginCountry: string; loginCountrySearch: string; loginSendCode: string; loginSending: string; loginVerifyTitle: string; loginCodeSent: string; loginCodeLabel: string; loginVerify: string; loginVerifying: string; loginChangePhone: string; loginInvalidPhone: string; loginUnavailable: string
+  loginTitle: string; loginSubtitle: string; loginPhoneLabel: string; loginCountry: string; loginCountrySearch: string; loginSendCode: string; loginSending: string; loginVerifyTitle: string; loginCodeSent: string; loginCodeLabel: string; loginVerify: string; loginVerifying: string; loginChangePhone: string; loginInvalidPhone: string; loginUnavailable: string; loginGoogle: string; loginOr: string; loginExistingAccount: string; loginRecovery: string; loginContinueAccount: string; loginSignOut: string
 }
 
 const en: MenuCopy = {
@@ -198,6 +198,12 @@ const en: MenuCopy = {
   loginChangePhone: "Use another number",
   loginInvalidPhone: "Check the number and the selected country.",
   loginUnavailable: "Signing in with your phone is not available yet. Please ask the staff for help.",
+  loginGoogle: "Continue with Google",
+  loginOr: "or",
+  loginExistingAccount: "Have an account with e-mail and password? Enter it once to add your phone",
+  loginRecovery: "Can't access your previous sign-in? Contact the restaurant or support.",
+  loginContinueAccount: "Go to my account",
+  loginSignOut: "Sign out",
 }
 
 const pt: MenuCopy = {
@@ -252,6 +258,12 @@ const pt: MenuCopy = {
   loginChangePhone: "Usar outro número",
   loginInvalidPhone: "Confira o número e o país selecionado.",
   loginUnavailable: "O acesso pelo telefone ainda não está disponível. Peça ajuda à equipe.",
+  loginGoogle: "Continuar com Google",
+  loginOr: "ou",
+  loginExistingAccount: "Tem conta com e-mail e senha? Entre uma vez para adicionar seu telefone",
+  loginRecovery: "Não consegue acessar seu login anterior? Fale com o restaurante ou com o suporte.",
+  loginContinueAccount: "Ir para minha conta",
+  loginSignOut: "Sair",
 }
 
 const es: MenuCopy = {
@@ -306,6 +318,12 @@ const es: MenuCopy = {
   loginChangePhone: "Usar otro número",
   loginInvalidPhone: "Revisa el número y el país seleccionado.",
   loginUnavailable: "El acceso con teléfono aún no está disponible. Pide ayuda al personal.",
+  loginGoogle: "Continuar con Google",
+  loginOr: "o",
+  loginExistingAccount: "¿Tienes cuenta con correo y contraseña? Entra una vez para añadir tu teléfono",
+  loginRecovery: "¿No puedes acceder a tu inicio de sesión anterior? Contacta al restaurante o al soporte.",
+  loginContinueAccount: "Ir a mi cuenta",
+  loginSignOut: "Cerrar sesión",
 }
 
 const fr: MenuCopy = {
@@ -360,6 +378,12 @@ const fr: MenuCopy = {
   loginChangePhone: "Utiliser un autre numéro",
   loginInvalidPhone: "Vérifiez le numéro et le pays choisi.",
   loginUnavailable: "La connexion par téléphone n'est pas encore disponible. Demandez de l'aide au personnel.",
+  loginGoogle: "Continuer avec Google",
+  loginOr: "ou",
+  loginExistingAccount: "Vous avez un compte avec e-mail et mot de passe ? Connectez-vous une fois pour ajouter votre téléphone",
+  loginRecovery: "Plus accès à votre ancienne connexion ? Contactez le restaurant ou le support.",
+  loginContinueAccount: "Aller à mon compte",
+  loginSignOut: "Se déconnecter",
 }
 
 const de: MenuCopy = {
@@ -414,6 +438,12 @@ const de: MenuCopy = {
   loginChangePhone: "Andere Nummer verwenden",
   loginInvalidPhone: "Prüfe die Nummer und das gewählte Land.",
   loginUnavailable: "Die Anmeldung per Telefon ist noch nicht verfügbar. Bitte frag das Personal.",
+  loginGoogle: "Mit Google fortfahren",
+  loginOr: "oder",
+  loginExistingAccount: "Konto mit E-Mail und Passwort? Melde dich einmal an, um dein Telefon hinzuzufügen",
+  loginRecovery: "Kein Zugriff mehr auf deine alte Anmeldung? Wende dich an das Restaurant oder den Support.",
+  loginContinueAccount: "Zu meinem Konto",
+  loginSignOut: "Abmelden",
 }
 
 const it: MenuCopy = {
@@ -468,6 +498,12 @@ const it: MenuCopy = {
   loginChangePhone: "Usa un altro numero",
   loginInvalidPhone: "Controlla il numero e il paese selezionato.",
   loginUnavailable: "L'accesso con il telefono non è ancora disponibile. Chiedi aiuto al personale.",
+  loginGoogle: "Continua con Google",
+  loginOr: "oppure",
+  loginExistingAccount: "Hai un account con e-mail e password? Accedi una volta per aggiungere il telefono",
+  loginRecovery: "Non riesci ad accedere al tuo accesso precedente? Contatta il ristorante o l'assistenza.",
+  loginContinueAccount: "Vai al mio account",
+  loginSignOut: "Esci",
 }
 
 const nl: MenuCopy = {
@@ -522,6 +558,12 @@ const nl: MenuCopy = {
   loginChangePhone: "Ander nummer gebruiken",
   loginInvalidPhone: "Controleer het nummer en het gekozen land.",
   loginUnavailable: "Inloggen met je telefoon is nog niet beschikbaar. Vraag het personeel om hulp.",
+  loginGoogle: "Doorgaan met Google",
+  loginOr: "of",
+  loginExistingAccount: "Account met e-mail en wachtwoord? Log één keer in om je telefoon toe te voegen",
+  loginRecovery: "Geen toegang meer tot je oude login? Neem contact op met het restaurant of de support.",
+  loginContinueAccount: "Naar mijn account",
+  loginSignOut: "Uitloggen",
 }
 
 const pl: MenuCopy = {
@@ -576,6 +618,12 @@ const pl: MenuCopy = {
   loginChangePhone: "Użyj innego numeru",
   loginInvalidPhone: "Sprawdź numer i wybrany kraj.",
   loginUnavailable: "Logowanie telefonem nie jest jeszcze dostępne. Poproś obsługę o pomoc.",
+  loginGoogle: "Kontynuuj z Google",
+  loginOr: "lub",
+  loginExistingAccount: "Masz konto z e-mailem i hasłem? Zaloguj się raz, aby dodać telefon",
+  loginRecovery: "Nie masz dostępu do poprzedniego logowania? Skontaktuj się z restauracją lub wsparciem.",
+  loginContinueAccount: "Przejdź do konta",
+  loginSignOut: "Wyloguj się",
 }
 
 const tr: MenuCopy = {
@@ -630,6 +678,12 @@ const tr: MenuCopy = {
   loginChangePhone: "Başka bir numara kullan",
   loginInvalidPhone: "Numarayı ve seçili ülkeyi kontrol et.",
   loginUnavailable: "Telefonla giriş henüz kullanılamıyor. Lütfen personelden yardım iste.",
+  loginGoogle: "Google ile devam et",
+  loginOr: "veya",
+  loginExistingAccount: "E-posta ve şifreli hesabın mı var? Telefonunu eklemek için bir kez giriş yap",
+  loginRecovery: "Önceki girişine erişemiyor musun? Restoranla veya destekle iletişime geç.",
+  loginContinueAccount: "Hesabıma git",
+  loginSignOut: "Çıkış yap",
 }
 
 const ru: MenuCopy = {
@@ -684,6 +738,12 @@ const ru: MenuCopy = {
   loginChangePhone: "Другой номер",
   loginInvalidPhone: "Проверьте номер и выбранную страну.",
   loginUnavailable: "Вход по телефону пока недоступен. Обратитесь к персоналу.",
+  loginGoogle: "Продолжить с Google",
+  loginOr: "или",
+  loginExistingAccount: "Есть аккаунт с e-mail и паролем? Войдите один раз, чтобы добавить телефон",
+  loginRecovery: "Нет доступа к прежнему входу? Свяжитесь с рестораном или поддержкой.",
+  loginContinueAccount: "Перейти в аккаунт",
+  loginSignOut: "Выйти",
 }
 
 const hi: MenuCopy = {
@@ -738,6 +798,12 @@ const hi: MenuCopy = {
   loginChangePhone: "दूसरा नंबर इस्तेमाल करें",
   loginInvalidPhone: "नंबर और चुना गया देश जाँचें।",
   loginUnavailable: "फ़ोन से साइन इन अभी उपलब्ध नहीं है। कृपया स्टाफ़ से मदद लें।",
+  loginGoogle: "Google से जारी रखें",
+  loginOr: "या",
+  loginExistingAccount: "ईमेल और पासवर्ड वाला खाता है? अपना फ़ोन जोड़ने के लिए एक बार साइन इन करें",
+  loginRecovery: "पुराने साइन-इन तक पहुँच नहीं है? रेस्टोरेंट या सहायता से संपर्क करें।",
+  loginContinueAccount: "मेरे खाते पर जाएँ",
+  loginSignOut: "साइन आउट",
 }
 
 const ja: MenuCopy = {
@@ -792,6 +858,12 @@ const ja: MenuCopy = {
   loginChangePhone: "別の番号を使う",
   loginInvalidPhone: "番号と選択した国を確認してください。",
   loginUnavailable: "電話でのログインはまだご利用いただけません。スタッフにお声がけください。",
+  loginGoogle: "Googleで続ける",
+  loginOr: "または",
+  loginExistingAccount: "メールとパスワードのアカウントをお持ちですか？一度ログインして電話番号を追加してください",
+  loginRecovery: "以前のログインにアクセスできない場合は、店舗またはサポートにご連絡ください。",
+  loginContinueAccount: "マイアカウントへ",
+  loginSignOut: "ログアウト",
 }
 
 const ko: MenuCopy = {
@@ -846,6 +918,12 @@ const ko: MenuCopy = {
   loginChangePhone: "다른 번호 사용",
   loginInvalidPhone: "번호와 선택한 국가를 확인하세요.",
   loginUnavailable: "전화번호 로그인은 아직 사용할 수 없습니다. 직원에게 도움을 요청하세요.",
+  loginGoogle: "Google로 계속하기",
+  loginOr: "또는",
+  loginExistingAccount: "이메일과 비밀번호 계정이 있나요? 한 번 로그인해 전화번호를 추가하세요",
+  loginRecovery: "이전 로그인에 접근할 수 없나요? 매장이나 고객지원에 문의하세요.",
+  loginContinueAccount: "내 계정으로",
+  loginSignOut: "로그아웃",
 }
 
 const zh: MenuCopy = {
@@ -900,6 +978,12 @@ const zh: MenuCopy = {
   loginChangePhone: "使用其他号码",
   loginInvalidPhone: "请检查号码和所选国家/地区。",
   loginUnavailable: "暂不支持手机号登录，请向店员寻求帮助。",
+  loginGoogle: "使用 Google 继续",
+  loginOr: "或",
+  loginExistingAccount: "有邮箱和密码账户？登录一次即可添加手机号",
+  loginRecovery: "无法使用之前的登录方式？请联系餐厅或客服。",
+  loginContinueAccount: "前往我的账户",
+  loginSignOut: "退出登录",
 }
 
 const zhTW: MenuCopy = {
@@ -954,6 +1038,12 @@ const zhTW: MenuCopy = {
   loginChangePhone: "使用其他號碼",
   loginInvalidPhone: "請檢查號碼和所選國家／地區。",
   loginUnavailable: "目前尚無法以手機登入，請向店員尋求協助。",
+  loginGoogle: "使用 Google 繼續",
+  loginOr: "或",
+  loginExistingAccount: "有電子郵件和密碼帳戶？登入一次即可新增手機號碼",
+  loginRecovery: "無法使用先前的登入方式？請聯絡餐廳或客服。",
+  loginContinueAccount: "前往我的帳戶",
+  loginSignOut: "登出",
 }
 
 const COPY: Record<string, MenuCopy> = { en, pt, es, fr, de, it, nl, pl, tr, ru, hi, ja, ko, zh, 'zh-TW': zhTW }
@@ -984,4 +1074,4 @@ export function translateTag(tag: string, lang: string): string {
 }
 
 /** The strings the guest sign-in popup uses (see LoginClient). */
-export type LoginCopy = Pick<MenuCopy, 'loginTitle' | 'loginSubtitle' | 'loginPhoneLabel' | 'loginCountry' | 'loginCountrySearch' | 'loginSendCode' | 'loginSending' | 'loginVerifyTitle' | 'loginCodeSent' | 'loginCodeLabel' | 'loginVerify' | 'loginVerifying' | 'loginChangePhone' | 'loginInvalidPhone' | 'loginUnavailable' | 'close'>
+export type LoginCopy = Pick<MenuCopy, 'loginTitle' | 'loginSubtitle' | 'loginPhoneLabel' | 'loginCountry' | 'loginCountrySearch' | 'loginSendCode' | 'loginSending' | 'loginVerifyTitle' | 'loginCodeSent' | 'loginCodeLabel' | 'loginVerify' | 'loginVerifying' | 'loginChangePhone' | 'loginInvalidPhone' | 'loginUnavailable' | 'loginGoogle' | 'loginOr' | 'loginExistingAccount' | 'loginRecovery' | 'loginContinueAccount' | 'loginSignOut' | 'close'>
