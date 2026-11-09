@@ -85,8 +85,8 @@ export default function BrandingClient({ settings, tenantSlug, tenantName }: Pro
     setLoading(false)
   }
 
-  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-  const labelClassName = "block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1"
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const labelClassName = "block text-[14px] font-semibold text-zinc-700 mb-2 ml-1"
 
   return (
     <div className="p-8 w-full space-y-10">
@@ -152,13 +152,13 @@ export default function BrandingClient({ settings, tenantSlug, tenantName }: Pro
                     onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'logo')}
                     className="hidden" 
                   />
-                  <label htmlFor="logo-upload" className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-950 text-white rounded-lg text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-primary hover:text-primary-foreground transition-all shadow-lg shadow-zinc-950/10">
+                  <label htmlFor="logo-upload" className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-950 text-white rounded-lg text-[14px] font-semibold cursor-pointer hover:bg-primary hover:text-primary-foreground transition-all shadow-lg shadow-zinc-950/10">
                     Choose Logo
                   </label>
                   {logoUrl && (
                     <button type="button" onClick={() => setLogoUrl('')} className="block text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition-colors ml-1">Remove Asset</button>
                   )}
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-2 leading-relaxed">PNG, JPG or SVG · 1:1 Aspect · Max 15MB · Converted to WebP</p>
+                  <p className="text-[13px] font-medium text-zinc-600 mt-2 leading-relaxed">PNG, JPG or SVG · 1:1 Aspect · Max 15MB · Converted to WebP</p>
                   {uploadError && uploading === null && <p className="text-[10px] font-bold text-red-500 mt-1">{uploadError}</p>}
                 </div>
               </div>
@@ -185,14 +185,14 @@ export default function BrandingClient({ settings, tenantSlug, tenantName }: Pro
                   onChange={e => e.target.files?.[0] && handleUpload(e.target.files[0], 'banner')}
                   className="hidden" 
                 />
-                <label htmlFor="banner-upload" className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-50 text-zinc-950 border border-zinc-200 rounded-lg text-xs font-black uppercase tracking-widest cursor-pointer hover:bg-zinc-100 transition-all">
+                <label htmlFor="banner-upload" className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-50 text-zinc-950 border border-zinc-200 rounded-lg text-[14px] font-semibold cursor-pointer hover:bg-zinc-100 transition-all">
                   Change Banner
                 </label>
                 {bannerUrl && (
                   <button type="button" onClick={() => setBannerUrl('')} className="text-[10px] font-black text-red-500 uppercase tracking-widest hover:text-red-700 transition-colors">Delete Banner</button>
                 )}
               </div>
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-4 leading-relaxed">3:1 Aspect recommended for optimal display on mobile devices.</p>
+              <p className="text-[13px] font-medium text-zinc-600 mt-4 leading-relaxed">3:1 Aspect recommended for optimal display on mobile devices.</p>
             </div>
           </div>
 

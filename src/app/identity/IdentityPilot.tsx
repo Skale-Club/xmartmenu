@@ -24,8 +24,10 @@ function googleEmail(token: string): string {
   } catch { return 'this Google account' }
 }
 
-export default function IdentityPilot({ config, continueToApp = false, existingAccountLink = false, next = '/',customerFlow = false,linkCurrentAccount = false,staffAccess }: {
+export default function IdentityPilot({ config, continueToApp = false, existingAccountLink = false, next = '/',customerFlow = false,linkCurrentAccount = false,staffAccess,embedded = false }: {
   config: IdentityWebConfig; continueToApp?: boolean; existingAccountLink?: boolean; next?: string; customerFlow?: boolean; linkCurrentAccount?: boolean; staffAccess?: {kind:'invite'|'recovery';code:string}
+  /** Inside the menu's sign-in popup (a same-origin frame): no full-screen page, no card border; the popup is the card. */
+  embedded?: boolean
 }) {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
@@ -123,8 +125,8 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
   const field = 'w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-50'
   const button = 'w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground transition-colors hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary disabled:opacity-50'
 
-  return <main className="grid min-h-screen place-items-center bg-zinc-950 px-5 py-10 text-white">
-    <section aria-labelledby="identity-title" className="w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-900/60 p-6 sm:p-8">
+  return <main className={embedded ? 'bg-zinc-950 text-white' : 'grid min-h-screen place-items-center bg-zinc-950 px-5 py-10 text-white'}>
+    <section aria-labelledby="identity-title" className={embedded ? 'w-full px-6 pb-6 pt-7' : 'w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-900/60 p-6 sm:p-8'}>
       <p className="mb-6 text-sm font-black tracking-wide">XmartMenu</p>
       <h1 id="identity-title" className="text-2xl font-bold tracking-tight">{existingAccountLink ? 'Link your existing account' : 'Sign in with your phone'}</h1>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{existingAccountLink ? 'Prove your previous account, then verify a phone number or Google account. Your company access stays unchanged.' : 'Verify your number by SMS, or continue with Google.'}</p>
@@ -174,7 +176,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         <input className="mt-1 accent-primary" type="checkbox" checked={link} onChange={event => setLink(event.target.checked)} disabled={busy} />
         Link this sign-in method to my existing signed-in account
       </label> : null}
-      {!staffAccess && continueToApp && !existingAccountLink ? <Link className="mt-6 block text-sm font-semibold text-zinc-300 underline underline-offset-4" href={`/auth/login?action=existing-account-link${customerFlow ? `&flow=customer&from=${encodeURIComponent(next)}` : ''}`}>Have an account with e-mail and password? Enter it once to add your phone</Link> : null}
+      {!staffAccess && continueToApp && !existingAccountLink ? <Link className="mt-6 block text-sm font-semibold text-zinc-300 underline underline-offset-4" href={`/auth/login?action=existing-account-link${customerFlow ? `&flow=customer&from=${encodeURIComponent(next)}${embedded ? '&embed=1' : ''}` : ''}`}>Have an account with e-mail and password? Enter it once to add your phone</Link> : null}
       {continueToApp && linkCurrentAccount ? <Link className="mt-4 block text-sm font-semibold text-zinc-300 underline underline-offset-4"
         href={`/auth/login?flow=customer&from=${encodeURIComponent(`/identity?action=link&flow=customer&from=${encodeURIComponent(next)}`)}`}>Sign in again before linking if your current sign-in is no longer recent</Link> : null}
       {continueToApp ? <p className="mt-4 text-xs leading-5 text-zinc-500">If your account requires recovery or no longer has access to its previous sign-in, contact support for reviewed recovery.</p> : null}

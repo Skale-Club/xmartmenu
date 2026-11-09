@@ -75,8 +75,8 @@ export default function SeoClient({ settings, tenantName, canonicalUrl, isCustom
   }
 
   const inputClassName =
-    'w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all'
-  const labelClassName = 'block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1'
+    'w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-lg text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all'
+  const labelClassName = 'block text-[14px] font-semibold text-zinc-700 mb-2 ml-1'
 
   function counterColor(len: number, ideal: number, max: number) {
     if (len === 0) return 'text-zinc-400'
@@ -147,7 +147,7 @@ export default function SeoClient({ settings, tenantName, canonicalUrl, isCustom
               value={form.seo_title}
               onChange={(e) => setForm({ ...form, seo_title: e.target.value })}
             />
-            <p className="text-[11px] text-zinc-400 mt-1.5 ml-1">Leave empty to use your restaurant name. ~{TITLE_IDEAL} chars is ideal.</p>
+            <p className="text-[13px] text-zinc-600 mt-1.5 ml-1">Leave empty to use your restaurant name. ~{TITLE_IDEAL} chars is ideal.</p>
           </div>
 
           <div>
@@ -164,7 +164,7 @@ export default function SeoClient({ settings, tenantName, canonicalUrl, isCustom
               value={form.seo_description}
               onChange={(e) => setForm({ ...form, seo_description: e.target.value })}
             />
-            <p className="text-[11px] text-zinc-400 mt-1.5 ml-1">Falls back to your tagline. ~{DESC_IDEAL} chars is ideal.</p>
+            <p className="text-[13px] text-zinc-600 mt-1.5 ml-1">Falls back to your tagline. ~{DESC_IDEAL} chars is ideal.</p>
           </div>
 
           <div>
@@ -184,7 +184,7 @@ export default function SeoClient({ settings, tenantName, canonicalUrl, isCustom
                 ))}
               </div>
             )}
-            <p className="text-[11px] text-zinc-400 mt-1.5 ml-1">Comma-separated. Up to 12 are used.</p>
+            <p className="text-[13px] text-zinc-600 mt-1.5 ml-1">Comma-separated. Up to 12 are used.</p>
           </div>
 
           {/* OG image */}
@@ -203,7 +203,7 @@ export default function SeoClient({ settings, tenantName, canonicalUrl, isCustom
                 )}
               </div>
               <div className="space-y-2">
-                <label className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-lg text-xs font-bold text-zinc-700 cursor-pointer transition-colors">
+                <label className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-100 hover:bg-zinc-200 rounded-lg text-[14px] font-bold text-zinc-700 cursor-pointer transition-colors">
                   {uploading ? 'Uploading…' : 'Upload image'}
                   <input
                     type="file"
@@ -228,7 +228,7 @@ export default function SeoClient({ settings, tenantName, canonicalUrl, isCustom
                 <AlertCircle className="w-3 h-3" /> {uploadError}
               </p>
             )}
-            <p className="text-[11px] text-zinc-400 mt-1.5 ml-1">1200×630 recommended. Leave empty for an auto-generated branded card.</p>
+            <p className="text-[13px] text-zinc-600 mt-1.5 ml-1">1200×630 recommended. Leave empty for an auto-generated branded card.</p>
           </div>
 
           {/* noindex toggle */}

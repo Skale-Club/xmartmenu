@@ -69,6 +69,16 @@ p {
   max-width: 100%;
 }
 
+/* Typing fields at 16px on every touch screen, tablets included (phones are
+   covered below for every field): anything smaller makes iOS zoom into the
+   page when the field gets focus. Only small text sizes are raised; a field
+   drawn larger keeps its size. */
+@media (pointer: coarse) {
+  :is(input, select, textarea):is([class*="text-xs"], [class*="text-sm"], [class*="text-[9px]"], [class*="text-[10px]"], [class*="text-[11px]"], [class*="text-[12px]"], [class*="text-[13px]"], [class*="text-[14px]"], [class*="text-[15px]"]) {
+    font-size: 16px;
+  }
+}
+
 .dashboard-content [class~="overflow-x-auto"] {
   overscroll-behavior-inline: contain;
   -webkit-overflow-scrolling: touch;

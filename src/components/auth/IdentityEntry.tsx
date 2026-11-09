@@ -4,7 +4,7 @@ import { identityRuntimeConfig } from '@/lib/auth/identity-runtime-config'
 import { verifyPublicProject } from '@/lib/auth/public-project-proof'
 import IdentityPilot from '@/app/identity/IdentityPilot'
 
-export default async function IdentityEntry(props: { continueToApp?: boolean; existingAccountLink?: boolean; next?: string; customerFlow?: boolean; linkCurrentAccount?: boolean; staffAccess?: { kind:'invite'|'recovery';code:string } }) {
+export default async function IdentityEntry(props: { continueToApp?: boolean; existingAccountLink?: boolean; next?: string; customerFlow?: boolean; linkCurrentAccount?: boolean; staffAccess?: { kind:'invite'|'recovery';code:string }; embedded?: boolean }) {
   if (process.env.GOOGLE_AUTH_ENABLED !== 'true') notFound()
   let config: ReturnType<typeof identityRuntimeConfig>
   try { config = identityRuntimeConfig() }

@@ -9,6 +9,9 @@ import { formatMoney, getMenuCopy } from './menu-i18n'
 import type { DeliveryZone } from '@/types/database'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import ModalPortal from '@/components/ui/ModalPortal'
+import PhoneField from '@/components/ui/PhoneField'
+import { keepFieldVisible, nextFieldOnEnter, useVisibleBox } from '@/components/ui/keyboard-fields'
+import type { PhoneContext } from './showcase'
 
 function findMatchingZone(zipcode: string | undefined, zones: DeliveryZone[] | undefined): DeliveryZone | null {
   if (!zipcode || !zones || zones.length === 0) return null
@@ -21,9 +24,12 @@ function findMatchingZone(zipcode: string | undefined, zones: DeliveryZone[] | u
  * Checkout: one calm column — what you're ordering, how you want it, your
  * details, the totals — with "Place order · total" pinned at the bottom.
  * Phones: a sheet from the bottom. Larger screens: centred. Item editing
- * happens in CartPanel.
+ * happens in CartPanel. The sheet lives in the part of the screen the phone
+ * keyboard leaves visible, so the field being typed in and the button stay
+ * above the keys; Enter moves to the next field and, in the last one, places
+ * the order.
  */
-export default function CheckoutModal({ cart, confirmedCart, currency, lang, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, primaryColor, orderTypeConfig, tableName = null, orderType, deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, deliveryZones, tipsEnabled, tipPercentages, tipCents, onTipChange, onOrderTypeChange, onDeliveryFieldChange, onClose, onBack, onCustomerNameChange, onCustomerPhoneChange, onSubmit }: {
+export default function CheckoutModal({ cart, confirmedCart, currency, lang, customerName, customerPhone, submittingOrder, orderSuccess, orderError, orderId, primaryColor, orderTypeConfig, tableName = null, orderType, deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, deliveryZones, tipsEnabled, tipPercentages, tipCents, onTipChange, phoneContext = null, locale = 'en', onOrderTypeChange, onDeliveryFieldChange, onClose, onBack, onCustomerNameChange, onCustomerPhoneChange, onSubmit }: {
   cart: CartItem[]
   confirmedCart: CartItem[]
   currency: string
@@ -49,6 +55,10 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
   tipPercentages?: [number, number, number]
   tipCents?: number
   onTipChange?: (cents: number) => void
+  /** The restaurant's country: the phone field starts on its calling code. */
+  phoneContext?: PhoneContext | null
+  /** BCP 47 locale for country names in the phone field. */
+  locale?: string
   onOrderTypeChange?: (t: string) => void
   onDeliveryFieldChange?: (field: 'street' | 'complement' | 'zipcode' | 'city' | 'notes', value: string) => void
   onClose: () => void
@@ -98,7 +108,8 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
 
   function handleCustomTipInput(value: string) {
     setCustomTipValue(value)
-    const amount = parseFloat(value)
+    // "5,50" from a comma keyboard is 5.50.
+    const amount = parseFloat(value.replace(',', '.'))
     onTipChange?.(isNaN(amount) ? 0 : Math.max(0, Math.round(amount * 100)))
   }
 
@@ -108,15 +119,17 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
   if (orderTypeConfig?.delivery) activeTypes.push({ key: 'delivery', label: copy.delivery, Icon: Truck })
 
   const showForm = !orderSuccess && cart.length > 0
+  const box = useVisibleBox()
 
   return (
     <ModalPortal onClose={onClose}>
-      <div className="menu-root fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
+      <div className="menu-root fixed inset-0 z-[60] bg-zinc-950/40 backdrop-blur-[2px]" onClick={onClose}>
+        <div className="fixed inset-x-0 flex items-end justify-center sm:items-center sm:p-4" style={box.style}>
         <div
           role="dialog"
           aria-modal="true"
           aria-label={copy.checkoutTitle}
-          className="relative flex max-h-[94dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:max-h-[calc(100dvh-2rem)] sm:max-w-xl sm:rounded-3xl"
+          className={`relative flex w-full flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:max-h-full sm:max-w-xl sm:rounded-3xl ${box.short ? 'max-h-full' : 'max-h-[94%]'}`}
           onClick={e => e.stopPropagation()}
         >
           {/* Header */}
@@ -139,7 +152,7 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                   <Check className="size-8 text-emerald-600" strokeWidth={2.5} />
                 </div>
                 <p className="mt-4 text-[22px] font-semibold tracking-tight text-zinc-900">{copy.orderPlaced}</p>
-                <p className="mt-1 max-w-xs text-[15px] text-zinc-500">{copy.orderThankYou}</p>
+                <p className="mt-1 max-w-xs text-[15px] text-zinc-600">{copy.orderThankYou}</p>
                 <p className="mt-4 rounded-full bg-white px-4 py-2 font-mono text-sm font-semibold text-zinc-700 shadow-card">
                   {copy.orderNumber} #{orderId.slice(0, 8).toUpperCase()}
                 </p>
@@ -163,8 +176,8 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
               </button>
             </div>
           ) : (
-            <>
-              <div className="flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
+            <form noValidate className="flex min-h-0 flex-1 flex-col" onSubmit={e => { e.preventDefault(); if (!submittingOrder) onSubmit() }}>
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-4">
                 {/* What you're ordering */}
                 <Card>
                   <div className="divide-y divide-zinc-100">
@@ -187,8 +200,8 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                               </p>
                               <span className="shrink-0 text-[15px] font-medium tabular-nums text-zinc-900">{money(item.unitPrice * item.quantity)}</span>
                             </div>
-                            {details && <p className="mt-0.5 line-clamp-2 text-[13px] text-zinc-500">{details}</p>}
-                            {item.note && <p className="mt-0.5 line-clamp-1 text-[13px] italic text-zinc-400">&ldquo;{item.note}&rdquo;</p>}
+                            {details && <p className="mt-0.5 line-clamp-2 text-[13px] text-zinc-600">{details}</p>}
+                            {item.note && <p className="mt-0.5 line-clamp-1 text-[13px] italic text-zinc-500">&ldquo;{item.note}&rdquo;</p>}
                           </div>
                         </div>
                       )
@@ -202,7 +215,7 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                       <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700"><UtensilsCrossed className="size-5" /></span>
                       <span className="min-w-0">
                         <span className="block text-[17px] font-semibold text-zinc-900">{tableName}</span>
-                        <span className="block text-[13px] text-zinc-500">{copy.tableServed}</span>
+                        <span className="block text-[14px] text-zinc-600">{copy.tableServed}</span>
                       </span>
                     </div>
                   </Card>
@@ -220,7 +233,7 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                               type="button"
                               aria-pressed={active}
                               onClick={() => onOrderTypeChange?.(key)}
-                              className={`flex h-11 items-center justify-center gap-1.5 rounded-lg text-[14px] font-medium transition-colors ${active ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'}`}
+                              className={`flex h-11 items-center justify-center gap-1.5 rounded-lg text-[14px] font-medium transition-colors ${active ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-600 hover:text-zinc-900'}`}
                             >
                               <Icon className="size-4" />
                               {label}
@@ -241,15 +254,15 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                         <Field label={copy.zipcode} value={deliveryZipcode ?? ''} onChange={v => onDeliveryFieldChange?.('zipcode', v)} autoComplete="postal-code" inputMode="numeric" />
                         <Field label={copy.city} value={deliveryCity ?? ''} onChange={v => onDeliveryFieldChange?.('city', v)} autoComplete="address-level2" />
                       </div>
-                      <Field label={copy.deliveryNotes} value={deliveryNotes ?? ''} onChange={v => onDeliveryFieldChange?.('notes', v)} />
+                      <Field label={copy.deliveryNotes} value={deliveryNotes ?? ''} onChange={v => onDeliveryFieldChange?.('notes', v)} autoComplete="off" />
                       {deliveryZones && deliveryZones.length > 0 && deliveryZipcode && (
                         matchedZone ? (
-                          <p className="flex items-center gap-1.5 text-[13px] font-medium text-emerald-700">
+                          <p className="flex items-center gap-1.5 text-[14px] font-medium text-emerald-800">
                             <MapPin className="size-3.5" />
                             {matchedZone.name} · {money(matchedZone.fee_cents / 100)}
                           </p>
                         ) : (
-                          <p className="text-[13px] font-medium text-amber-700">{copy.noDeliveryZone}</p>
+                          <p className="text-[14px] font-medium text-amber-800">{copy.noDeliveryZone}</p>
                         )
                       )}
                     </div>
@@ -285,7 +298,7 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                         </button>
                       </div>
                       {selectedTipKey === 'custom' && (
-                        <Field label={copy.tipAmount} value={customTipValue} onChange={handleCustomTipInput} inputMode="decimal" type="number" />
+                        <Field label={copy.tipAmount} value={customTipValue} onChange={handleCustomTipInput} inputMode="decimal" autoComplete="off" />
                       )}
                     </div>
                   </Card>
@@ -295,7 +308,23 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                   <Card title={copy.yourDetails}>
                     <div className="space-y-3 px-4 pb-4">
                       <Field label={copy.yourName} value={customerName} onChange={onCustomerNameChange} autoComplete="name" required />
-                      <Field label={copy.phone} value={customerPhone} onChange={onCustomerPhoneChange} autoComplete="tel" type="tel" inputMode="tel" required />
+                      <div>
+                        <FieldLabel htmlFor="checkout-phone" label={copy.phone} required />
+                        <PhoneField
+                          id="checkout-phone"
+                          value={customerPhone}
+                          onChange={onCustomerPhoneChange}
+                          phoneContext={phoneContext}
+                          locale={locale}
+                          countryLabel={copy.loginCountry}
+                          countrySearchLabel={copy.loginCountrySearch}
+                          enterKeyHint="go"
+                          required
+                          onFocus={keepFieldVisible}
+                          onKeyDown={nextFieldOnEnter}
+                          className={FIELD_CLASS}
+                        />
+                      </div>
                     </div>
                   </Card>
                 )}
@@ -303,12 +332,12 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                 {showForm && (
                   <Card title={copy.paymentSummary}>
                     <dl className="space-y-1.5 px-4 pb-4 text-[15px]">
-                      <div className="flex justify-between"><dt className="text-zinc-500">{copy.subtotal}</dt><dd className="tabular-nums text-zinc-800">{money(total)}</dd></div>
+                      <div className="flex justify-between"><dt className="text-zinc-600">{copy.subtotal}</dt><dd className="tabular-nums text-zinc-800">{money(total)}</dd></div>
                       {deliveryFeeCents > 0 && (
-                        <div className="flex justify-between"><dt className="text-zinc-500">{copy.deliveryFee}</dt><dd className="tabular-nums text-zinc-800">{money(deliveryFeeCents / 100)}</dd></div>
+                        <div className="flex justify-between"><dt className="text-zinc-600">{copy.deliveryFee}</dt><dd className="tabular-nums text-zinc-800">{money(deliveryFeeCents / 100)}</dd></div>
                       )}
                       {tipAmount > 0 && (
-                        <div className="flex justify-between"><dt className="text-zinc-500">{copy.tip}</dt><dd className="tabular-nums text-zinc-800">{money(tipAmount)}</dd></div>
+                        <div className="flex justify-between"><dt className="text-zinc-600">{copy.tip}</dt><dd className="tabular-nums text-zinc-800">{money(tipAmount)}</dd></div>
                       )}
                       <div className="flex justify-between border-t border-zinc-100 pt-2"><dt className="font-semibold text-zinc-900">{copy.total}</dt><dd className="font-semibold tabular-nums text-zinc-900">{money(grandTotal)}</dd></div>
                     </dl>
@@ -319,11 +348,10 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
               {showForm && (
                 <div className="shrink-0 space-y-2 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
                   {orderError && (
-                    <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-[13px] font-medium text-red-700">{orderError}</p>
+                    <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[14px] font-medium text-red-800">{orderError}</p>
                   )}
                   <button
-                    type="button"
-                    onClick={onSubmit}
+                    type="submit"
                     disabled={submittingOrder}
                     style={{ backgroundColor: primary, color: onPrimary }}
                     className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-6 text-base font-semibold shadow-float transition-[opacity,scale] hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
@@ -338,8 +366,9 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                   </button>
                 </div>
               )}
-            </>
+            </form>
           )}
+        </div>
         </div>
       </div>
     </ModalPortal>
@@ -355,11 +384,21 @@ function Card({ title, className = '', children }: { title?: string; className?:
   )
 }
 
-function Field({ label, value, onChange, type = 'text', inputMode, autoComplete, required = false }: {
+const FIELD_CLASS = 'h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 text-[16px] text-zinc-950 outline-none transition-[border-color,box-shadow] placeholder:text-zinc-500 focus:border-zinc-900 focus:ring-[3px] focus:ring-zinc-900/10'
+
+function FieldLabel({ htmlFor, label, required = false }: { htmlFor: string; label: string; required?: boolean }) {
+  return (
+    <label htmlFor={htmlFor} className="mb-1.5 block text-[14px] font-medium text-zinc-700">
+      {label}{required && <span aria-hidden="true" className="text-zinc-500"> *</span>}
+    </label>
+  )
+}
+
+/** A text field at 16 px (smaller makes iOS zoom in); Enter goes to the next field. */
+function Field({ label, value, onChange, inputMode, autoComplete, required = false }: {
   label: string
   value: string
   onChange: (value: string) => void
-  type?: string
   inputMode?: 'text' | 'numeric' | 'decimal' | 'tel'
   autoComplete?: string
   required?: boolean
@@ -367,20 +406,19 @@ function Field({ label, value, onChange, type = 'text', inputMode, autoComplete,
   const id = useId()
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-[13px] font-medium text-zinc-600">
-        {label}{required && <span aria-hidden="true" className="text-zinc-400"> *</span>}
-      </label>
+      <FieldLabel htmlFor={id} label={label} required={required} />
       <input
         id={id}
-        type={type}
+        type="text"
         value={value}
         onChange={e => onChange(e.target.value)}
         inputMode={inputMode}
         autoComplete={autoComplete}
+        enterKeyHint="next"
         required={required}
-        min={type === 'number' ? 0 : undefined}
-        step={type === 'number' ? 0.01 : undefined}
-        className="h-12 w-full rounded-xl border border-zinc-200 bg-white px-4 text-[16px] text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-4 focus:ring-zinc-900/5"
+        onFocus={keepFieldVisible}
+        onKeyDown={nextFieldOnEnter}
+        className={FIELD_CLASS}
       />
     </div>
   )

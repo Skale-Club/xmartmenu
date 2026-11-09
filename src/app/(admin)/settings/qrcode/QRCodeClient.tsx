@@ -112,7 +112,7 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
     }
   }
 
-  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
 
   return (
     <div className="p-8 w-full space-y-8">
@@ -190,7 +190,7 @@ export default function QRCodeClient({ qrcodes: initial, tenantId, menuUrl, tena
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-[10px] font-medium text-zinc-400 mt-4 ml-1 flex items-center gap-2">
+              <p className="text-[13px] font-medium text-zinc-600 mt-4 ml-1 flex items-center gap-2">
                 <Info className="w-3 h-3" />
                 This will create a unique tracking URL for this location.
               </p>

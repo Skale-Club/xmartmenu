@@ -155,7 +155,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
           </Link>
 
           <div>
-            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Model</label>
+            <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Model</label>
             <select
               value={form.openrouter_model}
               onChange={e => setForm(f => ({ ...f, openrouter_model: e.target.value }))}
@@ -166,7 +166,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
           </div>
 
           <div>
-            <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Rate limit (messages per phone per day)</label>
+            <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Rate limit (messages per phone per day)</label>
             <input
               type="number"
               min={1}
@@ -175,7 +175,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
               onChange={e => setForm(f => ({ ...f, rate_limit_per_phone_per_day: Math.max(1, Math.min(500, Number(e.target.value) || 30)) }))}
               className="w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 focus:outline-none focus:ring-2 focus:ring-primary"
             />
-            <p className="text-[10px] text-zinc-400 mt-2 ml-1">Per-phone, rolling 24-hour window.</p>
+            <p className="text-[13px] text-zinc-600 mt-2 ml-1">Per-phone, rolling 24-hour window.</p>
           </div>
         </div>
 
@@ -222,7 +222,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
           {form.audio_enabled && (
             <div className="space-y-4 px-5">
               <div>
-                <label className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1">Transcription model</label>
+                <label className="block text-[14px] font-semibold text-zinc-700 mb-2 ml-1">Transcription model</label>
                 <select
                   value={form.audio_provider ?? 'whisper'}
                   onChange={e => setForm(f => ({ ...f, audio_provider: e.target.value === 'deepgram' ? 'deepgram' : 'whisper' }))}
@@ -231,7 +231,7 @@ export default function ChatAddonClient({ initialSettings, status }: { initialSe
                   <option value="whisper">OpenAI Whisper</option>
                   <option value="deepgram">Deepgram Nova</option>
                 </select>
-                <p className="text-[10px] text-zinc-400 mt-2 ml-1">Runs on the same AI setup as the chat (AI key & billing). No separate audio key.</p>
+                <p className="text-[13px] text-zinc-600 mt-2 ml-1">Runs on the same AI setup as the chat (AI key & billing). No separate audio key.</p>
               </div>
             </div>
           )}

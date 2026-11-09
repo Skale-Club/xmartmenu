@@ -161,7 +161,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-1">Waiter Interface</p>
+              <p className="text-xs font-bold text-zinc-600 uppercase tracking-widest mb-1">Waiter Interface</p>
               <h1 className="text-2xl font-bold text-zinc-900">{tenantName}</h1>
             </div>
             <div className="flex items-center gap-3 text-xs">
@@ -176,7 +176,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
           </div>
 
           {tables.length === 0 ? (
-            <div className="text-center py-20 text-zinc-400">
+            <div className="text-center py-20 text-zinc-600">
               <p className="font-semibold">No tables configured</p>
               <p className="text-sm mt-1">Go to Store Settings → Table Management to add tables.</p>
             </div>
@@ -212,7 +212,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
           <ChevronLeft className="w-5 h-5 text-zinc-600" />
         </button>
         <div className="flex-1">
-          <p className="text-xs text-zinc-400 font-medium">New order for</p>
+          <p className="text-[13px] text-zinc-600 font-medium">New order for</p>
           <h2 className="text-base font-bold text-zinc-900">{selectedTable.name}</h2>
         </div>
         {cartCount > 0 && (
@@ -273,7 +273,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
                 <p className="text-sm font-semibold text-zinc-900 truncate">{product.name}</p>
                 <p className="text-sm font-bold text-zinc-700">
                   {formatPrice(product.price, currency)}
-                  {choices && <span className="ml-2 text-xs font-medium text-zinc-400">options</span>}
+                  {choices && <span className="ml-2 text-xs font-medium text-zinc-600">options</span>}
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -335,7 +335,7 @@ export default function WaiterPage({ tenantId, tenantName, tables, categories, p
                 <li key={line.key} className="flex items-center gap-3 py-1.5">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-zinc-900">{line.product.name}</p>
-                    {details && <p className="truncate text-xs text-zinc-500">{details}</p>}
+                    {details && <p className="truncate text-xs text-zinc-600">{details}</p>}
                   </div>
                   <span className="text-xs font-semibold tabular-nums text-zinc-600">{formatPrice(line.unitPrice * line.quantity, currency)}</span>
                   <div className="flex items-center gap-1.5">

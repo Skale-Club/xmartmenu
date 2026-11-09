@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { idempotencyKeyFor, type IdempotencySlot } from '@/lib/orders/idempotency-client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -15,13 +15,15 @@ import WaiterCallButtons from './WaiterCallButtons'
 import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, menuLanguage, translateTag } from './menu-i18n'
 import { computeOpenState, resolveTimeZone } from '@/lib/chat-context'
 import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
-import { contactLinks, displayPrice, phoneLabel, whatsappUrl } from './showcase'
+import { contactLinks, displayPrice, whatsappUrl } from './showcase'
+import FeaturedCarousel from './FeaturedCarousel'
+import { GuestAccountButton } from './GuestSignIn'
 import { feedSizes } from './feed-sizes'
 import { contactEmailFor } from '@/lib/public-contacts'
 import { dishDetailsFor } from '@/lib/public-dish-details'
 import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
   CART_TTL_MS,
@@ -219,7 +221,9 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
 
   const settings = tenant.tenant_settings
   const primaryColor = settings?.primary_color ?? '#F52323'
-  const accentColor = settings?.accent_color ?? '#09090b'
+  const accentColor = safeCssColor(settings?.accent_color, '#09090b')
+  // The secondary colour as text on white: a light one is deepened so prices stay readable.
+  const accentText = computePrimaryForeground(accentColor) === '#ffffff' ? accentColor : `color-mix(in srgb, ${accentColor} 55%, #09090b)`
   // "Order on WhatsApp" on each dish (any plan, needs a number).
   const whatsapp = capabilities.whatsappOrders ? settings?.whatsapp ?? null : null
   const currency = settings?.currency ?? 'USD'
@@ -312,7 +316,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
 
   /** `item` names the dish with the choices made (ProductModal). */
   function openWhatsApp(item: string) {
-    const url = whatsappUrl(whatsapp, fill(copy.whatsappMessage, { item }))
+    const url = whatsappUrl(whatsapp, fill(copy.whatsappMessage, { item }), settings)
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
   }
 
@@ -1046,15 +1050,19 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           <div className="mx-auto flex max-w-5xl items-center px-2 sm:px-6">
             {showSearch ? (
               <div className="flex h-14 min-w-0 flex-1 items-center gap-2 px-3">
-                <Search className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" />
+                <Search className="size-[18px] shrink-0 text-zinc-500" aria-hidden="true" />
                 <input
                   autoFocus
                   type="search"
+                  enterKeyHint="search"
+                  autoComplete="off"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
+                  // The keyboard's Search key puts the keyboard away so the results can be seen.
+                  onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
                   placeholder={copy.search}
                   aria-label={copy.search}
-                  className="h-10 min-w-0 flex-1 bg-transparent text-[16px] text-zinc-900 outline-none placeholder:text-zinc-400"
+                  className="h-10 min-w-0 flex-1 bg-transparent text-[16px] text-zinc-900 outline-none placeholder:text-zinc-500"
                 />
               </div>
             ) : (
@@ -1068,7 +1076,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                       ref={el => { categoryButtonRefs.current[tab.id] = el }}
                       onClick={() => selectCategory(tab.id)}
                       aria-current={active ? 'true' : undefined}
-                      className={`relative flex shrink-0 items-center whitespace-nowrap text-[15px] font-medium transition-colors ${active ? 'text-zinc-900' : 'text-zinc-500 hover:text-zinc-800'}`}
+                      className={`relative flex shrink-0 items-center whitespace-nowrap text-[15px] font-medium transition-colors ${active ? 'text-zinc-900' : 'text-zinc-600 hover:text-zinc-900'}`}
                     >
                       {tab.label}
                       {active && <span aria-hidden="true" className="absolute inset-x-0 bottom-0 h-[2.5px] rounded-full" style={{ backgroundColor: primaryColor }} />}
@@ -1085,6 +1093,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             >
               {showSearch ? <X className="size-5" /> : <Search className="size-5" />}
             </button>
+            <GuestAccountButton slug={tenant.slug} primaryColor={primaryColor} copy={copy} locale={localeFor(selectedLanguage)} phoneContext={{ country: settings?.country, currency }} bannerUrl={settings?.banner_url} logoUrl={settings?.logo_url} restaurantName={tenant.name} />
           </div>
         </nav>
       )}
@@ -1097,29 +1106,30 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           className="mx-auto max-w-5xl scroll-mt-16 pt-6 sm:pt-8"
         >
           <h2 className="px-5 text-[20px] font-semibold tracking-tight text-zinc-900 sm:px-8">{copy.featured}</h2>
-          <div className="scrollbar-hide mt-3 flex snap-x snap-mandatory scroll-px-5 gap-3 overflow-x-auto px-5 pb-2 sm:scroll-px-8 sm:gap-4 sm:px-8">
-            {featured.map(p => {
+          <FeaturedCarousel
+            className="mt-3 px-5 pb-2 sm:px-8"
+            items={clone => featured.map(p => {
               const image = getProductImages(p)[0]
               return (
                 <button
                   key={p.id}
                   type="button"
-                  data-analytics-product-id={p.id}
-                  data-analytics-source="featured"
+                  tabIndex={clone ? -1 : undefined}
+                  {...(clone ? {} : { 'data-analytics-product-id': p.id, 'data-analytics-source': 'featured' })}
                   onClick={() => openProduct(p, 'featured')}
-                  className="w-[156px] shrink-0 snap-start text-left sm:w-[220px]"
+                  className="w-[156px] shrink-0 text-left sm:w-[220px]"
                 >
                   <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-zinc-100">
                     {image
-                      ? <Image src={image} alt="" fill sizes="(max-width: 640px) 156px, 220px" className="object-cover object-[center_18%]" />
+                      ? <Image src={image} alt="" fill draggable={false} sizes="(max-width: 640px) 156px, 220px" className="object-cover object-[center_18%]" />
                       : <DishPlaceholder />}
                   </div>
                   <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-zinc-900 sm:text-[15px]">{p.name}</p>
-                  <p className="mt-0.5 text-[14px] font-medium tabular-nums text-zinc-600">{priceOf(p).text}</p>
+                  <p className="mt-0.5 text-[14px] font-semibold tabular-nums" style={{ color: accentText }}>{priceOf(p).text}</p>
                 </button>
               )
             })}
-          </div>
+          />
         </section>
       )}
 
@@ -1224,6 +1234,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                         lang={selectedLanguage}
                         currency={currency}
                         primaryColor={primaryColor}
+                        accentColor={accentColor}
+                        accentText={accentText}
                         price={priceOf(p)}
                         onOpen={() => openProduct(p, 'grid')}
                         {...(directOrdersEnabled ? {
@@ -1244,31 +1256,34 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
         ) : null}
       </main>
 
-      {/* Contact and credits: a plain footer at the end of the page */}
+      {/* Contact and credits: tappable cards (call, WhatsApp, Instagram, email, map), then the credit line */}
       {activeMenuView === 'list' && (hasContact || footerBrand) && (
-        <footer className="border-t border-zinc-200/70" style={{ marginBottom: showOrderBar ? 88 : 0 }}>
-          <div className="mx-auto flex max-w-5xl flex-col items-start gap-8 px-5 py-8 sm:flex-row sm:items-end sm:justify-between sm:px-8">
+        <footer className="mt-4 border-t border-zinc-200/70" style={{ marginBottom: showOrderBar ? 88 : 0 }}>
+          <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8 sm:py-10">
             {hasContact && (
-              <ul className="space-y-3 text-[15px] font-medium text-zinc-700">
-                {contacts.instagram && (
-                  <li><a href={contacts.instagram.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 transition-colors hover:text-zinc-950"><Instagram className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.instagram.handle.replace(/^@+/, '')}</span></a></li>
-                )}
-                {contacts.phone && (
-                  <li><a href={contacts.phone.url} className="flex items-center gap-3 transition-colors hover:text-zinc-950"><Phone className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{contacts.phone.label}</span></a></li>
-                )}
-                {contacts.whatsapp && (
-                  <li className="flex items-center gap-3"><MessageCircle className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{phoneLabel(settings?.whatsapp)}</span></li>
-                )}
-                {email && (
-                  <li><a href={`mailto:${email}`} className="flex items-center gap-3 transition-colors hover:text-zinc-950"><Mail className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{email}</span></a></li>
-                )}
-                {settings?.address && (
-                  <li><a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 transition-colors hover:text-zinc-950"><MapPin className="size-[18px] shrink-0 text-zinc-400" aria-hidden="true" /><span className="select-text break-words">{settings.address}</span></a></li>
-                )}
-              </ul>
+              <>
+                <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900">{copy.contactTitle}</h2>
+                <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {contacts.phone && (
+                    <ContactCard href={contacts.phone.url} icon={<Phone className="size-[18px]" />} caption={copy.contactPhone} value={contacts.phone.label} color={primaryColor} numeric />
+                  )}
+                  {contacts.whatsapp && contacts.whatsappLabel && (
+                    <ContactCard href={contacts.whatsapp} external icon={<MessageCircle className="size-[18px]" />} caption="WhatsApp" value={contacts.whatsappLabel} color={primaryColor} numeric />
+                  )}
+                  {contacts.instagram && (
+                    <ContactCard href={contacts.instagram.url} external icon={<Instagram className="size-[18px]" />} caption="Instagram" value={contacts.instagram.handle} color={primaryColor} />
+                  )}
+                  {email && (
+                    <ContactCard href={`mailto:${email}`} icon={<Mail className="size-[18px]" />} caption={copy.contactEmail} value={email} color={primaryColor} />
+                  )}
+                  {settings?.address && (
+                    <ContactCard href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`} external icon={<MapPin className="size-[18px]" />} caption={copy.contactAddress} value={settings.address} color={primaryColor} wrap />
+                  )}
+                </ul>
+              </>
             )}
             {footerBrand && (
-              <p className="text-[12px] text-zinc-400">
+              <p className={`text-[12px] text-zinc-400 ${hasContact ? 'mt-8' : ''}`}>
                 {copy.poweredBy} <a href="/" className="font-medium text-zinc-600 hover:text-zinc-900">{footerBrand}</a>
               </p>
             )}
@@ -1391,6 +1406,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           orderBarVisible={showOrderBar}
           onOpenCart={directOrdersEnabled ? () => setCartOpen(true) : undefined}
           language={selectedLanguage}
+          phoneContext={{ country: settings?.country, currency }}
+          locale={localeFor(selectedLanguage)}
           cart={directOrdersEnabled ? cart.map(i => ({ name: i.product.name, quantity: i.quantity, options: summarizeOptions(i.selectedOptions) || undefined })) : null}
           canOrder={directOrdersEnabled}
           tableId={waiterCallTable?.id ?? orderingTable?.id ?? null}
@@ -1466,6 +1483,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           lang={selectedLanguage}
           customerName={customerName}
           customerPhone={customerPhone}
+          phoneContext={{ country: settings?.country, currency }}
+          locale={localeFor(selectedLanguage)}
           submittingOrder={submittingOrder}
           orderSuccess={orderSuccess}
           orderError={orderError}
@@ -1526,12 +1545,42 @@ function DishPlaceholder() {
   )
 }
 
+/** One way to reach the restaurant: the whole card is the link (call, chat, open the map). */
+function ContactCard({ href, icon, caption, value, color, external, numeric, wrap }: {
+  href: string; icon: ReactNode; caption: string; value: string; color: string
+  external?: boolean; numeric?: boolean; wrap?: boolean
+}) {
+  return (
+    <li>
+      <a
+        href={href}
+        {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+        className="flex h-full items-center gap-3 rounded-2xl bg-white p-3.5 shadow-card transition-shadow hover:shadow-[0_2px_6px_rgb(0_0_0/0.06),0_12px_32px_rgb(0_0_0/0.08)]"
+      >
+        <span
+          aria-hidden="true"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full"
+          style={{ backgroundColor: `color-mix(in srgb, ${color} 12%, white)`, color }}
+        >
+          {icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[12px] font-medium text-zinc-500">{caption}</span>
+          <span className={`block text-[15px] font-semibold text-zinc-900 ${numeric ? 'tabular-nums' : ''} ${wrap ? 'break-words' : 'truncate'}`}>{value}</span>
+        </span>
+      </a>
+    </li>
+  )
+}
+
 /**
  * One dish. Phones: a row — text left, photo right with the add button on it.
  * Larger screens: a card with the photo on top. The whole card opens the dish.
  */
-function ProductCard({ product, lang, currency, primaryColor, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement }: {
+function ProductCard({ product, lang, currency, primaryColor, accentColor, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement }: {
   product: Product; lang: string; currency: string; primaryColor: string; onOpen: () => void
+  /** The restaurant's secondary colour (tags) and the same colour made readable as text (price). */
+  accentColor: string; accentText: string
   /** The price as shown ("From $15.00" for a dish with sizes). */
   price: { text: string; from: boolean }
   cartQuantity?: number; onAdd?: () => void; onIncrement?: () => void; onDecrement?: () => void
@@ -1560,12 +1609,12 @@ function ProductCard({ product, lang, currency, primaryColor, price, onOpen, car
         {product.tags?.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1">
             {product.tags.slice(0, 2).map(tag => (
-              <span key={tag} className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-600">{translateTag(tag, lang)}</span>
+              <span key={tag} className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ backgroundColor: `color-mix(in srgb, ${accentColor} 12%, white)`, color: accentText }}>{translateTag(tag, lang)}</span>
             ))}
           </div>
         )}
         <div className="mt-auto flex items-baseline gap-2 pt-2">
-          <span className="text-[15px] font-semibold tabular-nums text-zinc-900">{price.text}</span>
+          <span className="text-[15px] font-semibold tabular-nums" style={{ color: accentText }}>{price.text}</span>
           {promo && <span className="text-[13px] tabular-nums text-zinc-400 line-through">{formatMoney(promo, currency, lang)}</span>}
         </div>
       </div>

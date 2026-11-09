@@ -101,8 +101,8 @@ export default function StaffClient() {
     setCredentialsOwner(data.staff ?? { id: member.id, email: member.email, full_name: member.full_name ?? '' })
   }
 
-  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-  const labelClassName = "block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1"
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const labelClassName = "block text-[14px] font-semibold text-zinc-700 mb-2 ml-1"
 
   return (
     <div className="p-8 w-full space-y-10">
@@ -167,7 +167,7 @@ export default function StaffClient() {
                 </div>
               </div>
               <div className="flex flex-col justify-center p-6 space-y-4">
-                <p className="text-xs text-zinc-400 leading-relaxed font-medium">
+                <p className="text-[13px] text-zinc-600 leading-relaxed font-medium">
                   Provide these credentials to <span className="text-white font-bold">{credentialsOwner?.full_name}</span>. They will be prompted to change their password upon their first login.
                 </p>
                 <div className="flex gap-3">
@@ -246,7 +246,7 @@ export default function StaffClient() {
                 )}
               </button>
               
-              <p className="text-[10px] font-medium text-zinc-400 text-center leading-relaxed px-4 italic">
+              <p className="text-[13px] font-medium text-zinc-600 text-center leading-relaxed px-4 italic">
                 New members will receive staff permissions to manage menus and orders.
               </p>
             </form>

@@ -94,14 +94,14 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
       </div>
 
       <form action="/settings/activity" className="flex flex-wrap items-end gap-3 rounded-[1.25rem] border border-zinc-100 bg-white p-4 shadow-sm">
-        <label className="text-xs font-bold text-zinc-600">
+        <label className="text-[14px] font-bold text-zinc-700">
           What
           <select name="table" defaultValue={table ?? ''} className="mt-1 block h-10 rounded-xl border border-zinc-200 px-3 text-sm">
             <option value="">Everything</option>
             {OWNER_AUDIT_TABLES.map(key => <option key={key} value={key}>{TABLE_LABELS[key] ?? key}</option>)}
           </select>
         </label>
-        <label className="text-xs font-bold text-zinc-600">
+        <label className="text-[14px] font-bold text-zinc-700">
           Period
           <select name="days" defaultValue={String(days)} className="mt-1 block h-10 rounded-xl border border-zinc-200 px-3 text-sm">
             {[1, 7, 30, 90].map(d => <option key={d} value={d}>{d === 1 ? 'Last 24 hours' : `Last ${d} days`}</option>)}

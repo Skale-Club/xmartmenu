@@ -146,7 +146,7 @@ export default function TranslationEditor({
             const value = values[current]?.[field.key] ?? ''
             return (
               <div key={field.key}>
-                <label htmlFor={id} className="mb-1 flex items-center gap-1.5 text-[13px] font-medium text-zinc-700">
+                <label htmlFor={id} className="mb-1 flex items-center gap-1.5 text-[14px] font-medium text-zinc-700">
                   <Languages className="size-3.5 text-zinc-400" aria-hidden="true" />
                   {field.label}
                 </label>

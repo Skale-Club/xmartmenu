@@ -59,6 +59,7 @@
     "framer-motion": "^12.38.0",
     "google-auth-library": "^10.9.1",
     "jose": "^6.2.15",
+    "libphonenumber-js": "^1.13.15",
     "lucide-react": "^0.475.0",
     "mcp-handler": "^1.1.0",
     "next": "^16.4.3",

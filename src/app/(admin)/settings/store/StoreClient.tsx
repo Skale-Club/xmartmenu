@@ -415,8 +415,8 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
     }
   }
 
-  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
-  const labelClassName = "block text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-2 ml-1"
+  const inputClassName = "w-full px-5 py-3.5 bg-zinc-50 border border-zinc-200 rounded-xl text-sm text-zinc-950 placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-all"
+  const labelClassName = "block text-[14px] font-semibold text-zinc-700 mb-2 ml-1"
 
   return (
     <div className="p-8 w-full space-y-10">
@@ -654,7 +654,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                   className={cn(inputClassName, 'pl-14')}
                 />
               </div>
-              <p className="mt-2 ml-1 text-[10px] font-medium text-zinc-400">
+              <p className="mt-2 ml-1 text-[13px] font-medium text-zinc-600">
                 Country code + area code + number, digits only.
                 {service.whatsapp_orders_enabled && !service.whatsapp ? ' WhatsApp orders stay off until you add a number.' : ''}
               </p>
@@ -789,7 +789,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                     onBlur={() => commitNumber('pickup_eta_minutes')}
                     className={cn(inputClassName, "font-black text-lg")}
                   />
-                  <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">Minutes</p>
+                  <p className="text-[13px] font-medium text-zinc-600 ml-1">Minutes</p>
                 </div>
               )}
 
@@ -813,7 +813,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                     onBlur={() => commitNumber('delivery_fee_cents')}
                     className={cn(inputClassName, "font-black text-lg")}
                   />
-                  <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">Used when no delivery zone matches the customer&apos;s zipcode</p>
+                  <p className="text-[13px] font-medium text-zinc-600 ml-1">Used when no delivery zone matches the customer&apos;s zipcode</p>
                 </div>
               )}
 
@@ -861,7 +861,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                   <div className="grid grid-cols-3 gap-4">
                     {(['tip_percentage_1', 'tip_percentage_2', 'tip_percentage_3'] as const).map((key, i) => (
                       <div key={key} className="space-y-1">
-                        <label className="text-[9px] font-black text-zinc-400 uppercase tracking-widest ml-1">Option {i + 1}</label>
+                        <label className="text-[14px] font-semibold text-zinc-700 ml-1">Option {i + 1}</label>
                         <input
                           type="number"
                           min={1}
@@ -873,7 +873,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                       </div>
                     ))}
                   </div>
-                  <p className="text-[10px] font-medium text-zinc-400 uppercase tracking-widest ml-1">Presets are saved with Apply Settings. A &quot;Custom&quot; option is always available to customers</p>
+                  <p className="text-[13px] font-medium text-zinc-600 ml-1">Presets are saved with Apply Settings. A &quot;Custom&quot; option is always available to customers</p>
                 </div>
               )}
             </div>
