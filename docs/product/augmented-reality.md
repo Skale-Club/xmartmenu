@@ -1,9 +1,10 @@
 # Augmented reality (3D dishes)
 
-Guests open a dish, tap **View in 3D**, turn the model around, and on a
-supported phone tap **View on your table** to place the dish at its real size
-through the camera. Restaurants upload the model in the dish editor
-(Media tab › *3D & augmented reality*).
+Guests open a dish, tap **View in 3D**, and the phone's camera opens with the
+dish placed on their table at its real size, like a shop's "view in your
+room". There is no 3D view in the page (owner decision, 2026-11-09): the only
+point is seeing the portion on the table. Restaurants upload the model in the
+dish editor (Media tab › *3D & augmented reality*).
 
 This document covers the foundation that is in place and what is still open.
 
@@ -11,13 +12,20 @@ This document covers the foundation that is in place and what is still open.
 
 | Device | Route | File used |
 |---|---|---|
-| Android (Chrome) | WebXR in the page, else Scene Viewer (Google app) | GLB |
-| iOS (Safari) | AR Quick Look | USDZ if uploaded, else converted from the GLB on the device |
-| Desktop | 3D only, with "open on your phone" hint | GLB |
+| Android | Google Scene Viewer, AR only (`com.google.ar.core` intent, `resizable=false` at real scale). Without Google Play Services for AR the browser returns to the menu with `#ar-unavailable` and a notice shows | GLB |
+| iPhone / iPad (Safari, any browser with `rel="ar"`) | AR Quick Look (`#allowsContentScaling=0` at real scale) | USDZ; an old model without one is converted on the phone first |
+| Computer, iOS in-app browsers | no button | — |
 
-Built on Google's [`<model-viewer>`](https://modelviewer.dev)
-(`@google/model-viewer` 4.4, with three.js). It is imported only when a guest
-opens the 3D view, so menus without models never download it.
+`src/lib/ar/launch.ts` picks the route and builds the URLs (pure, tested);
+`src/components/ar/ArButton.tsx` is the button. Nothing heavy loads for
+guests: three.js is imported only on an iPhone whose model lacks a USDZ.
+
+Scene Viewer cannot read Draco, meshopt or KTX2/WebP/AVIF textures and refuses
+files over 15 MB, so uploads with those are refused (`model-file.ts`). The
+back office makes the USDZ from the GLB in the browser right after upload
+(`src/lib/ar/usdz-export.ts`, three.js `USDZExporter`, 1024 px textures). That
+file is text USD with PNG textures, so a 90k-triangle scan comes out ~10 MB;
+a binary (usdc) repack with JPEG textures is ~3 MB (see follow-ups).
 
 ## Pieces
 
@@ -26,13 +34,15 @@ opens the 3D view, so menus without models never download it.
 | Schema, production (owned PostgreSQL) | `docs/owned-schema/20261107090000_product_ar_models.sql` |
 | Schema, legacy Supabase | `supabase/migrations/20261107090000_product_ar_models.sql` |
 | Types | `ProductArModel`, `PublicProductArModel` in `src/types/database.ts` |
-| File checks (GLB magic/version/length, USDZ zip, 25 MB cap, 5 MB warning) | `src/lib/ar/model-file.ts` |
+| File checks (GLB magic/version/length, Scene Viewer-unsupported extensions, USDZ zip, 15 MB cap, 5 MB warning) | `src/lib/ar/model-file.ts` |
 | Upload API | `POST /api/admin/products/upload-ar-model` (multipart `file`, `format=glb\|usdz`) |
 | Back-office reads/writes, owned DB | entity `ar` of `POST /api/admin/products/[id]/catalog` (`src/lib/data/admin-product-ar.ts`) |
 | Back office UI | `src/app/(admin)/menu/products/[id]/ProductArTab.tsx` (owned API, or Supabase in legacy mode) |
-| Viewer | `src/components/ar/ModelViewer.tsx`, `ArViewerSheet.tsx`, `ar-copy.ts` (15 languages) |
+| Guest button and AR launch | `src/components/ar/ArButton.tsx`, `ar-copy.ts` (15 languages), `src/lib/ar/launch.ts` |
+| iOS file from the GLB | `src/lib/ar/usdz-export.ts` (back office on upload; phone fallback) |
+| Back-office preview only | `src/components/ar/ModelViewer.tsx` (`@google/model-viewer`) |
 | Public menu | `productArModelByProductId`: owned loader `src/lib/data/public-menu.ts`, legacy loader `src/lib/menu/public-menu-data.ts` → `MenuPage` → `ProductModal` |
-| Analytics | `model_viewer_opened`, `ar_launched` (client events, `source: 'detail'`) |
+| Analytics | `model_viewer_opened` (button tapped), `ar_launched` (AR viewer opened); client events, `source: 'detail'` |
 | Headers | `Permissions-Policy: xr-spatial-tracking=(self)` in `next.config.ts` |
 | Tests | `tests/unit/ar/*`, `tests/unit/public-menu-postgres.test.ts`, `tests/unit/menu/public-menu-cache.test.ts` |
 
@@ -74,8 +84,17 @@ reach `menu_events` before its CHECK allows it (the same SQL does both).
 
 - glTF Binary (`.glb`), glTF 2.0, units in **metres** at the dish's real size
   (a 26 cm plate is 0.26 wide) so "real size" AR shows the true portion.
-- Under 5 MB: compress textures (KTX2/WebP) and geometry (Draco or meshopt),
-  e.g. `npx @gltf-transform/cli optimize in.glb out.glb`.
+- What Android's Scene Viewer accepts: no Draco/meshopt geometry compression,
+  JPEG or PNG textures (no KTX2/WebP/AVIF), up to ~100k triangles, textures up
+  to 2048 px, under 15 MB (aim for under 5 MB). From a heavy scan:
+
+  ```bash
+  npx @gltf-transform/cli optimize in.glb a.glb --compress false --texture-compress false --simplify-ratio 0.2
+  npx @gltf-transform/cli resize a.glb b.glb --width 2048 --height 2048
+  npx @gltf-transform/cli jpeg b.glb out.glb --quality 85
+  ```
+
+  (A 32 MB Sketchfab scan became 2.8 MB / 90k triangles this way.)
 - Origin at the bottom centre of the plate, so it sits on the table.
 - Photogrammetry apps (Polycam, Luma, RealityScan) export usable GLBs from a
   phone scan of the real dish.
@@ -86,8 +105,11 @@ reach `menu_events` before its CHECK allows it (the same SQL does both).
   paid feature, add a plan feature key next to `orders`/`payments`.
 - **Storage cleanup**: replaced/removed files stay in the bucket; the
   `*_storage_path` columns are there for a cleanup job.
-- **Model pipeline**: server-side optimisation (gltf-transform) and USDZ
-  generation on upload; AI or photogrammetry generation from dish photos.
+- **Model pipeline**: server-side optimisation on upload (gltf-transform:
+  simplify, resize, JPEG, so restaurants can upload any scan) and a binary USDZ
+  (usdc + JPEG, ~3× smaller than the browser export; `usd-core`'s
+  `UsdUtils.CreateNewARKitUsdzPackage` does it); AI or photogrammetry
+  generation from dish photos.
 - **Feed entry point**: a 3D badge on dish cards in the grid and the visual
   feed (today the entry is the dish detail only).
 - **Dashboard**: the two events are recorded but not yet shown in the menu

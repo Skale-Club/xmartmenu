@@ -3,6 +3,7 @@ import {
   MAX_AR_MODEL_BYTES,
   RECOMMENDED_AR_MODEL_BYTES,
   arModelStoragePath,
+  arUnsupportedExtensions,
   checkArModelFile,
   formatModelSize,
   sniffArModelFormat,
@@ -86,6 +87,40 @@ describe('checkArModelFile', () => {
   it('refuses a GLB shorter than its header', () => {
     const data = new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0])
     expect(checkArModelFile(data, 'glb')).toEqual({ ok: false, error: 'The GLB file is truncated.' })
+  })
+
+  it('refuses a GLB compressed in a way Android AR cannot open', () => {
+    const result = checkArModelFile(glbWithJson({ asset: { version: '2.0' }, extensionsUsed: ['KHR_draco_mesh_compression', 'KHR_materials_unlit'], extensionsRequired: ['KHR_draco_mesh_compression'] }), 'glb')
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toContain('KHR_draco_mesh_compression')
+  })
+
+  it('accepts a plain GLB with extensions Scene Viewer reads', () => {
+    const data = glbWithJson({ asset: { version: '2.0' }, extensionsUsed: ['KHR_materials_unlit', 'KHR_texture_transform'] })
+    expect(checkArModelFile(data, 'glb')).toMatchObject({ ok: true, format: 'glb' })
+  })
+})
+
+/** A GLB whose first chunk is the given glTF JSON (padded to 4 bytes). */
+function glbWithJson(json: unknown): Uint8Array {
+  const text = new TextEncoder().encode(JSON.stringify(json))
+  const padded = Math.ceil(text.length / 4) * 4
+  const data = new Uint8Array(20 + padded).fill(0x20, 20)
+  const view = new DataView(data.buffer)
+  view.setUint32(0, 0x46546c67, true)
+  view.setUint32(4, 2, true)
+  view.setUint32(8, data.length, true)
+  view.setUint32(12, padded, true)
+  view.setUint32(16, 0x4e4f534a, true)
+  data.set(text, 20)
+  return data
+}
+
+describe('arUnsupportedExtensions', () => {
+  it('lists every blocked extension the model uses, and nothing for a GLB without a JSON chunk', () => {
+    expect(arUnsupportedExtensions(glbWithJson({ extensionsUsed: ['EXT_meshopt_compression', 'EXT_texture_webp', 'KHR_materials_unlit'] })))
+      .toEqual(['EXT_meshopt_compression', 'EXT_texture_webp'])
+    expect(arUnsupportedExtensions(glb())).toEqual([])
   })
 })
 
