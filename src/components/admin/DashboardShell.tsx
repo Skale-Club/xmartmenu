@@ -92,7 +92,7 @@ export default function DashboardShell({
         {sidebar}
       </div>
 
-      <main data-dashboard-content className={`dashboard-content min-w-0 flex-1 overflow-x-hidden pt-[calc(4rem+env(safe-area-inset-top))] lg:overflow-y-auto lg:pt-0 ${backgroundClassName}`}>
+      <main data-dashboard-content className={`dashboard-content min-w-0 flex-1 overflow-x-clip pt-[calc(4rem+env(safe-area-inset-top))] lg:overflow-y-auto lg:pt-0 ${backgroundClassName}`}>
         {children}
       </main>
     </div>

@@ -22,7 +22,11 @@ export function identityRuntimeConfig(env: Record<string, string | undefined> = 
   const apiKey = (production ? env.GOOGLE_AUTH_WEB_API_KEY : env.DEV_GOOGLE_AUTH_WEB_API_KEY) ?? ''
   if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(projectId) || !apiKey) throw new Error('Identity provider configuration required')
   if (!/^[1-9]\d{5,19}$/.test(projectNumber)) throw new Error('Explicit identity project number required')
-  if (!production && (projectId === 'skaleclub' || projectId === productionId || projectNumber === '937861185231'
+  // Development uses a separate Google project, unless it explicitly opts into the shared one
+  // (owner decision 2026-11-09: localhost signs in on the shared project, as Xpot and Xtimator do;
+  // localhost is an authorized domain there). The identity database stays the dev one either way.
+  const sharedInDevelopment = !production && env.DEV_GOOGLE_AUTH_SHARED_PROJECT === 'true'
+  if (!production && !sharedInDevelopment && (projectId === 'skaleclub' || projectId === productionId || projectNumber === '937861185231'
     || projectNumber === productionNumber || apiKey === env.GOOGLE_AUTH_WEB_API_KEY)) throw new Error('Development identity must use a separate Google project')
   if (env.FIREBASE_AUTH_EMULATOR_HOST) throw new Error('Identity emulator is not permitted')
   let origin: URL

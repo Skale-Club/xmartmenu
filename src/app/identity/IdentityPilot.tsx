@@ -13,6 +13,7 @@ import { keepFieldVisible } from '@/components/ui/keyboard-fields'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { fill, getMenuCopy, localeFor } from '@/components/menu/menu-i18n'
 import { phoneLabel, toE164Phone } from '@/components/menu/showcase'
+import { DEV_PHONE_SIGN_IN, devPhoneStart, devPhoneVerify } from '@/lib/auth/dev-phone-client'
 
 const noSubscription = () => () => {}
 const readPlatformLogo = () => {
@@ -80,6 +81,8 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       await action()
     }
     catch (error) {
+      // Development: the provider's own error (e.g. auth/invalid-app-credential) behind the generic message.
+      if (process.env.NODE_ENV === 'development') console.error('[dev identity] sign-in step failed:', error)
       if (error instanceof IdentityRequestError && error.code === 'phone_required') {
         // Google alone does not open an account: confirm the phone, which finishes the Google link.
         setGoogleAttempted(true)
@@ -158,6 +161,20 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
     const accentStyle = { backgroundColor: accent, color: onAccent }
     const label = 'mb-1.5 block text-[14px] font-medium text-zinc-700'
     const submit = () => void run(async () => {
+      // Development on localhost: Xpot's development code instead of SMS (dev-phone-client.ts).
+      if (DEV_PHONE_SIGN_IN) {
+        if (sent) {
+          await devPhoneVerify(sentPhone, code)
+          window.location.assign(await ownedLoginDestination(next, fetch, customerFlow))
+          return
+        }
+        const devPhone = toE164Phone(phone)
+        if (!devPhone) throw new IdentityRequestError('Check the number and the selected country.')
+        const devCode = await devPhoneStart(devPhone)
+        setSentPhone(devPhone); setSent(true); setCode(devCode)
+        setMessage(`Development code: ${devCode}. We filled it in for you.`)
+        return
+      }
       if (sent) {
         const current = attempt.current
         if (!current) throw new IdentityRequestError('Request another verification code.')
@@ -168,7 +185,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       const e164 = toE164Phone(phone)
       if (!e164) throw new IdentityRequestError(copy.loginInvalidPhone)
       if (!container.current) return
-      attempt.current = await phoneProof(config, e164, container.current)
+      attempt.current = await phoneProof(config, e164)
       setSentPhone(e164); setSent(true); setMessage('')
     })
     return <main className="bg-white text-zinc-950" style={{ '--accent': accent } as React.CSSProperties}>
@@ -234,6 +251,20 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
     const primary = 'flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-base font-black text-primary-foreground transition-all enabled:hover:scale-[1.02] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50'
     const label = 'mb-2 ml-1 block text-[11px] font-bold uppercase tracking-widest text-zinc-400'
     const submit = () => void run(async () => {
+      // Development on localhost: Xpot's development code instead of SMS (dev-phone-client.ts).
+      if (DEV_PHONE_SIGN_IN) {
+        if (sent) {
+          await devPhoneVerify(sentPhone, code)
+          window.location.assign(await ownedLoginDestination(next, fetch, customerFlow))
+          return
+        }
+        const devPhone = toE164Phone(phone)
+        if (!devPhone) throw new IdentityRequestError('Check the number and the selected country.')
+        const devCode = await devPhoneStart(devPhone)
+        setSentPhone(devPhone); setSent(true); setCode(devCode)
+        setMessage(`Development code: ${devCode}. We filled it in for you.`)
+        return
+      }
       if (sent) {
         const current = attempt.current
         if (!current) throw new IdentityRequestError('Request another verification code.')
@@ -244,7 +275,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       const e164 = toE164Phone(phone)
       if (!e164) throw new IdentityRequestError('Check the number and the selected country.')
       if (!container.current) return
-      attempt.current = await phoneProof(config, e164, container.current)
+      attempt.current = await phoneProof(config, e164)
       setSentPhone(e164); setSent(true); setMessage('')
     })
     return <main className="relative overflow-hidden bg-zinc-900 px-6 pb-6 pt-8 text-white" style={{ colorScheme: 'dark' }}>
@@ -329,7 +360,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
           finally { attempt.current = null; setSent(false); setCode('') }
         } else {
           if (!container.current) return
-          attempt.current = await phoneProof(config, phone.replace(/[\s()-]/g, ''), container.current)
+          attempt.current = await phoneProof(config, phone.replace(/[\s()-]/g, ''))
           setSent(true); setMessage('A verification code was sent to your phone.')
         }
       }) }}>

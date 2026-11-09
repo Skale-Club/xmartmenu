@@ -108,3 +108,14 @@ describe('npm run dev environment', () => {
     expect(child.stdout.trim()).toBe(OUTBOUND_BLOCKED_CODE)
   })
 })
+
+describe('DEV_OWNED_STACK', () => {
+  it('turns on the owned stack, the shared project and the identity hosts only when asked', async () => {
+    const { applyOwnedStack, OWNED_FLAGS, IDENTITY_HOSTS } = await import('../../scripts/lib/dev-environment.mjs')
+    expect(applyOwnedStack({}, '3000')).toEqual({})
+    const env = applyOwnedStack({ DEV_OWNED_STACK: 'true' }, '3010')
+    for (const flag of OWNED_FLAGS) expect(env[flag]).toBe('true')
+    expect(env).toMatchObject({ GOOGLE_AUTH_ENABLED: 'true', DEV_GOOGLE_AUTH_SHARED_PROJECT: 'true', DEV_GOOGLE_AUTH_PROJECT_ID: 'skaleclub', IDENTITY_ORIGIN: 'http://localhost:3010' })
+    expect(IDENTITY_HOSTS).toEqual(['identitytoolkit.googleapis.com', 'www.googleapis.com'])
+  })
+})

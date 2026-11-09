@@ -30,9 +30,14 @@ export const OWNED_MODE_FLAGS = [
 
 export type OwnedModeEnv = Record<string, string | undefined>
 
-/** Owned mode never falls back to Supabase Storage: without S3 it refuses to start. */
+/**
+ * Owned mode never falls back to Supabase Storage in production: without S3 it refuses to start.
+ * Development keeps its own storage, the dev Supabase project's bucket (scripts/lib/dev-environment.mjs
+ * sets STORAGE_PROVIDER=supabase), so localhost can run the owned sign-in and panel against dev data.
+ */
 export function assertOwnedModeStorage(env: OwnedModeEnv = process.env): void {
-  if (ownedModeActive(env) && env.STORAGE_PROVIDER !== 's3') {
+  const developmentStorage = env.NODE_ENV === 'development' && env.STORAGE_PROVIDER === 'supabase'
+  if (ownedModeActive(env) && env.STORAGE_PROVIDER !== 's3' && !developmentStorage) {
     throw new Error('Owned mode requires STORAGE_PROVIDER=s3 (no Supabase Storage fallback)')
   }
 }

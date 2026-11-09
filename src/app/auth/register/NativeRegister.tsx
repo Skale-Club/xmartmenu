@@ -52,7 +52,7 @@ export default function NativeRegister({ config, customer, next }: { config: Ide
           await complete(await verification.confirm(code))
         } else {
           if (!container.current) throw new Error('Reload and try again.')
-          attempt.current = await phoneProof(config,phone,container.current); setSent(true)
+          attempt.current = await phoneProof(config,phone); setSent(true)
         }
       }) }}>
         <label htmlFor="register-phone" className="block text-sm font-semibold">Phone with country code</label>

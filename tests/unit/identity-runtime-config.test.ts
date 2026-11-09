@@ -42,6 +42,12 @@ describe('pilot runtime target isolation', () => {
       { GOOGLE_AUTH_PROJECT_NUMBER: '123456789012' }, { DEV_GOOGLE_AUTH_WEB_API_KEY: env.GOOGLE_AUTH_WEB_API_KEY },
     ]) expect(() => identityRuntimeConfig({ ...env, ...overrides })).toThrow()
   })
+  it('lets development opt into the shared project explicitly, never production', () => {
+    const shared = { ...base(), DEV_GOOGLE_AUTH_PROJECT_ID: 'skaleclub', DEV_GOOGLE_AUTH_PROJECT_NUMBER: '937861185231' }
+    expect(() => identityRuntimeConfig(shared)).toThrow()
+    expect(identityRuntimeConfig({ ...shared, DEV_GOOGLE_AUTH_SHARED_PROJECT: 'true' }).web.projectId).toBe('skaleclub')
+    expect(() => identityRuntimeConfig({ ...shared, DEV_GOOGLE_AUTH_SHARED_PROJECT: 'yes' })).toThrow()
+  })
   it('requires the exact independent production host/name and explicit runtime URL', () => {
     const env = { ...base(), NODE_ENV: 'production', IDENTITY_ORIGIN: 'https://identity.example.test', PROD_DATABASE_HOST: 'xmartmenu-db', PROD_DATABASE_NAME: 'xmartmenu', IDENTITY_DATABASE_URL: database('xmartmenu-db', 'xmartmenu') }
     expect(identityRuntimeConfig(env).ssl).toEqual({ rejectUnauthorized: true })

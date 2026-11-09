@@ -218,6 +218,9 @@ export function createIdentityHttp(deps: IdentityHttpDependencies) {
       const store = deps.store
       const linkedUserId = await store.owner(identity)
       if (!linkedUserId) {
+        // Development only: name the unbound identity (a provider UID, not a credential) so an operator can
+        // bind it to a dev account (binding_proof 'operator-recovery'). Production never logs it.
+        if (process.env.NODE_ENV === 'development') console.warn(`[dev identity] no account bound to ${identity.projectId}/${identity.subject} (${identity.provider})`)
         const googleSub = identity.provider === 'google.com' ? identity.googleSubject : undefined
         const resolution = resolveLogin({ identity, linkedUserId,
           googleClaim: googleSub && store.googleClaim ? await store.googleClaim(googleSub) : null,

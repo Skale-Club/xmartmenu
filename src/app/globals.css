@@ -60,7 +60,13 @@ p {
 
 .dashboard-content {
   min-width: 0;
-  overscroll-behavior-y: contain;
+}
+/* Only where the panel content scrolls on its own (lg: fixed-height main). Below that the page scrolls, and
+   containing it on a main with nothing to scroll swallowed every wheel and touch scroll. */
+@media (min-width: 1024px) {
+  .dashboard-content {
+    overscroll-behavior-y: contain;
+  }
 }
 
 .dashboard-content input,

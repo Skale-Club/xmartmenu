@@ -39,19 +39,26 @@ export async function googleProof(config: IdentityWebConfig): Promise<string> {
   finally { await sdk.signOut(auth) }
 }
 
-export async function phoneProof(config: IdentityWebConfig, phone: string, container: HTMLElement) {
+/**
+ * Sends the SMS code. As in Xpot: an invisible reCAPTCHA on its own element at the end of <body>, cleared as
+ * soon as the code is sent. The visible checkbox never showed inside the sign-in popup, so the request left
+ * without a solved challenge and Google answered auth/invalid-app-credential.
+ */
+export async function phoneProof(config: IdentityWebConfig, phone: string) {
   if (!/^\+[1-9]\d{7,14}$/.test(phone)) throw new Error('Include + and the full country code.')
   const auth = await client(config)
   const sdk = await import('firebase/auth')
-  const captcha: Captcha = new sdk.RecaptchaVerifier(auth, container, { size: 'normal' })
+  const node = document.createElement('div')
+  document.body.appendChild(node)
+  const captcha: Captcha = new sdk.RecaptchaVerifier(auth, node, { size: 'invisible' })
   let confirmation: Awaited<ReturnType<typeof sdk.signInWithPhoneNumber>>
   try { confirmation = await sdk.signInWithPhoneNumber(auth, phone, captcha) }
-  catch (error) { captcha.clear(); throw error }
+  finally { captcha.clear(); node.remove() }
   return {
-    cancel: () => { captcha.clear(); void sdk.signOut(auth).catch(() => {}) },
+    cancel: () => { void sdk.signOut(auth).catch(() => {}) },
     confirm: async (code: string) => {
       try { await checkedConfig(config); return await (await confirmation.confirm(code)).user.getIdToken() }
-      finally { captcha.clear(); await sdk.signOut(auth) }
+      finally { await sdk.signOut(auth) }
     },
   }
 }

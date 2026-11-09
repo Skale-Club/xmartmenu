@@ -35,6 +35,9 @@ describe('owned mode switch', () => {
     expect(() => assertOwnedModeStorage({ OWNED_PUBLIC_MENU_ENABLED: 'true' })).toThrow('STORAGE_PROVIDER=s3')
     expect(() => assertOwnedModeStorage({ OWNED_AUTH_ENABLED: 'true', STORAGE_PROVIDER: 'supabase' })).toThrow()
     expect(() => assertOwnedModeStorage({ OWNED_AUTH_ENABLED: 'true', STORAGE_PROVIDER: 's3' })).not.toThrow()
+    // Development keeps its own dev Supabase bucket; production never does.
+    expect(() => assertOwnedModeStorage({ OWNED_AUTH_ENABLED: 'true', STORAGE_PROVIDER: 'supabase', NODE_ENV: 'development' })).not.toThrow()
+    expect(() => assertOwnedModeStorage({ OWNED_AUTH_ENABLED: 'true', STORAGE_PROVIDER: 'supabase', NODE_ENV: 'production' })).toThrow()
     expect(read('src/instrumentation.ts')).toContain('assertOwnedModeStartup()')
     expect(read('src/lib/storage/index.ts')).toMatch(/getStorageClient\(\): IStorageClient \{\s+assertOwnedModeStorage\(\)/)
   })
