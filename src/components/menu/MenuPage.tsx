@@ -1580,9 +1580,10 @@ function ContactCard({ href, icon, caption, value, color, external, numeric, wra
 }
 
 /**
- * One dish. Phones: a row, text left and photo right. The photo spans the text
- * block, from the top of the name to the bottom of the price row: square when
- * the text is short, taller (never squashed, it crops) when the text is long.
+ * One dish. Phones: a row, text left and photo right. The name starts level with
+ * the photo's top and the price row (price + add/stepper) sits on its foot, on
+ * every card. The photo is square when the text is short and grows taller
+ * (never squashed, it crops) when the text is long.
  * Larger screens: a card with the photo on top. The whole card opens the dish.
  * The add button and the stepper sit in the price row, never on the photo.
  */
@@ -1606,7 +1607,7 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
     <article
       data-analytics-product-id={product.id}
       data-analytics-source="grid"
-      className="group relative flex items-center gap-3 rounded-2xl bg-white p-3 shadow-card transition-shadow hover:shadow-[0_2px_6px_rgb(0_0_0/0.06),0_12px_32px_rgb(0_0_0/0.08)] sm:flex-col sm:items-stretch sm:gap-0 sm:overflow-hidden sm:p-0"
+      className="group relative flex items-stretch gap-3 rounded-2xl bg-white p-3 shadow-card transition-shadow hover:shadow-[0_2px_6px_rgb(0_0_0/0.06),0_12px_32px_rgb(0_0_0/0.08)] sm:flex-col sm:gap-0 sm:overflow-hidden sm:p-0"
     >
       <button
         type="button"
@@ -1615,8 +1616,9 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
         className="absolute inset-0 z-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-zinc-900/30"
       />
       <div className="pointer-events-none flex min-w-0 flex-1 flex-col sm:order-2 sm:p-4">
-        {/* Trimmed to the cap height so the photo's top meets the top of the letters. */}
-        <h3 className="line-clamp-2 text-[16px] font-semibold leading-snug text-zinc-900 [text-box:trim-start_cap_alphabetic]">{product.name}</h3>
+        {/* Pulled up by the half-leading + ascender gap (~0.32em in Inter) so the photo's top meets the top of
+            the capitals. Not text-box-trim: with line-clamp's overflow it would clip accents (Á, É). */}
+        <h3 className="mt-[-0.32em] line-clamp-2 text-[16px] font-semibold leading-snug text-zinc-900 sm:mt-0">{product.name}</h3>
         {product.description && (
           <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-zinc-500">{product.description}</p>
         )}
@@ -1627,8 +1629,9 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
             ))}
           </div>
         )}
-        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2">
-          <span className="flex min-w-0 items-baseline gap-2 [text-box:trim-end_cap_alphabetic]">
+        {/* Pinned to the bottom, level with the photo's foot, whatever the text above: one line, never wrapped. */}
+        <div className="mt-auto flex items-center gap-2 pt-2">
+          <span className="flex min-w-0 items-baseline gap-2 whitespace-nowrap [text-box:trim-end_cap_alphabetic]">
             <span className="text-[15px] font-semibold tabular-nums" style={{ color: accentText }}>{price.text}</span>
             {promo && <span className="text-[13px] tabular-nums text-zinc-400 line-through">{formatMoney(promo, currency, lang)}</span>}
           </span>
