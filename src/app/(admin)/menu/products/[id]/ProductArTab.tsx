@@ -3,9 +3,14 @@
 /**
  * 3D & augmented reality for one dish (product_ar_models).
  *
- * The restaurant uploads a GLB (required) and, optionally, a USDZ for iOS.
- * Guests then get "View in 3D" in the dish detail and, on a phone that
- * supports it, "View on your table" through the camera.
+ * The restaurant uploads a GLB. Right after, this page converts it to the iOS
+ * file (USDZ, src/lib/ar/usdz-export.ts) and uploads that too, so the dish
+ * opens on Android (Scene Viewer) and iPhone (Quick Look) alike. A hand-made
+ * USDZ can replace the generated one.
+ *
+ * Guests tap "View in 3D" in the dish detail and the phone's camera opens with
+ * the dish on their table (src/components/ar/ArButton.tsx). The preview here is
+ * only for the restaurant to check the model.
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -13,7 +18,7 @@ import dynamic from 'next/dynamic'
 import { Box, Smartphone, Trash2, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
-import { AR_MODEL_ACCEPT, RECOMMENDED_AR_MODEL_BYTES, formatModelSize, type ArModelFormat } from '@/lib/ar/model-file'
+import { AR_MODEL_ACCEPT, AR_MODEL_CONTENT_TYPES, RECOMMENDED_AR_MODEL_BYTES, formatModelSize, type ArModelFormat } from '@/lib/ar/model-file'
 import type { ProductArModel } from '@/types/database'
 
 const ModelViewer = dynamic(() => import('@/components/ar/ModelViewer'), { ssr: false })
@@ -121,6 +126,19 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
     }
   }
 
+  /** The iOS file made from the GLB and uploaded; null (with the reason shown) when that fails. */
+  async function generatedUsdz(glb: ArrayBuffer): Promise<ArPatch | null> {
+    try {
+      const { glbToUsdz } = await import('@/lib/ar/usdz-export')
+      const usdz = await glbToUsdz(glb)
+      const uploaded = await upload(new File([usdz.slice().buffer], 'model.usdz', { type: AR_MODEL_CONTENT_TYPES.usdz }), 'usdz')
+      return uploaded ? { usdz_url: uploaded.url, usdz_storage_path: uploaded.storage_path, usdz_bytes: uploaded.bytes } : null
+    } catch {
+      setNotice('The iOS file could not be made from this model; iPhones will convert it when a guest opens it, which is slower. You can upload a .usdz made in Reality Converter instead.')
+      return null
+    }
+  }
+
   async function handleFile(file: File | undefined, format: ArModelFormat) {
     if (!file) return
     setBusy(format)
@@ -129,15 +147,41 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
     const uploaded = await upload(file, format)
     if (!uploaded) { setBusy(null); return }
 
-    const patch: ArPatch = format === 'glb'
-      ? { glb_url: uploaded.url, glb_storage_path: uploaded.storage_path, glb_bytes: uploaded.bytes }
-      : { usdz_url: uploaded.url, usdz_storage_path: uploaded.storage_path, usdz_bytes: uploaded.bytes }
+    let patch: ArPatch
+    if (format === 'glb') {
+      // A new model replaces the iOS file too: the old one would show the old dish.
+      const usdz = await generatedUsdz(await file.arrayBuffer())
+      patch = {
+        glb_url: uploaded.url, glb_storage_path: uploaded.storage_path, glb_bytes: uploaded.bytes,
+        ...(usdz ?? { usdz_url: null, usdz_storage_path: null, usdz_bytes: null }),
+      }
+    } else {
+      patch = { usdz_url: uploaded.url, usdz_storage_path: uploaded.storage_path, usdz_bytes: uploaded.bytes }
+    }
 
     if (await save(patch)) {
       setPreviewFailed(false)
       if (uploaded.heavy) {
-        setNotice(`This file is ${formatModelSize(uploaded.bytes)}. Models above ${formatModelSize(RECOMMENDED_AR_MODEL_BYTES)} load slowly on mobile data; consider compressing it (Draco / gltf-transform).`)
+        setNotice(`This file is ${formatModelSize(uploaded.bytes)}. Models above ${formatModelSize(RECOMMENDED_AR_MODEL_BYTES)} take a while to open on mobile data; reduce triangles and textures (gltf-transform simplify + resize).`)
       }
+    }
+    setBusy(null)
+  }
+
+  async function rebuildUsdz() {
+    if (!model) return
+    setBusy('usdz')
+    setError(null)
+    setNotice(null)
+    try {
+      const glb = await fetch(model.glb_url).then(res => {
+        if (!res.ok) throw new Error(`Could not download the model (${res.status})`)
+        return res.arrayBuffer()
+      })
+      const usdz = await generatedUsdz(glb)
+      if (usdz) await save(usdz)
+    } catch (err) {
+      setError(message(err, 'Could not rebuild the iOS file'))
     }
     setBusy(null)
   }
@@ -177,7 +221,7 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
           </h3>
           <p className="text-xs text-zinc-500 mt-0.5 max-w-xl">
             Upload a 3D model of the dish (.glb, modelled in metres at its real size, ideally under {formatModelSize(RECOMMENDED_AR_MODEL_BYTES)}).
-            Guests get &ldquo;View in 3D&rdquo; and, on their phone, can place the dish on their table.
+            Guests tap &ldquo;View in 3D&rdquo; and their phone&rsquo;s camera shows the dish on their table. Use a plain glTF 2.0 file (no Draco or meshopt compression, up to 100k triangles, textures up to 2048 px): Android&rsquo;s AR viewer cannot open compressed models.
           </p>
         </div>
         {canManage && (
@@ -243,7 +287,7 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
               <div className="flex items-center justify-between gap-3">
                 <dt className="text-zinc-500 flex items-center gap-1"><Smartphone className="w-3.5 h-3.5" /> iOS file (USDZ)</dt>
                 <dd className="text-zinc-900 font-medium">
-                  {model.usdz_url ? formatModelSize(model.usdz_bytes) || 'Uploaded' : <span className="text-zinc-400 font-normal">Converted automatically</span>}
+                  {model.usdz_url ? formatModelSize(model.usdz_bytes) || 'Uploaded' : <span className="text-zinc-400 font-normal">Made on the guest&rsquo;s iPhone (slower)</span>}
                 </dd>
               </div>
             </dl>
@@ -280,16 +324,14 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
                   className="hidden"
                   onChange={e => { void handleFile(e.target.files?.[0], 'usdz'); e.target.value = '' }}
                 />
-                {model.usdz_url && (
-                  <button
-                    type="button"
-                    disabled={disabled}
-                    onClick={() => void update({ usdz_url: null, usdz_storage_path: null, usdz_bytes: null })}
-                    className="px-3 py-1.5 text-sm text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-50"
-                  >
-                    Use automatic iOS file
-                  </button>
-                )}
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => void rebuildUsdz()}
+                  className="px-3 py-1.5 text-sm text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50 disabled:opacity-50"
+                >
+                  Rebuild iOS file from the model
+                </button>
                 <button
                   type="button"
                   disabled={disabled}
