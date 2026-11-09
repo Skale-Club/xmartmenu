@@ -252,7 +252,7 @@ function Hero({ s, onLoginOpen }: { s: HeroSettings; onLoginOpen: () => void }) 
 
   return (
     <section
-      className="relative pt-8 pb-4 px-4 overflow-hidden min-h-screen flex flex-col justify-center"
+      className="relative pt-24 pb-12 px-4 overflow-hidden min-h-[70svh] flex flex-col justify-center"
       style={bgType === 'color' ? { backgroundColor: bgColor } : undefined}
     >
       {/* Video background */}
