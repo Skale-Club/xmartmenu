@@ -12,6 +12,17 @@ body[data-menu-feed="open"] [data-install-prompt] {
   --primary-foreground: #ffffff;
   --accent: #09090b;
   --accent-foreground: #ffffff;
+  /* The brand colour made readable on dark and on light surfaces (fallback: unchanged). */
+  --primary-on-dark: var(--primary);
+  --primary-on-light: var(--primary);
+}
+
+/* Derived from whatever --primary a restaurant sets, so every brand colour stays legible. */
+@supports (color: oklch(from red l c h)) {
+  :root {
+    --primary-on-dark: oklch(from var(--primary) max(l, 0.72) c h);
+    --primary-on-light: oklch(from var(--primary) min(l, 0.55) c h);
+  }
 }
 
 @theme inline {
@@ -19,6 +30,8 @@ body[data-menu-feed="open"] [data-install-prompt] {
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-on-dark: var(--primary-on-dark);
+  --color-primary-on-light: var(--primary-on-light);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   /* Public menu: warm off-white ground, one soft card shadow. */
@@ -249,4 +262,21 @@ input[type="file"] {
 }
 body:has([data-admin-sidebar][data-open="true"]) [data-install-prompt] {
   display: none;
+}
+
+/*
+ * Panel contrast with any brand colour. Dark blocks get the brand colour lightened until it reads
+ * on them (and dark text on it); brand-coloured text on the light panel is darkened until it reads
+ * on white. A dark-brown or a yellow restaurant then looks as clear as the default red.
+ */
+.dashboard-content :is(.bg-zinc-950, .bg-zinc-900, .bg-black) {
+  --primary: var(--primary-on-dark);
+  --primary-foreground: #09090b;
+}
+.dashboard-content .text-primary {
+  color: var(--primary-on-light);
+}
+.dashboard-content :is(.bg-zinc-950, .bg-zinc-900, .bg-black) .text-primary,
+.dashboard-content .text-primary:is(.bg-zinc-950, .bg-zinc-900, .bg-black) {
+  color: var(--primary);
 }
