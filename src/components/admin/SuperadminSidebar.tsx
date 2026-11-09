@@ -30,7 +30,7 @@ export default function SuperadminSidebar({ appName, logoUrl }: { appName: strin
         <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Super Admin Console</p>
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4 scrollbar-hide" aria-label="Super admin navigation">
+      <nav className="flex-1 space-y-1 overflow-y-auto p-4" aria-label="Super admin navigation">
         {items.map(({ href, label, icon: Icon, separated }) => {
           // Longest match wins, so /tenants/launch highlights only "Launch
           // checklist", not "Clients" as well.

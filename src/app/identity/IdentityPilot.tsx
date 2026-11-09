@@ -282,7 +282,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
     return <main className="relative overflow-hidden bg-zinc-900 px-6 pb-6 pt-8 text-white" style={{ colorScheme: 'dark' }}>
       {/* The frame's page must share the card's colour and scheme, or the browser paints a white backdrop
           behind it that shows as a light edge around the popup. */}
-      <style>{'html,body{background:#18181b;color-scheme:dark}'}</style>
+      <style>{'html,body{background:#18181b;color-scheme:dark;--scrollbar-thumb:rgb(255 255 255 / 0.24)}'}</style>
       {/* Soft brand glow under the popup's gradient top line. */}
       <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 h-24 w-48 -translate-x-1/2 rounded-full bg-[#F52323]/10 blur-3xl" />
       <section aria-labelledby="identity-title" className="relative">

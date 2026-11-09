@@ -1066,7 +1066,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                 />
               </div>
             ) : (
-              <div ref={categoryFilterRef} className="scrollbar-hide no-scrollbar flex h-14 min-w-0 flex-1 items-stretch gap-6 overflow-x-auto px-3">
+              <div ref={categoryFilterRef} className="scrollbar-hide flex h-14 min-w-0 flex-1 items-stretch gap-6 overflow-x-auto px-3">
                 {tabs.map(tab => {
                   const active = activeTab === tab.id
                   return (

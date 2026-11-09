@@ -176,6 +176,36 @@ input[type="file"] {
   cursor: pointer !important;
 }
 
+/*
+ * One scrollbar for the whole app: thin, rounded thumb on a transparent track. The thumb follows the
+ * surface: dark by default, light inside dark blocks and on dark pages that set --scrollbar-thumb.
+ * It sits in the base layer so utilities that hide a bar on purpose still win.
+ */
+@layer base {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb, rgb(24 24 27 / 0.22)) transparent;
+  }
+  /* Browsers without scrollbar-color (older Safari). */
+  @supports not (scrollbar-color: auto) {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      border: 3px solid transparent;
+      border-radius: 9999px;
+      background: var(--scrollbar-thumb, rgb(24 24 27 / 0.22)) padding-box;
+    }
+  }
+}
+:is(.bg-zinc-950, .bg-zinc-900, .bg-zinc-800, .bg-black) {
+  --scrollbar-thumb: rgb(255 255 255 / 0.24);
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;

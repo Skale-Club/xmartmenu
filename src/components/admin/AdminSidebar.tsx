@@ -176,7 +176,7 @@ export default function AdminSidebar({
         )}
       </div>
 
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto scrollbar-hide">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
         {visibleMainItems.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href)
           return (
