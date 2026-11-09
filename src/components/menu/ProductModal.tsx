@@ -71,7 +71,7 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, primaryColor, currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [], arModel = null, onModelViewerOpened, onArLaunched }: {
+export default function ProductModal({ product, primaryColor, priceColor = '#18181b', currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [], arModel = null, onModelViewerOpened, onArLaunched }: {
   /** The dish's 3D model: shows "View in 3D" (and AR on phones that support it). */
   arModel?: PublicProductArModel | null
   onModelViewerOpened?: () => void
@@ -81,6 +81,8 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
   /** Ingredient and allergen notes, shown right after the description. */
   details?: DishDetail[]
   product: Product; primaryColor: string; currency: string;
+  /** Prices in the restaurant's secondary colour, already made readable on white (MenuPage's accentText). */
+  priceColor?: string;
   /** Set when guests may send their order on WhatsApp (TenantCapabilities.whatsappOrders): shows "Order on WhatsApp". */
   whatsapp?: string | null;
   lang: string; onClose: () => void;
@@ -537,7 +539,7 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
               <div className="flex items-start justify-between gap-4">
                 <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900">{product.name}</h2>
                 <div className="shrink-0 text-right">
-                  <p className="text-[20px] font-semibold tabular-nums tracking-tight text-zinc-900">
+                  <p className="text-[20px] font-semibold tabular-nums tracking-tight" style={{ color: priceColor }}>
                     {headerPrice.from ? fill(guestCopy.fromPrice, { price: money(headerPrice.amount) }) : money(headerPrice.amount)}
                   </p>
                   {!headerPrice.from && product.original_price && product.original_price > product.price && (
@@ -799,6 +801,14 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
         {((!showcase && onAddToCart) || (whatsapp && onWhatsApp) || (showcase && hasContactRow)) && (
           <div className="shrink-0 space-y-2 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
             {!showcase && onAddToCart && (
+              <>
+              {/* The total sits above the button, never inside it: the button stays one short word in every language. */}
+              <div className="flex items-baseline justify-between gap-3 px-1">
+                <span className="text-[13px] font-medium text-zinc-500">{copy.total}</span>
+                <span aria-live="polite" className="text-[20px] font-semibold tabular-nums tracking-tight" style={{ color: priceColor }}>
+                  {money(finalUnitPrice * (isEditing ? 1 : quantity))}
+                </span>
+              </div>
               <div className="flex items-center gap-3">
                 {!isEditing && (
                   <div className="flex h-[52px] shrink-0 items-center rounded-2xl border border-zinc-200 bg-white px-1">
@@ -831,15 +841,17 @@ export default function ProductModal({ product, primaryColor, currency, whatsapp
                 >
                   {canAddToCart ? (
                     <>
-                      <span className="truncate">{isEditing ? copy.updateItem : copy.orderNow}</span>
-                      <span aria-hidden="true" className="opacity-70">·</span>
-                      <span className="tabular-nums">{money(finalUnitPrice * (isEditing ? 1 : quantity))}</span>
+                      {isEditing
+                        ? <Check className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />
+                        : <Plus className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />}
+                      <span className="truncate">{isEditing ? copy.updateItem : copy.addToOrder}</span>
                     </>
                   ) : (
                     <span className="truncate text-[15px]">{copy.chooseRequired}</span>
                   )}
                 </button>
               </div>
+              </>
             )}
             {whatsapp && onWhatsApp && (
               <button

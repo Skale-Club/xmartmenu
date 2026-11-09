@@ -1321,6 +1321,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           onPrevProduct={!editingCartKey && !upsell?.choosing && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
           onNextProduct={!editingCartKey && !upsell?.choosing && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           primaryColor={primaryColor}
+          priceColor={accentText}
           currency={currency}
           whatsapp={whatsapp}
           lang={selectedLanguage}
