@@ -310,3 +310,9 @@ body:has([data-admin-sidebar][data-open="true"]) [data-install-prompt] {
 .dashboard-content .text-primary:is(.bg-zinc-950, .bg-zinc-900, .bg-black) {
   color: var(--primary);
 }
+
+/* AR camera (src/components/ar/WebXrDishViewer.tsx): the phone sweeping the table while it is scanned. */
+@keyframes ar-scan {
+  0%, 100% { transform: translateX(-14px) rotate(-8deg); }
+  50% { transform: translateX(14px) rotate(8deg); }
+}

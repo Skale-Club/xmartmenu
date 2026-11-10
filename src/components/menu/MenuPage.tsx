@@ -1166,6 +1166,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             autoplayVideos={feedAutoplayVideos}
             directOrdersEnabled={directOrdersEnabled}
             cartCount={cartCount}
+            onAddFromAr={product => addToCart(product, {}, product.price, undefined, undefined, undefined, 'feed')}
             exitLabel={copy.viewMenu}
             onExit={() => changeView('list')}
             initialIndex={feedIndex}
@@ -1351,6 +1352,12 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
           arModel={productArModelByProductId[selectedProduct.id] ?? null}
+          cartCount={cartCount}
+          onAddToCartFromAr={directOrdersEnabled
+            // The camera stays open: no closing the sheet, no "Complete your order".
+            ? (selectedOptions, unitPrice, note, ingredientModifications, editorState) =>
+                addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState, selectedProductSource === 'feed' ? 'feed' : 'detail')
+            : undefined}
           onModelViewerOpened={() => analyticsTracker?.track({
             event_name: 'model_viewer_opened',
             product_id: selectedProduct.id,

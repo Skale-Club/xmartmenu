@@ -29,6 +29,8 @@ interface FeedProps {
   autoplayVideos: boolean
   directOrdersEnabled: boolean
   cartCount: number
+  /** Adds one of a dish without options from the AR camera (no upsell, the camera stays open). */
+  onAddFromAr?: (product: Product) => void
   exitLabel: string
   hasCustomization: (productId: string) => boolean
   /** Sizes to pick from before adding; [] when the dish has none to pick on the feed. */
@@ -67,6 +69,7 @@ export default function MenuFeed({
   autoplayVideos,
   directOrdersEnabled,
   cartCount,
+  onAddFromAr,
   exitLabel,
   hasCustomization,
   sizesFor,
@@ -219,6 +222,11 @@ export default function MenuFeed({
                         lang={lang}
                         onOpen={() => onArOpened?.(product)}
                         onArLaunch={() => onArLaunched?.(product)}
+                        cart={directOrdersEnabled && onAddFromAr ? (
+                          sizesFor(product).length > 0 || customizable
+                            ? { mode: 'choose', count: cartCount, onAdd: () => {}, onChoose: () => onOpen(product) }
+                            : { mode: 'add', count: cartCount, priceLabel: priceLabel ? priceLabel(product) : formatMoney(product.price, currency, lang), onAdd: () => onAddFromAr(product), onChoose: () => onOpen(product) }
+                        ) : null}
                         className="flex size-12 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-xl transition active:scale-90"
                       />
                     ) : null
