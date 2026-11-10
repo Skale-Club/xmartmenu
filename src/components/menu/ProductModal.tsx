@@ -71,7 +71,11 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, primaryColor, priceColor = '#18181b', currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [], arModel = null, onModelViewerOpened, onArLaunched }: {
+export default function ProductModal({ product, primaryColor, priceColor = '#18181b', currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [], arModel = null, onModelViewerOpened, onArLaunched, onAddToCartFromAr, cartCount = 0 }: {
+  /** Adds one of this dish from the AR camera without closing the sheet (no upsell). */
+  onAddToCartFromAr?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void
+  /** Items in the order, for the confirmation inside the camera. */
+  cartCount?: number
   /** The dish's 3D model: shows "See it on your table" on phones with an AR camera. */
   arModel?: PublicProductArModel | null
   onModelViewerOpened?: () => void
@@ -398,6 +402,10 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
     return showcaseItemText(baseName(product), product.price, kitchenGroups, money)
   }
 
+  function currentEditorState(): CartEditorState {
+    return { singleSelections, halfSelections, multiSelections, ingredientSteppers, addedIngredients, note: itemNote }
+  }
+
   function submit() {
     if (!onAddToCart) return
     if (!canAddToCart) {
@@ -448,6 +456,14 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
       lang={lang}
       onOpen={onModelViewerOpened}
       onArLaunch={onArLaunched}
+      cart={!showcase && !isEditing && onAddToCartFromAr ? {
+        mode: canAddToCart ? 'add' : 'choose',
+        priceLabel: money(finalUnitPrice),
+        count: cartCount,
+        onAdd: () => onAddToCartFromAr(buildSelectedOptions(), finalUnitPrice, itemNote || undefined, buildIngredientModifications(), currentEditorState()),
+        // Back from the camera: point at the first missing choice (submit() does it).
+        onChoose: submit,
+      } : null}
       className="flex h-10 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-sm font-semibold text-zinc-900 shadow-sm transition-[scale] hover:bg-white active:scale-95"
     />
   ) : null

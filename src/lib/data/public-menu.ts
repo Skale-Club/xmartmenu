@@ -122,9 +122,12 @@ export async function readOwnedPublicMenu(query: PublicMenuQuery, slug: string, 
       // step runs, menus simply have no 3D views.
       const arReadable = one(await rows<Row>(query,
         `SELECT jsonb_build_object('readable', CASE WHEN to_regclass('public.product_ar_models') IS NULL THEN false
-         ELSE has_table_privilege(to_regclass('public.product_ar_models'), 'SELECT') END) AS row`, [], 1))
+         ELSE has_table_privilege(to_regclass('public.product_ar_models'), 'SELECT') END,
+         'scale', EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='product_ar_models' AND column_name='scale')) AS row`, [], 1))
       if (arReadable?.readable === true) {
-        arModels = await rows<Row>(query, publicSelect('product_ar_models', 'ar', PUBLIC_MENU_COLUMNS.arModel,
+        // The real-size column arrives with a later schema step: read it once it is there.
+        const arColumns = arReadable.scale === true ? `${PUBLIC_MENU_COLUMNS.arModel} scale` : PUBLIC_MENU_COLUMNS.arModel
+        arModels = await rows<Row>(query, publicSelect('product_ar_models', 'ar', arColumns,
           'JOIN public.products p ON p.id=ar.product_id AND p.tenant_id=ar.tenant_id WHERE ar.tenant_id=$1 AND p.menu_id=$2 AND p.is_available=true AND ar.product_id=ANY($3::uuid[])', 'ar.product_id', 2000), [tenantId, menu.id, ids], 2000) as unknown as PublicProductArModel[]
       }
     }

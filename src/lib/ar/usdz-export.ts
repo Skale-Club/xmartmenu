@@ -21,7 +21,12 @@ const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5
  */
 export const USDZ_MAX_TEXTURE_SIZE = 1024
 
-export async function glbToUsdz(glb: ArrayBuffer): Promise<Uint8Array> {
+export interface UsdzOptions {
+  /** Real-size correction from the back office (1 = as modelled), baked into the file. */
+  scale?: number
+}
+
+export async function glbToUsdz(glb: ArrayBuffer, options: UsdzOptions = {}): Promise<Uint8Array> {
   const THREE = await import('three')
   const { GLTFLoader } = await import('three/examples/jsm/loaders/GLTFLoader.js')
   const { DRACOLoader } = await import('three/examples/jsm/loaders/DRACOLoader.js')
@@ -33,6 +38,17 @@ export async function glbToUsdz(glb: ArrayBuffer): Promise<Uint8Array> {
   try {
     const gltf = await loader.parseAsync(glb, '')
     const scene = gltf.scene
+    // Quick Look shows the file at its own size: bake the real-size correction
+    // in. The exporter writes the root's children, not the root's own
+    // transform, so the scale goes on a group around them.
+    const scale = options.scale && Number.isFinite(options.scale) && options.scale > 0 ? options.scale : 1
+    if (scale !== 1) {
+      const sized = new THREE.Group()
+      sized.name = 'real_size'
+      sized.scale.setScalar(scale)
+      while (scene.children.length > 0) sized.add(scene.children[0])
+      scene.add(sized)
+    }
     scene.updateMatrixWorld(true)
 
     scene.traverse(object => {

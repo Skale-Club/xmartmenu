@@ -20,6 +20,7 @@ ops = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ops)
 CONTAINER = os.environ.get('XM_TEST_PG_CONTAINER')
 AR_FILE = '20261107090000_product_ar_models.sql'
+REAL_SIZE_FILE = '20261111090000_ar_real_size_and_cart_source.sql'
 
 
 def make_bundle(root: Path, files: dict, tamper: str = None):
@@ -128,16 +129,39 @@ CREATE TABLE public.tenants(id uuid PRIMARY KEY DEFAULT gen_random_uuid());
 CREATE TABLE public.products(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL REFERENCES public.tenants(id));
 CREATE TABLE public.product_media(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), product_id uuid);
 CREATE TABLE public.menu_events(id bigserial PRIMARY KEY, event_name text NOT NULL,
+  source text CONSTRAINT menu_events_source_check CHECK (source IS NULL OR source = ANY (ARRAY['grid'::text, 'featured'::text,
+  'detail'::text, 'cart'::text, 'checkout'::text, 'feed'::text, 'search'::text, 'upsell'::text, 'unknown'::text])),
   CONSTRAINT menu_events_event_name_check CHECK (event_name = ANY (ARRAY['menu_session_started'::text, 'product_impression'::text,
   'product_engagement'::text, 'product_detail_opened'::text, 'media_started'::text, 'media_completed'::text, 'media_swiped'::text,
   'category_selected'::text, 'search_performed'::text, 'add_to_cart'::text, 'upsell_shown'::text, 'order_created'::text])));
-INSERT INTO public.menu_events(event_name) VALUES ('upsell_shown'), ('order_created');
+INSERT INTO public.menu_events(event_name, source) VALUES ('upsell_shown', 'upsell'), ('order_created', NULL);
 GRANT SELECT ON public.products, public.tenants TO xmartmenu_runtime;""", 'xmartmenu')
         self.tmp = Path(tempfile.mkdtemp())
         self.cfg = ops.Config(container=CONTAINER, root=self.tmp / 'root', cutover_lock=self.tmp / 'n1', xmail_deploy_lock=self.tmp / 'n2')
         text = (REPO / 'docs/owned-schema' / AR_FILE).read_text()
         self.files = ops.load_bundle(make_bundle(self.tmp / 'bundle', {AR_FILE: text}))
         self.text = text
+
+    def test_real_size_file_adds_columns_and_the_ar_source_once(self):
+        pg = ops.Pg(self.cfg)
+        texts = {name: (REPO / 'docs/owned-schema' / name).read_text() for name in (AR_FILE, REAL_SIZE_FILE)}
+        files = ops.load_bundle(make_bundle(self.tmp / 'both', texts))
+        self.assertEqual(ops.Operator(self.cfg, pg, files, 'r1').apply(), 0)
+        self.assertEqual(ops.Operator(self.cfg, pg, files, 'r2').statuses(), [(AR_FILE, 'applied'), (REAL_SIZE_FILE, 'applied')])
+        pg.sql(texts[REAL_SIZE_FILE], role='xmartmenu_owner')  # a second run changes nothing
+        check = pg.sql("SELECT pg_get_constraintdef(oid) FROM pg_constraint WHERE conname='menu_events_source_check';")
+        for name in ('ar', 'upsell', 'detail', 'unknown'):
+            self.assertIn(f"'{name}'", check)
+        self.assertEqual(pg.sql("SELECT column_default FROM information_schema.columns WHERE table_name='product_ar_models' AND column_name='scale';"), '1')
+        self.assertEqual(pg.sql("SELECT has_column_privilege('xmartmenu_runtime','public.product_ar_models','scale','SELECT,UPDATE');"), 't')
+        bad = self.psql("SET ROLE xmartmenu_owner; UPDATE public.product_ar_models SET scale = 50;", 'xmartmenu', check=False)
+        self.assertEqual(bad.returncode, 0)  # no rows yet: the CHECK is exercised below
+        self.psql("SET ROLE xmartmenu_owner; INSERT INTO public.tenants DEFAULT VALUES;"
+                  " INSERT INTO public.products(tenant_id) SELECT id FROM public.tenants LIMIT 1;"
+                  " INSERT INTO public.product_ar_models(product_id, tenant_id, glb_url) SELECT id, tenant_id, 'https://cdn.example/a.glb' FROM public.products LIMIT 1;", 'xmartmenu')
+        out_of_range = self.psql("SET ROLE xmartmenu_owner; UPDATE public.product_ar_models SET scale = 50;", 'xmartmenu', check=False)
+        self.assertNotEqual(out_of_range.returncode, 0)
+        self.psql("SET ROLE xmartmenu_owner; INSERT INTO public.menu_events(event_name, source) VALUES ('add_to_cart', 'ar');", 'xmartmenu')
 
     def test_ar_file_applies_once_keeps_events_and_is_idempotent(self):
         pg = ops.Pg(self.cfg)

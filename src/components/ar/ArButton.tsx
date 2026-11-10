@@ -5,23 +5,27 @@
  * at its real size, through the phone's own AR viewer (src/lib/ar/launch.ts).
  * There is no 3D view in the page.
  *
- *   Android   WebXR in the browser through <model-viewer>, the way Google's own
- *             AR demo opens: the camera starts in the page and the dish sits on
- *             the table. The viewer is prepared (hidden) while the dish is open,
- *             so the tap starts the AR session at once (WebXR needs the tap).
- *             Where WebXR is missing, <model-viewer> opens Scene Viewer itself.
- *             If the library could not load, the Scene Viewer intent is used;
+ *   Android   WebXR in the browser with our own viewer
+ *             (src/lib/ar/webxr-dish-session.ts + WebXrDishViewer.tsx): the
+ *             camera looks for the table first, a ring shows where the dish
+ *             will go, a tap places it at real size; drag, twist and pinch move,
+ *             turn and resize it, and the order bar adds it to the cart. The
+ *             module and the model load while the dish is open, so the tap
+ *             starts the session at once (WebXR needs the tap).
+ *             Without WebXR AR, the Scene Viewer intent through the Google app;
  *             without the Google app the browser comes back with
  *             AR_UNAVAILABLE_HASH and a notice shows.
- *             (Opening Scene Viewer directly only flashed and returned on a
- *             Galaxy S24, where WebXR works: 2026-11-09.)
- *   iPhone    AR Quick Look with the dish's USDZ; an old model without one is
- *             converted on the phone first (three.js, loaded only then).
+ *             (Scene Viewer only flashed and returned on a Galaxy S24, where
+ *             WebXR works: 2026-11-09.)
+ *   iPhone    AR Quick Look with the dish's USDZ (Quick Look finds the table,
+ *             places the dish at real size and lets the guest resize it); an
+ *             old model without a USDZ is converted on the phone first. With a
+ *             cart, Quick Look shows its own "Add to order" button: a dish
+ *             without choices is added, one with choices comes back to them.
  *   other     no button: a computer (or an iPhone in-app browser) has no AR camera.
  */
 
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useRef, useState } from 'react'
 import { Box, Loader2 } from 'lucide-react'
 import type { PublicProductArModel } from '@/types/database'
 import {
@@ -35,9 +39,13 @@ import {
   type ArPlatform,
 } from '@/lib/ar/launch'
 import { getArCopy } from './ar-copy'
+import WebXrDishViewer, { type ArCart } from './WebXrDishViewer'
+import type { DishSession, DishStage } from '@/lib/ar/webxr-dish-session'
+
+export type { ArCart } from './WebXrDishViewer'
 
 export interface ArButtonProps {
-  model: Pick<PublicProductArModel, 'glb_url' | 'usdz_url' | 'real_scale'>
+  model: Pick<PublicProductArModel, 'glb_url' | 'usdz_url' | 'real_scale'> & { scale?: number | null }
   /** Dish name: Scene Viewer's title. */
   name: string
   lang: string
@@ -48,23 +56,23 @@ export interface ArButtonProps {
   className?: string
   /** Only the cube, named for screen readers (the feed's round buttons). */
   iconOnly?: boolean
+  /** Ordering from the camera (Android); absent on a browse-only menu. */
+  cart?: ArCart | null
 }
 
-type ModelViewerElement = HTMLElement & { canActivateAR?: boolean; activateAR?: () => Promise<void> }
-type ArStatus = 'not-presenting' | 'session-started' | 'object-placed' | 'failed'
+type DishSessionModule = typeof import('@/lib/ar/webxr-dish-session')
 
-let modelViewerLoad: Promise<unknown> | null = null
-function loadModelViewer(): Promise<unknown> {
-  modelViewerLoad ??= import('@google/model-viewer').catch(error => {
-    modelViewerLoad = null
+let sessionModuleLoad: Promise<DishSessionModule> | null = null
+function loadSessionModule(): Promise<DishSessionModule> {
+  sessionModuleLoad ??= import('@/lib/ar/webxr-dish-session').catch(error => {
+    sessionModuleLoad = null
     throw error
   })
-  return modelViewerLoad
+  return sessionModuleLoad
 }
 
-/** Hidden until the AR session starts; then WebXR shows its overlay full screen. */
-const VIEWER_HIDDEN: CSSProperties = { position: 'fixed', right: 0, bottom: 0, width: 1, height: 1, opacity: 0, pointerEvents: 'none' }
-const VIEWER_ACTIVE: CSSProperties = { position: 'fixed', inset: 0, width: '100%', height: '100%', zIndex: 90, background: 'transparent' }
+/** Android: how the tap opens AR, known once the module and the model are ready. */
+type AndroidRoute = 'loading' | 'webxr' | 'intent'
 
 /** The phone's AR viewer, known only in the browser: null on the server, on a computer or without an AR camera. */
 export function useArPlatform(): ArPlatform | null {
@@ -90,17 +98,21 @@ export function ArBadge({ lang, className }: { lang: string; className?: string 
   )
 }
 
-export default function ArButton({ model, name, lang, onOpen, onArLaunch, className, iconOnly = false }: ArButtonProps) {
+export default function ArButton({ model, name, lang, onOpen, onArLaunch, className, iconOnly = false, cart = null }: ArButtonProps) {
   const copy = getArCopy(lang)
   // Nothing renders on the server or without an AR camera.
   const platform = useArPlatform()
   const [notice, setNotice] = useState<string | null>(null)
   const [preparing, setPreparing] = useState(false)
-  // Android: <model-viewer> ready to start WebXR, and whether an AR session is on screen.
-  const [viewerReady, setViewerReady] = useState(false)
-  const [viewerFailed, setViewerFailed] = useState(false)
+  // Android: the WebXR viewer, ready before the tap.
+  const [route, setRoute] = useState<AndroidRoute>('loading')
   const [arActive, setArActive] = useState(false)
-  const viewerRef = useRef<ModelViewerElement | null>(null)
+  const [stage, setStage] = useState<DishStage>('scanning')
+  const [scale, setScale] = useState(1)
+  const moduleRef = useRef<DishSessionModule | null>(null)
+  const sessionRef = useRef<DishSession | null>(null)
+  const overlayRef = useRef<HTMLDivElement | null>(null)
+  const gestureLayerRef = useRef<HTMLDivElement | null>(null)
 
   // Android without Google Play Services for AR comes back to the menu with the hash.
   useEffect(() => {
@@ -114,28 +126,54 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
     return () => window.removeEventListener('hashchange', check)
   }, [copy.arUnavailable])
 
-  // Android: load <model-viewer> as soon as the dish is open, so the tap starts AR at once.
+  // Android: as soon as the dish is open, load the viewer and the model and
+  // check WebXR AR, so the tap starts the camera at once.
   useEffect(() => {
     if (platform !== 'scene-viewer') return
     let cancelled = false
-    loadModelViewer()
-      .then(() => { if (!cancelled) setViewerReady(true) })
-      .catch(() => { if (!cancelled) setViewerFailed(true) })
+    loadSessionModule()
+      .then(async loaded => {
+        moduleRef.current = loaded
+        const supported = await loaded.webXrArSupported()
+        if (!supported) return 'intent' as const
+        await loaded.preloadDish(model.glb_url)
+        return 'webxr' as const
+      })
+      .catch(() => 'intent' as const)
+      .then(next => { if (!cancelled) setRoute(next) })
     return () => { cancelled = true }
-  }, [platform])
+  }, [platform, model.glb_url])
 
-  useEffect(() => {
-    const el = viewerRef.current
-    if (!viewerReady || !el) return
-    const onStatus = (event: Event) => {
-      const status = (event as CustomEvent<{ status?: ArStatus }>).detail?.status
-      if (status === 'session-started' || status === 'object-placed') setArActive(true)
-      else if (status === 'not-presenting') setArActive(false)
-      else if (status === 'failed') { setArActive(false); setNotice(copy.arUnavailable) }
-    }
-    el.addEventListener('ar-status', onStatus)
-    return () => el.removeEventListener('ar-status', onStatus)
-  }, [viewerReady, copy.arUnavailable])
+  // Leaving the dish (or the menu) ends a running session.
+  useEffect(() => () => sessionRef.current?.end(), [])
+
+  function startWebXr() {
+    const viewer = moduleRef.current
+    const overlay = overlayRef.current
+    const gestureLayer = gestureLayerRef.current
+    if (!viewer || !overlay || !gestureLayer) return false
+    setStage('scanning')
+    setScale(1)
+    setArActive(true)
+    // startDishSession requests the session first thing, inside this tap.
+    viewer.startDishSession({
+      glbUrl: model.glb_url,
+      modelScale: model.scale ?? 1,
+      overlay,
+      gestureLayer,
+      onStage: setStage,
+      onScale: setScale,
+      onEnd: () => { sessionRef.current = null; setArActive(false) },
+    }).then(session => { sessionRef.current = session })
+      .catch(() => { setArActive(false); setNotice(copy.arUnavailable) })
+    return true
+  }
+
+  /** "Choose options": leave the camera, then let the sheet show the missing choice. */
+  function chooseFromCamera() {
+    sessionRef.current?.end()
+    cart?.onChoose()
+  }
 
   useEffect(() => {
     if (!notice) return
@@ -143,10 +181,23 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
     return () => window.clearTimeout(timer)
   }, [notice])
 
+  /** Quick Look's order button, and what tapping it does. */
+  const quickLookAction = cart ? {
+    label: cart.mode === 'add' ? copy.addToOrder : copy.chooseOptions,
+    title: name,
+    subtitle: cart.mode === 'add' ? cart.priceLabel : undefined,
+  } : null
+  function onQuickLookAction() {
+    if (!cart) return
+    if (cart.mode === 'choose') { cart.onChoose(); return }
+    cart.onAdd()
+    setNotice(copy.added.replace('{count}', String(cart.count + 1)))
+  }
+
   async function openOnIphone() {
     if (model.usdz_url) {
       onArLaunch?.()
-      openQuickLook(quickLookUrl(model.usdz_url, model.real_scale))
+      openQuickLook(quickLookUrl(model.usdz_url, quickLookAction), cart ? onQuickLookAction : undefined)
       return
     }
     setPreparing(true)
@@ -156,10 +207,10 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
         if (!res.ok) throw new Error(`GLB ${res.status}`)
         return res.arrayBuffer()
       })
-      const usdz = await glbToUsdz(glb)
+      const usdz = await glbToUsdz(glb, { scale: model.scale ?? 1 })
       const url = URL.createObjectURL(new Blob([usdz.slice().buffer], { type: 'model/vnd.usdz+zip' }))
       onArLaunch?.()
-      openQuickLook(quickLookUrl(url, model.real_scale))
+      openQuickLook(quickLookUrl(url, quickLookAction), cart ? onQuickLookAction : undefined)
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch {
       setNotice(copy.arUnavailable)
@@ -172,17 +223,18 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
     if (preparing || !platform) return
     onOpen?.()
     if (platform === 'scene-viewer') {
-      const viewer = viewerRef.current
-      if (viewerReady && viewer?.activateAR) {
-        // Called inside the tap: WebXR only starts from a user gesture.
-        onArLaunch?.()
-        viewer.activateAR().catch(() => setNotice(copy.arUnavailable))
+      if (route === 'webxr') {
+        // Inside the tap: WebXR only starts from a user gesture.
+        if (startWebXr()) onArLaunch?.()
         return
       }
-      if (!viewerFailed) {
-        // Still loading (a slow connection): the next tap starts AR.
+      if (route === 'loading') {
+        // Still downloading the dish (a slow connection): the next tap starts AR.
         setPreparing(true)
-        loadModelViewer().finally(() => setPreparing(false))
+        loadSessionModule()
+          .then(loaded => loaded.preloadDish(model.glb_url))
+          .catch(() => {})
+          .finally(() => setPreparing(false))
         return
       }
       onArLaunch?.()
@@ -214,23 +266,20 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
 
       {notice && <ArNotice text={notice} />}
 
-      {platform === 'scene-viewer' && viewerReady && createPortal(
-        <model-viewer
-          ref={viewerRef}
-          src={model.glb_url}
-          alt={name}
-          ar
-          ar-modes="webxr scene-viewer"
-          ar-scale={model.real_scale ? 'fixed' : 'auto'}
-          ar-placement="floor"
-          loading="eager"
-          style={arActive ? VIEWER_ACTIVE : VIEWER_HIDDEN}
-          aria-hidden={!arActive}
-        >
-          {/* The button above starts AR; model-viewer's own button stays hidden. */}
-          <span slot="ar-button" hidden />
-        </model-viewer>,
-        document.body,
+      {platform === 'scene-viewer' && route === 'webxr' && (
+        <WebXrDishViewer
+          active={arActive}
+          stage={stage}
+          scale={scale}
+          name={name}
+          copy={copy}
+          cart={cart}
+          overlayRef={overlayRef}
+          gestureLayerRef={gestureLayerRef}
+          onExit={() => sessionRef.current?.end()}
+          onResetScale={() => sessionRef.current?.resetScale()}
+          onChoose={chooseFromCamera}
+        />
       )}
     </>
   )
