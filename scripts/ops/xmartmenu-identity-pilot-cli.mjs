@@ -12,7 +12,7 @@ try{
   const raw=await readFile(new URL('manifest.json',directory))
   if(sha(raw)!==process.argv[3])throw new Error()
   const manifest=JSON.parse(raw)
-  if(Object.keys(manifest).sort().join('|')!=='browser.js|server.cjs|xmartmenu-identity-pilot-cli.mjs')throw new Error()
+  if(Object.keys(manifest).sort().join('|')!=='browser.js|launcher.sh|server.cjs|xmartmenu-identity-pilot-cli.mjs')throw new Error()
   for(const [name,hash]of Object.entries(manifest))if(!/^[a-f0-9]{64}$/.test(hash)||sha(await readFile(new URL(name,directory)))!==hash)throw new Error()
   let size=0;const chunks=[]
   const timer=setTimeout(()=>process.stdin.destroy(new Error('Configuration timeout')),5000)
