@@ -19,7 +19,7 @@ function fixture(patch: Record<string, unknown[]> = {}) {
   const query: PublicMenuQuery = async (text, values = []) => {
     queries.push({ text, values })
     // Readability probe of the optional AR table: readable when the fixture has it.
-    if (text.includes("'readable'")) return { rows: [{ row: { readable: 'product_ar_models' in data } }] }
+    if (text.includes("'readable'")) return { rows: [{ row: { readable: 'product_ar_models' in data, scale: 'ar_scale_column' in data } }] }
     const table = /FROM public\.([a-z_]+)/.exec(text)?.[1]
     if (!table || !(table in data)) throw new Error('Unexpected SQL')
     return { rows: data[table].map(row => ({ row })) }
@@ -66,6 +66,17 @@ describe('independent PostgreSQL public catalog', () => {
     expect(read?.values).toEqual([tenantId, menuId, [productId]])
     expect(read?.text).toContain('p.menu_id=$2')
     expect(read?.text).not.toMatch(/storage_path|_bytes/)
+  })
+  it('reads the real-size scale only once its column exists', async () => {
+    const model = { product_id: productId, glb_url: 'https://cdn.example/dish.glb', usdz_url: null, poster_url: null, real_scale: true, scale: 0.74 }
+    const without = fixture({ product_ar_models: [model] })
+    await readOwnedPublicMenu(without.query, 'restaurant', undefined)
+    expect(without.queries.find(item => item.text.includes('FROM public.product_ar_models ar'))?.text).not.toContain('ar.scale')
+    const withColumn = fixture({ product_ar_models: [model], ar_scale_column: [] })
+    const result = await readOwnedPublicMenu(withColumn.query, 'restaurant', undefined)
+    expect(withColumn.queries.find(item => item.text.includes('FROM public.product_ar_models ar'))?.text).toContain('ar.scale')
+    if (result.kind !== 'menu') throw Error()
+    expect(result.productArModelByProductId[productId].scale).toBe(0.74)
   })
   it('does not query details or a foreign tenant when the slug is missing/inactive', async () => {
     const { query, queries } = fixture({ tenants: [] })

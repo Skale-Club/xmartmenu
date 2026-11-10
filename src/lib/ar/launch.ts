@@ -76,23 +76,57 @@ export function arFallbackUrl(href: string): string {
   return `${href.split('#')[0]}${AR_UNAVAILABLE_HASH}`
 }
 
-/** USDZ URL for Quick Look; real-scale models cannot be resized by the guest. */
-export function quickLookUrl(usdzUrl: string, realScale: boolean): string {
-  if (!realScale) return usdzUrl
-  return `${usdzUrl}${usdzUrl.includes('#') ? '&' : '#'}allowsContentScaling=0`
+/** Quick Look's own button at the bottom of the AR view ("Add to order · R$ 34"). */
+export interface QuickLookAction {
+  /** The button's text. */
+  label: string
+  /** Shown above it: the dish. */
+  title: string
+  /** Under the title: the price. */
+  subtitle?: string
+}
+
+/** The message Quick Look sends to the <a rel="ar"> when its button is tapped. */
+export const QUICK_LOOK_ACTION_MESSAGE = '_apple_ar_quicklook_button_tapped'
+
+/**
+ * USDZ URL for Quick Look. Guests may resize the dish (Quick Look shows the %
+ * and snaps back to 100 %, the real size); `action` adds Quick Look's order
+ * button (callToAction / checkoutTitle / checkoutSubtitle in the fragment).
+ */
+export function quickLookUrl(usdzUrl: string, action?: QuickLookAction | null): string {
+  if (!action) return usdzUrl
+  const params = [
+    `callToAction=${encodeURIComponent(action.label)}`,
+    `checkoutTitle=${encodeURIComponent(action.title.trim().slice(0, 60))}`,
+    ...(action.subtitle ? [`checkoutSubtitle=${encodeURIComponent(action.subtitle)}`] : []),
+  ]
+  return `${usdzUrl}${usdzUrl.includes('#') ? '&' : '#'}${params.join('&')}`
 }
 
 /**
  * Opens AR Quick Look. Safari only opens it from an <a rel="ar"> whose first
  * child is an image; any other link would navigate away from the menu.
  */
-export function openQuickLook(href: string): void {
+export function openQuickLook(href: string, onAction?: () => void): void {
   const anchor = document.createElement('a')
   anchor.setAttribute('rel', 'ar')
   anchor.setAttribute('href', href)
   anchor.appendChild(document.createElement('img'))
   anchor.style.display = 'none'
   document.body.appendChild(anchor)
+  if (!onAction) {
+    anchor.click()
+    anchor.remove()
+    return
+  }
+  // Quick Look reports its button on this anchor, so it stays in the page
+  // while the guest is in AR (removed after 30 min at the latest).
+  const removeLater = window.setTimeout(() => anchor.remove(), 30 * 60_000)
+  anchor.addEventListener('message', event => {
+    if ((event as MessageEvent).data !== QUICK_LOOK_ACTION_MESSAGE) return
+    onAction()
+  })
   anchor.click()
-  anchor.remove()
+  void removeLater
 }

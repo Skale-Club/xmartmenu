@@ -211,7 +211,8 @@ async function loadPublicMenuFromSource(source: 'legacy' | 'owned-v1', slug: str
     // Augmented reality: one 3D model per dish, only the fields guests need.
     // Before the table exists the query errors and data is null (no 3D).
     loadDetails
-      ? supabase.from('product_ar_models').select('product_id, glb_url, usdz_url, poster_url, real_scale').in('product_id', productIds)
+      // '*' rather than a column list: a column a later schema step adds must not drop every model.
+      ? supabase.from('product_ar_models').select('*').in('product_id', productIds)
       : Promise.resolve({ data: [] }),
   ])
 

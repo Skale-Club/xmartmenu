@@ -6,6 +6,7 @@ import {
   arUnsupportedExtensions,
   checkArModelFile,
   formatModelSize,
+  glbFootprint,
   sniffArModelFormat,
 } from '@/lib/ar/model-file'
 
@@ -138,5 +139,31 @@ describe('formatModelSize', () => {
     expect(formatModelSize(100)).toBe('1 KB')
     expect(formatModelSize(820 * 1024)).toBe('820 KB')
     expect(formatModelSize(3.4 * 1024 * 1024)).toBe('3.4 MB')
+  })
+})
+
+describe('glbFootprint', () => {
+  // The Aurora sandwich: a photogrammetry scan modelled Z-up, turned upright by its node.
+  const sandwich = {
+    asset: { version: '2.0' },
+    scene: 0,
+    scenes: [{ nodes: [0] }],
+    nodes: [{ mesh: 0, rotation: [-0.7071067811865475, 0, 0, 0.7071067811865476] }],
+    meshes: [{ primitives: [{ attributes: { POSITION: 0 } }] }],
+    accessors: [{ min: [-0.187, -0.137, 0], max: [0.168, 0.147, 0.073] }],
+  }
+
+  it('measures the model through its node transforms, in centimetres', () => {
+    expect(glbFootprint(glbWithJson(sandwich))).toEqual({ widthCm: 35.5, depthCm: 28.4, heightCm: 7.3, largestSideCm: 35.5 })
+  })
+
+  it('applies parent scale and translation', () => {
+    const scaled = { ...sandwich, scenes: [{ nodes: [1] }], nodes: [sandwich.nodes[0], { children: [0], scale: [0.5, 0.5, 0.5], translation: [3, 0, 0] }] }
+    expect(glbFootprint(glbWithJson(scaled))?.largestSideCm).toBe(17.8)
+  })
+
+  it('is null without meshes or JSON', () => {
+    expect(glbFootprint(glbWithJson({ asset: { version: '2.0' } }))).toBeNull()
+    expect(glbFootprint(new Uint8Array(8))).toBeNull()
   })
 })

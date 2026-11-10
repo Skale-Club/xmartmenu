@@ -25,7 +25,19 @@ export function groupByProductId<T extends { product_id: string }>(rows: readonl
  */
 export function arModelsByProductId(rows: readonly PublicProductArModel[] | null | undefined): Record<string, PublicProductArModel> {
   const result: Record<string, PublicProductArModel> = {}
-  for (const row of rows ?? []) if (row.glb_url) result[row.product_id] = row
+  for (const row of rows ?? []) {
+    if (!row.glb_url) continue
+    // Only what guests need: the legacy loader reads '*' (storage keys, sizes).
+    const scale = Number(row.scale)
+    result[row.product_id] = {
+      product_id: row.product_id,
+      glb_url: row.glb_url,
+      usdz_url: row.usdz_url ?? null,
+      poster_url: row.poster_url ?? null,
+      real_scale: row.real_scale !== false,
+      ...(Number.isFinite(scale) && scale > 0 && row.scale != null ? { scale } : {}),
+    }
+  }
   return result
 }
 export function buildOptionGroupsByProductId(groups: readonly GroupWithOptions[] | null | undefined): Record<string, GroupWithOptions[]> {

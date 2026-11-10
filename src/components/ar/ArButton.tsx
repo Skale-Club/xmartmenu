@@ -17,8 +17,11 @@
  *             AR_UNAVAILABLE_HASH and a notice shows.
  *             (Scene Viewer only flashed and returned on a Galaxy S24, where
  *             WebXR works: 2026-11-09.)
- *   iPhone    AR Quick Look with the dish's USDZ; an old model without one is
- *             converted on the phone first (three.js, loaded only then).
+ *   iPhone    AR Quick Look with the dish's USDZ (Quick Look finds the table,
+ *             places the dish at real size and lets the guest resize it); an
+ *             old model without a USDZ is converted on the phone first. With a
+ *             cart, Quick Look shows its own "Add to order" button: a dish
+ *             without choices is added, one with choices comes back to them.
  *   other     no button: a computer (or an iPhone in-app browser) has no AR camera.
  */
 
@@ -178,10 +181,23 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
     return () => window.clearTimeout(timer)
   }, [notice])
 
+  /** Quick Look's order button, and what tapping it does. */
+  const quickLookAction = cart ? {
+    label: cart.mode === 'add' ? copy.addToOrder : copy.chooseOptions,
+    title: name,
+    subtitle: cart.mode === 'add' ? cart.priceLabel : undefined,
+  } : null
+  function onQuickLookAction() {
+    if (!cart) return
+    if (cart.mode === 'choose') { cart.onChoose(); return }
+    cart.onAdd()
+    setNotice(copy.added.replace('{count}', String(cart.count + 1)))
+  }
+
   async function openOnIphone() {
     if (model.usdz_url) {
       onArLaunch?.()
-      openQuickLook(quickLookUrl(model.usdz_url, model.real_scale))
+      openQuickLook(quickLookUrl(model.usdz_url, quickLookAction), cart ? onQuickLookAction : undefined)
       return
     }
     setPreparing(true)
@@ -191,10 +207,10 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
         if (!res.ok) throw new Error(`GLB ${res.status}`)
         return res.arrayBuffer()
       })
-      const usdz = await glbToUsdz(glb)
+      const usdz = await glbToUsdz(glb, { scale: model.scale ?? 1 })
       const url = URL.createObjectURL(new Blob([usdz.slice().buffer], { type: 'model/vnd.usdz+zip' }))
       onArLaunch?.()
-      openQuickLook(quickLookUrl(url, model.real_scale))
+      openQuickLook(quickLookUrl(url, quickLookAction), cart ? onQuickLookAction : undefined)
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch {
       setNotice(copy.arUnavailable)
