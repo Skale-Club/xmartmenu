@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { AdminMenuError, type AdminMenuQuery } from './admin-menus'
 import { UUID } from '../auth/owned-principal'
 import { validateTenantSlug } from '../admin/tenant-management'
+import { validateSubdomainLabel } from '../tenant-subdomain'
+import { subdomainColumnReady } from './tenant-domain'
 import { initialSettingsForPlan, liveFeatures } from '../plan-settings'
 import { planCeiling } from '../service-modes'
 import { SERVICE_SETTINGS_KEYS, validateServiceSettingsPatch } from '../service-settings'
@@ -134,9 +136,17 @@ export async function createTenant(query: AdminMenuQuery,context: TenantAdminCon
 export async function updateTenant(query: AdminMenuQuery,context: TenantAdminContext,id: string,input: unknown) {
   await requireTenantAdministrator(query,context,true)
   if (!UUID.test(id)) refuse(404,'Restaurant not found')
-  const body = object(input,['name','is_active'])
+  const body = object(input,['name','is_active','subdomain'])
   if ('name' in body && (typeof body.name !== 'string' || !body.name.trim() || body.name.length > 200)) refuse(400,'A restaurant name is required')
   if ('is_active' in body && typeof body.is_active !== 'boolean') refuse(400,'Invalid availability')
+  // Restaurant subdomain (docs/product/tenant-subdomains.md): opt-in, set by a
+  // platform administrator only; '' or null removes it.
+  if ('subdomain' in body) {
+    const check = validateSubdomainLabel(body.subdomain); if (!check.ok) refuse(400,check.error)
+    if (!await subdomainColumnReady(query)) refuse(503,'Restaurant subdomains are not available yet')
+    if (check.label && (await query('SELECT id FROM public.tenants WHERE subdomain=$1 AND id<>$2 LIMIT 1',[check.label,id])).rows.length) refuse(409,'This subdomain is already in use')
+    body.subdomain = check.label
+  }
   const keys = Object.keys(body), row = single((await query(`UPDATE public.tenants SET ${keys.map((key,index) => `${key}=$${index+2}`).join(',')} WHERE id=$1 RETURNING *`,[id,...keys.map(key => typeof body[key] === 'string' ? body[key].trim() : body[key])])).rows)
   if (!row) refuse(404,'Restaurant not found')
   await audit(query,context,'tenants',id,'update',id); return dto(row)

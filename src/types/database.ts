@@ -92,6 +92,8 @@ export interface Tenant {
   updated_at: string
   custom_domain: string | null
   custom_domain_verified: boolean
+  /** <subdomain>.<TENANT_SUBDOMAIN_BASE>; null = none (src/lib/tenant-subdomain.ts). Absent before its schema step. */
+  subdomain?: string | null
   // v2.4 FND-01: Xphere CRM sync state (migration 054). All nullable.
   // external_id = tenants.id is the idempotency key; these hold CRM-side ids.
   xphere_account_id: string | null

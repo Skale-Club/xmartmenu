@@ -1,7 +1,7 @@
 import {afterEach,beforeEach,describe,it,expect,vi} from 'vitest'
 const mocks=vi.hoisted(()=>({tx:vi.fn(),posts:vi.fn(),tags:vi.fn(),archive:vi.fn()}))
 vi.mock('@/lib/data/admin-menus-runtime',()=>({ownedAdminTransaction:mocks.tx}))
-vi.mock('@/lib/seo',()=>({PLATFORM_BASE:'https://synthetic.example'}))
+vi.mock('@/lib/seo',async importOriginal=>({...await importOriginal<typeof import('@/lib/seo')>(),PLATFORM_BASE:'https://synthetic.example'}))
 vi.mock('@/lib/blog/native/public-data',()=>({readNativePublishedPosts:mocks.posts,readNativeBlogTags:mocks.tags,readNativeBlogArchive:mocks.archive}))
 import {nativeBlogFlagProblem,nativeBlogFlagsReady,reportNativeBlogFlags,legacyBlogWritesBlocked} from '@/lib/blog/native/flags'
 import {nativeBlogSelected,requireNativeBlogConfiguration} from '@/lib/blog/native/selected'

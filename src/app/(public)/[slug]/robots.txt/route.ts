@@ -1,6 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { getCanonicalUrl, PLATFORM_HOST } from '@/lib/seo'
+import { getCanonicalUrl, PLATFORM_HOST, tenantOwnHost, type CanonicalTenant } from '@/lib/seo'
 import { ownedModeActive } from '@/lib/data/owned-mode'
 
 export const revalidate = 300
@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ slug: string }> },
 ) {
   const { slug } = await params
-  let tenant: { slug: string; custom_domain?: string | null; custom_domain_verified?: boolean } | null
+  let tenant: CanonicalTenant | null
   if (ownedModeActive()) {
     // Own PostgreSQL only. On failure answer 503 so crawlers retry, rather than
     // caching a wrong "Disallow" or reading the stale Supabase copy.
@@ -32,12 +32,12 @@ export async function GET(
   // we must look at the *real* request host to decide indexing — otherwise the
   // custom domain would serve its own `Disallow: /` and de-index the restaurant.
   const host = request.headers.get('host')?.split(':')[0]?.toLowerCase() ?? PLATFORM_HOST
-  const hasCustomDomain = !!(tenant?.custom_domain && tenant?.custom_domain_verified)
-  const servedOnCustomDomain = hasCustomDomain && host === tenant!.custom_domain
+  // The restaurant's own host: a verified custom domain, else its subdomain.
+  const ownHost = tenant ? tenantOwnHost(tenant) : null
 
-  // Block indexing of the platform-slug copy only when a verified custom domain
-  // is the canonical home. The custom domain itself (and slug-only tenants) index freely.
-  const blockIndexing = hasCustomDomain && !servedOnCustomDomain
+  // Block indexing on any host other than the restaurant's own (custom domain,
+  // else subdomain) when it has one. That host itself (and slug-only tenants) index freely.
+  const blockIndexing = !!ownHost && host !== ownHost
 
   const sitemapUrl = getCanonicalUrl(tenant!, '/sitemap.xml')
   const body = blockIndexing

@@ -9,7 +9,7 @@ import { sharedRuntimePool, closeSharedRuntimePools, SHARED_POOL_MAX } from '../
 import { adminMenuTransaction } from '../../src/lib/data/admin-menus-runtime'
 import type { AdminMenuQuery } from '../../src/lib/data/admin-menus'
 import { parsePlatformSettingsPatch, readPlatformSettingsRow, writePlatformSettingsRow } from '../../src/lib/data/platform-settings'
-import { readCustomDomainTenantSlug } from '../../src/lib/data/tenant-domain'
+import { readCustomDomainTenantSlug, readHostTenantSlug } from '../../src/lib/data/tenant-domain'
 import { readOgTenant, readPlatformBlogSitemap, readSeoTenant, readSitemapTenants, readTenantSitemapEntries } from '../../src/lib/data/public-seo'
 import { readTenantProductPicker } from '../../src/lib/data/superadmin-reads'
 import { checkOwnedDatabase } from '../../src/lib/data/database-health'
@@ -127,6 +127,30 @@ test('custom domain lookup only matches an active, verified, unique tenant', asy
   await admin.query('UPDATE public.tenants SET is_active=false WHERE id=$1', [tenantId])
   assert.equal(await lookup('menu.bistro.test'), null)
   await admin.query('UPDATE public.tenants SET is_active=true WHERE id=$1', [tenantId])
+})
+
+test('restaurant subdomains resolve only after the schema step, by label, for an active tenant', async () => {
+  const pool = sharedRuntimePool('ADMIN_MENUS', env)
+  const base = 'menus.example.test'
+  const lookup = (host: string) => adminMenuTransaction(pool, false, q => readHostTenantSlug(q, host, base))
+  // Before the column exists: no subdomain answers, custom domains still do, SEO reads still work.
+  assert.equal(await lookup('bistro.menus.example.test'), null)
+  assert.equal(await lookup('MENU.bistro.test'), 'bistro')
+  assert.equal((await adminMenuTransaction(pool, false, q => readSeoTenant(q, 'bistro')))?.subdomain, null)
+  await admin.query(await readFile(new URL('../../supabase/migrations/20261111140000_tenant_subdomain.sql', import.meta.url), 'utf8'))
+  await admin.query("UPDATE public.tenants SET subdomain='bistro' WHERE id=$1", [tenantId])
+  assert.equal(await lookup('Bistro.Menus.Example.Test:443'), 'bistro')
+  assert.equal(await lookup('other.menus.example.test'), null)
+  assert.equal(await lookup('a.bistro.menus.example.test'), null) // one level only
+  assert.equal(await lookup('menus.example.test'), null)
+  assert.equal(await adminMenuTransaction(pool, false, q => readHostTenantSlug(q, 'bistro.menus.example.test', null)), null) // feature off
+  assert.equal((await adminMenuTransaction(pool, false, q => readSeoTenant(q, 'bistro')))?.subdomain, 'bistro')
+  assert.equal((await adminMenuTransaction(pool, false, readSitemapTenants)).find(t => t.slug === 'bistro')?.subdomain, 'bistro')
+  await assert.rejects(admin.query("UPDATE public.tenants SET subdomain='bistro' WHERE slug='other'"), { code: '23505' })
+  await assert.rejects(admin.query("UPDATE public.tenants SET subdomain='Not_A_Label' WHERE slug='other'"), { code: '23514' })
+  await admin.query('UPDATE public.tenants SET is_active=false WHERE id=$1', [tenantId])
+  assert.equal(await lookup('bistro.menus.example.test'), null)
+  await admin.query('UPDATE public.tenants SET is_active=true, subdomain=NULL WHERE id=$1', [tenantId])
 })
 
 test('SEO and picker reads keep the legacy projections and tenant boundaries', async () => {

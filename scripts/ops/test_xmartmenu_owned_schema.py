@@ -22,6 +22,7 @@ CONTAINER = os.environ.get('XM_TEST_PG_CONTAINER')
 AR_FILE = '20261107090000_product_ar_models.sql'
 REAL_SIZE_FILE = '20261111090000_ar_real_size_and_cart_source.sql'
 STAGING_FILE = '20261111120000_menu_staging.sql'
+SUBDOMAIN_FILE = '20261111140000_tenant_subdomain.sql'
 
 
 def make_bundle(root: Path, files: dict, tamper: str = None):
@@ -198,6 +199,24 @@ GRANT SELECT ON public.products, public.tenants TO xmartmenu_runtime;""", 'xmart
                   " SELECT tenant_id, 'staging', false, id, repeat('a', 32) FROM public.menus LIMIT 1;", 'xmartmenu')
         weak = self.psql("SET ROLE xmartmenu_runtime; UPDATE public.menus SET preview_token='short' WHERE slug='staging';", 'xmartmenu', check=False)
         self.assertNotEqual(weak.returncode, 0)
+
+    def test_subdomain_file_adds_a_unique_dns_label_once(self):
+        pg = ops.Pg(self.cfg)
+        self.psql("SET ROLE xmartmenu_owner; ALTER TABLE public.tenants ADD COLUMN slug text;"
+                  " GRANT SELECT, INSERT, UPDATE ON public.tenants TO xmartmenu_runtime;"
+                  " INSERT INTO public.tenants(slug) VALUES ('a'), ('b');", 'xmartmenu')
+        text = (REPO / 'docs/owned-schema' / SUBDOMAIN_FILE).read_text()
+        files = ops.load_bundle(make_bundle(self.tmp / 'subdomain', {SUBDOMAIN_FILE: text}))
+        self.assertEqual(ops.Operator(self.cfg, pg, files, 'r1').apply(), 0)
+        self.assertEqual(ops.Operator(self.cfg, pg, files, 'r2').statuses(), [(SUBDOMAIN_FILE, 'applied')])
+        pg.sql(text, role='xmartmenu_owner')  # a second run changes nothing
+        self.assertEqual(pg.sql("SELECT has_column_privilege('xmartmenu_runtime','public.tenants','subdomain','SELECT,UPDATE');"), 't')
+        self.psql("SET ROLE xmartmenu_runtime; UPDATE public.tenants SET subdomain='aurora' WHERE slug='a';", 'xmartmenu')
+        taken = self.psql("SET ROLE xmartmenu_runtime; UPDATE public.tenants SET subdomain='aurora' WHERE slug='b';", 'xmartmenu', check=False)
+        self.assertNotEqual(taken.returncode, 0)
+        for bad in ('Aurora', 'a--b', '-a', 'a.b'):
+            out = self.psql(f"SET ROLE xmartmenu_runtime; UPDATE public.tenants SET subdomain='{bad}' WHERE slug='b';", 'xmartmenu', check=False)
+            self.assertNotEqual(out.returncode, 0, bad)
 
     def test_tenant_trigger_rejects_a_foreign_dish(self):
         pg = ops.Pg(self.cfg)

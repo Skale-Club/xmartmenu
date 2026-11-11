@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { createServiceClient } from '@/lib/supabase/server'
-import { PLATFORM_BASE } from '@/lib/seo'
+import { PLATFORM_BASE, tenantOwnHost } from '@/lib/seo'
 import { scopeFilter } from '@/lib/blog/scope'
 import { listArchive, listTags } from '@/lib/blog/public-queries'
 import {nativeBlogSelected} from '@/lib/blog/native/selected'
@@ -19,7 +19,8 @@ async function ownedSitemap(entries: MetadataRoute.Sitemap): Promise<MetadataRou
   const runtime = await import('@/lib/data/public-seo-runtime')
   try {
     for (const t of await runtime.ownedSitemapTenants()) {
-      if (t.custom_domain && t.custom_domain_verified) continue
+      // A restaurant on its own host (custom domain or subdomain) serves its own sitemap there.
+      if (tenantOwnHost(t)) continue
       entries.push({ url: `${PLATFORM_BASE}/${t.slug}`, lastModified: t.updated_at ? new Date(t.updated_at) : new Date(), changeFrequency: 'weekly', priority: 0.8 })
     }
   } catch {}

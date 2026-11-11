@@ -209,3 +209,13 @@ test('column-level reader privileges suffice and do not expose unrelated platfor
     await assert.rejects(client.query('SELECT openrouter_api_key FROM public.chat_addon_settings'), { code: '42501' })
   } finally { await client.query('RESET ROLE'); client.release() }
 })
+test('the restaurant subdomain joins the public tenant once its column exists', async () => {
+  const before = await read()
+  assert.equal(before.kind === 'menu' && before.tenant.subdomain, null)
+  await admin.query(await readFile(new URL('../../supabase/migrations/20261111140000_tenant_subdomain.sql', import.meta.url), 'utf8'))
+  await admin.query("UPDATE public.tenants SET subdomain='restaurant-a' WHERE id=$1", [ids.a])
+  const after = await read()
+  assert.equal(after.kind === 'menu' && after.tenant.subdomain, 'restaurant-a')
+  const other = await read('restaurant-b')
+  assert.notEqual(other.kind === 'menu' && other.tenant.subdomain, 'restaurant-a')
+})

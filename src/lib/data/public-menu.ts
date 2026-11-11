@@ -76,6 +76,14 @@ export async function readOwnedPublicMenu(query: PublicMenuQuery, slug: string, 
     if (!tenant) return { kind: 'not_found' }
     if (typeof tenant.id !== 'string') throw new Error('Invalid tenant')
     const tenantId = tenant.id
+    // tenants.subdomain (the canonical address, src/lib/tenant-subdomain.ts) once
+    // the schema step added it; a named column, so a column-level grant suffices.
+    const subdomainReady = one(await rows<Row>(query,
+      `SELECT jsonb_build_object('ready', EXISTS (SELECT 1 FROM information_schema.columns
+       WHERE table_schema='public' AND table_name='tenants' AND column_name='subdomain')) AS row`, [], 1))?.ready === true
+    tenant.subdomain = subdomainReady
+      ? one(await rows<Row>(query, `SELECT jsonb_build_object('subdomain', t.subdomain) AS row FROM public.tenants t WHERE t.id=$1 LIMIT 2`, [tenantId], 1))?.subdomain ?? null
+      : null
     const settings = tenant.tenant_settings
     const footer = one(await rows<Row>(query, 'SELECT jsonb_build_object(\'menu_footer_brand\', menu_footer_brand) AS row FROM public.platform_settings LIMIT 2', [], 1))
     const footerBrand = typeof footer?.menu_footer_brand === 'string' ? footer.menu_footer_brand : 'XmartMenu'

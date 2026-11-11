@@ -1,14 +1,15 @@
 import type {MetadataRoute} from 'next'
 import {ownedAdminTransaction} from '../../data/admin-menus-runtime'
-import {PLATFORM_BASE} from '../../seo'
+import {PLATFORM_BASE,tenantOwnHost} from '../../seo'
 import {requireNativeBlogConfiguration} from './selected'
 import {readNativePublishedPosts,readNativeBlogTags,readNativeBlogArchive} from './public-data'
 type Entries=MetadataRoute.Sitemap
 async function tenantEntries():Promise<Entries>{
  return ownedAdminTransaction(false,async query=>{
   const entries:Entries=[]
-  const tenants=(await query('SELECT slug,updated_at,custom_domain,custom_domain_verified FROM public.tenants WHERE is_active=true ORDER BY updated_at DESC,id LIMIT 5000')).rows
-  for(const row of tenants)if(!(row.custom_domain&&row.custom_domain_verified))entries.push({url:`${PLATFORM_BASE}/${row.slug}`,lastModified:row.updated_at instanceof Date?row.updated_at:new Date(),changeFrequency:'weekly',priority:0.8})
+  // A restaurant on its own host (verified custom domain or subdomain) lists itself there.
+  const tenants=(await query(`SELECT t.slug,t.updated_at,t.custom_domain,t.custom_domain_verified,to_jsonb(t)->>'subdomain' AS subdomain FROM public.tenants t WHERE t.is_active=true ORDER BY t.updated_at DESC,t.id LIMIT 5000`)).rows
+  for(const row of tenants)if(!tenantOwnHost({slug:String(row.slug),custom_domain:row.custom_domain as string|null,custom_domain_verified:row.custom_domain_verified===true,subdomain:row.subdomain as string|null}))entries.push({url:`${PLATFORM_BASE}/${row.slug}`,lastModified:row.updated_at instanceof Date?row.updated_at:new Date(),changeFrequency:'weekly',priority:0.8})
   return entries
  })
 }
