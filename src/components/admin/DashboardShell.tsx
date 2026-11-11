@@ -4,7 +4,7 @@ import { ReactNode, useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Menu, X } from 'lucide-react'
 import { lockBodyScroll } from '@/components/ui/ModalPortal'
-import { useRevealFocusedField } from '@/components/ui/keyboard-fields'
+import { useEnterMovesToNextField, useRevealFocusedField } from '@/components/ui/keyboard-fields'
 
 export default function DashboardShell({
   children,
@@ -28,6 +28,8 @@ export default function DashboardShell({
   const [open, setOpen] = useState(false)
   // On tablets and phones the keyboard never hides the field being typed in (pages and dialogs).
   useRevealFocusedField()
+  // The keyboard's Go/Enter moves to the next field; only a form's last field submits it.
+  useEnterMovesToNextField()
 
   useEffect(() => (open ? lockBodyScroll() : undefined), [open])
 

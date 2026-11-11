@@ -24,17 +24,50 @@ const FIELDS = 'input:not([type="hidden"]):not([type="checkbox"]):not([type="rad
  */
 export function nextFieldOnEnter(e: KeyboardEvent<HTMLInputElement>) {
   if (e.key !== 'Enter' || e.nativeEvent.isComposing) return
-  const form = e.currentTarget.form
-  if (!form) return
-  const fields = Array.from(form.querySelectorAll<HTMLElement>(FIELDS)).filter(el => el.getClientRects().length > 0)
-  const next = fields[fields.indexOf(e.currentTarget) + 1]
+  const next = nextFieldAfter(e.currentTarget)
   if (!next) return
   e.preventDefault()
   next.focus()
 }
 
+/** The next visible, editable field of the input's form, or null when it is the last one (or has no form). */
+function nextFieldAfter(input: HTMLInputElement): HTMLElement | null {
+  const form = input.form
+  if (!form) return null
+  const fields = Array.from(form.querySelectorAll<HTMLElement>(FIELDS)).filter(el => el.getClientRects().length > 0)
+  const index = fields.indexOf(input)
+  return index >= 0 ? fields[index + 1] ?? null : null
+}
+
 const TEXT_FIELD = /^(INPUT|TEXTAREA|SELECT)$/
 const NOT_TYPED = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'range', 'color', 'image', 'hidden'])
+
+/**
+ * `nextFieldOnEnter` for a whole screen at once (the admin dashboard, its
+ * dialogs, onboarding), on touch screens only: the iPhone keyboard's Go in
+ * the first field of a form submitted it half-filled ("Name" filled, then the
+ * form complained about the empty e-mail, or saved without it). Now Go moves
+ * to the next field and only the form's last field submits. Desktop keeps
+ * Enter-submits-from-anywhere. A field with `data-enter-submits` opts out;
+ * fields with their own Enter handling (preventDefault) are left alone.
+ */
+export function useEnterMovesToNextField() {
+  useEffect(() => {
+    const touch = window.matchMedia?.('(pointer: coarse)')
+    const onKeyDown = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.isComposing || e.defaultPrevented || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return
+      if (!touch?.matches) return
+      const input = e.target
+      if (!(input instanceof HTMLInputElement) || NOT_TYPED.has(input.type) || input.hasAttribute('data-enter-submits')) return
+      const next = nextFieldAfter(input)
+      if (!next) return
+      e.preventDefault()
+      next.focus()
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [])
+}
 
 /**
  * The same as `keepFieldVisible`, for a whole screen at once (the admin
