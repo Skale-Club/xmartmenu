@@ -9,7 +9,7 @@ import { ArrowRight, ChevronLeft } from 'lucide-react'
 import type { GuestBrand } from '@/lib/auth/guest-brand'
 import GuestSignInHeader from '@/components/auth/GuestSignInHeader'
 import PhoneField from '@/components/ui/PhoneField'
-import { keepFieldVisible } from '@/components/ui/keyboard-fields'
+import { keepFieldVisible, nextFieldOnEnter } from '@/components/ui/keyboard-fields'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { fill, getMenuCopy, localeFor } from '@/components/menu/menu-i18n'
 import { phoneLabel, toE164Phone } from '@/components/menu/showcase'
@@ -341,12 +341,8 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       <p className="mt-2 text-sm leading-6 text-zinc-400">{existingAccountLink ? 'Prove your previous account, then verify a phone number or Google account. Your company access stays unchanged.' : 'Verify your number by SMS, or continue with Google.'}</p>
       {error ? <p role="alert" className="mt-5 text-sm leading-6 text-red-300">{error}</p> : null}
       {message ? <p role="status" className="mt-5 text-sm leading-6 text-emerald-300">{message}</p> : null}
-      {existingAccountLink ? <div className="mt-6 space-y-3">
-        <label htmlFor="existing-email" className="block text-sm font-semibold">Previous account email</label>
-        <input id="existing-email" type="email" autoComplete="username" maxLength={320} value={existingEmail} onChange={event => setExistingEmail(event.target.value)} disabled={busy} className={field} />
-        <label htmlFor="existing-password" className="block text-sm font-semibold">Previous account password</label>
-        <input id="existing-password" type="password" autoComplete="current-password" maxLength={4096} value={existingPassword} onChange={event => setExistingPassword(event.target.value)} disabled={busy} className={field} />
-      </div> : null}
+      {/* One form for everything typed (old account e-mail and password, phone, code): the keyboard's
+          Next walks through the fields and Go on the last one sends; the button sits right under them. */}
       <form className="mt-6 space-y-4" onSubmit={event => { event.preventDefault(); void run(async () => {
         requireExistingCredentials()
         if (sent) {
@@ -360,14 +356,31 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
           setSent(true); setMessage('A verification code was sent to your phone.')
         }
       }) }}>
+        {existingAccountLink ? <div className="space-y-3">
+          <label htmlFor="existing-email" className="block text-sm font-semibold">Previous account email</label>
+          <input id="existing-email" type="email" inputMode="email" autoComplete="username" autoCapitalize="none" spellCheck={false} enterKeyHint="next" maxLength={320}
+            value={existingEmail} onChange={event => setExistingEmail(event.target.value)} onFocus={keepFieldVisible} onKeyDown={nextFieldOnEnter} disabled={busy} className={field} />
+          <label htmlFor="existing-password" className="block text-sm font-semibold">Previous account password</label>
+          <input id="existing-password" type="password" autoComplete="current-password" enterKeyHint="next" maxLength={4096}
+            value={existingPassword} onChange={event => setExistingPassword(event.target.value)} onFocus={keepFieldVisible} onKeyDown={nextFieldOnEnter} disabled={busy} className={field} />
+        </div> : null}
         <label htmlFor="identity-phone" className="block text-sm font-semibold">Phone number</label>
-        <input id="identity-phone" data-testid="identity-phone" className={field} type="tel" autoComplete="tel" placeholder="+1 000 000 0000" required value={phone} onChange={event => setPhone(event.target.value)} disabled={busy || sent} />
+        <input id="identity-phone" data-testid="identity-phone" className={field} type="tel" inputMode="tel" autoComplete="tel" enterKeyHint="send" placeholder="+1 000 000 0000" required
+          value={phone} onChange={event => setPhone(event.target.value)} onFocus={keepFieldVisible} disabled={busy || sent} />
         <div ref={container} />
         {sent ? <>
           <label htmlFor="identity-code" className="block text-sm font-semibold">Verification code</label>
-          <input id="identity-code" className={field} inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={event => setCode(event.target.value)} disabled={busy} />
+          {/* Focused as it appears: sending disabled the phone field and closed the keyboard. */}
+          <input id="identity-code" className={`${field} text-center text-[22px] font-semibold tracking-[0.4em] tabular-nums`} inputMode="numeric" autoComplete="one-time-code" enterKeyHint="done"
+            pattern="[0-9]*" maxLength={6} placeholder="000000" required autoFocus value={code}
+            onChange={event => setCode(event.target.value.replace(/\D/g, ''))} onFocus={keepFieldVisible} disabled={busy} />
         </> : null}
         <button data-testid="identity-phone-submit" className={button} disabled={busy}>{busy ? 'Please wait…' : sent ? 'Verify and continue' : 'Send verification code'}</button>
+        {sent ? <button type="button" disabled={busy}
+          onClick={() => { attempt.current?.cancel(); attempt.current = null; setSent(false); setCode(''); setMessage(''); setError('') }}
+          className="flex min-h-11 w-full items-center justify-center gap-1 text-sm font-semibold text-zinc-300 hover:text-white disabled:opacity-50">
+          <ChevronLeft className="size-4" aria-hidden="true" /> Use another number
+        </button> : null}
       </form>
       <button className={`${button} mt-4 border border-white/15 bg-transparent text-white hover:bg-white/5`} disabled={busy || sent} onClick={() => void run(async () => {
         requireExistingCredentials()

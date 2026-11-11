@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { MessageSquare, Ban, Download, FileText, X, RefreshCw, Inbox } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import ModalPortal from '@/components/ui/ModalPortal'
+import { useVisibleBox } from '@/components/ui/keyboard-fields'
 
 interface ConversationRow {
   id: string
@@ -43,6 +44,7 @@ export default function ChatInboxClient() {
   const [thread, setThread] = useState<ThreadMessage[]>([])
   const [threadLoading, setThreadLoading] = useState(false)
   const [blockReason, setBlockReason] = useState('')
+  const box = useVisibleBox()
   const [showBlockDialog, setShowBlockDialog] = useState(false)
 
   async function loadConversations() {
@@ -235,8 +237,11 @@ export default function ChatInboxClient() {
       {/* Thread modal */}
       {selected && (
         <ModalPortal onClose={() => setSelected(null)}>
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/60 p-3 sm:p-4" onClick={() => setSelected(null)}>
-          <div role="dialog" aria-modal="true" aria-label="Conversation" className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-zinc-950/60" onClick={() => setSelected(null)}>
+          {/* In what the phone keyboard leaves visible: the block reason field and its buttons sit at the
+              bottom of the dialog and would otherwise end up behind the keys. */}
+          <div className="fixed inset-x-0 flex items-center justify-center p-3 sm:p-4" style={box.style}>
+          <div role="dialog" aria-modal="true" aria-label="Conversation" className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl sm:max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
             <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-100 px-4 py-4 sm:px-6">
               <div>
                 <p className="text-xs text-zinc-400 font-bold uppercase">Conversation</p>
@@ -285,23 +290,29 @@ export default function ChatInboxClient() {
             </div>
 
             {showBlockDialog && (
-              <div className="px-6 py-4 border-t border-zinc-100 bg-amber-50/50 space-y-2">
-                <p className="text-xs font-bold text-zinc-700">Block this number</p>
+              // A form, so the keyboard's Go confirms the block without closing the keyboard first.
+              <form className="shrink-0 px-4 py-4 border-t border-zinc-100 bg-amber-50/50 space-y-2 sm:px-6" onSubmit={(e) => { e.preventDefault(); void blockSelected() }}>
+                <label htmlFor="block-reason" className="block text-xs font-bold text-zinc-700">Block this number</label>
                 <input
+                  id="block-reason"
                   type="text"
+                  autoFocus
+                  autoComplete="off"
+                  enterKeyHint="go"
                   value={blockReason}
                   onChange={(e) => setBlockReason(e.target.value)}
                   placeholder="Reason (optional)"
                   className="w-full px-3 py-2 border border-zinc-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
                 <div className="flex gap-2 justify-end">
-                  <button onClick={() => setShowBlockDialog(false)} className="px-3 py-1.5 text-xs font-bold text-zinc-600 hover:bg-zinc-100 rounded-lg">Cancel</button>
-                  <button onClick={blockSelected} className="px-3 py-1.5 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-1">
+                  <button type="button" onClick={() => setShowBlockDialog(false)} className="min-h-11 px-4 text-xs font-bold text-zinc-600 hover:bg-zinc-100 rounded-lg">Cancel</button>
+                  <button type="submit" className="min-h-11 px-4 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-1">
                     <Ban className="w-3.5 h-3.5" /> Confirm block
                   </button>
                 </div>
-              </div>
+              </form>
             )}
+          </div>
           </div>
         </div>
         </ModalPortal>

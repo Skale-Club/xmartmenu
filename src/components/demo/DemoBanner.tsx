@@ -1,8 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Sparkles, X, ArrowRight } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
+import { keepFieldVisible, nextFieldOnEnter, useVisibleBox } from '@/components/ui/keyboard-fields'
+import { readLoginAuthority } from '@/lib/auth/browser-login-authority'
 
 // Renders nothing unless the visitor is in demo mode (xm_demo cookie set by
 // /demo). Detecting the cookie client-side keeps the public menu pages static —
@@ -15,6 +18,7 @@ function hasDemoCookie() {
 export default function DemoBanner() {
   const [show, setShow] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     setShow(hasDemoCookie())
@@ -34,7 +38,14 @@ export default function DemoBanner() {
           <span className="hidden text-zinc-400 sm:block">Take a look around.</span>
         </p>
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={() => {
+            // The platform's own sign-in has its own registration page (phone or Google); the e-mail form
+            // below only works on the old sign-in, where the register API still answers.
+            void readLoginAuthority().then(authority => {
+              if (authority === 'owned') router.push('/auth/register')
+              else setModalOpen(true)
+            }).catch(() => router.push('/auth/register'))
+          }}
           className="flex flex-shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-sm font-black text-primary-foreground transition-all hover:scale-[1.03] active:scale-95"
         >
           Sign up free <ArrowRight className="h-3.5 w-3.5" />
@@ -61,6 +72,7 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const box = useVisibleBox()
 
   useEffect(() => {
     if (!open) return
@@ -106,13 +118,16 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
 
   return (
     <ModalPortal closeOnEscape={false}>
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[70]" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+      {/* Centred in what the phone keyboard leaves visible (100dvh does not shrink for it), so the field
+          being typed in and the button stay above the keys; the card scrolls inside when that is short. */}
+      <div className="fixed inset-x-0 flex items-center justify-center p-4" style={box.style}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Demo access"
-        className="relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-[1.25rem] border border-white/10 bg-zinc-900/95 p-5 shadow-2xl backdrop-blur-xl sm:p-8"
+        className="relative max-h-full w-full max-w-sm overflow-y-auto overscroll-contain rounded-[1.25rem] border border-white/10 bg-zinc-900/95 p-5 shadow-2xl backdrop-blur-xl sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -154,6 +169,10 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
                 type="text"
                 required
                 autoFocus
+                autoComplete="name"
+                enterKeyHint="next"
+                onKeyDown={nextFieldOnEnter}
+                onFocus={keepFieldVisible}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Your name"
@@ -162,6 +181,12 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
               <input
                 type="email"
                 required
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
+                enterKeyHint="next"
+                onKeyDown={nextFieldOnEnter}
+                onFocus={keepFieldVisible}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -170,6 +195,11 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
               <input
                 type="tel"
                 required
+                inputMode="tel"
+                autoComplete="tel"
+                enterKeyHint="next"
+                onKeyDown={nextFieldOnEnter}
+                onFocus={keepFieldVisible}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="Phone number"
@@ -179,6 +209,9 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
                 type="password"
                 required
                 minLength={8}
+                autoComplete="new-password"
+                enterKeyHint="go"
+                onFocus={keepFieldVisible}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password (min. 8 characters)"
@@ -204,6 +237,7 @@ function DemoSignupModal({ open, onClose }: { open: boolean; onClose: () => void
             </p>
           </>
         )}
+      </div>
       </div>
     </div>
     </ModalPortal>

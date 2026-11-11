@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { normalizeRole } from '@/lib/auth/role-utils'
+import { nextFieldOnEnter } from '@/components/ui/keyboard-fields'
 
 type Step = 1 | 2 | 3 | 4 | 5
 
@@ -109,7 +110,8 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
           menu_name: menuName,
           category_name: categoryName,
           product_name: productName,
-          product_price: parseFloat(productPrice) || 0,
+          // "5,50" from a comma keyboard is 5.50.
+          product_price: Math.max(0, parseFloat(productPrice.replace(',', '.')) || 0),
         }),
       })
 
@@ -147,6 +149,10 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
   const secondaryBtn =
     'px-5 py-3 rounded-xl text-sm font-semibold text-zinc-700 border border-zinc-200 hover:bg-zinc-50 transition-colors'
 
+  // Each step is a form: the keyboard's Next walks its fields, Go on the last one continues (same as the
+  // step's button), so nobody has to close the keyboard to find Continue under it.
+  const stepForm = (go: () => void) => (e: React.FormEvent) => { e.preventDefault(); go() }
+
   if (checkingAccess) {
     if (error) return <main className="grid min-h-screen place-items-center bg-zinc-950 p-8 text-white"><p role="alert">{error}</p></main>
     return (
@@ -178,7 +184,7 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
           </div>
 
           {step === 1 && (
-            <div>
+            <form noValidate onSubmit={stepForm(() => { if (companyName.trim()) setStep(2) })}>
               <h1 className="text-xl font-bold text-zinc-900 mb-1">Welcome</h1>
               <p className="text-sm text-zinc-500 mb-6">
                 Let&apos;s set up your digital menu. First, tell us about your business.
@@ -192,11 +198,12 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                     id="company-name"
                     name="companyName"
                     autoFocus
+                    autoComplete="organization"
+                    enterKeyHint="next"
                     value={companyName}
                     onChange={e => setCompanyName(e.target.value)}
                     placeholder="e.g. Joe's Pizza"
                     className={inputClass}
-                    onKeyDown={e => e.key === 'Enter' && companyName.trim() && setStep(2)}
                   />
                 </div>
                 <fieldset>
@@ -222,17 +229,17 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                 </fieldset>
               </div>
               <button
-                onClick={() => setStep(2)}
+                type="submit"
                 disabled={!companyName.trim()}
                 className={`mt-6 w-full ${primaryBtn}`}
               >
                 Continue
               </button>
-            </div>
+            </form>
           )}
 
           {step === 2 && (
-            <div>
+            <form noValidate onSubmit={stepForm(() => { if (responsibleName.trim()) setStep(3) })}>
               <h1 className="text-xl font-bold text-zinc-900 mb-1">Contact info</h1>
               <p className="text-sm text-zinc-500 mb-6">
                 This information may appear on your public menu.
@@ -246,6 +253,9 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                     id="owner-name"
                     name="responsibleName"
                     autoFocus
+                    autoComplete="name"
+                    enterKeyHint="next"
+                    onKeyDown={nextFieldOnEnter}
                     value={responsibleName}
                     onChange={e => setResponsibleName(e.target.value)}
                     placeholder="Your full name"
@@ -260,6 +270,10 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                     id="owner-phone"
                     name="phone"
                     type="tel"
+                    inputMode="tel"
+                    autoComplete="tel"
+                    enterKeyHint="next"
+                    onKeyDown={nextFieldOnEnter}
                     value={phone}
                     onChange={e => setPhone(e.target.value)}
                     placeholder="+1 000-000-0000"
@@ -273,6 +287,8 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                   <input
                     id="store-address"
                     name="address"
+                    autoComplete="street-address"
+                    enterKeyHint="go"
                     value={address}
                     onChange={e => setAddress(e.target.value)}
                     placeholder="Street, city, state"
@@ -281,22 +297,22 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                 </div>
               </div>
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setStep(1)} className={secondaryBtn}>
+                <button type="button" onClick={() => setStep(1)} className={secondaryBtn}>
                   Back
                 </button>
                 <button
-                  onClick={() => setStep(3)}
+                  type="submit"
                   disabled={!responsibleName.trim()}
                   className={primaryBtn}
                 >
                   Continue
                 </button>
               </div>
-            </div>
+            </form>
           )}
 
           {step === 3 && (
-            <div>
+            <form noValidate onSubmit={stepForm(() => { if (menuName.trim()) setStep(4) })}>
               <h1 className="text-xl font-bold text-zinc-900 mb-1">Your digital menu</h1>
               <p className="text-sm text-zinc-500 mb-6">
                 Give your first menu a name. You can create more menus later.
@@ -313,29 +329,30 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                   onChange={e => setMenuName(e.target.value)}
                   placeholder="e.g. Main Menu"
                   className={inputClass}
-                  onKeyDown={e => e.key === 'Enter' && menuName.trim() && setStep(4)}
+                  autoComplete="off"
+                  enterKeyHint="go"
                 />
                 <p className="text-xs text-zinc-400 mt-2">
                   Suggestions: &quot;Main Menu&quot;, &quot;Happy Hour&quot;, &quot;Delivery&quot;
                 </p>
               </div>
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setStep(2)} className={secondaryBtn}>
+                <button type="button" onClick={() => setStep(2)} className={secondaryBtn}>
                   Back
                 </button>
                 <button
-                  onClick={() => setStep(4)}
+                  type="submit"
                   disabled={!menuName.trim()}
                   className={primaryBtn}
                 >
                   Continue
                 </button>
               </div>
-            </div>
+            </form>
           )}
 
           {step === 4 && (
-            <div>
+            <form noValidate onSubmit={stepForm(() => { if (!loading && categoryName.trim() && productName.trim()) void handleSubmit() })}>
               <h1 className="text-xl font-bold text-zinc-900 mb-1">Your first product</h1>
               <p className="text-sm text-zinc-500 mb-6">
                 Add one category and one product to get started.
@@ -349,6 +366,9 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                     id="category-name"
                     name="categoryName"
                     autoFocus
+                    autoComplete="off"
+                    enterKeyHint="next"
+                    onKeyDown={nextFieldOnEnter}
                     value={categoryName}
                     onChange={e => setCategoryName(e.target.value)}
                     placeholder="e.g. Pizzas, Drinks, Starters"
@@ -362,6 +382,9 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                   <input
                     id="product-name"
                     name="productName"
+                    autoComplete="off"
+                    enterKeyHint="next"
+                    onKeyDown={nextFieldOnEnter}
                     value={productName}
                     onChange={e => setProductName(e.target.value)}
                     placeholder="e.g. Margherita Pizza"
@@ -379,9 +402,10 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                     <input
                       id="product-price"
                       name="productPrice"
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
+                      autoComplete="off"
+                      enterKeyHint="done"
                       value={productPrice}
                       onChange={e => setProductPrice(e.target.value)}
                       placeholder="0.00"
@@ -396,18 +420,18 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
                 </p>
               )}
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setStep(3)} className={secondaryBtn}>
+                <button type="button" onClick={() => setStep(3)} className={secondaryBtn}>
                   Back
                 </button>
                 <button
-                  onClick={handleSubmit}
+                  type="submit"
                   disabled={loading || !categoryName.trim() || !productName.trim()}
                   className={primaryBtn}
                 >
                   {loading ? 'Creating your menu...' : 'Finish'}
                 </button>
               </div>
-            </div>
+            </form>
           )}
 
           {step === 5 && (
