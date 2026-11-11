@@ -1652,11 +1652,12 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
               onClick={onAdd}
               aria-label={fill(copy.addNamed, { name: product.name })}
               style={{ backgroundColor: primaryColor, color: onPrimary }}
-              className="pointer-events-auto relative z-10 flex h-9 max-w-full items-center gap-2 rounded-full pr-1 pl-3 shadow-sm transition-[scale] active:scale-95"
+              className="pointer-events-auto relative z-10 flex h-9 max-w-full items-center gap-2 rounded-full pr-1.5 pl-3.5 shadow-sm transition-[scale] active:scale-95"
             >
               <span className="whitespace-nowrap text-[15px] font-bold tabular-nums">{price.amount}</span>
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: onPrimary, color: primaryColor }}>
-                <Plus className="size-4" strokeWidth={2.5} aria-hidden="true" />
+              {/* Inset 6px on every side, so the circle sits wholly inside the pill. */}
+              <span className="flex size-6 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: onPrimary, color: primaryColor }}>
+                <Plus className="size-3.5" strokeWidth={2.75} aria-hidden="true" />
               </span>
             </button>
           ) : (
