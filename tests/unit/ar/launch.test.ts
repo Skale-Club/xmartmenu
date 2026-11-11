@@ -70,12 +70,17 @@ describe('arFallbackUrl', () => {
 })
 
 describe('quickLookUrl', () => {
-  it('turns scaling off for real-scale models', () => {
-    expect(quickLookUrl('https://cdn.example.com/a.usdz', true)).toBe('https://cdn.example.com/a.usdz#allowsContentScaling=0')
-    expect(quickLookUrl('blob:https://m.example.com/123', true)).toBe('blob:https://m.example.com/123#allowsContentScaling=0')
+  it('lets guests resize: no scaling switch in the URL', () => {
+    expect(quickLookUrl('https://cdn.example.com/a.usdz')).toBe('https://cdn.example.com/a.usdz')
+    expect(quickLookUrl('blob:https://m.example.com/123', null)).toBe('blob:https://m.example.com/123')
   })
 
-  it('leaves the URL alone when guests may resize', () => {
-    expect(quickLookUrl('https://cdn.example.com/a.usdz', false)).toBe('https://cdn.example.com/a.usdz')
+  it('adds Quick Look\'s order button with the dish and price', () => {
+    const url = quickLookUrl('https://cdn.example.com/a.usdz', { label: 'Adicionar ao pedido', title: 'Ham & Cheese', subtitle: 'R$ 34,00' })
+    expect(url).toBe('https://cdn.example.com/a.usdz#callToAction=Adicionar%20ao%20pedido&checkoutTitle=Ham%20%26%20Cheese&checkoutSubtitle=R%24%2034%2C00')
+  })
+
+  it('appends to an existing fragment and skips an empty price', () => {
+    expect(quickLookUrl('blob:x#y=1', { label: 'Add', title: 'Pie' })).toBe('blob:x#y=1&callToAction=Add&checkoutTitle=Pie')
   })
 })

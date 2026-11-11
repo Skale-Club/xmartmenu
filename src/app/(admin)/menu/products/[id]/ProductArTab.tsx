@@ -11,6 +11,11 @@
  * Guests tap "See it on your table" in the dish detail and the phone's camera opens with
  * the dish on their table (src/components/ar/ArButton.tsx). The preview here is
  * only for the restaurant to check the model.
+ *
+ * Real size: the page measures the model as modelled (glbFootprint) and the
+ * restaurant types the dish's real size; scale = real / modelled is saved,
+ * used by the Android viewer and baked into the iOS file (rebuilt on save).
+ * Needs the 2026-11-11 schema step; before it the field stays hidden.
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -18,7 +23,7 @@ import dynamic from 'next/dynamic'
 import { Box, Smartphone, Trash2, Upload } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
-import { AR_MODEL_ACCEPT, AR_MODEL_CONTENT_TYPES, RECOMMENDED_AR_MODEL_BYTES, formatModelSize, type ArModelFormat } from '@/lib/ar/model-file'
+import { AR_MODEL_ACCEPT, AR_MODEL_CONTENT_TYPES, RECOMMENDED_AR_MODEL_BYTES, formatModelSize, glbFootprint, type ArModelFormat, type ModelFootprint } from '@/lib/ar/model-file'
 import type { ProductArModel } from '@/types/database'
 
 const ModelViewer = dynamic(() => import('@/components/ar/ModelViewer'), { ssr: false })
@@ -32,7 +37,11 @@ interface Props {
 }
 
 type UploadResult = { url: string; storage_path: string; bytes: number; heavy: boolean }
-type ArPatch = Partial<Pick<ProductArModel, 'glb_url' | 'glb_storage_path' | 'glb_bytes' | 'usdz_url' | 'usdz_storage_path' | 'usdz_bytes' | 'poster_url' | 'real_scale'>>
+type ArPatch = Partial<Pick<ProductArModel, 'glb_url' | 'glb_storage_path' | 'glb_bytes' | 'usdz_url' | 'usdz_storage_path' | 'usdz_bytes' | 'poster_url' | 'real_scale' | 'scale' | 'model_width_cm'>>
+
+const MIN_SCALE = 0.05
+const MAX_SCALE = 20
+const cm = (value: number) => `${Math.round(value * 10) / 10}`.replace('.', ',')
 
 /** Where the model is stored: the owned catalog API, or Supabase (legacy). */
 interface ArStore {
@@ -90,6 +99,9 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [previewFailed, setPreviewFailed] = useState(false)
+  // The model as modelled, and the real size being typed (largest side, cm).
+  const [footprint, setFootprint] = useState<ModelFootprint | null>(null)
+  const [realSizeInput, setRealSizeInput] = useState('')
   const glbInputRef = useRef<HTMLInputElement>(null)
   const usdzInputRef = useRef<HTMLInputElement>(null)
 
@@ -101,6 +113,26 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [store])
+
+  // Measure the model as modelled (for the real-size field).
+  useEffect(() => {
+    if (!model?.glb_url) return
+    let cancelled = false
+    fetch(model.glb_url)
+      .then(res => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+      .then(buffer => {
+        if (cancelled) return
+        const measured = glbFootprint(new Uint8Array(buffer))
+        setFootprint(measured)
+        if (measured) setRealSizeInput(cm(measured.largestSideCm * (model.scale ?? 1)))
+      })
+      .catch(() => { if (!cancelled) setFootprint(null) })
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-measure only when the file changes
+  }, [model?.glb_url])
+
+  /** The real-size columns exist (the API returns them once the schema step ran). */
+  const realSizeSupported = !!model && 'scale' in model
 
   async function upload(file: File, format: ArModelFormat): Promise<UploadResult | null> {
     const fd = new FormData()
@@ -127,10 +159,10 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
   }
 
   /** The iOS file made from the GLB and uploaded; null (with the reason shown) when that fails. */
-  async function generatedUsdz(glb: ArrayBuffer): Promise<ArPatch | null> {
+  async function generatedUsdz(glb: ArrayBuffer, scale = 1): Promise<ArPatch | null> {
     try {
       const { glbToUsdz } = await import('@/lib/ar/usdz-export')
-      const usdz = await glbToUsdz(glb)
+      const usdz = await glbToUsdz(glb, { scale })
       const uploaded = await upload(new File([usdz.slice().buffer], 'model.usdz', { type: AR_MODEL_CONTENT_TYPES.usdz }), 'usdz')
       return uploaded ? { usdz_url: uploaded.url, usdz_storage_path: uploaded.storage_path, usdz_bytes: uploaded.bytes } : null
     } catch {
@@ -150,10 +182,14 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
     let patch: ArPatch
     if (format === 'glb') {
       // A new model replaces the iOS file too: the old one would show the old dish.
-      const usdz = await generatedUsdz(await file.arrayBuffer())
+      // Its real size starts as modelled (scale 1) until the restaurant corrects it.
+      const glb = await file.arrayBuffer()
+      const usdz = await generatedUsdz(glb)
+      const measured = glbFootprint(new Uint8Array(glb))
       patch = {
         glb_url: uploaded.url, glb_storage_path: uploaded.storage_path, glb_bytes: uploaded.bytes,
         ...(usdz ?? { usdz_url: null, usdz_storage_path: null, usdz_bytes: null }),
+        ...(realSizeSupported ? { scale: 1, model_width_cm: measured?.largestSideCm ?? null } : {}),
       }
     } else {
       patch = { usdz_url: uploaded.url, usdz_storage_path: uploaded.storage_path, usdz_bytes: uploaded.bytes }
@@ -178,10 +214,33 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
         if (!res.ok) throw new Error(`Could not download the model (${res.status})`)
         return res.arrayBuffer()
       })
-      const usdz = await generatedUsdz(glb)
+      const usdz = await generatedUsdz(glb, model.scale ?? 1)
       if (usdz) await save(usdz)
     } catch (err) {
       setError(message(err, 'Could not rebuild the iOS file'))
+    }
+    setBusy(null)
+  }
+
+  /** Saves the dish's real size: the scale for Android, and an iOS file rebuilt at that size. */
+  async function saveRealSize() {
+    if (!model || !footprint || footprint.largestSideCm <= 0) return
+    const real = Number(realSizeInput.replace(',', '.'))
+    if (!Number.isFinite(real) || real <= 0) { setError('Type the real size in centimetres, e.g. 26'); return }
+    const scale = Math.round((real / footprint.largestSideCm) * 10000) / 10000
+    if (scale < MIN_SCALE || scale > MAX_SCALE) { setError(`That is ${Math.round(scale * 100)}% of the model; check the number (allowed ${MIN_SCALE * 100}%–${MAX_SCALE * 100}%).`); return }
+    setBusy('save')
+    setError(null)
+    setNotice(null)
+    try {
+      const glb = await fetch(model.glb_url).then(res => {
+        if (!res.ok) throw new Error(`Could not download the model (${res.status})`)
+        return res.arrayBuffer()
+      })
+      const usdz = await generatedUsdz(glb, scale)
+      await save({ scale, model_width_cm: footprint.largestSideCm, ...(usdz ?? {}) })
+    } catch (err) {
+      setError(message(err, 'Could not save the real size'))
     }
     setBusy(null)
   }
@@ -291,6 +350,43 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
                 </dd>
               </div>
             </dl>
+
+            {realSizeSupported && footprint && (
+              <div className="rounded-lg border border-zinc-200 p-3 space-y-2">
+                <p className="font-medium text-zinc-900">Real size of the dish</p>
+                <p className="text-xs text-zinc-500">
+                  In the 3D file: {cm(footprint.widthCm)} × {cm(footprint.depthCm)} cm, {cm(footprint.heightCm)} cm tall.
+                  Measure the real dish (largest side across, in cm) so guests see the true portion on their table.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={realSizeInput}
+                    disabled={disabled}
+                    onChange={e => setRealSizeInput(e.target.value)}
+                    aria-label="Real size, largest side in cm"
+                    className="w-24 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm tabular-nums"
+                  />
+                  <span className="text-zinc-500">cm</span>
+                  {canManage && (
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => void saveRealSize()}
+                      className="ml-auto px-3 py-1.5 text-sm font-medium bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-50"
+                    >
+                      {busy === 'save' ? 'Saving…' : 'Save real size'}
+                    </button>
+                  )}
+                </div>
+                {(model.scale ?? 1) !== 1 && (
+                  <p className="text-xs text-zinc-500">
+                    Shown on the table at {cm(footprint.widthCm * (model.scale ?? 1))} × {cm(footprint.depthCm * (model.scale ?? 1))} cm ({Math.round((model.scale ?? 1) * 100)}% of the file).
+                  </p>
+                )}
+              </div>
+            )}
 
             <label className="flex items-start gap-3 rounded-lg border border-zinc-200 p-3">
               <input

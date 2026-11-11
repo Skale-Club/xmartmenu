@@ -137,6 +137,93 @@ export function arUnsupportedExtensions(data: Uint8Array): string[] {
   return AR_UNSUPPORTED_EXTENSIONS.filter(name => used.has(name))
 }
 
+/** A dish model's size as modelled, in centimetres (glTF units are metres, Y up). */
+export interface ModelFootprint {
+  widthCm: number
+  depthCm: number
+  heightCm: number
+  /** The larger of width and depth: what a guest would measure across the plate. */
+  largestSideCm: number
+}
+
+type Mat4 = number[] // column-major, as glTF
+
+function multiply(a: Mat4, b: Mat4): Mat4 {
+  const out = new Array<number>(16).fill(0)
+  for (let col = 0; col < 4; col++) {
+    for (let row = 0; row < 4; row++) {
+      let sum = 0
+      for (let k = 0; k < 4; k++) sum += a[k * 4 + row] * b[col * 4 + k]
+      out[col * 4 + row] = sum
+    }
+  }
+  return out
+}
+
+/** A node's local matrix: `matrix`, or translation × rotation × scale. */
+function nodeMatrix(node: { matrix?: number[]; translation?: number[]; rotation?: number[]; scale?: number[] }): Mat4 {
+  if (Array.isArray(node.matrix) && node.matrix.length === 16) return node.matrix
+  const [tx, ty, tz] = node.translation ?? [0, 0, 0]
+  const [x, y, z, w] = node.rotation ?? [0, 0, 0, 1]
+  const [sx, sy, sz] = node.scale ?? [1, 1, 1]
+  return [
+    (1 - 2 * (y * y + z * z)) * sx, (2 * (x * y + z * w)) * sx, (2 * (x * z - y * w)) * sx, 0,
+    (2 * (x * y - z * w)) * sy, (1 - 2 * (x * x + z * z)) * sy, (2 * (y * z + x * w)) * sy, 0,
+    (2 * (x * z + y * w)) * sz, (2 * (y * z - x * w)) * sz, (1 - 2 * (x * x + y * y)) * sz, 0,
+    tx, ty, tz, 1,
+  ]
+}
+
+/**
+ * The model's size as modelled, from the POSITION bounds glTF requires on
+ * each accessor, through the node transforms of the default scene. Null when
+ * the GLB has no readable JSON or no meshes. Pure; used by the back office to
+ * show "35 × 29 cm in the file" next to the real-size field.
+ */
+export function glbFootprint(data: Uint8Array): ModelFootprint | null {
+  if (data.length < 20 || readUint32LE(data, 16) !== 0x4e4f534a) return null
+  const chunkLength = readUint32LE(data, 12)
+  if (20 + chunkLength > data.length) return null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let json: any
+  try {
+    json = JSON.parse(new TextDecoder().decode(data.subarray(20, 20 + chunkLength)))
+  } catch {
+    return null
+  }
+  const nodes: Array<{ children?: number[]; mesh?: number; matrix?: number[]; translation?: number[]; rotation?: number[]; scale?: number[] }> = json.nodes ?? []
+  const meshes: Array<{ primitives?: Array<{ attributes?: { POSITION?: number } }> }> = json.meshes ?? []
+  const accessors: Array<{ min?: number[]; max?: number[] }> = json.accessors ?? []
+  const scene = (json.scenes ?? [])[json.scene ?? 0]
+  const roots: number[] = scene?.nodes ?? nodes.map((_, index) => index)
+  const min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity]
+
+  const visit = (index: number, parent: Mat4, depth: number) => {
+    const node = nodes[index]
+    if (!node || depth > 64) return
+    const world = multiply(parent, nodeMatrix(node))
+    for (const primitive of meshes[node.mesh ?? -1]?.primitives ?? []) {
+      const accessor = accessors[primitive.attributes?.POSITION ?? -1]
+      if (!accessor?.min || !accessor?.max) continue
+      for (let corner = 0; corner < 8; corner++) {
+        const p = [0, 1, 2].map(axis => (corner >> axis) & 1 ? accessor.max![axis] : accessor.min![axis])
+        for (let axis = 0; axis < 3; axis++) {
+          const value = world[axis] * p[0] + world[4 + axis] * p[1] + world[8 + axis] * p[2] + world[12 + axis]
+          if (value < min[axis]) min[axis] = value
+          if (value > max[axis]) max[axis] = value
+        }
+      }
+    }
+    for (const child of node.children ?? []) visit(child, world, depth + 1)
+  }
+  const identity: Mat4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+  for (const root of roots) visit(root, identity, 0)
+  if (!Number.isFinite(min[0])) return null
+  const cm = (axis: number) => Math.round((max[axis] - min[axis]) * 1000) / 10
+  const widthCm = cm(0), heightCm = cm(1), depthCm = cm(2)
+  return { widthCm, depthCm, heightCm, largestSideCm: Math.max(widthCm, depthCm) }
+}
+
 /** Storage key for a dish's model file in the product-images bucket. */
 export function arModelStoragePath(tenantId: string, format: ArModelFormat, now = Date.now(), random = Math.random()): string {
   return `${tenantId}/ar/${now}-${random.toString(36).slice(2, 8)}.${AR_MODEL_EXTENSIONS[format]}`

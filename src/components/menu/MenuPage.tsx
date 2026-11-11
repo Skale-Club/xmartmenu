@@ -395,7 +395,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const cartTotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0)
 
-  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed' | 'upsell', quantity = 1, addedVia?: CartAddedVia) {
+  function addToCart(product: Product, selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null, source?: 'grid' | 'featured' | 'detail' | 'cart' | 'feed' | 'upsell' | 'ar', quantity = 1, addedVia?: CartAddedVia) {
     const key = buildCartKey(product.id, selectedOptions)
     const amount = Math.max(1, Math.floor(quantity))
     const via = addedVia ?? (source === 'upsell' ? 'upsell' : undefined)
@@ -1166,6 +1166,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             autoplayVideos={feedAutoplayVideos}
             directOrdersEnabled={directOrdersEnabled}
             cartCount={cartCount}
+            onAddFromAr={product => addToCart(product, {}, product.price, undefined, undefined, undefined, 'ar')}
             exitLabel={copy.viewMenu}
             onExit={() => changeView('list')}
             initialIndex={feedIndex}
@@ -1351,6 +1352,12 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           productIngredients={productIngredientsByProductId[selectedProduct.id] ?? []}
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
           arModel={productArModelByProductId[selectedProduct.id] ?? null}
+          cartCount={cartCount}
+          onAddToCartFromAr={directOrdersEnabled
+            // The camera stays open: no closing the sheet, no "Complete your order".
+            ? (selectedOptions, unitPrice, note, ingredientModifications, editorState) =>
+                addToCart(selectedProduct, selectedOptions, unitPrice, note, ingredientModifications, editorState, 'ar')
+            : undefined}
           onModelViewerOpened={() => analyticsTracker?.track({
             event_name: 'model_viewer_opened',
             product_id: selectedProduct.id,

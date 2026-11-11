@@ -293,7 +293,7 @@ export interface MenuEvent {
   occurred_at: string
   duration_ms: number | null
   quantity: number | null
-  source: 'grid' | 'featured' | 'detail' | 'cart' | 'checkout' | 'feed' | 'search' | 'upsell' | 'unknown' | null
+  source: 'grid' | 'featured' | 'detail' | 'cart' | 'checkout' | 'feed' | 'search' | 'upsell' | 'ar' | 'unknown' | null
   media_type: 'image' | 'video' | null
   media_index: number | null
   query_length: number | null
@@ -426,12 +426,16 @@ export interface ProductArModel {
   poster_url: string | null
   /** AR at the modelled size (metres) instead of letting guests resize it. */
   real_scale: boolean
+  /** Real-size correction: 1 = as modelled (absent until the 2026-11-11 schema step). */
+  scale?: number
+  /** Largest horizontal side as modelled, in cm, measured on upload. */
+  model_width_cm?: number | null
   created_at: string
   updated_at: string
 }
 
 /** What the public menu sends to guests: no storage keys or sizes. */
-export type PublicProductArModel = Pick<ProductArModel, 'product_id' | 'glb_url' | 'usdz_url' | 'poster_url' | 'real_scale'>
+export type PublicProductArModel = Pick<ProductArModel, 'product_id' | 'glb_url' | 'usdz_url' | 'poster_url' | 'real_scale' | 'scale'>
 
 // SEED-023: restaurant table in the table catalog
 export interface RestaurantTable {

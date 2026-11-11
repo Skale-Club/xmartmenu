@@ -8,13 +8,16 @@ const tenantId = randomUUID(), productId = randomUUID()
 const context: AdminMenuContext = { tenantId, role: 'store-admin' }
 const glb = { glb_url: 'https://cdn.example/a.glb', glb_storage_path: `${tenantId}/ar/1-a.glb`, glb_bytes: 1024 }
 
-/** A fake owned database: one optional row, and whether the table exists. */
-function database({ present = true, row = null as Record<string, unknown> | null } = {}) {
+const BASE_COLUMNS = ['id', 'product_id', 'tenant_id', 'glb_url', 'glb_storage_path', 'glb_bytes', 'usdz_url', 'usdz_storage_path', 'usdz_bytes', 'poster_url', 'real_scale', 'created_at', 'updated_at']
+
+/** A fake owned database: one optional row, whether the table exists and whether it has the real-size columns. */
+function database({ present = true, realSize = true, row = null as Record<string, unknown> | null } = {}) {
   const calls: Array<{ text: string; values: unknown[] }> = []
   let stored = row
+  const columns = present ? [...BASE_COLUMNS, ...(realSize ? ['scale', 'model_width_cm'] : [])] : []
   const query = (async (text: string, values: unknown[] = []) => {
     calls.push({ text, values })
-    if (text.includes('to_regclass')) return { rows: [{ present }] }
+    if (text.includes('information_schema.columns')) return { rows: [{ columns }] }
     if (text.startsWith('SELECT to_jsonb')) return { rows: stored ? [{ row: stored }] : [] }
     if (text.startsWith('INSERT')) { stored = { id: randomUUID(), tenant_id: values[0], product_id: values[1], real_scale: true }; return { rows: [] } }
     if (text.startsWith('UPDATE')) { stored = { ...stored, patched: true }; return { rows: [] } }
@@ -44,6 +47,15 @@ describe('arModelPatch', () => {
     expect(() => arModelPatch({ glb_bytes: 0 }, context)).toThrow(/size/)
     expect(() => arModelPatch({ real_scale: 'yes' }, context)).toThrow()
   })
+
+  it('accepts a real-size correction and the file size within bounds', () => {
+    expect(arModelPatch({ scale: 0.74, model_width_cm: 35.2 }, context)).toEqual({ scale: 0.74, model_width_cm: 35.2 })
+    expect(arModelPatch({ model_width_cm: null }, context)).toEqual({ model_width_cm: null })
+    expect(() => arModelPatch({ scale: 0 }, context)).toThrow(/real size/)
+    expect(() => arModelPatch({ scale: 50 }, context)).toThrow(/real size/)
+    expect(() => arModelPatch({ scale: '1' }, context)).toThrow(/real size/)
+    expect(() => arModelPatch({ model_width_cm: -3 }, context)).toThrow(/model size/)
+  })
 })
 
 describe('mutateArModel', () => {
@@ -51,6 +63,20 @@ describe('mutateArModel', () => {
     const { query } = database({ present: false })
     expect(await mutateArModel(query, context, productId, 'list', undefined)).toBeNull()
     await expect(mutateArModel(query, context, productId, 'patch', glb)).rejects.toThrow(/not enabled/)
+  })
+
+  it('reads without the real-size columns before their schema step, and refuses to write them', async () => {
+    const { query, calls } = database({ realSize: false, row: { id: randomUUID(), tenant_id: tenantId, product_id: productId } })
+    expect(await mutateArModel(query, context, productId, 'list', undefined)).toMatchObject({ product_id: productId })
+    expect(calls.find(call => call.text.startsWith('SELECT to_jsonb'))?.text).not.toContain('a.scale')
+    await expect(mutateArModel(query, context, productId, 'patch', { scale: 0.8 })).rejects.toThrow(/Real size is not enabled/)
+    expect(await mutateArModel(query, context, productId, 'patch', { real_scale: false })).toMatchObject({ patched: true })
+  })
+
+  it('reads the real-size columns once they exist', async () => {
+    const { query, calls } = database({ row: { id: randomUUID(), tenant_id: tenantId, product_id: productId } })
+    await mutateArModel(query, context, productId, 'list', undefined)
+    expect(calls.find(call => call.text.startsWith('SELECT to_jsonb'))?.text).toContain('a.scale')
   })
 
   it('creates the row for this tenant and dish only with a GLB', async () => {

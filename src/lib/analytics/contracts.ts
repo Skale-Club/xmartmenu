@@ -74,7 +74,8 @@ export const clientAnalyticsEventSchema = z.strictObject({
   category_id: uuidSchema.nullish(),
   duration_ms: z.number().int().min(0).max(3_600_000).nullish(),
   quantity: z.number().int().min(1).max(99).nullish(),
-  source: z.enum(['grid', 'featured', 'detail', 'cart', 'checkout', 'feed', 'search', 'upsell', 'unknown']).nullish(),
+  // 'ar': added from the AR camera (needs the 2026-11-11 owned-schema step for menu_events).
+  source: z.enum(['grid', 'featured', 'detail', 'cart', 'checkout', 'feed', 'search', 'upsell', 'ar', 'unknown']).nullish(),
   media_type: z.enum(['image', 'video']).nullish(),
   media_index: z.number().int().min(0).max(20).nullish(),
   query_length: z.number().int().min(0).max(200).nullish(),
