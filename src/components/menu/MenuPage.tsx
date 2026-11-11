@@ -1587,14 +1587,24 @@ function ContactCard({ href, icon, caption, value, color, external, numeric, wra
 
 /**
  * One dish. Phones: a row, text left and photo right. The name starts level with
- * the photo's top; the price sits on the photo's foot, left-aligned, and is the
- * add button itself ("R$ 79,00 (+)"); once added, price + "- 1 +".
+ * the photo's top; the price sits on the photo's foot in a pill of the
+ * restaurant's secondary colour that is the add button itself ("R$ 79,00 (+)");
+ * once added, the same pill reads "R$ 79,00 | (-) 1 (+)".
  * The photo is square when the text is short and grows taller (never squashed,
  * it crops) when the text is long.
  * Larger screens: a card with the photo on top. The whole card opens the dish.
  * Nothing sits on the photo but the small 3D cube.
  */
-function ProductCard({ product, lang, currency, primaryColor, accentColor, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement, hasArModel = false }: {
+/** The light circle inside the price pill (24px, 4px inside its 32px tap box): "+" or "-". */
+function PillCircle({ fg, bg, children }: { fg: string; bg: string; children: ReactNode }) {
+  return (
+    <span className="flex size-6 items-center justify-center rounded-full" style={{ backgroundColor: fg, color: bg }}>
+      {children}
+    </span>
+  )
+}
+
+function ProductCard({ product, lang, currency, accentColor, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement, hasArModel = false }: {
   product: Product; lang: string; currency: string; primaryColor: string; onOpen: () => void
   /** The dish has a 3D model: a small cube in the photo's corner says it can be seen on the table. */
   hasArModel?: boolean
@@ -1610,7 +1620,10 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
   const promo = !price.from && product.original_price && product.original_price > product.price ? product.original_price : null
   const showAdd = !!onAdd && quantity === 0
   const showStepper = !!onIncrement && !!onDecrement && quantity > 0
-  const onPrimary = computePrimaryForeground(primaryColor)
+  // Text and circles on the secondary-colour pill: white or near-black, whichever reads on that colour.
+  const onAccent = computePrimaryForeground(accentColor)
+  // Four-digit prices ("R$ 1.234,00") never fit beside the controls on one row.
+  const longPrice = price.amount.length > 9
   return (
     <article
       data-analytics-product-id={product.id}
@@ -1646,43 +1659,58 @@ function ProductCard({ product, lang, currency, primaryColor, accentColor, accen
               {price.fromLabel ?? <span className="tabular-nums text-zinc-400 line-through">{formatMoney(promo as number, currency, lang)}</span>}
             </p>
           )}
-          {showAdd ? (
-            <button
-              type="button"
-              onClick={onAdd}
-              aria-label={fill(copy.addNamed, { name: product.name })}
-              style={{ backgroundColor: primaryColor, color: onPrimary }}
-              className="pointer-events-auto relative z-10 flex h-9 max-w-full items-center gap-2 rounded-full pr-1.5 pl-3.5 shadow-sm transition-[scale] active:scale-95"
+          {showAdd || showStepper ? (
+            // One pill in the restaurant's secondary colour (the price's colour), as wide as the text column, in
+            // both states: "R$ 79,00 ....... (+)" before adding, "R$ 79,00 | (-) 1 (+)" after. The pill, the price
+            // and the "+" never move or restyle on the tap. Below 360px, or with a four-digit price, it wraps to
+            // two rows (price, then controls), still the same pill.
+            <div
+              style={{ backgroundColor: accentColor, color: onAccent }}
+              className={`pointer-events-auto relative z-10 flex w-full items-center justify-between pr-1.5 pl-3 shadow-sm ${
+                longPrice ? 'flex-wrap rounded-2xl py-1' : 'h-9 rounded-full max-[359px]:h-auto max-[359px]:flex-wrap max-[359px]:rounded-2xl max-[359px]:py-1'
+              }`}
             >
-              <span className="whitespace-nowrap text-[15px] font-bold tabular-nums">{price.amount}</span>
-              {/* Inset 6px on every side, so the circle sits wholly inside the pill. */}
-              <span className="flex size-6 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: onPrimary, color: primaryColor }}>
-                <Plus className="size-3.5" strokeWidth={2.75} aria-hidden="true" />
-              </span>
-            </button>
-          ) : (
-            // Wraps the "- 1 +" under the price only when both do not fit (small phones, four-digit prices).
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-              <span className="whitespace-nowrap text-[15px] font-bold tabular-nums" style={{ color: accentText }}>{price.amount}</span>
-              {showStepper && (
-                <div className="pointer-events-auto relative z-10 flex h-9 w-[86px] shrink-0 items-center justify-between rounded-full border border-zinc-200 bg-white px-0.5">
-                  <button type="button" onClick={onDecrement} aria-label={fill(copy.removeNamed, { name: product.name })} className="flex size-8 items-center justify-center rounded-full text-zinc-800">
-                    <Minus className="size-3.5" strokeWidth={2.5} />
-                  </button>
-                  <span className="min-w-4 text-center text-[14px] font-semibold tabular-nums text-zinc-900">{quantity}</span>
-                  <button type="button" onClick={onIncrement} aria-label={fill(copy.addNamed, { name: product.name })} style={{ color: primaryColor }} className="flex size-8 items-center justify-center rounded-full">
-                    <Plus className="size-3.5" strokeWidth={2.5} />
-                  </button>
-                </div>
+              {showAdd && (
+                <button
+                  type="button"
+                  onClick={onAdd}
+                  aria-label={fill(copy.addNamed, { name: product.name })}
+                  className="absolute inset-0 rounded-[inherit] transition-[scale] active:scale-[0.97]"
+                />
               )}
+              <span className="pointer-events-none whitespace-nowrap text-[14px] font-bold tabular-nums">{price.amount}</span>
+              {/* ml-auto: when the pill wraps, the controls stay on the right, so the "+" keeps its corner. */}
+              <span className="pointer-events-none ml-auto flex items-center">
+                {showStepper && (
+                  <>
+                    <span aria-hidden="true" className={`mr-1.5 h-4 w-px opacity-30 ${longPrice ? 'hidden' : 'max-[359px]:hidden'}`} style={{ backgroundColor: onAccent }} />
+                    <button type="button" onClick={onDecrement} aria-label={fill(copy.removeNamed, { name: product.name })} className="pointer-events-auto flex size-8 items-center justify-center">
+                      <PillCircle fg={onAccent} bg={accentColor}><Minus className="size-3.5" strokeWidth={2.75} /></PillCircle>
+                    </button>
+                    <span className="min-w-4 text-center text-[14px] font-bold tabular-nums">{quantity}</span>
+                  </>
+                )}
+                {showStepper ? (
+                  <button type="button" onClick={onIncrement} aria-label={fill(copy.addNamed, { name: product.name })} className="pointer-events-auto -mr-1 flex size-8 items-center justify-center">
+                    <PillCircle fg={onAccent} bg={accentColor}><Plus className="size-3.5" strokeWidth={2.75} /></PillCircle>
+                  </button>
+                ) : (
+                  // Same box as the stepper's "+", so the circle sits on the same spot before and after the tap.
+                  <span aria-hidden="true" className="-mr-1 flex size-8 items-center justify-center">
+                    <PillCircle fg={onAccent} bg={accentColor}><Plus className="size-3.5" strokeWidth={2.75} /></PillCircle>
+                  </span>
+                )}
+              </span>
             </div>
+          ) : (
+            <span className="whitespace-nowrap text-[15px] font-bold tabular-nums" style={{ color: accentText }}>{price.amount}</span>
           )}
         </div>
       </div>
       {/* self-stretch + min-height = width: square at least, as tall as the text when it runs longer. */}
-      <div className="pointer-events-none relative min-h-30 w-30 shrink-0 self-stretch overflow-hidden rounded-xl bg-zinc-100 sm:order-1 sm:aspect-[4/3] sm:min-h-0 sm:w-full sm:self-auto sm:rounded-none">
+      <div className="pointer-events-none relative min-h-28 w-28 shrink-0 self-stretch overflow-hidden rounded-xl bg-zinc-100 sm:order-1 sm:aspect-[4/3] sm:min-h-0 sm:w-full sm:self-auto sm:rounded-none">
         {image
-          ? <Image src={image} alt="" fill sizes="(max-width: 640px) 120px, (max-width: 1024px) 50vw, 33vw" className="object-cover object-center transition-transform duration-500 sm:group-hover:scale-[1.03]" />
+          ? <Image src={image} alt="" fill sizes="(max-width: 640px) 112px, (max-width: 1024px) 50vw, 33vw" className="object-cover object-center transition-transform duration-500 sm:group-hover:scale-[1.03]" />
           : <DishPlaceholder />}
         {hasArModel && (
           <ArBadge lang={lang} className="absolute top-1.5 left-1.5 flex size-6 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm sm:top-3 sm:left-3" />
