@@ -3,7 +3,7 @@ import { type Dispatch, type SetStateAction, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
-import { Plus, LayoutDashboard, Globe, Settings, Trash2, Eye, Edit3, CheckCircle2, ChevronRight, X, ArrowRight, Lock, Unlock } from 'lucide-react'
+import { Plus, LayoutDashboard, Globe, Settings, Trash2, Eye, Edit3, CheckCircle2, ChevronRight, X, ArrowRight, Lock, Unlock, FlaskConical, Link2, RefreshCw, Rocket, History } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Modal from '@/components/ui/Modal'
 import { MENU_LANGUAGES } from '@/components/menu/menu-i18n'
@@ -30,6 +30,29 @@ interface Menu {
   is_private: boolean
   price_multiplier: number
   position: number
+  /** Menu staging (docs/product/menu-staging.md): the live menu this copy stages, or null. */
+  staging_of?: string | null
+  preview_token?: string | null
+  /** Set on a version a publish took out of production (kept for undo). */
+  replaced_at?: string | null
+}
+
+/** Live menus in their order, each followed by its open staging and then its older versions. */
+function withStagingOrder(list: Menu[]): Menu[] {
+  const ids = new Set(list.map(menu => menu.id))
+  const copiesOf = (id: string) => list
+    .filter(menu => menu.staging_of === id)
+    .sort((a, b) => (a.replaced_at ? 1 : 0) - (b.replaced_at ? 1 : 0) || String(b.replaced_at ?? '').localeCompare(String(a.replaced_at ?? '')))
+  const ordered: Menu[] = []
+  for (const menu of list) {
+    if (menu.staging_of && ids.has(menu.staging_of)) continue
+    ordered.push(menu, ...copiesOf(menu.id))
+  }
+  return ordered
+}
+
+function previewUrl(tenantSlug: string, token: string): string {
+  return `${window.location.origin}/${tenantSlug}/preview/${token}`
 }
 
 interface MenuDraft {
@@ -252,7 +275,65 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [publishTarget, setPublishTarget] = useState<Menu | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [busyId, setBusyId] = useState<string | null>(null)
   const router = useRouter()
+  const byId = new Map(menus.map(menu => [menu.id, menu]))
+
+  async function stagingAction(menu: Menu, action: 'create' | 'publish' | 'rotate-link') {
+    setBusyId(menu.id)
+    setError(null)
+    setNotice(null)
+    try {
+      const res = await fetch(`/api/admin/menus/${menu.id}/staging`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action }) })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(data.error ?? 'Staging failed'); return null }
+      return data
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  async function createStaging(menu: Menu) {
+    const staging = await stagingAction(menu, 'create') as Menu | null
+    if (!staging) return
+    setMenus(m => [...m, staging])
+    // The team edits the copy from now on; the live menu stays as it is.
+    await selectMenu(staging.id)
+    setNotice(`Staging copy of "${menu.name}" created and selected for editing. Changes stay off the live menu until you publish.`)
+  }
+
+  async function publishStaging() {
+    const menu = publishTarget
+    setPublishTarget(null)
+    if (!menu) return
+    const result = await stagingAction(menu, 'publish') as { live: Menu; previous: Menu } | null
+    if (!result) return
+    const { live, previous } = result
+    setMenus(m => m.map(x => x.id === live.id ? live : x.id === previous.id ? previous : x.staging_of === previous.id ? { ...x, staging_of: live.id } : x))
+    setNotice(menu.replaced_at
+      ? `Restored. "${live.name}" is live again; the version it replaced is kept below.`
+      : `Published. Guests now see this version at /${live.slug}. The previous version is kept below for undo. Edits to this menu now go live: create a new staging copy for the next change.`)
+  }
+
+  async function rotateLink(menu: Menu) {
+    const updated = await stagingAction(menu, 'rotate-link') as Menu | null
+    if (!updated) return
+    setMenus(m => m.map(x => x.id === updated.id ? updated : x))
+    setNotice('New preview link created. The old link no longer opens this menu.')
+  }
+
+  async function copyLink(menu: Menu) {
+    if (!menu.preview_token) return
+    const url = previewUrl(tenantSlug, menu.preview_token)
+    try {
+      await navigator.clipboard.writeText(url)
+      setNotice(`Preview link copied: ${url}`)
+    } catch {
+      setNotice(`Preview link: ${url}`)
+    }
+  }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -346,7 +427,16 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
 
   return (
     <div className="p-8 w-full space-y-8">
-      <ConfirmDialog open={!!confirmId} title="Delete menu" message="Delete this menu? All categories and products in it will also be deleted." onConfirm={handleDelete} onCancel={() => setConfirmId(null)} />
+      <ConfirmDialog open={!!confirmId} title={confirmId && byId.get(confirmId)?.staging_of ? 'Discard staging copy' : 'Delete menu'} message={confirmId && byId.get(confirmId)?.staging_of ? 'Discard this copy? Its categories and dishes are deleted; the live menu and the shared photos and 3D files are not touched.' : 'Delete this menu? All categories and products in it will also be deleted.'} onConfirm={handleDelete} onCancel={() => setConfirmId(null)} />
+      <ConfirmDialog
+        open={!!publishTarget}
+        title={publishTarget?.replaced_at ? 'Restore this version' : 'Publish to production'}
+        message={publishTarget
+          ? `Guests will see this version instead of "${byId.get(publishTarget.staging_of ?? '')?.name ?? 'the live menu'}" at the same address, QR codes and branches, right away. The current live version is kept as a previous version, so you can restore it.`
+          : ''}
+        onConfirm={publishStaging}
+        onCancel={() => setPublishTarget(null)}
+      />
 
       <Modal size="lg" open={createOpen} title="New Menu Instance" onClose={() => setCreateOpen(false)}>
         <form onSubmit={handleCreate} className="space-y-8">
@@ -391,17 +481,25 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
         </button>
       </div>
 
+      {notice && <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-6 py-4 text-sm font-bold text-emerald-800 flex justify-between items-center gap-4 break-all">{notice}<button onClick={() => setNotice(null)} className="p-1 hover:bg-emerald-100 rounded-full transition-colors shrink-0"><X className="w-4 h-4" /></button></div>}
       {error && <div className="bg-red-50 border border-red-100 rounded-lg px-6 py-4 text-sm font-bold text-red-600 flex justify-between items-center">{error}<button onClick={() => setError(null)} className="p-1 hover:bg-red-100 rounded-full transition-colors"><X className="w-4 h-4" /></button></div>}
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        {menus.map(menu => {
+        {withStagingOrder(menus).map(menu => {
           const isEditing = selectedMenuId === menu.id
+          const stagedFrom = menu.staging_of ? byId.get(menu.staging_of) ?? null : null
+          const isStaging = !!stagedFrom && !menu.replaced_at
+          const isPrevious = !!stagedFrom && !!menu.replaced_at
+          const hasOpenStaging = !menu.staging_of && menus.some(x => x.staging_of === menu.id && !x.replaced_at)
+          const busy = busyId === menu.id
           return (
             <div
               key={menu.id}
               className={cn(
                 'flex flex-col gap-5 rounded-2xl border bg-white p-6 transition-[border-color,box-shadow] duration-200',
-                isEditing ? 'border-primary ring-4 ring-primary/10' : 'border-zinc-200 hover:border-zinc-300'
+                isEditing ? 'border-primary ring-4 ring-primary/10' : 'border-zinc-200 hover:border-zinc-300',
+                isStaging && !isEditing && 'border-dashed border-amber-300 bg-amber-50/30',
+                isPrevious && 'opacity-80'
               )}
             >
               {/* Top: name and badges, then where it lives; view and edit as quiet icons. */}
@@ -411,11 +509,20 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
                     <h3 className="truncate text-xl font-black tracking-tight text-zinc-950">{menu.name}</h3>
                     {menu.is_default && <span className="rounded-full bg-zinc-950 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">Default</span>}
                     {isEditing && <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary-foreground">Editing</span>}
-                    {!menu.is_active && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600">Hidden</span>}
+                    {isStaging && <span className="flex items-center gap-1 rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-950"><FlaskConical className="size-2.5" />Staging</span>}
+                    {isPrevious && <span className="flex items-center gap-1 rounded-full bg-zinc-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-700"><History className="size-2.5" />Previous version</span>}
+                    {!menu.is_active && !stagedFrom && <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600">Hidden</span>}
                     {menu.is_private && <span className="flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-800"><Lock className="size-2.5" />Private</span>}
                   </div>
+                  {stagedFrom && (
+                    <p className="mt-1.5 text-[13px] font-semibold text-amber-800">
+                      {isStaging
+                        ? <>Copy of <span className="font-black">{stagedFrom.name}</span> (live). Not public: share the preview link, then publish.</>
+                        : <>Replaced{menu.replaced_at ? ` on ${new Date(menu.replaced_at).toLocaleDateString()}` : ''} by <span className="font-black">{stagedFrom.name}</span>. Restore to undo the publish.</>}
+                    </p>
+                  )}
                   <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-[13px] font-medium text-zinc-500">
-                    <span className="font-mono">/{menu.slug}</span>
+                    <span className="font-mono">{stagedFrom ? 'preview link only' : `/${menu.slug}`}</span>
                     <span aria-hidden="true" className="text-zinc-300">·</span>
                     <span className="uppercase">{menu.language}</span>
                     <span aria-hidden="true" className="text-zinc-300">·</span>
@@ -424,11 +531,11 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
                 </div>
                 <div className="flex shrink-0 gap-1.5">
                   <Link
-                    href={`/${tenantSlug}${menu.is_default ? '' : `/${menu.slug}`}`}
+                    href={stagedFrom && menu.preview_token ? `/${tenantSlug}/preview/${menu.preview_token}` : `/${tenantSlug}${menu.is_default ? '' : `/${menu.slug}`}`}
                     target="_blank"
                     className="flex size-10 items-center justify-center rounded-lg border border-zinc-200 text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-950"
-                    title="View public menu"
-                    aria-label="View public menu"
+                    title={stagedFrom ? 'Open preview' : 'View public menu'}
+                    aria-label={stagedFrom ? 'Open preview' : 'View public menu'}
                   >
                     <Eye className="size-4" />
                   </Link>
@@ -466,35 +573,93 @@ export default function MenusClient({ menus: initial, tenantSlug, activeMenuId }
                   Manage items
                   <ArrowRight className="size-3.5 transition-transform group-hover/btn:translate-x-0.5" />
                 </button>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={menu.is_active}
-                  onClick={() => handleToggle(menu, 'is_active')}
-                  className="flex items-center gap-2 text-[13px] font-semibold text-zinc-700"
-                >
-                  <span className={cn('relative h-5 w-9 rounded-full transition-colors', menu.is_active ? 'bg-emerald-500' : 'bg-zinc-300')}>
-                    <span className={cn('absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-[left]', menu.is_active ? 'left-[18px]' : 'left-0.5')} />
-                  </span>
-                  Visible
-                </button>
-                {!menu.is_default && (
-                  <div className="ml-auto flex items-center gap-1">
+                {stagedFrom ? (
+                  <>
                     <button
-                      onClick={() => handleToggle(menu, 'is_default')}
-                      className="h-9 rounded-lg px-3 text-[13px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                      type="button"
+                      disabled={busy}
+                      onClick={() => setPublishTarget(menu)}
+                      className="flex h-10 items-center gap-2 rounded-lg bg-amber-400 px-4 text-[13px] font-bold text-zinc-950 transition-colors hover:bg-amber-500 active:scale-[0.98] disabled:opacity-50"
                     >
-                      Set as default
+                      {isStaging ? <Rocket className="size-3.5" /> : <History className="size-3.5" />}
+                      {isStaging ? 'Publish' : 'Restore'}
                     </button>
+                    {menu.preview_token && (
+                      <button
+                        type="button"
+                        onClick={() => copyLink(menu)}
+                        className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                      >
+                        <Link2 className="size-3.5" />
+                        Copy preview link
+                      </button>
+                    )}
+                    <div className="ml-auto flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => rotateLink(menu)}
+                        className="flex size-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-950 disabled:opacity-50"
+                        title="New preview link (the old one stops working)"
+                        aria-label="New preview link"
+                      >
+                        <RefreshCw className="size-4" />
+                      </button>
+                      <button
+                        onClick={() => setConfirmId(menu.id)}
+                        className="flex size-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                        title={isStaging ? 'Discard staging copy' : 'Delete this version'}
+                        aria-label={isStaging ? 'Discard staging copy' : 'Delete this version'}
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
                     <button
-                      onClick={() => setConfirmId(menu.id)}
-                      className="flex size-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600"
-                      title="Delete menu"
-                      aria-label="Delete menu"
+                      type="button"
+                      role="switch"
+                      aria-checked={menu.is_active}
+                      onClick={() => handleToggle(menu, 'is_active')}
+                      className="flex items-center gap-2 text-[13px] font-semibold text-zinc-700"
                     >
-                      <Trash2 className="size-4" />
+                      <span className={cn('relative h-5 w-9 rounded-full transition-colors', menu.is_active ? 'bg-emerald-500' : 'bg-zinc-300')}>
+                        <span className={cn('absolute top-0.5 size-4 rounded-full bg-white shadow-sm transition-[left]', menu.is_active ? 'left-[18px]' : 'left-0.5')} />
+                      </span>
+                      Visible
                     </button>
-                  </div>
+                    {!hasOpenStaging && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => createStaging(menu)}
+                        className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-zinc-600 transition-colors hover:bg-amber-50 hover:text-amber-900 disabled:opacity-50"
+                        title="Copy this menu to a private staging version to change, show the restaurant and publish"
+                      >
+                        <FlaskConical className="size-3.5" />
+                        {busy ? 'Copying…' : 'Create staging'}
+                      </button>
+                    )}
+                    {!menu.is_default && (
+                      <div className="ml-auto flex items-center gap-1">
+                        <button
+                          onClick={() => handleToggle(menu, 'is_default')}
+                          className="h-9 rounded-lg px-3 text-[13px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-950"
+                        >
+                          Set as default
+                        </button>
+                        <button
+                          onClick={() => setConfirmId(menu.id)}
+                          className="flex size-9 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600"
+                          title="Delete menu"
+                          aria-label="Delete menu"
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>

@@ -79,7 +79,19 @@ const nextConfig: NextConfig = {
     ],
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // Menu staging previews (/<slug>/preview/<token>, or /preview/<token> on a
+    // custom domain): public for whoever holds the link, never indexed, never
+    // cached, and the token never leaves in a Referer (docs/product/menu-staging.md).
+    const previewHeaders = [
+      { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive, noimageindex" },
+      { key: "Referrer-Policy", value: "no-referrer" },
+      { key: "Cache-Control", value: "private, no-store" },
+    ];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      { source: "/:slug/preview/:token", headers: previewHeaders },
+      { source: "/preview/:token", headers: previewHeaders },
+    ];
   },
 };
 

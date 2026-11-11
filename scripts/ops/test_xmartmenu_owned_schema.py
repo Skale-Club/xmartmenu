@@ -21,6 +21,7 @@ spec.loader.exec_module(ops)
 CONTAINER = os.environ.get('XM_TEST_PG_CONTAINER')
 AR_FILE = '20261107090000_product_ar_models.sql'
 REAL_SIZE_FILE = '20261111090000_ar_real_size_and_cart_source.sql'
+STAGING_FILE = '20261111120000_menu_staging.sql'
 
 
 def make_bundle(root: Path, files: dict, tamper: str = None):
@@ -174,6 +175,29 @@ GRANT SELECT ON public.products, public.tenants TO xmartmenu_runtime;""", 'xmart
             self.assertIn(f"'{name}'", check)
         self.assertEqual(pg.sql("SELECT has_table_privilege('xmartmenu_runtime','public.product_ar_models','SELECT,INSERT,UPDATE,DELETE');"), 't')
         self.assertEqual(pg.sql("SELECT count(*) FROM xmartmenu_ops.owned_schema;", role='xmartmenu_owner'), '1')
+
+    def test_staging_file_adds_hidden_staging_columns_once(self):
+        pg = ops.Pg(self.cfg)
+        self.psql("SET ROLE xmartmenu_owner; CREATE TABLE public.menus(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), tenant_id uuid NOT NULL,"
+                  " slug text NOT NULL, is_active boolean NOT NULL DEFAULT true, is_default boolean NOT NULL DEFAULT false, UNIQUE(tenant_id, slug));"
+                  " GRANT SELECT, INSERT, UPDATE, DELETE ON public.menus TO xmartmenu_runtime;"
+                  " INSERT INTO public.menus(tenant_id, slug, is_default) VALUES (gen_random_uuid(), 'main', true);", 'xmartmenu')
+        text = (REPO / 'docs/owned-schema' / STAGING_FILE).read_text()
+        files = ops.load_bundle(make_bundle(self.tmp / 'staging', {STAGING_FILE: text}))
+        self.assertEqual(ops.Operator(self.cfg, pg, files, 'r1').apply(), 0)
+        self.assertEqual(ops.Operator(self.cfg, pg, files, 'r2').statuses(), [(STAGING_FILE, 'applied')])
+        pg.sql(text, role='xmartmenu_owner')  # a second run changes nothing
+        for column in ('staging_of', 'preview_token', 'replaced_at'):
+            self.assertEqual(pg.sql(f"SELECT has_column_privilege('xmartmenu_runtime','public.menus','{column}','SELECT,INSERT,UPDATE');"), 't')
+        # A staging copy can never be visible or the default.
+        live = self.psql("SET ROLE xmartmenu_runtime; INSERT INTO public.menus(tenant_id, slug, is_active, staging_of)"
+                         " SELECT tenant_id, 'staging', true, id FROM public.menus LIMIT 1;", 'xmartmenu', check=False)
+        self.assertNotEqual(live.returncode, 0)
+        self.assertIn(b'menus_staging_hidden', live.stderr)
+        self.psql("SET ROLE xmartmenu_runtime; INSERT INTO public.menus(tenant_id, slug, is_active, staging_of, preview_token)"
+                  " SELECT tenant_id, 'staging', false, id, repeat('a', 32) FROM public.menus LIMIT 1;", 'xmartmenu')
+        weak = self.psql("SET ROLE xmartmenu_runtime; UPDATE public.menus SET preview_token='short' WHERE slug='staging';", 'xmartmenu', check=False)
+        self.assertNotEqual(weak.returncode, 0)
 
     def test_tenant_trigger_rejects_a_foreign_dish(self):
         pg = ops.Pg(self.cfg)

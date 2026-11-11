@@ -50,13 +50,25 @@ function one<T>(values: T[]): T | null {
   if (values.length > 1) throw new Error('Ambiguous singleton')
   return values[0] ?? null
 }
+const PREVIEW_TOKEN = /^[A-Za-z0-9_-]{32,128}$/
 function validSegment(segment: unknown): segment is string {
   return typeof segment === 'string' && segment.length > 0 && segment.length <= 200 && !segment.includes('\0')
 }
 
+export interface OwnedPublicMenuOptions {
+  /**
+   * Menu staging preview (/<slug>/preview/<token>): read the hidden staging
+   * menu this token opens instead of a live one (docs/product/menu-staging.md).
+   * Matched inside the restaurant only; no branch picker, no branch.
+   */
+  previewToken?: string
+}
+
 /** All queries run inside the runtime's one read-only repeatable-read snapshot. */
-export async function readOwnedPublicMenu(query: PublicMenuQuery, slug: string, menuSlug: string | undefined): Promise<CachedPublicMenu> {
+export async function readOwnedPublicMenu(query: PublicMenuQuery, slug: string, menuSlug: string | undefined, options: OwnedPublicMenuOptions = {}): Promise<CachedPublicMenu> {
   if (!validSegment(slug) || (menuSlug !== undefined && !validSegment(menuSlug))) return { kind: 'not_found' }
+  const preview = options.previewToken
+  if (preview !== undefined && (menuSlug !== undefined || !PREVIEW_TOKEN.test(preview))) return { kind: 'not_found' }
   try {
     const tenant = one(await rows<Row & { id: string; tenant_settings: (Row & ServiceSettings) | null }>(query,
       `SELECT ${jsonProjection('t', PUBLIC_MENU_COLUMNS.tenant)} || jsonb_build_object('tenant_settings', CASE WHEN s.id IS NULL THEN NULL ELSE ${jsonProjection('s', PUBLIC_MENU_COLUMNS.settings)} END) AS row
@@ -67,17 +79,30 @@ export async function readOwnedPublicMenu(query: PublicMenuQuery, slug: string, 
     const settings = tenant.tenant_settings
     const footer = one(await rows<Row>(query, 'SELECT jsonb_build_object(\'menu_footer_brand\', menu_footer_brand) AS row FROM public.platform_settings LIMIT 2', [], 1))
     const footerBrand = typeof footer?.menu_footer_brand === 'string' ? footer.menu_footer_brand : 'XmartMenu'
-    const menus = await rows<MenuRow>(query, publicSelect('menus', 'm', PUBLIC_MENU_COLUMNS.menu,
-      'WHERE m.tenant_id=$1 AND m.is_active=true', 'm.position, m.id', 100), [tenantId], 100)
-    const locations = await rows<LocationRow>(query, publicSelect('locations', 'l', PUBLIC_MENU_COLUMNS.location,
+    // A preview reads exactly one hidden staging menu, the token matched within
+    // this restaurant, once the staging columns exist (named columns only, so a
+    // column-level reader grant suffices). The token itself is not in the DTO.
+    const stagingReady = preview === undefined ? false : one(await rows<Row>(query,
+      `SELECT jsonb_build_object('ready', count(*) = 2) AS row FROM information_schema.columns
+       WHERE table_schema='public' AND table_name='menus' AND column_name IN ('staging_of','preview_token')`, [], 1))?.ready === true
+    if (preview !== undefined && !stagingReady) return { kind: 'not_found' }
+    const menus = preview !== undefined
+      ? await rows<MenuRow>(query, publicSelect('menus', 'm', PUBLIC_MENU_COLUMNS.menu,
+        'WHERE m.tenant_id=$1 AND m.is_active=false AND m.staging_of IS NOT NULL AND m.preview_token=$2', 'm.id', 1), [tenantId, preview], 1)
+      : await rows<MenuRow>(query, publicSelect('menus', 'm', PUBLIC_MENU_COLUMNS.menu,
+        'WHERE m.tenant_id=$1 AND m.is_active=true', 'm.position, m.id', 100), [tenantId], 100)
+    if (preview !== undefined && menus.length !== 1) return { kind: 'not_found' }
+    const locations = preview !== undefined ? [] : await rows<LocationRow>(query, publicSelect('locations', 'l', PUBLIC_MENU_COLUMNS.location,
       `WHERE l.tenant_id=$1 AND l.is_active=true${menuSlug === undefined ? '' : ' AND l.slug=$2'}`, 'l.created_at, l.id', 100), menuSlug === undefined ? [tenantId] : [tenantId, menuSlug], 100)
+    // The live-menu condition on every catalog read; a preview's menu is hidden by design.
+    const live = preview !== undefined ? '' : ' AND m.is_active=true'
     if (menuSlug === undefined && locations.length >= 2) {
       // Match the existing branch-picker projection instead of serializing extra
       // branch metadata/columns that the picker never requested.
       return { kind: 'branches', tenant, footerBrand, locations: locations.map(({ id, name, slug, address, city, phone, business_hours }) => ({ id, name, slug, address, city, phone, business_hours })) }
     }
     const location = menuSlug === undefined ? null : one(locations)
-    const menu = menuSlug === undefined ? pickDefaultMenu(menus) : pickSectionMenu(menus, menuSlug, location)
+    const menu = preview !== undefined ? menus[0] : menuSlug === undefined ? pickDefaultMenu(menus) : pickSectionMenu(menus, menuSlug, location)
     if (menuSlug !== undefined && !location && !menu) return { kind: 'not_found' }
     const subscription = one(await rows<Row>(query,
       `SELECT jsonb_build_object('status', s.status, 'features', p.features, 'chat_addon_active', s.chat_addon_active,
@@ -97,9 +122,9 @@ export async function readOwnedPublicMenu(query: PublicMenuQuery, slug: string, 
     const zones = capabilities.delivery ? await rows<Row>(query, publicSelect('delivery_zones', 'z', PUBLIC_MENU_COLUMNS.zone,
       'WHERE z.tenant_id=$1 AND z.is_active=true', 'z.created_at, z.id', 1000), [tenantId], 1000) : []
     const categories = menu?.id ? await rows<Row>(query, publicSelect('categories', 'c', PUBLIC_MENU_COLUMNS.category,
-      'JOIN public.menus m ON m.id=c.menu_id AND m.tenant_id=c.tenant_id WHERE c.tenant_id=$1 AND c.menu_id=$2 AND c.is_active=true AND m.is_active=true', 'c.position, c.id', 1000), [tenantId, menu.id], 1000) : []
+      `JOIN public.menus m ON m.id=c.menu_id AND m.tenant_id=c.tenant_id WHERE c.tenant_id=$1 AND c.menu_id=$2 AND c.is_active=true${live}`, 'c.position, c.id', 1000), [tenantId, menu.id], 1000) : []
     const products = menu?.id ? await rows<Row & { id: string }>(query, publicSelect('products', 'p', PUBLIC_MENU_COLUMNS.product,
-      'JOIN public.menus m ON m.id=p.menu_id AND m.tenant_id=p.tenant_id WHERE p.tenant_id=$1 AND p.menu_id=$2 AND p.is_available=true AND m.is_active=true', 'p.position, p.id', 2000), [tenantId, menu.id], 2000) : []
+      `JOIN public.menus m ON m.id=p.menu_id AND m.tenant_id=p.tenant_id WHERE p.tenant_id=$1 AND p.menu_id=$2 AND p.is_available=true${live}`, 'p.position, p.id', 2000), [tenantId, menu.id], 2000) : []
     let groups: GroupWithOptions[] = [], ingredients: ProductIngredientWithIngredient[] = [], media: ProductMedia[] = [], arModels: PublicProductArModel[] = []
     if (products.length && menu?.id) {
       const ids = products.map(product => product.id)

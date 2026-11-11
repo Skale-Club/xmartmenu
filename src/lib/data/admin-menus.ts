@@ -12,7 +12,11 @@ export class AdminMenuError extends Error {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 export const adminMenusOwned = (env: Record<string, string | undefined> = process.env) => env.OWNED_ADMIN_MENUS_ENABLED === 'true'
 const columns = PUBLIC_MENU_COLUMNS.menu.split(' ').map(column => `m.${column}`).join(', ')
-const projected = `to_jsonb((SELECT projected FROM (SELECT ${columns}) projected)) AS row`
+// Staging fields read through to_jsonb(m): null until the schema step adds them
+// (docs/owned-schema/20261111120000_menu_staging.sql).
+const projected = `to_jsonb((SELECT projected FROM (SELECT ${columns}) projected))
+  || jsonb_build_object('staging_of', to_jsonb(m)->'staging_of', 'preview_token', to_jsonb(m)->'preview_token', 'replaced_at', to_jsonb(m)->'replaced_at') AS row`
+export const ADMIN_MENU_PROJECTION = projected
 function tenantScope(context: AdminMenuContext) {
   if (!UUID.test(context.tenantId) || !['superadmin', 'store-admin', 'store-staff'].includes(context.role)) throw new AdminMenuError(403, 'Forbidden')
 }
@@ -86,7 +90,8 @@ async function guardMenuDeletion(query: AdminMenuQuery, tenantId: string, id: st
   // Refuse schema drift that would add an unreviewed cascading/SET NULL path.
   // ROW EXCLUSIVE allows normal DML but prevents a concurrent ADD FOREIGN KEY
   // from changing that graph after it has been checked.
-  const deletedTables = ['menus', 'categories', 'products', 'product_option_groups', 'product_options', 'product_ingredients', 'product_media', 'menu_sessions', 'menu_events']
+  const ar = (await query(`SELECT to_regclass('public.product_ar_models') IS NOT NULL AS ok`)).rows[0]?.ok === true
+  const deletedTables = ['menus', 'categories', 'products', 'product_option_groups', 'product_options', 'product_ingredients', 'product_media', 'menu_sessions', 'menu_events', ...(ar ? ['product_ar_models'] : [])]
   await query(`LOCK TABLE ${deletedTables.map(table => `public.${table}`).join(', ')} IN ROW EXCLUSIVE MODE`)
   const reviewed = new Set([
     'categories:menu_id:menus:id:c', 'products:menu_id:menus:id:c', 'locations:menu_id:menus:id:n',
@@ -94,6 +99,7 @@ async function guardMenuDeletion(query: AdminMenuQuery, tenantId: string, id: st
     'products:category_id:categories:id:n', 'menu_events:category_id:categories:id:n',
     'product_option_groups:product_id:products:id:c', 'product_ingredients:product_id:products:id:c',
     'product_media:product_id:products:id:c', 'menu_events:product_id:products:id:n',
+    'product_ar_models:product_id:products:id:c', 'menus:staging_of:menus:id:n',
     'product_options:group_id:product_option_groups:id:c',
     'menu_events:session_id:menu_sessions:id:c', 'orders:analytics_session_id:menu_sessions:id:n',
   ])
@@ -124,6 +130,9 @@ async function guardMenuDeletion(query: AdminMenuQuery, tenantId: string, id: st
     ['product_options', 'group_id=ANY($5::uuid[])', 'id'],
     ['product_ingredients', 'product_id=ANY($4::uuid[])', 'product_id, ingredient_id'],
     ['product_media', 'product_id=ANY($4::uuid[])', 'id'],
+    ...(ar ? [['product_ar_models', 'product_id=ANY($4::uuid[])', 'id']] : []),
+    // Its staging copies / replaced versions become ordinary hidden menus (SET NULL).
+    ['menus', "to_jsonb(menus)->>'staging_of'=$2::text", 'id'],
     ['menu_events', 'menu_id=$2 OR session_id=ANY($6::uuid[]) OR product_id=ANY($4::uuid[]) OR category_id=ANY($3::uuid[])', 'id'],
     ['orders', 'analytics_session_id=ANY($6::uuid[])', 'id'],
   ]) {
@@ -140,6 +149,8 @@ async function guardMenuDeletion(query: AdminMenuQuery, tenantId: string, id: st
     UNION ALL SELECT 1 FROM public.product_options WHERE group_id=ANY($5::uuid[]) AND tenant_id<>$1
     UNION ALL SELECT 1 FROM public.product_ingredients WHERE product_id=ANY($4::uuid[]) AND tenant_id<>$1
     UNION ALL SELECT 1 FROM public.product_media WHERE product_id=ANY($4::uuid[]) AND tenant_id<>$1
+    UNION ALL SELECT 1 FROM public.menus WHERE to_jsonb(menus)->>'staging_of'=$2::text AND tenant_id<>$1${ar ? `
+    UNION ALL SELECT 1 FROM public.product_ar_models WHERE product_id=ANY($4::uuid[]) AND tenant_id<>$1` : ''}
     UNION ALL SELECT 1 FROM public.menu_sessions WHERE menu_id=$2 AND tenant_id<>$1
     UNION ALL SELECT 1 FROM public.menu_events WHERE (menu_id=$2 OR session_id=ANY($6::uuid[]) OR product_id=ANY($4::uuid[]) OR category_id=ANY($3::uuid[])) AND tenant_id<>$1
     UNION ALL SELECT 1 FROM public.orders WHERE analytics_session_id=ANY($6::uuid[]) AND tenant_id<>$1
@@ -175,6 +186,10 @@ export async function mutateAdminMenu(query: AdminMenuQuery, context: AdminMenuC
     return created
   }
   const patch = menuPatch(mutation.body, current!)
+  // A staging copy reaches production only through the publish swap (menu-staging.ts).
+  if ((current as Menu & { staging_of?: string | null }).staging_of && (patch.is_active === true || patch.is_default === true)) {
+    throw new AdminMenuError(409, 'Publish the staging copy to make it live')
+  }
   if (patch.is_default === true) await query('UPDATE public.menus SET is_default=false WHERE tenant_id=$1 AND is_default=true', [context.tenantId])
   const entries = Object.entries(patch)
   if (!entries.length) return current!

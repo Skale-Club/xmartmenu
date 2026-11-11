@@ -1,7 +1,7 @@
 import pg from 'pg'
 import { postgresRuntimeConfig } from './database-config'
 import { sharedRuntimePool } from './shared-pool'
-import { readOwnedPublicMenu } from './public-menu'
+import { readOwnedPublicMenu, type OwnedPublicMenuOptions } from './public-menu'
 
 let pool: pg.Pool | undefined
 let poolConfiguration: string | undefined
@@ -24,7 +24,13 @@ export async function loadOwnedPublicMenuBase(slug: string, menuSlug: string | u
   if (!pool) { pool = sharedRuntimePool('PUBLIC_MENU'); poolConfiguration = JSON.stringify(config) }
   return readPublicMenuSnapshot(pool, slug, menuSlug)
 }
-export async function readPublicMenuSnapshot(source: Pick<pg.Pool, 'connect'>, slug: string, menuSlug: string | undefined, timeoutMs = 8_000) {
+/** A staging preview (/<slug>/preview/<token>): never cached, read per request. */
+export async function loadOwnedPreviewMenuBase(slug: string, previewToken: string) {
+  const config = assertPublicMenuTarget()
+  if (!pool) { pool = sharedRuntimePool('PUBLIC_MENU'); poolConfiguration = JSON.stringify(config) }
+  return readPublicMenuSnapshot(pool, slug, undefined, 8_000, { previewToken })
+}
+export async function readPublicMenuSnapshot(source: Pick<pg.Pool, 'connect'>, slug: string, menuSlug: string | undefined, timeoutMs = 8_000, options: OwnedPublicMenuOptions = {}) {
   let client: pg.PoolClient | undefined
   let released = false
   let expired = false
@@ -53,7 +59,7 @@ export async function readPublicMenuSnapshot(source: Pick<pg.Pool, 'connect'>, s
         return acquired.query(text, values)
       }
       await query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY')
-      const result = await readOwnedPublicMenu(query, slug, menuSlug)
+      const result = await readOwnedPublicMenu(query, slug, menuSlug, options)
       await query('COMMIT')
       return result
     } catch {

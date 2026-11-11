@@ -16,4 +16,6 @@ export const RESERVED_PATHS = new Set([
   // plataforma, que é um URL de SEO e não se mexe.
   'posts',
   'sitemap', 'robots',
+  // /preview/<token> is a menu staging preview on a custom domain.
+  'preview',
 ])

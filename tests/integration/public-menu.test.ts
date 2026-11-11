@@ -162,6 +162,34 @@ test('a real read-only repeatable-read snapshot stays coherent during concurrent
     assert.equal(refreshed.kind === 'menu' && refreshed.products[0].price, 44)
   } finally { await client.query('ROLLBACK').catch(() => {}); client.release() }
 })
+test('a staging preview opens only its hidden menu, by token, inside its own restaurant', async () => {
+  const preview = (slug: string, token: string) => readPublicMenuSnapshot(reader, slug, undefined, 8_000, { previewToken: token })
+  const token = 'tok_' + 'a'.repeat(40), staging = randomUUID(), stagedProduct = randomUUID()
+  // Before the schema step the preview fails closed.
+  assert.equal((await preview('restaurant-a', token)).kind, 'not_found')
+  const migration = await readFile(new URL('../../supabase/migrations/20261111120000_menu_staging.sql', import.meta.url), 'utf8')
+  await admin.query(migration)
+  await admin.query(`INSERT INTO public.menus(id,tenant_id,name,slug,is_active,is_default,staging_of,preview_token) VALUES($1,$2,'A','main-staging-x',false,false,$3,$4)`, [staging, ids.a, ids.menuA, token])
+  await admin.query(`INSERT INTO public.products(id,tenant_id,menu_id,name,price) VALUES($1,$2,$3,'A with 3D',13)`, [stagedProduct, ids.a, staging])
+  const result = await preview('restaurant-a', token)
+  assert.equal(result.kind, 'menu')
+  if (result.kind !== 'menu') throw Error()
+  assert.equal(result.menu.id, staging)
+  assert.deepEqual(result.products.map(product => product.name), ['A with 3D'])
+  assert.equal('preview_token' in result.menu, false)
+  assert.equal(JSON.stringify(result).includes(token), false)
+  // The live menu is unchanged; another restaurant, a wrong token or a section never open it.
+  const live = await read()
+  assert.equal(live.kind === 'menu' && live.menu.id, ids.menuA)
+  assert.equal((await preview('restaurant-b', token)).kind, 'not_found')
+  assert.equal((await preview('restaurant-a', token.replace(/a$/, 'b'))).kind, 'not_found')
+  assert.equal((await preview('restaurant-a', "' OR true --")).kind, 'not_found')
+  assert.equal((await readPublicMenuSnapshot(reader, 'restaurant-a', 'main-staging-x')).kind, 'not_found')
+  // A published (visible, non-staging) menu no longer answers its old token.
+  await admin.query('UPDATE public.menus SET staging_of=NULL, is_active=true WHERE id=$1', [staging])
+  assert.equal((await preview('restaurant-a', token)).kind, 'not_found')
+  await admin.query('DELETE FROM public.menus WHERE id=$1', [staging])
+})
 test('column-level reader privileges suffice and do not expose unrelated platform settings', async () => {
   await admin.query('CREATE ROLE catalog_reader NOLOGIN; GRANT USAGE ON SCHEMA public TO catalog_reader')
   for (const [table, , key] of tables) {
