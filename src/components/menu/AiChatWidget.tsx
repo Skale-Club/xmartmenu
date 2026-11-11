@@ -24,8 +24,6 @@ interface Props {
   /** The menu and location on screen, so the assistant answers about what the customer sees. */
   menuId?: string | null
   locationId?: string | null
-  /** Whether the cart side panel is open (desktop: the chat moves left of it). */
-  cartOpen?: boolean
   onOpenCart?: () => void
   /** Mobile: the page's bottom "View order" bar is showing; the launcher sits above it. */
   orderBarVisible?: boolean
@@ -65,7 +63,7 @@ interface Message {
 
 const SESSION_KEY_PREFIX = 'aiChat:'
 
-export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false, language = 'en', cart = null, canOrder = true, tableId = null, phoneContext = null, locale = 'en' }: Props) {
+export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, onOpenCart, orderBarVisible = false, language = 'en', cart = null, canOrder = true, tableId = null, phoneContext = null, locale = 'en' }: Props) {
   const copy = getGuestCopy(language)
   const menuCopy = getMenuCopy(language)
   // Text and icons on the brand colour: black or white, whichever reads (never a fixed one).
@@ -287,7 +285,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className={`fixed ${orderBarVisible ? 'bottom-24 lg:bottom-6' : 'bottom-6'} right-6 ${cartOpen ? 'lg:right-[404px]' : ''} z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-105`}
+          className={`fixed ${orderBarVisible ? 'bottom-24 lg:bottom-6' : 'bottom-6'} right-6 z-40 w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-transform hover:scale-105`}
           style={{ backgroundColor: brand, color: onBrand }}
           aria-label={copy.openChat}
         >
@@ -298,7 +296,7 @@ export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#
       {/* Panel */}
       {open && (
         <div
-          className={`fixed inset-0 z-50 sm:inset-auto sm:bottom-6 sm:right-6 ${cartOpen ? 'lg:right-[404px]' : ''} sm:w-[400px] sm:h-[640px] sm:max-h-[80vh] flex flex-col bg-white sm:rounded-2xl shadow-2xl overflow-hidden`}
+          className={`fixed inset-0 z-50 sm:inset-auto sm:bottom-6 sm:right-6 sm:w-[400px] sm:h-[640px] sm:max-h-[80vh] flex flex-col bg-white sm:rounded-2xl shadow-2xl overflow-hidden`}
           style={box.keyboard ? { top: box.style.top, height: box.style.height, bottom: 'auto' } : undefined}
         >
           {/* Header */}

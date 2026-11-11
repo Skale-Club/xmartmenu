@@ -8,7 +8,7 @@ import { getProductImages, summarizeOptions, summarizeIngredientMods } from './m
 import { formatMoney, getMenuCopy } from './menu-i18n'
 import type { DeliveryZone } from '@/types/database'
 import { computePrimaryForeground } from '@/lib/color-utils'
-import ModalPortal from '@/components/ui/ModalPortal'
+import BottomSheet from '@/components/ui/BottomSheet'
 import PhoneField from '@/components/ui/PhoneField'
 import { keepFieldVisible, nextFieldOnEnter, useVisibleBox } from '@/components/ui/keyboard-fields'
 import type { PhoneContext } from './showcase'
@@ -23,7 +23,7 @@ function findMatchingZone(zipcode: string | undefined, zones: DeliveryZone[] | u
 /**
  * Checkout: one calm column — what you're ordering, how you want it, your
  * details, the totals — with "Place order · total" pinned at the bottom.
- * Phones: a sheet from the bottom. Larger screens: centred. Item editing
+ * In the iOS-style BottomSheet on every screen size, as tall as its content. Item editing
  * happens in CartPanel. The sheet lives in the part of the screen the phone
  * keyboard leaves visible, so the field being typed in and the button stay
  * above the keys; Enter moves to the next field and, in the last one, places
@@ -122,18 +122,9 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
   const box = useVisibleBox()
 
   return (
-    <ModalPortal onClose={onClose}>
-      <div className="menu-root fixed inset-0 z-[60] bg-zinc-950/40 backdrop-blur-[2px]" onClick={onClose}>
-        <div className="fixed inset-x-0 flex items-end justify-center sm:items-center sm:p-4" style={box.style}>
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={copy.checkoutTitle}
-          className={`relative flex w-full flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:max-h-full sm:max-w-xl sm:rounded-3xl ${box.short ? 'max-h-full' : 'max-h-[94%]'}`}
-          onClick={e => e.stopPropagation()}
-        >
+    <BottomSheet open onClose={onClose} ariaLabel={copy.checkoutTitle} widthClassName="sm:max-w-xl" frameStyle={box.style}>
           {/* Header */}
-          <div className="flex shrink-0 items-center gap-1 border-b border-zinc-100 bg-white px-2 py-2">
+          <div data-sheet-grip className="flex shrink-0 touch-none items-center gap-1 border-b border-zinc-100 bg-white px-2 pb-2">
             {!orderSuccess ? (
               <button type="button" onClick={onBack} className="flex size-11 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-zinc-100" aria-label={copy.backToCart}>
                 <ChevronLeft className="size-5" />
@@ -146,7 +137,7 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
           </div>
 
           {orderSuccess && orderId ? (
-            <div className="flex-1 overflow-y-auto overscroll-contain px-5 pt-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-8 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
               <div className="flex flex-col items-center text-center">
                 <div className="flex size-16 items-center justify-center rounded-full bg-emerald-50">
                   <Check className="size-8 text-emerald-600" strokeWidth={2.5} />
@@ -368,10 +359,7 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
               )}
             </form>
           )}
-        </div>
-        </div>
-      </div>
-    </ModalPortal>
+    </BottomSheet>
   )
 }
 

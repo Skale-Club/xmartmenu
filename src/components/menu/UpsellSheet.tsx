@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import { Check, Plus, UtensilsCrossed, X } from 'lucide-react'
 import type { Product } from '@/types/database'
-import ModalPortal from '@/components/ui/ModalPortal'
+import BottomSheet from '@/components/ui/BottomSheet'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { fill, formatMoney, getMenuCopy } from './menu-i18n'
 import { getProductImages } from './menu-utils'
@@ -12,7 +12,8 @@ import type { UpsellStep } from './upsell'
 /**
  * "Complete your order": one step at a time (goes well with…, a side, a drink,
  * a dessert). Dishes without required choices go straight into the cart;
- * the others open their details and come back here.
+ * the others open their details and come back here. Shown in the iOS-style
+ * BottomSheet, as tall as its content.
  */
 export default function UpsellSheet({
   steps,
@@ -58,16 +59,8 @@ export default function UpsellSheet({
   }[step.kind]
 
   return (
-    <ModalPortal onClose={onClose}>
-      <div className="menu-root fixed inset-0 z-[60] flex items-end justify-center bg-zinc-950/40 backdrop-blur-[2px] sm:items-center sm:p-4" onClick={onClose}>
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="upsell-heading"
-          className="relative flex max-h-[88dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:max-h-[calc(100dvh-2rem)] sm:max-w-md sm:rounded-3xl"
-          onClick={e => e.stopPropagation()}
-        >
-          <div className="flex shrink-0 items-start gap-3 border-b border-zinc-100 bg-white px-5 pt-4 pb-3">
+    <BottomSheet open onClose={onClose} ariaLabelledBy="upsell-heading" widthClassName="sm:max-w-md">
+          <div data-sheet-grip className="flex shrink-0 touch-none items-start gap-3 border-b border-zinc-100 bg-white px-5 pt-1 pb-3">
             <div className="min-w-0 flex-1">
               <p className="flex items-center gap-1.5 text-[13px] font-medium text-emerald-700">
                 <Check className="size-4" aria-hidden="true" />
@@ -83,7 +76,7 @@ export default function UpsellSheet({
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto overscroll-contain px-5 pt-4 pb-2">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4 pb-2">
             <h2 id="upsell-heading" className="text-[22px] font-bold leading-tight tracking-tight text-zinc-900">{heading}</h2>
             {steps.length > 1 && (
               <div className="mt-3 flex gap-1" aria-hidden="true">
@@ -139,8 +132,6 @@ export default function UpsellSheet({
               {tookFromStep ? (isLast ? copy.upsellDone : copy.upsellContinue) : copy.upsellSkip}
             </button>
           </div>
-        </div>
-      </div>
-    </ModalPortal>
+    </BottomSheet>
   )
 }
