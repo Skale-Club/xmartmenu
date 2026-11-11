@@ -51,9 +51,10 @@ export default function BottomSheet({
   shrinkLabel?: string
   children: ReactNode
 }) {
-  // mounted: in the DOM. shown: slid up (false while entering and leaving, for the slide).
-  const [mounted, setMounted] = useState(open)
+  // shown: slid up (false while entering and leaving, for the slide). closing: still in the DOM after `open`
+  // went false, for the slide down. While `open` is true the sheet is always in the DOM.
   const [shown, setShown] = useState(false)
+  const [closing, setClosing] = useState(false)
   const [large, setLarge] = useState(false)
   const [dragY, setDragY] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -61,20 +62,23 @@ export default function BottomSheet({
   const onCloseRef = useRef(onClose)
   useEffect(() => { onCloseRef.current = onClose })
 
-  // Open: mount, then slide up on the next frame. Closed from outside: slide down, then unmount.
+  // Closed from outside: keep it in the DOM to slide down, then drop it.
   const [prevOpen, setPrevOpen] = useState(open)
   if (open !== prevOpen) {
     setPrevOpen(open)
-    if (open) setMounted(true)
-    else setShown(false)
+    if (!open) {
+      setShown(false)
+      setClosing(true)
+    }
   }
   useEffect(() => {
     if (open) {
+      // Slide up on the next frame, once the sheet is in the DOM below the screen.
       let raf2 = 0
       const raf1 = requestAnimationFrame(() => { raf2 = requestAnimationFrame(() => setShown(true)) })
       return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2) }
     }
-    const t = setTimeout(() => { setMounted(false); setLarge(false); setDragY(0) }, 320)
+    const t = setTimeout(() => { setClosing(false); setLarge(false); setDragY(0) }, 320)
     return () => clearTimeout(t)
   }, [open])
 
@@ -138,7 +142,7 @@ export default function BottomSheet({
     }
   }
 
-  if (!mounted) return null
+  if (!open && !closing) return null
 
   const height = detents === 'medium-large'
     ? (large ? 'h-[calc(100%-max(0.75rem,env(safe-area-inset-top)))]' : 'h-[62%]')

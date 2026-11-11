@@ -219,6 +219,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const orderAttemptRef = useRef<IdempotencySlot | null>(null)
   const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({})
   const categoryFilterRef = useRef<HTMLDivElement | null>(null)
+  const autoOpenedRef = useRef(false)
 
   const settings = tenant.tenant_settings
   const primaryColor = settings?.primary_color ?? '#F52323'
@@ -826,6 +827,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
       : []
 
     if (savedCart.length) {
+      // Restoring is not "adding": don't pop the desktop drawer open for it.
+      autoOpenedRef.current = true
       setCart(savedCart)
     }
     if (screen.placedOrder) {
@@ -880,13 +883,31 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
     deliveryStreet, deliveryComplement, deliveryZipcode, deliveryCity, deliveryNotes, tipCents, defaultOrderType,
     orderSuccess, orderId, confirmedCart])
 
+  // Auto-open the side panel once on desktop when the first item is added.
+  useEffect(() => {
+    if (cart.length === 0) {
+      autoOpenedRef.current = false
+      return
+    }
+    if (!autoOpenedRef.current && typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+      setCartOpen(true)
+      autoOpenedRef.current = true
+    }
+  }, [cart.length])
 
+
+  // The cart drawer's actual on-screen visibility (CartPanel uses the same
+  // `cartOpen && !checkoutOpen`); the chat widget steps aside while it is open.
+  const cartPanelVisible = directOrdersEnabled && cartOpen && !checkoutOpen
   const editingItem = editingCartKey ? cart.find(i => i.cartKey === editingCartKey) ?? null : null
 
   function closeProductModal() {
     setSelectedProduct(null)
     setSelectedProductSource('detail')
     setEditingCartKey(null)
+    if (cart.length > 0 && typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) {
+      setCartOpen(true)
+    }
   }
 
   // ── Presentation ───────────────────────────────────────────────────────────
@@ -1394,6 +1415,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           onAddToCart={(product, options, unitPrice, note, mods, editorState) => { if (directOrdersEnabled) addToCart(product, options, unitPrice, note, mods, editorState, undefined, 1, 'chat') }}
           menuId={menu?.id ?? null}
           locationId={location?.id ?? null}
+          cartOpen={cartPanelVisible}
           orderBarVisible={showOrderBar}
           onOpenCart={directOrdersEnabled ? () => setCartOpen(true) : undefined}
           language={selectedLanguage}
