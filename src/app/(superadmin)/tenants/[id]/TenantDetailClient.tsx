@@ -7,6 +7,7 @@ import Link from 'next/link'
 import OwnedStaffManagement from '@/components/admin/OwnedStaffManagement'
 import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import TenantAiCard from './TenantAiCard'
+import TenantSubdomainCard from './TenantSubdomainCard'
 import ServiceSwitchesCard, { type ServiceSwitchValues } from './ServiceSwitchesCard'
 import { planBadgeClass } from '@/lib/plan-badge'
 import { liveFeatures } from '@/lib/plan-settings'
@@ -44,6 +45,7 @@ interface Tenant {
   xphere_opportunity_id: string | null
   xphere_synced_at: string | null
   xphere_sync_error: string | null
+  subdomain?: string | null
 }
 
 interface StaffMember {
@@ -129,6 +131,7 @@ export default function TenantDetailClient({
   canUseAiTools,
   native = false,
   nativeEffects = false,
+  subdomainBase = null,
 }: {
   tenant: Tenant
   initialStaff: StaffMember[]
@@ -138,6 +141,8 @@ export default function TenantDetailClient({
   availablePlans: Array<{ id: string; name: string; slug: string }>
   initialSwitches: ServiceSwitchValues
   canUseAiTools: boolean
+  /** TENANT_SUBDOMAIN_BASE, or null while restaurant subdomains are off. */
+  subdomainBase?: string | null
   native?: boolean
   nativeEffects?: boolean
 }) {
@@ -622,6 +627,8 @@ export default function TenantDetailClient({
           </div>
         </div>
       </header>
+
+      {native && <TenantSubdomainCard tenantId={tenant.id} slug={tenant.slug} initialSubdomain={tenant.subdomain ?? null} base={subdomainBase} />}
 
       {error && (
         <div className="mb-4 flex items-center justify-between rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

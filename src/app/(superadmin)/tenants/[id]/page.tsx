@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic'
 import { redirect, notFound } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import TenantDetailClient from './TenantDetailClient'
+import { subdomainBase } from '@/lib/tenant-subdomain'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -14,7 +15,7 @@ export default async function TenantDetailPage({ params }: Props) {
   const { id } = await params
   if (ownedAuthSelected() || tenantAdministrationSelected()) {
     const data = await ownedTenantDetail(id)
-    return <TenantDetailClient {...data} canUseAiTools={tenantEffectsSelected()} nativeEffects={tenantEffectsSelected()} native />
+    return <TenantDetailClient {...data} canUseAiTools={tenantEffectsSelected()} nativeEffects={tenantEffectsSelected()} native subdomainBase={subdomainBase()} />
   }
 
   const supabase = await createClient()

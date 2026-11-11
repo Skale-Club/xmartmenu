@@ -8,11 +8,12 @@ import { adminMenuTransaction, createAdminMenusPool } from '@/lib/data/admin-men
 const tenantId = randomUUID(), id = randomUUID(), foreign = randomUUID()
 const context = { tenantId, role: 'store-admin' as const }
 const menu = { id, tenant_id: tenantId, name: 'Dinner', slug: 'dinner', position: 1, is_default: false, is_active: false, supported_languages: ['en', 'pt'], price_multiplier: 1.25 } as Menu
-function fixture(options: { invalid?: boolean; absent?: boolean; overflow?: boolean; collision?: boolean; drift?: boolean } = {}) {
+function fixture(options: { invalid?: boolean; absent?: boolean; overflow?: boolean; collision?: boolean; drift?: boolean; ar?: boolean } = {}) {
   const calls: Array<{ text: string; values: unknown[] }> = []
   const query: AdminMenuQuery = async (text, values = []) => {
     calls.push({ text, values })
     if (text.startsWith('SELECT EXISTS')) return { rows: [{ invalid: options.invalid ?? false }] }
+    if (text.includes('to_regclass')) return { rows: [{ ok: options.ar ?? false }] }
     if (text.includes('pg_catalog.pg_constraint')) return { rows: options.drift ? [{ schema: 'public', edge: 'unexpected:menu_id:menus:id:c', columns: 1, validated: true }] : [] }
     if (text.includes('AS row')) return { rows: options.absent ? [] : [{ row: menu }] }
     if (text.startsWith('SELECT id FROM public.menus')) return { rows: options.collision ? [{ id }] : [] }
@@ -100,11 +101,28 @@ describe('owned administrative menu lifecycle', () => {
     }
     const { query, calls } = fixture()
     expect(await mutateAdminMenu(query, context, { kind: 'delete', id })).toEqual({ ok: true })
-    expect(calls.filter(call => call.text.includes('LIMIT 5001 FOR UPDATE'))).toHaveLength(10)
+    // 10 catalog/analytics scopes + the menu's staging copies (menus.staging_of, SET NULL).
+    expect(calls.filter(call => call.text.includes('LIMIT 5001 FOR UPDATE'))).toHaveLength(11)
     const integrity = calls.find(call => call.text.startsWith('SELECT EXISTS'))!
     expect(integrity.text).toContain('public.orders')
+    expect(integrity.text).toContain("to_jsonb(menus)->>'staging_of'")
+    expect(integrity.text).not.toContain('product_ar_models')
     expect(integrity.values).toEqual([tenantId, id, [id], [id], [id], [id]])
     expect(calls.at(-1)?.values).toEqual([tenantId, id])
+  })
+  it('locks and checks 3D models too once that table exists', async () => {
+    const { query, calls } = fixture({ ar: true })
+    expect(await mutateAdminMenu(query, context, { kind: 'delete', id })).toEqual({ ok: true })
+    expect(calls.find(call => call.text.startsWith('LOCK TABLE'))?.text).toContain('public.product_ar_models')
+    expect(calls.filter(call => call.text.includes('LIMIT 5001 FOR UPDATE'))).toHaveLength(12)
+    expect(calls.find(call => call.text.startsWith('SELECT EXISTS'))?.text).toContain('public.product_ar_models')
+  })
+  it('refuses to make a staging copy visible or default outside the publish swap', async () => {
+    const staged = { ...menu, staging_of: foreign } as Menu
+    const query: AdminMenuQuery = async text => text.includes('AS row') ? { rows: [{ row: staged }] } : { rows: [] }
+    await expect(mutateAdminMenu(query, context, { kind: 'patch', id, body: { is_active: true } })).rejects.toMatchObject({ status: 409 })
+    await expect(mutateAdminMenu(query, context, { kind: 'patch', id, body: { is_default: true } })).rejects.toMatchObject({ status: 409 })
+    await expect(mutateAdminMenu(query, context, { kind: 'patch', id, body: { name: 'Dinner v2' } })).resolves.toBeTruthy()
   })
 })
 

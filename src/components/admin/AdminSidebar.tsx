@@ -60,7 +60,7 @@ const adminPanelItems = [
   { href: '/settings/activity', label: 'Activity', icon: History },
 ]
 
-type SidebarMenu = Pick<Menu, 'id' | 'name' | 'slug' | 'is_active' | 'is_default'>
+type SidebarMenu = Pick<Menu, 'id' | 'name' | 'slug' | 'is_active' | 'is_default'> & { staging_of?: string | null; replaced_at?: string | null }
 
 export default function AdminSidebar({
   tenantName,
@@ -164,7 +164,7 @@ export default function AdminSidebar({
               >
                 {menus.map((menu) => (
                   <option key={menu.id} value={menu.id}>
-                    {menu.name}{menu.is_default ? ' (default)' : ''}{!menu.is_active ? ' (off)' : ''}
+                    {menu.name}{menu.is_default ? ' (default)' : ''}{menu.staging_of ? (menu.replaced_at ? ' (previous version)' : ' (staging)') : !menu.is_active ? ' (off)' : ''}
                   </option>
                 ))}
               </select>

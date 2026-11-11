@@ -1,4 +1,5 @@
 import type { TenantSettings, BusinessHours, Category, Product } from '@/types/database'
+import { subdomainBase, tenantSubdomainHost } from './tenant-subdomain'
 
 export const PLATFORM_BASE = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'https://xmartmenu.skale.club'
 
@@ -11,13 +12,24 @@ const SCHEMA_DAYS: Record<string, string> = {
   thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday',
 }
 
+export type CanonicalTenant = { slug: string; custom_domain?: string | null; custom_domain_verified?: boolean; subdomain?: string | null }
+
+/**
+ * The host a restaurant lives on when it is not the platform: its verified
+ * custom domain, else its subdomain (<label>.<TENANT_SUBDOMAIN_BASE>, only
+ * while that is configured), else null (platform slug path).
+ */
+export function tenantOwnHost(tenant: CanonicalTenant, base: string | null = subdomainBase()): string | null {
+  if (tenant.custom_domain && tenant.custom_domain_verified) return tenant.custom_domain
+  return tenantSubdomainHost(tenant.subdomain, base)
+}
+
 export function getCanonicalUrl(
-  tenant: { slug: string; custom_domain?: string | null; custom_domain_verified?: boolean },
+  tenant: CanonicalTenant,
   path: string = '/',
 ): string {
-  const base = (tenant.custom_domain && tenant.custom_domain_verified)
-    ? `https://${tenant.custom_domain}`
-    : `${PLATFORM_BASE}/${tenant.slug}`
+  const host = tenantOwnHost(tenant)
+  const base = host ? `https://${host}` : `${PLATFORM_BASE}/${tenant.slug}`
   const suffix = path === '/' ? '' : path.replace(/^\//, '')
   return suffix ? `${base}/${suffix}` : base
 }

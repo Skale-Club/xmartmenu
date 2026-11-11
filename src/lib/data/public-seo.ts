@@ -7,11 +7,14 @@ const iso = (value: unknown): string | null => {
 }
 const SLUG = /^[a-z0-9][a-z0-9-]{0,99}$/i
 
-export interface SeoTenant { id: string; slug: string; custom_domain: string | null; custom_domain_verified: boolean; updated_at: string | null }
+export interface SeoTenant { id: string; slug: string; custom_domain: string | null; custom_domain_verified: boolean; subdomain: string | null; updated_at: string | null }
+// tenants.subdomain through to_jsonb(t): null until the schema step adds it.
+const SUBDOMAIN = `to_jsonb(t)->>'subdomain' AS subdomain`
+const label = (value: unknown) => (typeof value === 'string' && value ? value : null)
 
 export async function readSitemapTenants(query: AdminMenuQuery) {
-  const { rows } = await query('SELECT slug, updated_at, custom_domain, custom_domain_verified FROM public.tenants WHERE is_active=true ORDER BY updated_at DESC LIMIT 5000')
-  return rows.map(row => ({ slug: String(row.slug), updated_at: iso(row.updated_at), custom_domain: (row.custom_domain as string | null) ?? null, custom_domain_verified: row.custom_domain_verified === true }))
+  const { rows } = await query(`SELECT t.slug, t.updated_at, t.custom_domain, t.custom_domain_verified, ${SUBDOMAIN} FROM public.tenants t WHERE t.is_active=true ORDER BY t.updated_at DESC LIMIT 5000`)
+  return rows.map(row => ({ slug: String(row.slug), updated_at: iso(row.updated_at), custom_domain: (row.custom_domain as string | null) ?? null, custom_domain_verified: row.custom_domain_verified === true, subdomain: label(row.subdomain) }))
 }
 
 /** Platform blog (tenant_id IS NULL) only; posts, tags and archive come from one bounded read. */
@@ -31,11 +34,11 @@ export async function readPlatformBlogSitemap(query: AdminMenuQuery, now = new D
 
 export async function readSeoTenant(query: AdminMenuQuery, slug: string): Promise<SeoTenant | null> {
   if (!SLUG.test(slug)) return null
-  const { rows } = await query('SELECT id, slug, custom_domain, custom_domain_verified, updated_at FROM public.tenants WHERE slug=$1 AND is_active=true LIMIT 2', [slug])
+  const { rows } = await query(`SELECT t.id, t.slug, t.custom_domain, t.custom_domain_verified, ${SUBDOMAIN}, t.updated_at FROM public.tenants t WHERE t.slug=$1 AND t.is_active=true LIMIT 2`, [slug])
   if (rows.length !== 1) return null
   const row = rows[0]
   return { id: String(row.id), slug: String(row.slug), custom_domain: (row.custom_domain as string | null) ?? null,
-    custom_domain_verified: row.custom_domain_verified === true, updated_at: iso(row.updated_at) }
+    custom_domain_verified: row.custom_domain_verified === true, subdomain: label(row.subdomain), updated_at: iso(row.updated_at) }
 }
 
 export async function readTenantSitemapEntries(query: AdminMenuQuery, tenantId: string) {

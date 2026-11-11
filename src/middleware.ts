@@ -10,6 +10,7 @@ import { LegacyIdentityBoundaryUnavailable } from './lib/auth/owned-principal'
 // Both zero-import: safe for the Edge bundle.
 import { ownedModeActive } from './lib/data/owned-mode'
 import { resolveOwnedDomainSlug, rememberDomain, type DomainCacheEntry } from './lib/custom-domain-lookup'
+import { subdomainBase, subdomainLabelFromHost } from './lib/tenant-subdomain'
 
 // Cache BOTH hits and misses. Without caching misses, every request carrying an
 // unknown Host header (bots hitting the raw IP, preview hosts, misconfigured
@@ -27,8 +28,11 @@ async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
 
   if (normalized === platformHost) return null
 
-  // Edge cannot load pg: owned mode asks the Node route on this same server.
+  // Edge cannot load pg: owned mode asks the Node route on this same server,
+  // which also answers restaurant subdomains (<label>.<TENANT_SUBDOMAIN_BASE>).
   if (ownedModeActive()) return resolveOwnedDomainSlug(normalized, customDomainCache)
+  // Legacy (Supabase) mode has no restaurant subdomains: their setter is owned-only.
+  if (subdomainLabelFromHost(normalized, subdomainBase())) return null
 
   const cached = customDomainCache.get(normalized)
   if (cached && cached.expires > Date.now()) return cached.slug

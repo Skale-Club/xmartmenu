@@ -20,6 +20,8 @@ function fixture(patch: Record<string, unknown[]> = {}) {
     queries.push({ text, values })
     // Readability probe of the optional AR table: readable when the fixture has it.
     if (text.includes("'readable'")) return { rows: [{ row: { readable: 'product_ar_models' in data, scale: 'ar_scale_column' in data } }] }
+    // Column probes (tenants.subdomain, menu staging): present when the fixture says so.
+    if (text.includes("'ready'")) return { rows: [{ row: { ready: 'tenant_subdomain_column' in data } }] }
     const table = /FROM public\.([a-z_]+)/.exec(text)?.[1]
     if (!table || !(table in data)) throw new Error('Unexpected SQL')
     return { rows: data[table].map(row => ({ row })) }
@@ -45,7 +47,7 @@ describe('independent PostgreSQL public catalog', () => {
     expect(result.productMediaByProductId[productId]).toHaveLength(1)
     expect(result.productArModelByProductId).toEqual({})
     expect(queries.some(item => /FROM public\.product_ar_models\b/.test(item.text))).toBe(false)
-    for (const { text, values } of queries.filter(item => !/FROM public\.(tenants|platform_settings)\b/.test(item.text) && !item.text.includes("'readable'"))) {
+    for (const { text, values } of queries.filter(item => !/FROM public\.(tenants|platform_settings)\b/.test(item.text) && !item.text.includes("'readable'") && !item.text.includes("'ready'"))) {
       expect(values[0]).toBe(tenantId)
       expect(text).toContain('$1')
     }
