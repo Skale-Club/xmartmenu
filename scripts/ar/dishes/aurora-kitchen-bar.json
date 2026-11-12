@@ -3,6 +3,7 @@
   "tenant_slug": "aurora",
   "tenant_id": "b5f74b1e-4d7f-4d17-8ea0-c3a1a42ae808",
   "photos": "public/brands/aurora-kitchen-bar",
+  "grade": { "contrast": 1.2, "saturation": 1.1, "sharpen": 1.0 },
   "defaults": {
     "main": { "plate_cm": 30, "food_ratio": 0.75 },
     "starter": { "plate_cm": 23, "food_ratio": 0.75 },
@@ -21,7 +22,7 @@
     "porcini-risotto": { "product": "Porcini Risotto", "category": "main", "food_ratio": 0.65 },
     "artisan-burger": { "product": "Artisan Burger", "category": "main" },
     "chicken-parmigiana": { "product": "Chicken Parmigiana", "category": "main" },
-    "chocolate-lava-cake": { "product": "Chocolate Lava Cake", "category": "dessert", "food_cm": 9 },
+    "chocolate-lava-cake": { "product": "Chocolate Lava Cake", "category": "dessert", "food_cm": 13, "$comment": "cake (~8 cm) plus the ice-cream scoop beside it" },
     "tiramisu": { "product": "Tiramisu", "category": "dessert", "food_cm": 9 },
     "red-berry-cheesecake": { "product": "Red Berry Cheesecake", "category": "dessert", "food_cm": 11 },
     "brazilian-caramel-flan": { "product": "Brazilian Caramel Flan", "category": "dessert", "food_cm": 12 },

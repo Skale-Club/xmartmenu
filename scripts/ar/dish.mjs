@@ -65,7 +65,17 @@ function prepare() {
     }
   }
   args.push('--save-blend', blend, '--out-glb', file('out', 'glb'), '--out-usdz', file('out', 'usdz'), '--preview', file('out', 'png'))
-  const out = run(blender, args)
+  let out = run(blender, args)
+  // A new dish gets the food grade the owner approved (manifest "grade"), applied
+  // from the original texture on a second pass over the fresh .blend.
+  const grade = { ...manifest.grade, ...spec.grade }
+  if (args.includes('--in') && Object.keys(grade).length) {
+    out = run(blender, ['-b', '--factory-startup', '--python', 'scripts/ar/prepare-dish-model.py', '--', '--from-blend', blend,
+      ...(grade.contrast ? ['--food-contrast', String(grade.contrast)] : []),
+      ...(grade.saturation ? ['--food-saturation', String(grade.saturation)] : []),
+      ...(grade.sharpen !== undefined ? ['--food-sharpen', String(grade.sharpen)] : []),
+      '--save-blend', blend, '--out-glb', file('out', 'glb'), '--out-usdz', file('out', 'usdz'), '--preview', file('out', 'png')])
+  }
   const line = out.split(/\r?\n/).find(text => text.startsWith('PREPARED '))
   if (!line) throw new Error(`Blender gave no result:\n${out.slice(-3000)}`)
   console.log(JSON.stringify({ dish, blend, ...JSON.parse(line.slice(9)) }))
