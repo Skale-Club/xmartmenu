@@ -1,3 +1,4 @@
+import { DeliveryImage } from '@/components/delivery-image'
 import Link from 'next/link'
 
 import type { ArchiveEntry, PublicPostCard } from '@/lib/blog/public-queries'
@@ -70,18 +71,15 @@ export function BlogPostList({
               {posts.map((post) => (
                 <li key={post.slug}>
                   <article>
-                    {/* Sem <Image> do Next: a URL vem do Supabase Storage e não
-                        está no remotePatterns, então o otimizador recusaria em
-                        produção. `loading="lazy"` + aspect-ratio fixo evitam o
-                        layout shift que o <Image> traria de graça. */}
                     {post.cover_image_url && (
                       <Link href={`${basePath}/${post.slug}`} className="mb-4 block">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
+                        <DeliveryImage
                           src={post.cover_image_url}
-                          alt=""
+                          width={1200} height={675} sizes={tags.length > 0 || byYear.size > 0
+                            ? "(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) calc(100vw - 48px), 704px"
+                            : "(max-width: 639px) calc(100vw - 32px), (max-width: 1023px) calc(100vw - 48px), 976px"} alt=""
                           loading="lazy"
-                          className="aspect-video w-full rounded-xl object-cover"
+                          className="aspect-video h-auto w-full rounded-xl object-cover"
                         />
                       </Link>
                     )}

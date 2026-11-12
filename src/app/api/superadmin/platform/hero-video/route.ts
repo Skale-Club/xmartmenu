@@ -41,7 +41,7 @@ async function handlePOST(request: Request) {
 
     const url = await storage.upload(HERO_VIDEO_BUCKET, HERO_VIDEO_PATH, result.video, { contentType: 'video/mp4', upsert: true })
     const posterUrl = result.poster
-      ? await storage.upload(HERO_VIDEO_BUCKET, HERO_POSTER_PATH, await convertBufferToWebP(result.poster), { contentType: 'image/webp', upsert: true })
+      ? await storage.upload(HERO_VIDEO_BUCKET, HERO_POSTER_PATH, await convertBufferToWebP(result.poster, { profile: 'wide' }), { contentType: 'image/webp', upsert: true })
       : null
 
     const version = Date.now()

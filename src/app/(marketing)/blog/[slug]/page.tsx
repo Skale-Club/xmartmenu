@@ -8,6 +8,7 @@
  * blog_posts.content without passing it through that sanitiser, this line stops
  * being safe — sanitise on write, not here, so the rule has one home.
  */
+import { DeliveryImage } from '@/components/delivery-image'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -131,19 +132,11 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           {formatDate(post.published_at)}
           {post.reading_time_minutes ? ` · ${post.reading_time_minutes} min de leitura` : ''}
         </p>
-
-        {/* Sem <Image> do Next: a URL vem do Supabase Storage e não está no
-            remotePatterns, então o otimizador recusaria em produção. O
-            aspect-ratio fixo é o que evita o layout shift. Alt vazio de
-            propósito — é uma imagem decorativa, e o <h1> logo acima já diz do
-            que o post trata; um alt redundante só atrapalha quem usa leitor de
-            tela. */}
         {post.cover_image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <DeliveryImage
             src={post.cover_image_url}
-            alt=""
-            className="mt-8 aspect-video w-full rounded-xl object-cover"
+            width={1200} height={675} sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 767px) calc(100vw - 48px), 720px" alt=""
+            className="mt-8 aspect-video h-auto w-full rounded-xl object-cover"
           />
         )}
 

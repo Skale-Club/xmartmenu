@@ -1,5 +1,6 @@
 'use client'
 
+import { DeliveryImage } from '@/components/delivery-image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Building2, ClipboardList, History, LayoutDashboard, LogOut, Newspaper, Rocket, Settings, Sparkles, Users } from 'lucide-react'
@@ -24,7 +25,7 @@ export default function SuperadminSidebar({ appName, logoUrl }: { appName: strin
     <aside className="flex h-full w-full flex-col border-r border-zinc-800 bg-zinc-950 text-zinc-400">
       <div className="border-b border-zinc-800/50 p-6 pr-16 lg:pr-6">
         <div className="mb-1 flex items-center gap-2">
-          <img src={logoUrl ?? '/icon.png'} alt="" className="size-6 rounded-md object-contain outline outline-1 -outline-offset-1 outline-white/10" />
+          <DeliveryImage src={logoUrl ?? '/icon.png'} width={24} height={24} sizes="24px" alt="" className="size-6 rounded-md object-contain outline outline-1 -outline-offset-1 outline-white/10" />
           <Link href="/" className="truncate text-xs font-bold uppercase tracking-[0.2em] text-white transition-colors hover:text-primary">{appName}</Link>
         </div>
         <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">Super Admin Console</p>

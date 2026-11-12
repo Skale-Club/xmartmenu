@@ -18,15 +18,15 @@ async function handlePOST(request: Request) {
   if (!file || !type) return NextResponse.json({ error: 'Missing file or type' }, { status: 400 })
   if (!['logo', 'banner', 'seo'].includes(type)) return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
 
-  const conversion = await validateAndConvertToWebP(file)
-  if (conversion.error) return NextResponse.json({ error: conversion.error }, { status: 400 })
+  const conversion = await validateAndConvertToWebP(file, { profile: type === 'logo' ? 'logo' : 'wide' })
+  if (conversion.error !== undefined) return NextResponse.json({ error: conversion.error }, { status: 400 })
 
   const webpBuffer = conversion.buffer as Buffer
-  const filename = `${effective.tenantId}/${type}.webp`
+  const filename = `${effective.tenantId}/${type}.${conversion.extension ?? 'webp'}`
 
   try {
     const publicUrl = await getStorageClient().upload('tenant-assets', filename, webpBuffer, {
-      contentType: 'image/webp',
+      contentType: conversion.contentType ?? 'image/webp',
       upsert: true,
     })
     return NextResponse.json({ url: publicUrl })

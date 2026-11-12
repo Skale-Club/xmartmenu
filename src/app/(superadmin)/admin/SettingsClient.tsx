@@ -1,5 +1,6 @@
 'use client'
 
+import { DeliveryImage } from '@/components/delivery-image'
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { MAX_HERO_UPLOAD_BYTES, describeVideoSavings, heroVideoPathFromUrl } from '@/lib/media/hero-video'
@@ -205,8 +206,7 @@ function HeroAssetUploader({ type, url, onUpload, dest }: HeroAssetUploaderProps
       {url ? (
         <div className="relative rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-50 group">
           {type === 'image' ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="Hero background" className="w-full h-40 object-cover" />
+            <DeliveryImage src={url} width={1200} height={400} sizes="(max-width: 767px) calc(100vw - 48px), 800px" alt="Hero background" className="w-full h-40 object-cover" />
           ) : (
             <video src={url} className="w-full h-40 object-cover" muted playsInline preload="metadata" />
           )}
@@ -487,7 +487,7 @@ export default function SettingsClient({ settings }: Props) {
           <div className="flex items-center gap-6">
             <div className="w-16 h-16 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50 flex items-center justify-center overflow-hidden flex-shrink-0">
               {platform.favicon_url
-                ? <img src={platform.favicon_url} alt="favicon preview" className="w-12 h-12 object-contain" />
+                ? <DeliveryImage src={platform.favicon_url} width={48} height={48} sizes="48px" alt="favicon preview" className="w-12 h-12 object-contain" />
                 : <ImageIcon className="w-6 h-6 text-zinc-300" />
               }
             </div>

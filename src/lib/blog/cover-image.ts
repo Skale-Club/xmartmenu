@@ -18,10 +18,7 @@
 // =============================================================================
 import { getStorageClient } from '@/lib/storage'
 import { OPENROUTER_BASE_URL } from '@/lib/ai/openrouter'
-
-/** Medido nos produtos irmãos: uma capa PNG de 1433 KB virou 94 KB em q82,
- *  sem diferença visível. */
-const WEBP_QUALITY = 82
+import { optimizeImageToWebP } from '@/lib/media/optimize-image'
 
 /** 16:9. O card do blog e o preview de OG recortam para isso de qualquer jeito;
  *  entregar outra proporção só move o recorte para o browser, diferente em cada
@@ -107,19 +104,26 @@ async function requestImage(
  * posicionamento `attention` do sharp para que uma foto quadrada não seja
  * decapitada por um recorte central ingênuo.
  *
- * Nunca lança: um recorte ou uma codificação que falha degrada para os bytes
- * originais. Uma capa apenas não otimizada ainda é melhor que capa nenhuma.
+ * Encoding failures propagate to the caller, which publishes without a cover.
+ * Never upload unbounded original bytes as a fallback.
  */
 export async function normaliseTo16x9(
   bytes: Buffer,
-  mime: string,
+  // Retained for callers; the encoder determines the actual output format.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _mime: string,
 ): Promise<{ buffer: Buffer; mime: string; extension: string }> {
   let working = bytes
   try {
     const { default: sharp } = await import('sharp')
-    const image = sharp(bytes)
-    const { width, height } = await image.metadata()
-    if (width && height) {
+    const image = sharp(bytes, { animated: true }).rotate()
+    const metadata = await image.metadata()
+    const rotated = [5, 6, 7, 8].includes(metadata.orientation ?? 1)
+    const width = rotated ? metadata.height : metadata.width
+    const height = rotated ? metadata.width : metadata.height
+    // An intermediate PNG would flatten animation; retain its frames and let
+    // the display crop it while the shared encoder enforces the byte budget.
+    if (width && height && (metadata.pages ?? 1) <= 1) {
       const target = TARGET_WIDTH / TARGET_HEIGHT
       const actual = width / height
       if (Math.abs(actual - target) / target > ASPECT_TOLERANCE) {
@@ -127,6 +131,7 @@ export async function normaliseTo16x9(
           actual > target ? [Math.round(height * target), height] : [width, Math.round(width / target)]
         working = await image
           .resize({ width: cropWidth, height: cropHeight, fit: 'cover', position: 'attention' })
+          .png()
           .toBuffer()
       }
     }
@@ -134,16 +139,8 @@ export async function normaliseTo16x9(
     // Metadata ruim, bytes corrompidos, sharp indisponível — codifica o que há.
   }
 
-  try {
-    const { default: sharp } = await import('sharp')
-    const webp = await sharp(working).webp({ quality: WEBP_QUALITY }).toBuffer()
-    return { buffer: webp, mime: 'image/webp', extension: 'webp' }
-  } catch {
-    // A extensão precisa descrever o que está REALMENTE no buffer, nunca uma
-    // suposição fixa — servir bytes WebP como .png (ou o contrário) é como um
-    // upload "bem-sucedido" vira uma imagem quebrada.
-    return { buffer: working, mime, extension: mime.split('/')[1] || 'png' }
-  }
+  const webp = await optimizeImageToWebP(working, { profile: 'wide' })
+  return { buffer: webp, mime: 'image/webp', extension: 'webp' }
 }
 
 /**

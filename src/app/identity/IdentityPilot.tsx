@@ -1,5 +1,6 @@
 'use client'
 
+import { DeliveryImage } from '@/components/delivery-image'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { googleProof, phoneProof, type IdentityWebConfig } from '@/lib/auth/identity-browser'
 import { requireLoginAuthority } from '@/lib/auth/browser-login-authority'
@@ -287,8 +288,8 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 h-24 w-48 -translate-x-1/2 rounded-full bg-[#F52323]/10 blur-3xl" />
       <section aria-labelledby="identity-title" className="relative">
         <div className="mb-8 text-center">
-          {/* eslint-disable-next-line @next/next/no-img-element -- platform logo URL from settings; any host. */}
-          {platformLogo ? <img src={platformLogo} alt="" className="mx-auto mb-5 size-12 object-contain" /> : <span aria-hidden="true" className="mx-auto mb-5 block size-12 rounded-xl bg-primary" />}
+
+          {platformLogo ? <DeliveryImage src={platformLogo} width={48} height={48} sizes="48px" alt="" className="mx-auto mb-5 size-12 object-contain" /> : <span aria-hidden="true" className="mx-auto mb-5 block size-12 rounded-xl bg-primary" />}
           <h1 id="identity-title" className="text-2xl font-black tracking-tight">XmartMenu</h1>
           <p className="mt-2 text-sm font-bold text-zinc-400">{sent ? `Enter the code we sent to ${phoneLabel(sentPhone) || sentPhone}` : 'Sign in to your menu dashboard'}</p>
         </div>

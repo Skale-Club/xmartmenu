@@ -1,5 +1,6 @@
 export const revalidate = 300
 
+import { DeliveryImage } from '@/components/delivery-image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
@@ -162,11 +163,10 @@ export default async function TenantBlogPost({ params }: Props) {
         {/* Alt vazio de propósito: é uma imagem decorativa, e o <h1> logo acima
             já diz do que o post trata. */}
         {post.cover_image_url && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <DeliveryImage
             src={post.cover_image_url}
-            alt=""
-            className="mt-8 aspect-video w-full rounded-xl object-cover"
+            width={1200} height={675} sizes="(max-width: 639px) calc(100vw - 32px), (max-width: 767px) calc(100vw - 48px), 720px" alt=""
+            className="mt-8 aspect-video h-auto w-full rounded-xl object-cover"
           />
         )}
 

@@ -23,16 +23,16 @@ async function handlePOST(
 
   if (!file || !type) return NextResponse.json({ error: 'Invalid file or type' }, { status: 400 })
 
-  const conversion = await validateAndConvertToWebP(file)
-  if (conversion.error) return NextResponse.json({ error: conversion.error }, { status: 400 })
+  const conversion = await validateAndConvertToWebP(file, { profile: type === 'logo' || type === 'favicon' ? 'logo' : 'wide' })
+  if (conversion.error !== undefined) return NextResponse.json({ error: conversion.error }, { status: 400 })
 
   // After error check, buffer is guaranteed present by the discriminated union
   const webpBuffer = conversion.buffer as Buffer
-  const filename = `${id}/${type}.webp`
+  const filename = `${id}/${type}.${conversion.extension ?? 'webp'}`
 
   try {
     const publicUrl = await getStorageClient().upload('tenant-assets', filename, webpBuffer, {
-      contentType: 'image/webp',
+      contentType: conversion.contentType ?? 'image/webp',
       upsert: true,
     })
     return NextResponse.json({ url: publicUrl })

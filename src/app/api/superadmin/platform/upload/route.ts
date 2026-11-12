@@ -31,17 +31,18 @@ async function handlePOST(request: Request) {
   const bucket = 'tenant-assets'
 
   if (type === 'image') {
-    const result = await validateAndConvertToWebP(file)
-    if (result.error) return NextResponse.json({ error: result.error }, { status: 400 })
-
     const dest = form.get('dest') as string | null
+    const result = await validateAndConvertToWebP(file, { profile: dest === 'favicon' ? 'logo' : 'wide' })
+    if (result.error !== undefined) return NextResponse.json({ error: result.error }, { status: 400 })
+
+    const extension = result.extension ?? 'webp'
     const path = dest === 'cta-bg'
-      ? '_platform/cta-bg.webp'
+      ? `_platform/cta-bg.${extension}`
       : dest === 'favicon'
-        ? '_platform/favicon.webp'
-        : '_platform/hero-bg-image.webp'
+        ? `_platform/favicon.${extension}`
+        : `_platform/hero-bg-image.${extension}`
     const publicUrl = await storage.upload(bucket, path, result.buffer!, {
-      contentType: 'image/webp',
+      contentType: result.contentType ?? 'image/webp',
       upsert: true,
     })
     // Bust cache by appending timestamp so browser re-fetches after replace.
@@ -64,7 +65,7 @@ async function handlePOST(request: Request) {
     const path = result.transcoded ? HERO_VIDEO_PATH : `_platform/hero-bg-video.${result.contentType === 'video/webm' ? 'webm' : 'mp4'}`
     const publicUrl = await storage.upload(bucket, path, result.video, { contentType: result.contentType, upsert: true })
     const posterUrl = result.poster
-      ? await storage.upload(bucket, HERO_POSTER_PATH, await convertBufferToWebP(result.poster), { contentType: 'image/webp', upsert: true })
+      ? await storage.upload(bucket, HERO_POSTER_PATH, await convertBufferToWebP(result.poster, { profile: 'wide' }), { contentType: 'image/webp', upsert: true })
       : null
     const version = Date.now()
     return NextResponse.json({

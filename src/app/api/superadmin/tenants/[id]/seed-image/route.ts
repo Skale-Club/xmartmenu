@@ -44,7 +44,7 @@ async function generateSeedImage(access: ResolvedAiAccess, engine: ImageEngine, 
     fetchImpl: access.fetchFor(access.primary, model),
   })
   const cropped = await cropToAspect(image.bytes, aspectRatio)
-  return { webpBuffer: await convertBufferToWebP(cropped), totalTokens: image.totalTokens }
+  return { webpBuffer: await convertBufferToWebP(cropped, { profile: aspectRatio === '1:1' ? 'photo' : 'wide' }), totalTokens: image.totalTokens }
 }
 
 async function handlePOST(

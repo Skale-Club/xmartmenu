@@ -2,6 +2,7 @@
 
 export const dynamic = 'force-dynamic'
 
+import { DeliveryImage } from '@/components/delivery-image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -90,7 +91,7 @@ export default function LegacyLogin() {
         <div className="rounded-[1.25rem] border border-white/10 bg-zinc-900/50 p-5 backdrop-blur-xl sm:p-8">
           {/* Marca */}
           <div className="mb-8 text-center">
-            <img src={logoUrl} alt="Logo" className="w-12 h-12 mx-auto mb-5" />
+            <DeliveryImage src={logoUrl} width={48} height={48} sizes="48px" alt="Logo" className="w-12 h-12 mx-auto mb-5" />
             <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">XmartMenu</a>
             <p className="text-sm font-bold text-zinc-500 mt-2">Sign in to your menu dashboard</p>
           </div>

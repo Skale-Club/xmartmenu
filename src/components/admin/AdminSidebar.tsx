@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import { DeliveryImage } from '@/components/delivery-image'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -147,7 +148,7 @@ export default function AdminSidebar({
       <div className="border-b border-zinc-800/50 p-6 pr-16 lg:pr-6">
         <div className="flex items-center gap-2.5 mb-4">
           {/* The platform icon (crossed fork and knife) needs room: at 24 px it read as an "X". */}
-          <img src={logoUrl ?? '/icon.png'} alt="" className="size-8 rounded-lg object-contain object-center" />
+          <DeliveryImage src={logoUrl ?? '/icon.png'} width={32} height={32} sizes="32px" alt="" className="size-8 rounded-lg object-contain object-center" />
           <Link href="/" className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] hover:text-primary transition-colors">{appName}</Link>
         </div>
         <p className="text-lg font-black text-white truncate tracking-tight">{tenantName}</p>

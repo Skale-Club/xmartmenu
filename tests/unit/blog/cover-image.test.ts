@@ -92,15 +92,16 @@ describe('generateCoverImage', () => {
     expect(meta.height).toBe(563)
   })
 
-  it('deixa intacta uma imagem que já veio em 16:9', async () => {
+  it('caps an existing 16:9 image without changing its aspect ratio', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => imageResponse(await pngBytes(1600, 900))))
 
     await generateCoverImage(ARGS)
 
     const { default: sharp } = await import('sharp')
     const meta = await sharp(upload.mock.calls[0][2]).metadata()
-    expect(meta.width).toBe(1600)
-    expect(meta.height).toBe(900)
+    expect(meta.width).toBe(1200)
+    expect(meta.height).toBe(675)
+    expect(upload.mock.calls[0][2].length).toBeLessThanOrEqual(180 * 1024)
   })
 
   it('devolve null quando o modelo responde sem imagem', async () => {
@@ -108,6 +109,12 @@ describe('generateCoverImage', () => {
     // É um desfecho normal, não um erro.
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ choices: [{ message: {} }] }) }) as unknown as Response))
 
+    expect(await generateCoverImage(ARGS)).toBeNull()
+    expect(upload).not.toHaveBeenCalled()
+  })
+
+  it('publishes without a cover when model bytes cannot be optimized', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => imageResponse(Buffer.from('corrupt image'))))
     expect(await generateCoverImage(ARGS)).toBeNull()
     expect(upload).not.toHaveBeenCalled()
   })

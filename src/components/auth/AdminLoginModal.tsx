@@ -1,5 +1,6 @@
 'use client'
 
+import { DeliveryImage } from '@/components/delivery-image'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -160,7 +161,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
         {/* Logo + title */}
         <div className="mb-8 text-center">
           {logoUrl && (
-            <img src={logoUrl} alt="Logo" className="w-12 h-12 mx-auto mb-5" />
+            <DeliveryImage src={logoUrl} width={48} height={48} sizes="48px" alt="Logo" className="w-12 h-12 mx-auto mb-5" />
           )}
           <p className="text-2xl font-black text-white tracking-tight">XmartMenu</p>
           <p className="text-sm font-bold text-zinc-500 mt-2">Sign in to your menu dashboard</p>

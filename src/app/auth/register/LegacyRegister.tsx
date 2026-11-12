@@ -1,5 +1,6 @@
 'use client'
 
+import { DeliveryImage } from '@/components/delivery-image'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
@@ -80,7 +81,7 @@ function RegisterForm() {
   return (
     <div className="rounded-[1.25rem] border border-white/10 bg-zinc-900/50 p-5 backdrop-blur-xl sm:p-8">
       <div className="mb-8 text-center">
-        <img src={logoSrc} alt="Logo" className="w-12 h-12 mx-auto mb-5" />
+        <DeliveryImage src={logoSrc} width={48} height={48} sizes="48px" alt="Logo" className="w-12 h-12 mx-auto mb-5" />
         <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">XmartMenu</a>
         <p className="text-sm font-bold text-zinc-500 mt-2">
           {isQrFlow ? 'Enter your details to continue' : 'Create your account'}

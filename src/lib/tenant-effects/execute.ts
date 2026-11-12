@@ -57,7 +57,7 @@ async function generatedImage(operation:TenantOperation,claimId:string,snapshot:
     :`A professional high-quality restaurant banner photo for a ${business} named ${company}. Wide-angle view, warm ambient lighting, food photography style. No text or watermarks.`
   const access=await nativeEffectAiAccess(operation,claimId,'seed_image',index,fetch,workerNonce)
   const image=await generateOpenRouterImage({apiKey:access.apiKey,model:imageModelId(engine),prompt,aspectRatio:product?'1:1':'4:1',fetchImpl:access.fetchImpl,timeoutMs:120000})
-  return convertBufferToWebP(await cropToAspect(image.bytes,product?'1:1':'4:1'))
+  return convertBufferToWebP(await cropToAspect(image.bytes,product?'1:1':'4:1'),{profile:product?'photo':'wide'})
 }
 async function storeImage(operation:TenantOperation,claimId:string,bytes:Buffer,path:string,index:number) {
   const storage=getNativeStorageClient(),proof=await actor(operation),digest=tenantEffectByteDigest(bytes)
@@ -129,7 +129,8 @@ export async function executeNativeOcr(operation:TenantOperation) {
     const downloaded=await storage.download('tenant-assets',path,MAX_FILE_SIZE,AbortSignal.timeout(30000))
     if(downloaded.length!==Number(ticket.byte_length))throw new AdminMenuError(400,'OCR upload size does not match its ticket')
     if(tenantEffectByteDigest(downloaded)!==ticket.content_digest)throw new AdminMenuError(400,'OCR upload bytes do not match the authorized ticket')
-    const bytes=await convertBufferToWebP(downloaded),access=await nativeEffectAiAccess(operation,claim.claimId,'ocr')
+    // OCR is an internal document input, not a displayed menu image; retain readable text.
+    const bytes=await convertBufferToWebP(downloaded,{maxSize:500*1024,maxSide:2000}),access=await nativeEffectAiAccess(operation,claim.claimId,'ocr')
     const categories=await generateNativeOcr(bytes,access.apiKey,access.fetchImpl),current=await actor(operation)
     const applied=await ownedAdminTransaction(true,async query=>{
       await lockTenantOperation(query,current,operation.id)

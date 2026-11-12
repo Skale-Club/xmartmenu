@@ -17,6 +17,6 @@ export async function nativeMultipartImage(request:Request) {
   if([...form.keys()].some(key=>key!=='file'&&key!=='type') || form.getAll('file').length!==1 || form.getAll('type').length!==1)throw new AdminMenuError(400,'Invalid image fields')
   const file=form.get('file'),type=form.get('type')
   if(!(file instanceof File) || typeof type!=='string' || !/^[a-zA-Z0-9_-]{1,64}$/.test(type) || !NATIVE_IMAGE_MIMES[file.type] || file.size<1 || file.size>MAX_FILE_SIZE)throw new AdminMenuError(400,'Choose a supported image no larger than 15MB')
-  const original=Buffer.from(await file.arrayBuffer()),bytes=await convertBufferToWebP(original)
+  const original=Buffer.from(await file.arrayBuffer()),bytes=await convertBufferToWebP(original,{profile:type==='logo'||type==='favicon'?'logo':type==='banner'||type==='seo'?'wide':'photo'})
   return {type,bytes,original}
 }
