@@ -12,7 +12,7 @@ import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { type CartItem, type CartAddedVia, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed, summarizeOptions } from './menu-utils'
 import { getGuestCopy } from './guest-copy'
 import WaiterCallButtons from './WaiterCallButtons'
-import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, menuLanguage, translateTag } from './menu-i18n'
+import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, translateTag } from './menu-i18n'
 import { computeOpenState, resolveTimeZone } from '@/lib/chat-context'
 import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
 import { contactLinks, displayPrice, whatsappUrl } from './showcase'
@@ -46,7 +46,9 @@ import {
   type MenuView,
   type StoredCartItem,
 } from './menu-session'
-import ModalPortal from '@/components/ui/ModalPortal'
+import BottomSheet from '@/components/ui/BottomSheet'
+import LanguagePicker from './LanguagePicker'
+import { primaryTag, tagStyle } from '@/lib/menu/dish-tags'
 import UpsellSheet from './UpsellSheet'
 import { buildUpsellSteps, canQuickAdd, type UpsellStep } from './upsell'
 import {
@@ -61,8 +63,6 @@ import {
   Plus,
   Minus,
   Check,
-  Languages,
-  ChevronDown,
   UtensilsCrossed,
   Clapperboard,
 } from 'lucide-react'
@@ -961,7 +961,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
       {/* Header: banner, then identity with the logo overlapping its edge */}
       <header className="relative">
         <div
-          className="relative h-44 overflow-hidden sm:h-64"
+          className="relative h-[140px] overflow-hidden sm:h-64"
           style={!settings?.banner_url ? { background: `linear-gradient(135deg, color-mix(in srgb, ${primaryColor} 26%, white), color-mix(in srgb, ${primaryColor} 8%, white))` } : undefined}
         >
           {settings?.banner_url && (
@@ -970,35 +970,23 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
               <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/10" />
             </>
           )}
-          <div className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3 flex items-center gap-2 sm:right-5 sm:top-5">
-            {feedEnabled && (
-              <button
-                type="button"
-                onClick={() => changeView('feed')}
-                aria-label={copy.viewFeed}
-                className="flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-900 shadow-sm transition-[scale] active:scale-95 md:hidden"
-              >
-                <Clapperboard className="size-[18px]" />
-              </button>
-            )}
-            {supportedLanguages.length > 1 && (
-              <label className="relative flex h-10 cursor-pointer items-center gap-1.5 rounded-full bg-white/95 pl-3 pr-2 text-[14px] font-medium text-zinc-900 shadow-sm">
-                <Languages className="size-4 text-zinc-600" aria-hidden="true" />
-                <span>{menuLanguage(selectedLanguage).nativeName}</span>
-                <ChevronDown className="size-4 text-zinc-500" aria-hidden="true" />
-                <select
-                  aria-label={copy.language}
-                  value={selectedLanguage}
-                  onChange={e => changeLanguage(e.target.value)}
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                >
-                  {supportedLanguages.map(code => (
-                    <option key={code} value={code}>{menuLanguage(code).nativeName}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </div>
+        </div>
+        {/* Outside the banner (which clips) so the language list can drop below it. No
+            z-index here: the picker raises itself above the sticky category bar only while open. */}
+        <div className="absolute top-[max(0.75rem,env(safe-area-inset-top))] right-3 flex items-center gap-2 sm:right-5 sm:top-5">
+          {feedEnabled && (
+            <button
+              type="button"
+              onClick={() => changeView('feed')}
+              className="flex h-10 items-center gap-1.5 rounded-full bg-white/95 pl-3 pr-3.5 text-[14px] font-medium text-zinc-900 shadow-sm transition-[scale] active:scale-95 md:hidden"
+            >
+              <Clapperboard className="size-4" aria-hidden="true" />
+              <span>{copy.viewFeed}</span>
+            </button>
+          )}
+          {supportedLanguages.length > 1 && (
+            <LanguagePicker languages={supportedLanguages} value={selectedLanguage} onChange={changeLanguage} label={copy.language} />
+          )}
         </div>
 
         <div className="mx-auto max-w-5xl px-5 sm:px-8">
@@ -1441,44 +1429,37 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
         />
       ) : null}
 
-      {showHoursModal && (
-        <ModalPortal onClose={() => setShowHoursModal(false)}>
-          <div className="menu-root fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/40 p-4 backdrop-blur-[2px]" onClick={() => setShowHoursModal(false)} lang={localeFor(selectedLanguage)}>
-            <div
-              role="dialog"
-              aria-modal="true"
-              aria-label={copy.hoursTitle}
-              className="max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-3xl bg-white shadow-float"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-5 pt-4 pb-2">
-                <h2 className="text-[17px] font-semibold text-zinc-900">{copy.hoursTitle}</h2>
-                <button type="button" onClick={() => setShowHoursModal(false)} aria-label={copy.close} className="flex size-10 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
-                  <X className="size-5" />
-                </button>
-              </div>
-              {openLabel && (
-                <p className={`mx-5 mb-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium ${openLabel.tone === 'open' ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600'}`}>
-                  {openLabel.tone !== 'info' && <span aria-hidden="true" className={`size-[7px] rounded-full ${openLabel.tone === 'open' ? 'bg-emerald-500' : 'bg-zinc-400'}`} />}
-                  {openLabel.text}
-                </p>
-              )}
-              <ul className="px-5 pb-5">
-                {WEEK_KEYS.map(({ key, index }) => {
-                  const value = hours?.[key as keyof typeof hours]
-                  const isToday = openInfo?.todayIndex === index
-                  return (
-                    <li key={key} className={`flex items-center justify-between gap-4 border-b border-zinc-100 py-3 text-[15px] last:border-0 ${isToday ? 'font-semibold text-zinc-900' : 'text-zinc-600'}`}>
-                      <span className="shrink-0 capitalize">{formatWeekday(index, selectedLanguage)}{isToday && <span className="ml-2 text-[12px] font-medium text-zinc-400">{copy.today}</span>}</span>
-                      <span className="min-w-0 break-words text-right tabular-nums">{value || copy.closed}</span>
-                    </li>
-                  )
-                })}
-              </ul>
-            </div>
+      {/* Opening hours: a bottom sheet like the order and checkout (drag down, Escape or a tap outside closes it). */}
+      <BottomSheet open={showHoursModal} onClose={() => setShowHoursModal(false)} ariaLabel={copy.hoursTitle} widthClassName="sm:max-w-[420px]">
+        <div lang={localeFor(selectedLanguage)} className="flex min-h-0 flex-1 flex-col bg-white">
+          <div data-sheet-grip className="flex shrink-0 touch-none items-center justify-between px-5 pt-1 pb-2">
+            <h2 className="text-[17px] font-semibold text-zinc-900">{copy.hoursTitle}</h2>
+            <button type="button" onClick={() => setShowHoursModal(false)} aria-label={copy.close} className="flex size-10 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900">
+              <X className="size-5" />
+            </button>
           </div>
-        </ModalPortal>
-      )}
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            {openLabel && (
+              <p className={`mx-5 mb-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[13px] font-medium ${openLabel.tone === 'open' ? 'bg-emerald-50 text-emerald-700' : 'bg-zinc-100 text-zinc-600'}`}>
+                {openLabel.tone !== 'info' && <span aria-hidden="true" className={`size-[7px] rounded-full ${openLabel.tone === 'open' ? 'bg-emerald-500' : 'bg-zinc-400'}`} />}
+                {openLabel.text}
+              </p>
+            )}
+            <ul className="px-5">
+              {WEEK_KEYS.map(({ key, index }) => {
+                const value = hours?.[key as keyof typeof hours]
+                const isToday = openInfo?.todayIndex === index
+                return (
+                  <li key={key} className={`flex items-center justify-between gap-4 border-b border-zinc-100 py-3 text-[15px] last:border-0 ${isToday ? 'font-semibold text-zinc-900' : 'text-zinc-600'}`}>
+                    <span className="shrink-0 capitalize">{formatWeekday(index, selectedLanguage)}{isToday && <span className="ml-2 text-[12px] font-medium text-zinc-400">{copy.today}</span>}</span>
+                    <span className="min-w-0 break-words text-right tabular-nums">{value || copy.closed}</span>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        </div>
+      </BottomSheet>
 
       {directOrdersEnabled && (
         <CartPanel
@@ -1602,7 +1583,7 @@ function ContactCard({ href, icon, caption, value, color, external, numeric, wra
  * Larger screens: a card with the photo on top; the control keeps its corner on the photo. The whole card
  * opens the dish. Tap areas are 44px (the visible circles are 32-36px).
  */
-function ProductCard({ product, lang, currency, accentColor, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement, hasArModel = false }: {
+function ProductCard({ product, lang, currency, accentText, price, onOpen, cartQuantity, onAdd, onIncrement, onDecrement, hasArModel = false }: {
   product: Product; lang: string; currency: string; primaryColor: string; onOpen: () => void
   /** The dish has a 3D model: a small cube in the photo's corner says it can be seen on the table. */
   hasArModel?: boolean
@@ -1627,6 +1608,7 @@ function ProductCard({ product, lang, currency, accentColor, accentText, price, 
   }, [justAdded])
   const showCheck = justAdded && showStepper
   // A 44px tap area around a smaller visible circle.
+  const cardTag = primaryTag(product.tags)
   const hit = "relative before:absolute before:-inset-1.5 before:content-['']"
   return (
     <article
@@ -1645,12 +1627,9 @@ function ProductCard({ product, lang, currency, accentColor, accentText, price, 
         {product.description && (
           <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-zinc-500">{product.description}</p>
         )}
-        {product.tags?.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
-            {product.tags.slice(0, 2).map(tag => (
-              <span key={tag} className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ backgroundColor: `color-mix(in srgb, ${accentColor} 12%, white)`, color: accentText }}>{translateTag(tag, lang)}</span>
-            ))}
-          </div>
+        {/* One tag pill per card (docs/product/dish-tags.md); the dish sheet lists them all. */}
+        {cardTag && (
+          <span className="mt-2 self-start rounded-full px-2 py-0.5 text-[11px] font-medium" style={tagStyle(cardTag)}>{translateTag(cardTag, lang)}</span>
         )}
       </div>
       {/* The price, plain text, at the foot of the text column. "From" (sizes) or the struck old price (promotions) go on a small line above. */}

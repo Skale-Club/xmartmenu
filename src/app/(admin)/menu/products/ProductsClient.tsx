@@ -12,24 +12,13 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { Plus, Package, Trash2, Edit3, X, ChevronRight, AlertCircle, ShieldCheck, Star, Utensils, Tag, Image as ImageIcon, CheckCircle2, GalleryVerticalEnd } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Modal from '@/components/ui/Modal'
+import { normalizeTags, primaryTag, tagColor, tagStyle } from '@/lib/menu/dish-tags'
 
 interface ProductWithCategory extends Product {
   category: { id: string; name: string } | null
 }
 
 const DEFAULT_TAGS = ['Vegetarian', 'Vegan', 'Gluten-Free', 'Spicy', 'Chef\'s special']
-
-const TAG_COLORS: Record<string, string> = {
-  'Vegetarian': 'bg-green-100 text-green-700',
-  'Vegan': 'bg-emerald-100 text-emerald-700',
-  'Gluten-Free': 'bg-amber-100 text-amber-700',
-  'Spicy': 'bg-red-100 text-red-700',
-  'Chef\'s special': 'bg-purple-100 text-purple-700',
-}
-
-function getTagStyle(tag: string): string {
-  return TAG_COLORS[tag] ?? 'bg-zinc-100 text-zinc-600'
-}
 
 const CURRENCY_SYMBOL: Record<string, string> = {
   USD: '$', BRL: 'R$', EUR: '€', GBP: '£',
@@ -142,7 +131,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
       image_urls: images,
       is_featured: p.is_featured,
       show_in_feed: p.show_in_feed ?? true,
-      tags: p.tags ?? [],
+      tags: normalizeTags(p.tags),
     })
     setEditingId(p.id)
     setFormError(null)
@@ -348,7 +337,8 @@ export default function ProductsClient({ products: initial, categories, tenantId
   function toggleTag(tag: string) {
     setForm(f => ({
       ...f,
-      tags: f.tags.includes(tag) ? f.tags.filter(t => t !== tag) : [...f.tags, tag]
+      // One tag per dish (docs/product/dish-tags.md): picking another swaps it, tapping the chosen one clears it.
+      tags: f.tags.includes(tag) ? [] : [tag]
     }))
   }
 
@@ -549,7 +539,7 @@ export default function ProductsClient({ products: initial, categories, tenantId
             )}
 
             <div className="space-y-4">
-              <label className="block text-[14px] font-semibold text-zinc-700 ml-1">Product Attributes</label>
+              <label className="block text-[14px] font-semibold text-zinc-700 ml-1">Product Attribute <span className="font-normal text-zinc-400">(pick one)</span></label>
               <div className="flex flex-wrap gap-2">
                 {TAGS.map(tag => {
                   const isActive = form.tags.includes(tag)
@@ -558,11 +548,12 @@ export default function ProductsClient({ products: initial, categories, tenantId
                       key={tag}
                       type="button"
                       onClick={() => toggleTag(tag)}
+                      aria-pressed={isActive}
+                      // Selected tags take the colour guests see on the menu (src/lib/menu/dish-tags.ts).
+                      style={isActive ? { ...tagStyle(tag), borderColor: tagColor(tag).text } : undefined}
                       className={cn(
                         "text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition-all active:scale-95",
-                        isActive 
-                          ? "bg-zinc-950 text-white border-zinc-950" 
-                          : "bg-white border-zinc-100 text-zinc-400 hover:border-zinc-300"
+                        !isActive && "bg-white border-zinc-100 text-zinc-400 hover:border-zinc-300"
                       )}
                     >
                       {tag}
@@ -682,18 +673,12 @@ export default function ProductsClient({ products: initial, categories, tenantId
                   )}
                 </div>
 
-                {product.tags && product.tags.length > 0 && (
-                  <div className="absolute bottom-4 left-4 right-4 flex flex-wrap gap-1.5">
-                    {product.tags.slice(0, 3).map(tag => (
-                      <span key={tag} className="bg-white/90 backdrop-blur-md text-zinc-950 text-[9px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-full border border-white">
-                        {tag}
-                      </span>
-                    ))}
-                    {product.tags.length > 3 && (
-                      <span className="bg-white/90 backdrop-blur-md text-zinc-950 text-[9px] font-black px-2 py-1 rounded-full">
-                        +{product.tags.length - 3}
-                      </span>
-                    )}
+                {primaryTag(product.tags) && (
+                  // The dish's one tag, as guests see it.
+                  <div className="absolute bottom-4 left-4 right-4 flex">
+                    <span className="text-[9px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-full" style={tagStyle(primaryTag(product.tags)!)}>
+                      {primaryTag(product.tags)}
+                    </span>
                   </div>
                 )}
               </div>

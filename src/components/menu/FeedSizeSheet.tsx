@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Check, Plus, X } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
+import { useDragToDismiss } from '@/components/ui/use-drag-to-dismiss'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { formatMoney, getMenuCopy } from './menu-i18n'
 import type { FeedSize } from './feed-sizes'
@@ -30,6 +31,10 @@ export default function FeedSizeSheet({
 }) {
   const copy = getMenuCopy(lang)
   const [selectedId, setSelectedId] = useState(sizes[0]?.id ?? '')
+  // Drag the sheet down (from the top of its content) to close it.
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const backdropRef = useRef<HTMLButtonElement>(null)
+  useDragToDismiss({ sheetRef, scrollRef: sheetRef, backdropRef, backdropColor: 'rgb(9 9 11 / 0.55)', onDismiss: onClose })
   const selected = sizes.find(size => size.id === selectedId) ?? sizes[0]
   if (!selected) return null
   const onPrimary = computePrimaryForeground(primaryColor)
@@ -37,8 +42,8 @@ export default function FeedSizeSheet({
   return (
     <ModalPortal onClose={onClose}>
       <div className="fixed inset-0 z-[70] flex items-end" role="dialog" aria-modal="true" aria-label={copy.selectOption}>
-        <button type="button" aria-label={copy.close} onClick={onClose} className="absolute inset-0 bg-zinc-950/55 backdrop-blur-[2px]" />
-        <div className="relative max-h-[60dvh] w-full overflow-y-auto rounded-t-3xl bg-white px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-float">
+        <button ref={backdropRef} type="button" aria-label={copy.close} onClick={onClose} className="absolute inset-0 bg-zinc-950/55 backdrop-blur-[2px]" />
+        <div ref={sheetRef} className="relative max-h-[60dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-float">
           <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-zinc-300" aria-hidden="true" />
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">

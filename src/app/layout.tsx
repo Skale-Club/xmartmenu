@@ -3,7 +3,6 @@ import { Inter } from 'next/font/google'
 import { getPlatformAppearance } from '@/lib/data/platform-appearance-runtime'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
-import InstallPrompt from '@/components/InstallPrompt'
 import './globals.css'
 
 const inter = Inter({
@@ -67,7 +66,6 @@ export default async function RootLayout({
       <body className={`${inter.className} min-h-full`}>
         {children}
         <ServiceWorkerRegistrar />
-        <InstallPrompt />
       </body>
     </html>
   )

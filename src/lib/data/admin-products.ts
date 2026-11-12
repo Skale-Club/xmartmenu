@@ -1,6 +1,7 @@
 import type { Product } from '@/types/database'
 import { activeAdminMenu, AdminMenuError, readAdminMenus, type AdminMenuContext, type AdminMenuQuery } from './admin-menus'
 import { PUBLIC_MENU_COLUMNS } from './public-menu'
+import { normalizeTags } from '@/lib/menu/dish-tags'
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 const projection = `to_jsonb((SELECT projected FROM (SELECT ${PUBLIC_MENU_COLUMNS.product.split(' ').map(key => `p.${key}`).join(',')}) projected))
@@ -50,6 +51,8 @@ export function productPatch(input: unknown, creating = false) {
   if ('image_url' in patch && patch.image_url !== null && !validImage(patch.image_url)) throw new AdminMenuError(400, 'Invalid image URL')
   if ('image_urls' in patch && (!Array.isArray(patch.image_urls) || patch.image_urls.length > 20 || !patch.image_urls.every(validImage))) throw new AdminMenuError(400, 'Invalid images')
   if ('tags' in patch && (!Array.isArray(patch.tags) || patch.tags.length > 50 || patch.tags.some(tag => typeof tag !== 'string' || tag.length > 100))) throw new AdminMenuError(400, 'Invalid product tags')
+  // One tag per dish (docs/product/dish-tags.md): keep the most important one.
+  if ('tags' in patch) patch.tags = normalizeTags(patch.tags as string[])
   return patch
 }
 export async function findAdminProduct(query: AdminMenuQuery, context: AdminMenuContext, id: string, lock = false) {

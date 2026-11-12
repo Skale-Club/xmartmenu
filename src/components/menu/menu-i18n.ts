@@ -14,26 +14,28 @@ export interface MenuLanguage {
   nativeName: string
   /** English name, for the admin. */
   englishName: string
+  /** Country (ISO 3166-1) whose flag stands for the language in the picker. */
+  flag: string
   /** BCP 47 tag for Intl formatting and the lang attribute. */
   locale: string
 }
 
 export const MENU_LANGUAGES: MenuLanguage[] = [
-  { code: 'en', nativeName: 'English', englishName: 'English', locale: 'en-US' },
-  { code: 'pt', nativeName: 'Português', englishName: 'Portuguese', locale: 'pt-BR' },
-  { code: 'es', nativeName: 'Español', englishName: 'Spanish', locale: 'es' },
-  { code: 'fr', nativeName: 'Français', englishName: 'French', locale: 'fr-FR' },
-  { code: 'de', nativeName: 'Deutsch', englishName: 'German', locale: 'de-DE' },
-  { code: 'it', nativeName: 'Italiano', englishName: 'Italian', locale: 'it-IT' },
-  { code: 'nl', nativeName: 'Nederlands', englishName: 'Dutch', locale: 'nl-NL' },
-  { code: 'pl', nativeName: 'Polski', englishName: 'Polish', locale: 'pl-PL' },
-  { code: 'tr', nativeName: 'Türkçe', englishName: 'Turkish', locale: 'tr-TR' },
-  { code: 'ru', nativeName: 'Русский', englishName: 'Russian', locale: 'ru-RU' },
-  { code: 'hi', nativeName: 'हिन्दी', englishName: 'Hindi', locale: 'hi-IN' },
-  { code: 'ja', nativeName: '日本語', englishName: 'Japanese', locale: 'ja-JP' },
-  { code: 'ko', nativeName: '한국어', englishName: 'Korean', locale: 'ko-KR' },
-  { code: 'zh', nativeName: '简体中文', englishName: 'Chinese (Simplified)', locale: 'zh-CN' },
-  { code: 'zh-TW', nativeName: '繁體中文', englishName: 'Chinese (Traditional)', locale: 'zh-TW' },
+  { code: 'en', flag: 'US', nativeName: 'English', englishName: 'English', locale: 'en-US' },
+  { code: 'pt', flag: 'BR', nativeName: 'Português', englishName: 'Portuguese', locale: 'pt-BR' },
+  { code: 'es', flag: 'ES', nativeName: 'Español', englishName: 'Spanish', locale: 'es' },
+  { code: 'fr', flag: 'FR', nativeName: 'Français', englishName: 'French', locale: 'fr-FR' },
+  { code: 'de', flag: 'DE', nativeName: 'Deutsch', englishName: 'German', locale: 'de-DE' },
+  { code: 'it', flag: 'IT', nativeName: 'Italiano', englishName: 'Italian', locale: 'it-IT' },
+  { code: 'nl', flag: 'NL', nativeName: 'Nederlands', englishName: 'Dutch', locale: 'nl-NL' },
+  { code: 'pl', flag: 'PL', nativeName: 'Polski', englishName: 'Polish', locale: 'pl-PL' },
+  { code: 'tr', flag: 'TR', nativeName: 'Türkçe', englishName: 'Turkish', locale: 'tr-TR' },
+  { code: 'ru', flag: 'RU', nativeName: 'Русский', englishName: 'Russian', locale: 'ru-RU' },
+  { code: 'hi', flag: 'IN', nativeName: 'हिन्दी', englishName: 'Hindi', locale: 'hi-IN' },
+  { code: 'ja', flag: 'JP', nativeName: '日本語', englishName: 'Japanese', locale: 'ja-JP' },
+  { code: 'ko', flag: 'KR', nativeName: '한국어', englishName: 'Korean', locale: 'ko-KR' },
+  { code: 'zh', flag: 'CN', nativeName: '简体中文', englishName: 'Chinese (Simplified)', locale: 'zh-CN' },
+  { code: 'zh-TW', flag: 'TW', nativeName: '繁體中文', englishName: 'Chinese (Traditional)', locale: 'zh-TW' },
 ]
 
 /** Every code a menu may be offered in, for validation. */
@@ -148,7 +150,7 @@ export interface MenuCopy {
 
 const en: MenuCopy = {
   search: 'Search the menu', searchOpen: 'Search the menu', searchClose: 'Close search', featured: 'Featured', other: 'Other',
-  noItems: 'Nothing found', tryAnother: 'Try a different word', viewFeed: 'Visual feed', viewMenu: 'Menu', language: 'Language',
+  noItems: 'Nothing found', tryAnother: 'Try a different word', viewFeed: 'View feed', viewMenu: 'Menu', language: 'Language',
   feedEmptyTitle: 'The visual feed is on its way', feedEmptyDescription: 'Browse the full menu to see every dish.',
   hoursTitle: 'Opening hours', openUntil: 'Open until {time}', closedOpensToday: 'Closed · opens at {time}',
   closedOpensTomorrow: 'Closed · opens tomorrow at {time}', closedOpensOn: 'Closed · opens {day} at {time}', closed: 'Closed', today: 'Today',
@@ -208,7 +210,7 @@ const en: MenuCopy = {
 
 const pt: MenuCopy = {
   search: 'Buscar no cardápio', searchOpen: 'Buscar no cardápio', searchClose: 'Fechar busca', featured: 'Destaques', other: 'Outros',
-  noItems: 'Nada encontrado', tryAnother: 'Tente outra palavra', viewFeed: 'Feed visual', viewMenu: 'Cardápio', language: 'Idioma',
+  noItems: 'Nada encontrado', tryAnother: 'Tente outra palavra', viewFeed: 'Ver feed', viewMenu: 'Cardápio', language: 'Idioma',
   feedEmptyTitle: 'O feed visual está a caminho', feedEmptyDescription: 'Veja o cardápio completo para conhecer todos os pratos.',
   hoursTitle: 'Horário de funcionamento', openUntil: 'Aberto até {time}', closedOpensToday: 'Fechado · abre às {time}',
   closedOpensTomorrow: 'Fechado · abre amanhã às {time}', closedOpensOn: 'Fechado · abre {day} às {time}', closed: 'Fechado', today: 'Hoje',
@@ -268,7 +270,7 @@ const pt: MenuCopy = {
 
 const es: MenuCopy = {
   search: 'Buscar en el menú', searchOpen: 'Buscar en el menú', searchClose: 'Cerrar búsqueda', featured: 'Destacados', other: 'Otros',
-  noItems: 'No encontramos nada', tryAnother: 'Prueba con otra palabra', viewFeed: 'Feed visual', viewMenu: 'Menú', language: 'Idioma',
+  noItems: 'No encontramos nada', tryAnother: 'Prueba con otra palabra', viewFeed: 'Ver feed', viewMenu: 'Menú', language: 'Idioma',
   feedEmptyTitle: 'El feed visual está en camino', feedEmptyDescription: 'Mira el menú completo para ver todos los platos.',
   hoursTitle: 'Horario', openUntil: 'Abierto hasta las {time}', closedOpensToday: 'Cerrado · abre a las {time}',
   closedOpensTomorrow: 'Cerrado · abre mañana a las {time}', closedOpensOn: 'Cerrado · abre el {day} a las {time}', closed: 'Cerrado', today: 'Hoy',
@@ -328,7 +330,7 @@ const es: MenuCopy = {
 
 const fr: MenuCopy = {
   search: 'Rechercher dans le menu', searchOpen: 'Rechercher dans le menu', searchClose: 'Fermer la recherche', featured: 'À la une', other: 'Autres',
-  noItems: 'Aucun résultat', tryAnother: 'Essayez un autre mot', viewFeed: 'Feed visuel', viewMenu: 'Menu', language: 'Langue',
+  noItems: 'Aucun résultat', tryAnother: 'Essayez un autre mot', viewFeed: 'Voir le feed', viewMenu: 'Menu', language: 'Langue',
   feedEmptyTitle: 'Le feed visuel arrive bientôt', feedEmptyDescription: 'Parcourez le menu complet pour voir tous les plats.',
   hoursTitle: "Horaires d'ouverture", openUntil: "Ouvert jusqu'à {time}", closedOpensToday: 'Fermé · ouvre à {time}',
   closedOpensTomorrow: 'Fermé · ouvre demain à {time}', closedOpensOn: 'Fermé · ouvre {day} à {time}', closed: 'Fermé', today: "Aujourd'hui",
@@ -388,7 +390,7 @@ const fr: MenuCopy = {
 
 const de: MenuCopy = {
   search: 'Speisekarte durchsuchen', searchOpen: 'Speisekarte durchsuchen', searchClose: 'Suche schließen', featured: 'Empfehlungen', other: 'Weiteres',
-  noItems: 'Nichts gefunden', tryAnother: 'Versuchen Sie ein anderes Wort', viewFeed: 'Visueller Feed', viewMenu: 'Speisekarte', language: 'Sprache',
+  noItems: 'Nichts gefunden', tryAnother: 'Versuchen Sie ein anderes Wort', viewFeed: 'Feed ansehen', viewMenu: 'Speisekarte', language: 'Sprache',
   feedEmptyTitle: 'Der visuelle Feed kommt bald', feedEmptyDescription: 'In der vollständigen Speisekarte finden Sie alle Gerichte.',
   hoursTitle: 'Öffnungszeiten', openUntil: 'Geöffnet bis {time}', closedOpensToday: 'Geschlossen · öffnet um {time}',
   closedOpensTomorrow: 'Geschlossen · öffnet morgen um {time}', closedOpensOn: 'Geschlossen · öffnet {day} um {time}', closed: 'Geschlossen', today: 'Heute',
@@ -448,7 +450,7 @@ const de: MenuCopy = {
 
 const it: MenuCopy = {
   search: 'Cerca nel menu', searchOpen: 'Cerca nel menu', searchClose: 'Chiudi ricerca', featured: 'In evidenza', other: 'Altro',
-  noItems: 'Nessun risultato', tryAnother: "Prova con un'altra parola", viewFeed: 'Feed visivo', viewMenu: 'Menu', language: 'Lingua',
+  noItems: 'Nessun risultato', tryAnother: "Prova con un'altra parola", viewFeed: 'Vedi feed', viewMenu: 'Menu', language: 'Lingua',
   feedEmptyTitle: 'Il feed visivo è in arrivo', feedEmptyDescription: 'Sfoglia il menu completo per vedere tutti i piatti.',
   hoursTitle: 'Orari di apertura', openUntil: 'Aperto fino alle {time}', closedOpensToday: 'Chiuso · apre alle {time}',
   closedOpensTomorrow: 'Chiuso · apre domani alle {time}', closedOpensOn: 'Chiuso · apre {day} alle {time}', closed: 'Chiuso', today: 'Oggi',
@@ -508,7 +510,7 @@ const it: MenuCopy = {
 
 const nl: MenuCopy = {
   search: 'Zoeken in het menu', searchOpen: 'Zoeken in het menu', searchClose: 'Zoeken sluiten', featured: 'Aanraders', other: 'Overig',
-  noItems: 'Niets gevonden', tryAnother: 'Probeer een ander woord', viewFeed: 'Visuele feed', viewMenu: 'Menu', language: 'Taal',
+  noItems: 'Niets gevonden', tryAnother: 'Probeer een ander woord', viewFeed: 'Bekijk feed', viewMenu: 'Menu', language: 'Taal',
   feedEmptyTitle: 'De visuele feed komt eraan', feedEmptyDescription: 'Bekijk het volledige menu voor alle gerechten.',
   hoursTitle: 'Openingstijden', openUntil: 'Open tot {time}', closedOpensToday: 'Gesloten · opent om {time}',
   closedOpensTomorrow: 'Gesloten · opent morgen om {time}', closedOpensOn: 'Gesloten · opent {day} om {time}', closed: 'Gesloten', today: 'Vandaag',
@@ -568,7 +570,7 @@ const nl: MenuCopy = {
 
 const pl: MenuCopy = {
   search: 'Szukaj w menu', searchOpen: 'Szukaj w menu', searchClose: 'Zamknij wyszukiwanie', featured: 'Polecane', other: 'Inne',
-  noItems: 'Nic nie znaleziono', tryAnother: 'Spróbuj innego słowa', viewFeed: 'Feed wizualny', viewMenu: 'Menu', language: 'Język',
+  noItems: 'Nic nie znaleziono', tryAnother: 'Spróbuj innego słowa', viewFeed: 'Zobacz feed', viewMenu: 'Menu', language: 'Język',
   feedEmptyTitle: 'Feed wizualny wkrótce', feedEmptyDescription: 'Przejrzyj pełne menu, aby zobaczyć wszystkie dania.',
   hoursTitle: 'Godziny otwarcia', openUntil: 'Otwarte do {time}', closedOpensToday: 'Zamknięte · otwarcie o {time}',
   closedOpensTomorrow: 'Zamknięte · otwarcie jutro o {time}', closedOpensOn: 'Zamknięte · otwarcie: {day}, {time}', closed: 'Zamknięte', today: 'Dziś',
@@ -628,7 +630,7 @@ const pl: MenuCopy = {
 
 const tr: MenuCopy = {
   search: 'Menüde ara', searchOpen: 'Menüde ara', searchClose: 'Aramayı kapat', featured: 'Öne çıkanlar', other: 'Diğer',
-  noItems: 'Sonuç bulunamadı', tryAnother: 'Başka bir kelime deneyin', viewFeed: 'Görsel akış', viewMenu: 'Menü', language: 'Dil',
+  noItems: 'Sonuç bulunamadı', tryAnother: 'Başka bir kelime deneyin', viewFeed: 'Akışı gör', viewMenu: 'Menü', language: 'Dil',
   feedEmptyTitle: 'Görsel akış hazırlanıyor', feedEmptyDescription: 'Tüm yemekleri görmek için menünün tamamına göz atın.',
   hoursTitle: 'Çalışma saatleri', openUntil: '{time} saatine kadar açık', closedOpensToday: 'Kapalı · {time} açılıyor',
   closedOpensTomorrow: 'Kapalı · yarın {time} açılıyor', closedOpensOn: 'Kapalı · {day} {time} açılıyor', closed: 'Kapalı', today: 'Bugün',
@@ -688,7 +690,7 @@ const tr: MenuCopy = {
 
 const ru: MenuCopy = {
   search: 'Поиск по меню', searchOpen: 'Поиск по меню', searchClose: 'Закрыть поиск', featured: 'Рекомендуем', other: 'Другое',
-  noItems: 'Ничего не найдено', tryAnother: 'Попробуйте другое слово', viewFeed: 'Визуальная лента', viewMenu: 'Меню', language: 'Язык',
+  noItems: 'Ничего не найдено', tryAnother: 'Попробуйте другое слово', viewFeed: 'Смотреть ленту', viewMenu: 'Меню', language: 'Язык',
   feedEmptyTitle: 'Визуальная лента скоро появится', feedEmptyDescription: 'Откройте полное меню, чтобы увидеть все блюда.',
   hoursTitle: 'Часы работы', openUntil: 'Открыто до {time}', closedOpensToday: 'Закрыто · откроется в {time}',
   closedOpensTomorrow: 'Закрыто · откроется завтра в {time}', closedOpensOn: 'Закрыто · откроется: {day}, {time}', closed: 'Закрыто', today: 'Сегодня',
@@ -748,7 +750,7 @@ const ru: MenuCopy = {
 
 const hi: MenuCopy = {
   search: 'मेन्यू में खोजें', searchOpen: 'मेन्यू में खोजें', searchClose: 'खोज बंद करें', featured: 'ख़ास पसंद', other: 'अन्य',
-  noItems: 'कुछ नहीं मिला', tryAnother: 'कोई दूसरा शब्द आज़माएँ', viewFeed: 'विज़ुअल फ़ीड', viewMenu: 'मेन्यू', language: 'भाषा',
+  noItems: 'कुछ नहीं मिला', tryAnother: 'कोई दूसरा शब्द आज़माएँ', viewFeed: 'फ़ीड देखें', viewMenu: 'मेन्यू', language: 'भाषा',
   feedEmptyTitle: 'विज़ुअल फ़ीड जल्द आ रहा है', feedEmptyDescription: 'सभी व्यंजन देखने के लिए पूरा मेन्यू देखें।',
   hoursTitle: 'खुलने का समय', openUntil: '{time} तक खुला', closedOpensToday: 'बंद · {time} बजे खुलेगा',
   closedOpensTomorrow: 'बंद · कल {time} बजे खुलेगा', closedOpensOn: 'बंद · {day} {time} बजे खुलेगा', closed: 'बंद', today: 'आज',
@@ -808,7 +810,7 @@ const hi: MenuCopy = {
 
 const ja: MenuCopy = {
   search: 'メニューを検索', searchOpen: 'メニューを検索', searchClose: '検索を閉じる', featured: 'おすすめ', other: 'その他',
-  noItems: '見つかりませんでした', tryAnother: '別のキーワードでお試しください', viewFeed: 'ビジュアルフィード', viewMenu: 'メニュー', language: '言語',
+  noItems: '見つかりませんでした', tryAnother: '別のキーワードでお試しください', viewFeed: 'フィードを見る', viewMenu: 'メニュー', language: '言語',
   feedEmptyTitle: 'ビジュアルフィードは準備中です', feedEmptyDescription: 'すべての料理はメニューからご覧いただけます。',
   hoursTitle: '営業時間', openUntil: '{time}まで営業', closedOpensToday: '営業時間外 · {time}開店',
   closedOpensTomorrow: '営業時間外 · 明日{time}開店', closedOpensOn: '営業時間外 · {day}{time}開店', closed: '定休日', today: '今日',
@@ -868,7 +870,7 @@ const ja: MenuCopy = {
 
 const ko: MenuCopy = {
   search: '메뉴 검색', searchOpen: '메뉴 검색', searchClose: '검색 닫기', featured: '추천 메뉴', other: '기타',
-  noItems: '검색 결과가 없습니다', tryAnother: '다른 단어로 검색해 보세요', viewFeed: '비주얼 피드', viewMenu: '메뉴', language: '언어',
+  noItems: '검색 결과가 없습니다', tryAnother: '다른 단어로 검색해 보세요', viewFeed: '피드 보기', viewMenu: '메뉴', language: '언어',
   feedEmptyTitle: '비주얼 피드를 준비 중입니다', feedEmptyDescription: '전체 메뉴에서 모든 요리를 확인하세요.',
   hoursTitle: '영업시간', openUntil: '{time}까지 영업', closedOpensToday: '영업 종료 · {time}에 오픈',
   closedOpensTomorrow: '영업 종료 · 내일 {time}에 오픈', closedOpensOn: '영업 종료 · {day} {time}에 오픈', closed: '휴무', today: '오늘',
@@ -928,7 +930,7 @@ const ko: MenuCopy = {
 
 const zh: MenuCopy = {
   search: '搜索菜单', searchOpen: '搜索菜单', searchClose: '关闭搜索', featured: '推荐', other: '其他',
-  noItems: '没有找到相关菜品', tryAnother: '试试其他关键词', viewFeed: '图片浏览', viewMenu: '菜单', language: '语言',
+  noItems: '没有找到相关菜品', tryAnother: '试试其他关键词', viewFeed: '查看动态', viewMenu: '菜单', language: '语言',
   feedEmptyTitle: '图片浏览即将上线', feedEmptyDescription: '可在完整菜单中查看所有菜品。',
   hoursTitle: '营业时间', openUntil: '营业至 {time}', closedOpensToday: '休息中 · {time} 开始营业',
   closedOpensTomorrow: '休息中 · 明天 {time} 开始营业', closedOpensOn: '休息中 · {day} {time} 开始营业', closed: '休息', today: '今天',
@@ -988,7 +990,7 @@ const zh: MenuCopy = {
 
 const zhTW: MenuCopy = {
   search: '搜尋菜單', searchOpen: '搜尋菜單', searchClose: '關閉搜尋', featured: '推薦', other: '其他',
-  noItems: '找不到相關餐點', tryAnother: '試試其他關鍵字', viewFeed: '圖片瀏覽', viewMenu: '菜單', language: '語言',
+  noItems: '找不到相關餐點', tryAnother: '試試其他關鍵字', viewFeed: '查看動態', viewMenu: '菜單', language: '語言',
   feedEmptyTitle: '圖片瀏覽即將推出', feedEmptyDescription: '可在完整菜單中查看所有餐點。',
   hoursTitle: '營業時間', openUntil: '營業至 {time}', closedOpensToday: '休息中 · {time} 開始營業',
   closedOpensTomorrow: '休息中 · 明天 {time} 開始營業', closedOpensOn: '休息中 · {day} {time} 開始營業', closed: '公休', today: '今天',

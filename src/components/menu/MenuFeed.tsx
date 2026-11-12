@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
+import { primaryTag, tagColor } from '@/lib/menu/dish-tags'
 import type { Product, ProductMedia, PublicProductArModel } from '@/types/database'
 import ArButton from '@/components/ar/ArButton'
 import FeedDescription from './FeedDescription'
@@ -201,7 +202,7 @@ export default function MenuFeed({
 
                 <div className="mb-3 flex flex-wrap gap-1.5">
                   {product.is_featured ? <span className="rounded-full border border-amber-300/30 bg-amber-300/20 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-amber-100 backdrop-blur">{copy.chefPick}</span> : null}
-                  {product.tags?.slice(0, 2).map(tag => <span key={tag} className="rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-white/85 backdrop-blur">{translateTag(tag, lang)}</span>)}
+                  {(() => { const tag = primaryTag(product.tags); return tag ? <span className="rounded-full border border-white/15 bg-black/25 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider backdrop-blur" style={{ color: tagColor(tag).background }}>{translateTag(tag, lang)}</span> : null })()}
                 </div>
 
                 <div className="flex items-end justify-between gap-5">

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Camera, Check, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
+import { Camera, Check, ChevronDown, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
 import ArButton from '@/components/ar/ArButton'
 import type { DishDetail } from '@/lib/public-dish-details'
 import DishDetails from './DishDetails'
@@ -10,12 +10,14 @@ import type { Product, ProductIngredientWithIngredient, IngredientModifications,
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { getProductImages, type CartEditorState } from './menu-utils'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
+import { normalizeTags, tagStyle } from '@/lib/menu/dish-tags'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { baseName } from '@/lib/menu-translations'
 import { getGuestCopy } from './guest-copy'
 import { contactLinks, displayPrice, optionPriceList, orderedItemText, showcaseItemText } from './showcase'
 import ModalPortal from '@/components/ui/ModalPortal'
 import { keepFieldVisible, useVisibleBox } from '@/components/ui/keyboard-fields'
+import { useDragToDismiss } from '@/components/ui/use-drag-to-dismiss'
 import { halfAndHalfUnit } from '@/lib/menu/option-pricing'
 
 type MediaSlide = { type: 'image'; url: string } | { type: 'video'; url: string }
@@ -147,8 +149,17 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
   const [itemNote, setItemNote] = useState(initialEditorState?.note ?? '')
   const [ingredientSteppers, setIngredientSteppers] = useState<Record<string, number>>(initialEditorState?.ingredientSteppers ?? {})
   const [addedIngredients, setAddedIngredients] = useState<string[]>(initialEditorState?.addedIngredients ?? [])
+  // Ingredients start collapsed to save space; they open on demand, or when an edited item already changed them.
+  const hasIngredientChanges = (steppers?: Record<string, number>) => Object.values(steppers ?? {}).some(v => v !== 0)
+  const [ingredientsOpen, setIngredientsOpen] = useState(() => hasIngredientChanges(initialEditorState?.ingredientSteppers))
   // The sheet stays in what the phone keyboard leaves visible (typing a note).
   const box = useVisibleBox()
+  // Drag the sheet down (from the top of its content) to close it, as on iOS.
+  const backdropRef = useRef<HTMLDivElement>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  useDragToDismiss({ sheetRef, gestureRef: dialogRef, scrollRef, backdropRef, onDismiss: onClose })
   const [attentionGroupId, setAttentionGroupId] = useState<string | null>(null)
   const customizationTrackedRef = useRef(false)
 
@@ -160,6 +171,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
     setItemNote(initialEditorState?.note ?? '')  // Pitfall 6: reset note when new product opens
     setIngredientSteppers(initialEditorState?.ingredientSteppers ?? {})
     setAddedIngredients(initialEditorState?.addedIngredients ?? [])
+    setIngredientsOpen(hasIngredientChanges(initialEditorState?.ingredientSteppers))
     setAttentionGroupId(null)
     customizationTrackedRef.current = false
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -471,9 +483,9 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
   // Phones: a sheet from the bottom. Larger screens: centred, never taller than the viewport.
   return (
     <ModalPortal onClose={onClose}>
-    <div className="menu-root fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-[2px]" onClick={onClose}>
+    <div ref={backdropRef} className="menu-root fixed inset-0 z-50 bg-zinc-950/40 backdrop-blur-[2px]" onClick={onClose}>
       <div className="fixed inset-x-0 flex items-end justify-center sm:items-center sm:p-4" style={box.style}>
-      <div className={`relative flex max-h-full w-full flex-col sm:max-w-lg ${box.short ? '' : 'max-sm:max-h-[94%]'}`} onClick={e => e.stopPropagation()}>
+      <div ref={sheetRef} className={`relative flex max-h-full w-full flex-col sm:max-w-lg ${box.short ? '' : 'max-sm:max-h-[94%]'}`} onClick={e => e.stopPropagation()}>
       {onPrevProduct && (
         <button
           type="button"
@@ -494,8 +506,11 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
           <ChevronRight className="size-5" />
         </button>
       )}
-      <div role="dialog" aria-modal="true" aria-label={product.name} className="flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:rounded-3xl">
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label={product.name} className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-t-3xl bg-menu shadow-float sm:rounded-3xl">
+        {/* Grabber: tells phones the sheet can be dragged down to close */}
+        <span aria-hidden="true" className={`pointer-events-none absolute top-2 left-1/2 z-10 h-[5px] w-9 -translate-x-1/2 rounded-full sm:hidden ${mediaSlides.length > 0 ? 'bg-white/85 shadow-[0_1px_3px_rgb(0_0_0/0.25)]' : 'bg-zinc-300'}`} />
+        {/* No scrollbar gutter: a desktop scrollbar would cut a strip beside the photo and square its corner. */}
+        <div ref={scrollRef} className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {mediaSlides.length > 0 ? (
             <div
               className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-100"
@@ -571,8 +586,8 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
               <DishDetails details={details} />
               {product.tags?.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
-                  {product.tags.map(tag => (
-                    <span key={tag} className="rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] font-medium text-zinc-700">{translateTag(tag, lang)}</span>
+                  {normalizeTags(product.tags).map(tag => (
+                    <span key={tag} className="rounded-full px-2.5 py-1 text-[12px] font-medium" style={tagStyle(tag)}>{translateTag(tag, lang)}</span>
                   ))}
                 </div>
               )}
@@ -728,10 +743,36 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
 
             {!showcase && ingredientCustomizationEnabled && defaultIngredients.length > 0 && (
               <section className="overflow-hidden rounded-2xl bg-white shadow-card">
-                <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2">
-                  <h3 className="text-[15px] font-semibold text-zinc-900">{copy.ingredients}</h3>
-                  <span className="text-[12px] font-medium text-zinc-500">{copy.ingredientsHint}</span>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setIngredientsOpen(open => !open)}
+                  aria-expanded={ingredientsOpen}
+                  aria-controls={`ingredients-${product.id}`}
+                  className={`flex w-full items-center justify-between gap-3 px-4 text-left ${ingredientsOpen ? 'pt-4 pb-2' : 'py-4'}`}
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-semibold text-zinc-900">{copy.ingredients}</span>
+                    {!ingredientsOpen && (
+                      <span className="mt-0.5 block truncate text-[13px] text-zinc-500">
+                        {(() => {
+                          // Collapsed: the guest's changes ("No Farofa · Extra Bacon"), else the ingredient names.
+                          const changes = defaultIngredients.flatMap(pi => {
+                            const v = ingredientSteppers[pi.ingredient_id] ?? 0
+                            if (v === -1) return [fill(copy.withoutNamed, { name: pi.ingredient.name })]
+                            if (v === 1) return [fill(copy.extraNamed, { name: pi.ingredient.name })]
+                            return []
+                          })
+                          return changes.length > 0 ? changes.join(' · ') : defaultIngredients.map(pi => pi.ingredient.name).join(', ')
+                        })()}
+                      </span>
+                    )}
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1 text-[12px] font-medium text-zinc-500">
+                    {ingredientsOpen ? copy.ingredientsHint : copy.edit}
+                    <ChevronDown className={`size-4 transition-transform ${ingredientsOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  </span>
+                </button>
+                {ingredientsOpen && <div id={`ingredients-${product.id}`}>
                 {defaultIngredients.map(pi => {
                   const value = ingredientSteppers[pi.ingredient_id] ?? 0
                   const count = value + 1
@@ -762,6 +803,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                   )
                 })}
                 <div className="h-1" />
+                </div>}
               </section>
             )}
 

@@ -3,6 +3,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { createServiceClient } from '@/lib/supabase/server'
 import { slugify } from '@/lib/utils'
 import { MENU_LANGUAGE_CODES } from '@/components/menu/menu-i18n'
+import { normalizeTags } from '@/lib/menu/dish-tags'
 import {
   checkDestructiveAllowed,
   errorResult,
@@ -202,6 +203,7 @@ export function registerMenuWriteTools(server: McpServer): void {
 
       const update: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(fields)) if (v !== undefined) update[k] = v
+      if (Array.isArray(update.tags)) update.tags = normalizeTags(update.tags as string[]) // one tag per dish
       if (Object.keys(update).length === 0) return errorResult('Nada para atualizar.')
 
       if (update.is_default === true) {
@@ -352,7 +354,7 @@ export function registerMenuWriteTools(server: McpServer): void {
           is_available: is_available ?? true,
           is_featured: is_featured ?? false,
           show_in_feed: show_in_feed ?? true,
-          tags: tags ?? [],
+          tags: normalizeTags(tags),
           position: position ?? 0,
         })
         .select()
