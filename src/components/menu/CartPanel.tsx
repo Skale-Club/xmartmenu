@@ -1,21 +1,30 @@
 'use client'
 
-import { useEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import Image from 'next/image'
 import { X, Minus, Plus, Trash2, ShoppingBag, ArrowRight, UtensilsCrossed } from 'lucide-react'
 import type { CartItem } from './menu-utils'
 import { getProductImages, summarizeOptions, summarizeIngredientMods } from './menu-utils'
 import { formatMoney, getMenuCopy, itemsLabel, fill } from './menu-i18n'
 import { computePrimaryForeground } from '@/lib/color-utils'
+import BottomSheet from '@/components/ui/BottomSheet'
 import { lockBodyScroll } from '@/components/ui/ModalPortal'
 
+// Tablets and computers (sm, 640px and up) keep the order in a drawer on the right.
+const WIDE = '(min-width: 640px)'
+function subscribeWide(onChange: () => void) {
+  const query = window.matchMedia(WIDE)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
 /**
- * Order drawer that opens over the menu, above a dimmed backdrop — the page
- * underneath never reflows. Closes on backdrop click or Escape.
- * - Tablet/desktop (sm+): a curtain from the right, 400px / 380px wide.
- * - Mobile: a bottom sheet at ~72% height. Tapping it (anywhere but a button)
- *   or dragging the handle up opens it full screen; dragging down shrinks it,
- *   then closes it. Checkout stays pinned at the bottom either way.
+ * The order, over the dimmed menu; Escape or a tap on the menu closes it, and
+ * checkout stays pinned at the bottom.
+ * - Phones: the iOS-style bottom sheet (BottomSheet). It opens at about 60%
+ *   height; the grabber or the header dragged up (or the grabber tapped) takes
+ *   it to nearly full height, dragged down shrinks it and then closes it.
+ * - Tablets and computers (sm+): a drawer on the right, 400px / 380px wide.
  */
 export default function CartPanel({
   cart, currency, lang, primaryColor, open,
@@ -32,125 +41,47 @@ export default function CartPanel({
   onRemove: (cartKey: string) => void
   onUpdateQuantity: (cartKey: string, quantity: number) => void
 }) {
-  const [expanded, setExpanded] = useState(false)
-  const dragStartY = useRef<number | null>(null)
-  const dragged = useRef(false)
-  const isExpanded = open && expanded
-
-  function close() {
-    setExpanded(false)
-    onClose()
-  }
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return
-      setExpanded(false)
-      onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    // The page behind an overlay must not scroll under the customer's finger.
-    // Shared, counted lock: checkout opening over the drawer keeps it locked.
-    const unlock = lockBodyScroll()
-    return () => {
-      window.removeEventListener('keydown', onKey)
-      unlock()
-    }
-  }, [open, onClose])
-
-  const isMobile = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
-
-  // Handle + header: a tap toggles full screen; a drag up expands, a drag down
-  // shrinks (or closes when already at sheet height).
-  function onGripPointerDown(e: PointerEvent) {
-    if (!isMobile()) return
-    // Pointer capture would retarget the click away from the close button.
-    if ((e.target as HTMLElement).closest('[data-close-cart]')) return
-    dragStartY.current = e.clientY
-    dragged.current = false
-    // Keep receiving the release even when the finger/mouse ends outside the grip.
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  function onGripPointerUp(e: PointerEvent) {
-    if (dragStartY.current === null) return
-    const dy = e.clientY - dragStartY.current
-    dragStartY.current = null
-    if (Math.abs(dy) < 8) return // a tap, handled by onClick
-    dragged.current = true
-    if (dy < -40) setExpanded(true)
-    else if (dy > 60) {
-      if (isExpanded) setExpanded(false)
-      else close()
-    }
-  }
-  function onGripClick(e: MouseEvent) {
-    if (!isMobile() || dragged.current) return
-    if ((e.target as HTMLElement).closest('[data-close-cart]')) return
-    setExpanded((v) => !v)
-  }
-  // Tapping the item list while it is a sheet opens it full screen, except on
-  // the item controls (quantity, remove, edit), which keep working as usual.
-  function onListClick(e: MouseEvent) {
-    if (isExpanded || !isMobile()) return
-    if ((e.target as HTMLElement).closest('button')) return
-    setExpanded(true)
-  }
-
   const subtotal = cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0)
   const count = cart.reduce((sum, item) => sum + item.quantity, 0)
   const copy = getMenuCopy(lang)
   const money = (value: number) => formatMoney(value, currency, lang)
   const onPrimary = computePrimaryForeground(primaryColor)
+  const wide = useSyncExternalStore(subscribeWide, () => window.matchMedia(WIDE).matches, () => false)
 
-  return (
-    <>
-      <div
-        className={`fixed inset-0 z-40 bg-zinc-950/40 backdrop-blur-[2px] transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={close}
-        aria-hidden="true"
-      />
+  // The drawer's own Escape and scroll lock (the bottom sheet gets both from ModalPortal).
+  useEffect(() => {
+    if (!wide || !open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    const unlock = lockBodyScroll()
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      unlock()
+    }
+  }, [wide, open, onClose])
 
-      <aside
-        className={`fixed inset-x-0 bottom-0 z-50 flex flex-col overflow-hidden bg-menu shadow-float transition-[translate,height,border-radius] duration-300 ease-out sm:inset-x-auto sm:top-0 sm:right-0 sm:h-full sm:w-[400px] sm:rounded-none lg:w-[380px] ${isExpanded ? 'h-[100dvh] rounded-none' : 'h-[72dvh] rounded-t-3xl'} ${open ? 'translate-y-0 sm:translate-x-0' : 'translate-y-full sm:translate-y-0 sm:translate-x-full'}`}
-        aria-label={copy.yourOrder}
-      >
-        {/* Grip (mobile): drag handle + header */}
-        <div
-          className="bg-white border-b border-zinc-100 touch-none sm:touch-auto"
-          onPointerDown={onGripPointerDown}
-          onPointerUp={onGripPointerUp}
-          onPointerCancel={() => { dragStartY.current = null }}
-          onClick={onGripClick}
-        >
-          <div className={`sm:hidden flex justify-center ${isExpanded ? 'pt-[max(0.625rem,env(safe-area-inset-top))]' : 'pt-2.5'}`}>
-            <button
-              type="button"
-              className="h-1.5 w-12 rounded-full bg-zinc-300"
-              aria-label={isExpanded ? copy.shrinkCart : copy.expandCart}
-            />
-          </div>
-          <div className="flex items-center justify-between px-5 pt-2 pb-3 sm:py-4">
-            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-zinc-900">
-              {copy.yourOrder}
-              {count > 0 && (
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[13px] font-semibold text-zinc-600">{count}</span>
-              )}
-            </h2>
-            <button
-              type="button"
-              data-close-cart
-              onClick={close}
-              className="flex size-10 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900"
-              aria-label={copy.closeCart}
-            >
-              <X className="size-5" />
-            </button>
-          </div>
+  const content = (
+      <>
+        {/* Header: on phones it drags the sheet like the grabber */}
+        <div data-sheet-grip={wide ? undefined : true} className={`flex shrink-0 items-center justify-between border-b border-zinc-100 bg-white px-5 ${wide ? 'py-4' : 'touch-none pt-0.5 pb-3'}`}>
+          <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-zinc-900">
+            {copy.yourOrder}
+            {count > 0 && (
+              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[13px] font-semibold text-zinc-600">{count}</span>
+            )}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="relative flex size-8 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-zinc-200 hover:text-zinc-900"
+            aria-label={copy.closeCart}
+          >
+            <X className="size-4" strokeWidth={2.5} />
+          </button>
         </div>
 
         {/* Items */}
-        <div className="flex-1 space-y-2.5 overflow-y-auto overscroll-contain p-4" onClick={onListClick}>
+        <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto overscroll-contain p-4">
           {cart.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 py-16 text-center">
               <div className="flex size-14 items-center justify-center rounded-full bg-zinc-100">
@@ -178,7 +109,7 @@ export default function CartPanel({
                         <button
                           type="button"
                           onClick={() => onRemove(item.cartKey)}
-                          className="-mr-1 -mt-1 flex size-8 flex-shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                          className="relative -mr-1 -mt-1 flex size-8 flex-shrink-0 before:absolute before:-inset-1.5 before:content-[''] items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-red-50 hover:text-red-600"
                           aria-label={fill(copy.removeNamed, { name: item.product.name })}
                         >
                           <Trash2 className="size-4" />
@@ -196,7 +127,7 @@ export default function CartPanel({
                           <button
                             type="button"
                             onClick={() => onUpdateQuantity(item.cartKey, item.quantity - 1)}
-                            className="flex size-8 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-zinc-100"
+                            className="relative flex size-8 items-center justify-center rounded-full text-zinc-700 transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-zinc-100"
                             aria-label={copy.decrease}
                           >
                             <Minus className="size-3.5" />
@@ -205,7 +136,7 @@ export default function CartPanel({
                           <button
                             type="button"
                             onClick={() => onUpdateQuantity(item.cartKey, item.quantity + 1)}
-                            className="flex size-8 items-center justify-center rounded-full text-zinc-700 transition-colors hover:bg-zinc-100"
+                            className="relative flex size-8 items-center justify-center rounded-full text-zinc-700 transition-colors before:absolute before:-inset-1.5 before:content-[''] hover:bg-zinc-100"
                             aria-label={copy.increase}
                           >
                             <Plus className="size-3.5" />
@@ -247,6 +178,39 @@ export default function CartPanel({
             </button>
           </div>
         )}
+      </>
+  )
+
+  if (!wide) {
+    return (
+      <BottomSheet
+        open={open}
+        onClose={onClose}
+        detents="medium-large"
+        ariaLabel={copy.yourOrder}
+        zIndexClassName="z-50"
+        expandLabel={copy.expandCart}
+        shrinkLabel={copy.shrinkCart}
+      >
+        {content}
+      </BottomSheet>
+    )
+  }
+
+  return (
+    <>
+      <div
+        className={`fixed inset-0 z-40 bg-zinc-950/40 backdrop-blur-[2px] transition-opacity duration-300 ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <aside
+        className={`fixed top-0 right-0 z-50 flex h-full w-[400px] flex-col overflow-hidden bg-menu shadow-float transition-transform duration-300 ease-out lg:w-[380px] ${open ? 'translate-x-0' : 'pointer-events-none translate-x-full'}`}
+        aria-label={copy.yourOrder}
+        aria-hidden={!open}
+        inert={!open}
+      >
+        {content}
       </aside>
     </>
   )
