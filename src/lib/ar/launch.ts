@@ -92,6 +92,17 @@ export function arFallbackUrl(href: string): string {
   return `${href.split('#')[0]}${AR_UNAVAILABLE_HASH}`
 }
 
+/** Scene Viewer cannot apply our database scale; serve a corrected GLB container. */
+export function sceneViewerModelUrl(glbUrl: string, scale: number | null | undefined, origin: string): string {
+  const correction = scale ?? 1
+  if (correction === 1) return glbUrl
+  if (!Number.isFinite(correction) || correction < 0.05 || correction > 20) throw new Error('Invalid model scale')
+  const url = new URL('/api/ar/scaled-model', origin)
+  url.searchParams.set('src', glbUrl)
+  url.searchParams.set('scale', String(Math.round(correction * 10000) / 10000))
+  return url.href
+}
+
 /** Quick Look's own button at the bottom of the AR view ("Add to order · R$ 34"). */
 export interface QuickLookAction {
   /** The button's text. */

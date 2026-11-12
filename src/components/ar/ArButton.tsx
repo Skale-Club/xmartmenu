@@ -39,6 +39,7 @@ import {
   openQuickLook,
   quickLookUrl,
   sceneViewerIntentUrl,
+  sceneViewerModelUrl,
   type ArPlatform,
 } from '@/lib/ar/launch'
 import { getArCopy } from './ar-copy'
@@ -127,6 +128,7 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
   const [scale, setScale] = useState(1)
   const moduleRef = useRef<DishSessionModule | null>(null)
   const sessionRef = useRef<DishSession | null>(null)
+  const sessionAbortRef = useRef<AbortController | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const gestureLayerRef = useRef<HTMLDivElement | null>(null)
 
@@ -161,13 +163,24 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
   }, [platform, model.glb_url])
 
   // Leaving the dish (or the menu) ends a running session.
-  useEffect(() => () => sessionRef.current?.end(), [])
+  useEffect(() => () => {
+    sessionAbortRef.current?.abort()
+    sessionRef.current?.end()
+  }, [])
+
+  function stopWebXr() {
+    sessionAbortRef.current?.abort()
+    sessionRef.current?.end()
+    setArActive(false)
+  }
 
   function startWebXr() {
     const viewer = moduleRef.current
     const overlay = overlayRef.current
     const gestureLayer = gestureLayerRef.current
-    if (!viewer || !overlay || !gestureLayer) return false
+    if (!viewer || !overlay || !gestureLayer || sessionAbortRef.current) return false
+    const controller = new AbortController()
+    sessionAbortRef.current = controller
     setStage('scanning')
     setScale(1)
     setArActive(true)
@@ -177,17 +190,30 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
       modelScale: model.scale ?? 1,
       overlay,
       gestureLayer,
+      signal: controller.signal,
       onStage: setStage,
       onScale: setScale,
-      onEnd: () => { sessionRef.current = null; setArActive(false) },
-    }).then(session => { sessionRef.current = session })
-      .catch(() => { setArActive(false); setNotice(copy.arUnavailable) })
+      onEnd: () => {
+        if (sessionAbortRef.current !== controller) return
+        sessionAbortRef.current = null
+        sessionRef.current = null
+        if (!controller.signal.aborted) setArActive(false)
+      },
+    }).then(session => {
+      if (controller.signal.aborted || sessionAbortRef.current !== controller) session.end()
+      else sessionRef.current = session
+    }).catch(() => {
+      if (controller.signal.aborted || (sessionAbortRef.current && sessionAbortRef.current !== controller)) return
+      if (sessionAbortRef.current === controller) sessionAbortRef.current = null
+      setArActive(false)
+      setNotice(copy.arUnavailable)
+    })
     return true
   }
 
   /** "Choose options": leave the camera, then let the sheet show the missing choice. */
   function chooseFromCamera() {
-    sessionRef.current?.end()
+    stopWebXr()
     cart?.onChoose()
   }
 
@@ -255,7 +281,7 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
       }
       onArLaunch?.()
       window.location.href = sceneViewerIntentUrl({
-        glbUrl: model.glb_url,
+        glbUrl: sceneViewerModelUrl(model.glb_url, model.scale, window.location.origin),
         title: name,
         fallbackUrl: arFallbackUrl(window.location.href),
         realScale: model.real_scale,
@@ -292,7 +318,7 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
           cart={cart}
           overlayRef={overlayRef}
           gestureLayerRef={gestureLayerRef}
-          onExit={() => sessionRef.current?.end()}
+          onExit={stopWebXr}
           onResetScale={() => sessionRef.current?.resetScale()}
           onChoose={chooseFromCamera}
         />

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AR_UNAVAILABLE_HASH, arFallbackUrl, arPlatform, isComputer, quickLookUrl, sceneViewerIntentUrl } from '@/lib/ar/launch'
+import { AR_UNAVAILABLE_HASH, arFallbackUrl, arPlatform, isComputer, quickLookUrl, sceneViewerIntentUrl, sceneViewerModelUrl } from '@/lib/ar/launch'
 
 const UA = {
   android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
@@ -80,6 +80,21 @@ describe('arFallbackUrl', () => {
   it('replaces any hash of the page with the AR-unavailable hash', () => {
     expect(arFallbackUrl('https://m.example.com/aurora?lang=pt')).toBe(`https://m.example.com/aurora?lang=pt${AR_UNAVAILABLE_HASH}`)
     expect(arFallbackUrl('https://m.example.com/aurora#dish')).toBe(`https://m.example.com/aurora${AR_UNAVAILABLE_HASH}`)
+  })
+})
+
+describe('Scene Viewer scale correction', () => {
+  it('keeps baked models on the CDN and routes corrected models to a scaled GLB', () => {
+    const glb = 'https://images.example/a.glb'
+    expect(sceneViewerModelUrl(glb, 1, 'https://menu.example')).toBe(glb)
+    expect(sceneViewerModelUrl(glb, null, 'https://menu.example')).toBe(glb)
+    const corrected = new URL(sceneViewerModelUrl(glb, 0.3, 'https://menu.example'))
+    expect(corrected.origin).toBe('https://menu.example')
+    expect(corrected.pathname).toBe('/api/ar/scaled-model')
+    expect(corrected.searchParams.get('src')).toBe(glb)
+    expect(corrected.searchParams.get('scale')).toBe('0.3')
+    expect(sceneViewerIntentUrl({ glbUrl: corrected.href, title: 'Dish', realScale: true, fallbackUrl: 'https://menu.example' }))
+      .toContain(encodeURIComponent(corrected.href))
   })
 })
 
