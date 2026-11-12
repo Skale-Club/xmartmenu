@@ -4,13 +4,12 @@ import { slugify } from '@/lib/utils'
 import { z } from 'zod'
 import { RESERVED_PATHS } from '@/lib/marketing/reserved-paths'
 import { enqueueXphereSync } from '@/lib/xphere/queue'
-import { ownedAuthSelected,ownedSessionToken } from '@/lib/auth/owned-principal'
-import { createHash } from 'node:crypto'
+import { ownedAuthSelected } from '@/lib/auth/owned-principal'
 import { publishPendingNativeTenantEffects } from '@/lib/tenant-effects/publish-pending'
-import { getOwnedPrincipal } from '@/lib/auth/owned-principal-runtime'
-import { getIdentityServices } from '@/lib/auth/identity-services'
 import { ownedAdminTransaction } from '@/lib/data/admin-menus-runtime'
 import { nativeOnboarding, NativeOnboardingDenied } from '@/lib/auth/native-onboarding'
+import { ownedApplicantContext } from '@/lib/access-requests/applicant-context'
+import { selfServiceOnboardingEnabled } from '@/lib/access-requests/switch'
 
 const CUISINE_PALETTES: Record<string, { primary: string; accent: string }> = {
   pizza:        { primary: '#E74C3C', accent: '#FFFFFF' },
@@ -49,26 +48,10 @@ const onboardingSchema = z.object({
   product_price: z.coerce.number().min(0).max(1_000_000).optional(),
 })
 
-async function ownedAccount(request: Request) {
-  if (process.env.OWNED_ONBOARDING_ENABLED !== 'true') throw new Error('Onboarding unavailable')
-  const origin = new URL(getIdentityServices().config.origin)
-  if (request.headers.get('host')?.toLowerCase() !== origin.host.toLowerCase()
-    || request.headers.get('sec-fetch-site') === 'cross-site'
-    || (request.method === 'POST' && request.headers.get('origin') !== origin.origin)
-    || /(?:^|;)\s*(?:preview_tenant_id|xm_demo)=/.test(request.headers.get('cookie') ?? '')) throw new NativeOnboardingDenied('Origin or mode denied')
-  const principal = await getOwnedPrincipal()
-  if (!principal) throw new NativeOnboardingDenied('Authentication required')
-  const token=ownedSessionToken(request.headers.get('cookie'),origin.protocol==='https:')
-  if(!token)throw new NativeOnboardingDenied('Current browser session required')
-  const session=await getIdentityServices().store.session(token)
-  if(!session||session.userId!==principal.userId)throw new NativeOnboardingDenied('Current browser session required')
-  return {...principal,sessionHash:createHash('sha256').update(token).digest('hex')}
-}
-
 export async function GET(request: Request) {
   if (!ownedAuthSelected()) return NextResponse.json({ error: 'Not found' },{ status: 404 })
   try {
-    const principal = await ownedAccount(request)
+    const principal = await ownedApplicantContext(request)
     const state = await ownedAdminTransaction(true,query => nativeOnboarding(query,principal.userId,principal.sessionHash))
     return NextResponse.json(state,{ headers: { 'Cache-Control': 'no-store' } })
   } catch (error) { return NextResponse.json({ error: 'Onboarding is unavailable.' },{ status: error instanceof NativeOnboardingDenied ? 403 : 503 }) }
@@ -76,7 +59,7 @@ export async function GET(request: Request) {
 
 async function ownedPost(request: Request) {
   try {
-    const principal = await ownedAccount(request)
+    const principal = await ownedApplicantContext(request)
     const body = await request.text()
     if (body.length > 12000) return NextResponse.json({ error: 'Invalid onboarding data' },{ status: 400 })
     const parsed = onboardingSchema.strict().safeParse(JSON.parse(body))
@@ -88,7 +71,7 @@ async function ownedPost(request: Request) {
       full_name: data.responsible_name?.trim() || principal.fullName,phone: data.phone?.trim() || null,address: data.address?.trim() || null,
       primary_color: palette.primary,accent_color: palette.accent,menu_name: data.menu_name.trim(),menu_slug: slugify(data.menu_name) || 'menu',
       menu_purpose: sanitizeMenuPurpose(data.business_type),category_name: data.category_name.trim(),product_name: data.product_name.trim(),product_price: data.product_price ?? 0 }
-    const current=await ownedAccount(request)
+    const current=await ownedApplicantContext(request)
     if(current.userId!==principal.userId||current.sessionHash!==principal.sessionHash)throw new NativeOnboardingDenied('Onboarding actor changed')
     const done = await ownedAdminTransaction(true,query => nativeOnboarding(query,current.userId,current.sessionHash,input))
     if (!('tenant_id' in done)) throw new Error('Onboarding failed')
@@ -101,6 +84,8 @@ async function ownedPost(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // Server-side lock: restaurants are created only by approving an access request.
+  if (!selfServiceOnboardingEnabled()) return NextResponse.json({ error: 'Self-service onboarding is disabled.' }, { status: 403, headers: { 'Cache-Control': 'no-store' } })
   if (ownedAuthSelected()) return ownedPost(request)
   try {
     const supabase = await createClient()
