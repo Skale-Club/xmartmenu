@@ -48,14 +48,17 @@ if [ -z "${deployment_uuid}" ]; then
   exit 1
 fi
 
-for attempt in $(seq 1 60); do
+# Up to 15 minutes (180 x 5 s). 5 minutes was too short: on 2026-11-12 Coolify
+# finished deploy daf8169 27 s after the old limit and the run showed red.
+wait_attempts="${COOLIFY_WAIT_ATTEMPTS:-180}"
+for attempt in $(seq 1 "${wait_attempts}"); do
   status="$(api "${COOLIFY_BASE}/api/v1/deployments/${deployment_uuid}" | jq -r '.status // empty')"
-  echo "Coolify status (${attempt}/60): ${status:-unknown}"
+  echo "Coolify status (${attempt}/${wait_attempts}): ${status:-unknown}"
   case "${status}" in
     finished) break ;;
     failed|cancelled-by-user) echo "::error::Coolify deployment ${status}."; exit 1 ;;
   esac
-  if [ "${attempt}" -eq 60 ]; then echo "::error::Timed out waiting for Coolify."; exit 1; fi
+  if [ "${attempt}" -eq "${wait_attempts}" ]; then echo "::error::Timed out waiting for Coolify after $(( wait_attempts * 5 / 60 )) minutes."; exit 1; fi
   sleep 5
 done
 
