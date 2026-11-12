@@ -45,6 +45,8 @@ export interface ModelViewerProps {
   onArAvailability?: (available: boolean) => void
   onError?: () => void
   className?: string
+  /** Starting camera, e.g. "30deg 60deg auto" (from above, like a dish on a table). */
+  cameraOrbit?: string
 }
 
 type ModelViewerElement = HTMLElement & { canActivateAR?: boolean }
@@ -60,6 +62,7 @@ export default function ModelViewer({
   onArAvailability,
   onError,
   className,
+  cameraOrbit,
 }: ModelViewerProps) {
   const [libraryReady, setLibraryReady] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -122,6 +125,7 @@ export default function ModelViewer({
       ar-scale={realScale ? 'fixed' : 'auto'}
       ar-placement="floor"
       camera-controls
+      camera-orbit={cameraOrbit}
       touch-action="pan-y"
       auto-rotate
       rotation-per-second="20deg"

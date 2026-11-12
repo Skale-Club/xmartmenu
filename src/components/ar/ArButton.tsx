@@ -23,6 +23,8 @@
  *             cart, Quick Look shows its own "Add to order" button: a dish
  *             without choices is added, one with choices comes back to them.
  *   other     no button: a computer (or an iPhone in-app browser) has no AR camera.
+ *             On a computer the dish sheet offers its 3D viewer instead
+ *             (useIsComputer, ProductModal + ModelViewer).
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -33,6 +35,7 @@ import {
   arFallbackUrl,
   arPlatform,
   currentArEnvironment,
+  isComputer,
   openQuickLook,
   quickLookUrl,
   sceneViewerIntentUrl,
@@ -84,15 +87,28 @@ export function useArPlatform(): ArPlatform | null {
   return platform
 }
 
+/** True on a computer (no phone or tablet), known only in the browser: the dish sheet shows a 3D viewer. */
+export function useIsComputer(): boolean {
+  const [computer, setComputer] = useState(false)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the device is only known after mount
+    setComputer(isComputer(currentArEnvironment()))
+  }, [])
+  return computer
+}
+
 /**
- * The small cube on a dish card's photo: "this dish can be seen on your table".
- * Not a button (the card opens the dish, where the AR button is); hidden where AR cannot open.
+ * The small cube on a dish card's photo: "this dish can be seen on your table"
+ * (on a computer: "in 3D", in the dish sheet's viewer). Not a button (the card
+ * opens the dish); hidden where neither AR nor the viewer is available.
  */
 export function ArBadge({ lang, className }: { lang: string; className?: string }) {
   const platform = useArPlatform()
-  if (!platform) return null
+  const computer = useIsComputer()
+  if (!platform && !computer) return null
+  const label = platform ? getArCopy(lang).available : getArCopy(lang).view3d
   return (
-    <span role="img" aria-label={getArCopy(lang).available} title={getArCopy(lang).available} className={className}>
+    <span role="img" aria-label={label} title={label} className={className}>
       <Box className="size-3.5" strokeWidth={2} aria-hidden />
     </span>
   )

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AR_UNAVAILABLE_HASH, arFallbackUrl, arPlatform, quickLookUrl, sceneViewerIntentUrl } from '@/lib/ar/launch'
+import { AR_UNAVAILABLE_HASH, arFallbackUrl, arPlatform, isComputer, quickLookUrl, sceneViewerIntentUrl } from '@/lib/ar/launch'
 
 const UA = {
   android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
@@ -26,6 +26,20 @@ describe('arPlatform', () => {
   it('has no AR camera on a computer', () => {
     expect(arPlatform({ userAgent: UA.windows, quickLook: false })).toBeNull()
     expect(arPlatform({ userAgent: UA.ipadDesktop, quickLook: false, maxTouchPoints: 0 })).toBeNull()
+  })
+})
+
+describe('isComputer (the dish shows in a 3D viewer in the page)', () => {
+  it('is true on Windows and on a Mac without touch', () => {
+    expect(isComputer({ userAgent: UA.windows, quickLook: false })).toBe(true)
+    expect(isComputer({ userAgent: UA.ipadDesktop, quickLook: false, maxTouchPoints: 0 })).toBe(true)
+  })
+
+  it('is false on phones and tablets, even without an AR route', () => {
+    expect(isComputer({ userAgent: UA.android, quickLook: false })).toBe(false)
+    expect(isComputer({ userAgent: UA.iphone, quickLook: false })).toBe(false)
+    expect(isComputer({ userAgent: UA.iphone, quickLook: true })).toBe(false)
+    expect(isComputer({ userAgent: UA.ipadDesktop, quickLook: false, maxTouchPoints: 5 })).toBe(false)
   })
 })
 

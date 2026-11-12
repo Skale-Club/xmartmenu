@@ -10,7 +10,10 @@
  *             fallback URL, which carries AR_UNAVAILABLE_HASH.
  *   iOS       AR Quick Look with the dish's USDZ (made from the GLB when the
  *             model is uploaded; made on the phone if it is missing).
- *   other     no AR camera: the caller shows a QR code to open on a phone.
+ *   computer  no AR camera: the dish sheet shows the model in a 3D viewer in
+ *             the page instead (turn it with the mouse, zoom with the wheel;
+ *             owner decision 2026-11-12, computers only). iPhone in-app
+ *             browsers get neither.
  *
  * Both viewers place the dish at its modelled size (metres) on the table;
  * scaling is turned off when the model is at real scale.
@@ -40,6 +43,19 @@ export function arPlatform(env: ArEnvironment): ArPlatform | null {
   if (iOS) return null // Quick Look missing (an in-app browser): no AR route on iOS
   if (/Android/i.test(ua)) return 'scene-viewer'
   return null
+}
+
+/**
+ * A computer: no phone or tablet (no AR camera at all), so the dish is shown in
+ * a 3D viewer in the page instead. False on any iPhone/iPad (even an in-app
+ * browser or an iPad with a desktop user agent) and on Android.
+ */
+export function isComputer(env: ArEnvironment): boolean {
+  if (env.quickLook) return false
+  const ua = env.userAgent
+  if (/iPhone|iPad|iPod|Android|Mobile/i.test(ua)) return false
+  if (/Macintosh/.test(ua) && (env.maxTouchPoints ?? 0) > 1) return false
+  return true
 }
 
 /** The device's AR environment, read in the browser. */

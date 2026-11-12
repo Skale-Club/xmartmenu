@@ -2,8 +2,9 @@
 
 Guests open a dish, tap **See it on your table** (pt: **Ver na sua mesa**), and the phone's camera opens with the
 dish placed on their table at its real size, like a shop's "view in your
-room". There is no 3D view in the page (owner decision, 2026-11-09): the only
-point is seeing the portion on the table. Restaurants upload the model in the
+room". On phones there is no 3D view in the page (owner decision, 2026-11-09):
+the only point is seeing the portion on the table. Computers, which have no AR
+camera, show the dish in a 3D viewer in the page instead (2026-11-12). Restaurants upload the model in the
 dish editor (Media tab › *3D & augmented reality*).
 
 This document covers the foundation that is in place and what is still open.
@@ -14,7 +15,8 @@ This document covers the foundation that is in place and what is still open.
 |---|---|---|
 | Android | Our WebXR viewer in the browser (`src/lib/ar/webxr-dish-session.ts`, three.js, UI in `src/components/ar/WebXrDishViewer.tsx`): the camera looks for a surface facing up first (nothing is shown while scanning), a ring and a see-through dish mark where it will go, a tap places it at real size (XR anchor when available). One finger drags it along the table, two fingers turn it and resize it (50–300 %, snapping to 100 %; chip shows "Real size" or the % with a button back). A gesture hint shows after placing (and from "?"). The order bar adds the dish to the cart without leaving the camera, or, for dishes with required choices, leaves it and points at the missing choice. Chrome asks once to allow the 3D map of the surroundings. Without WebXR AR: Scene Viewer intent through the Google app (`#ar-unavailable` notice without it). `<model-viewer>` placed the dish floating and only snapped its height to the first floor it saw, hence our own viewer (2026-11-10). | GLB |
 | iPhone / iPad (Safari, any browser with `rel="ar"`) | AR Quick Look: finds the table itself, places the dish at real size, lets the guest resize it (shows the %, snaps back to 100 %). With a cart, Quick Look's own button (`#callToAction=…&checkoutTitle=…&checkoutSubtitle=…`, `message` event `_apple_ar_quicklook_button_tapped` on the `<a rel="ar">`) adds the dish, or leads back to its choices | USDZ (made at the dish's real size); an old model without one is converted on the phone first |
-| Computer, iOS in-app browsers | no button | — |
+| Computer | No AR camera, so the dish sheet shows **View in 3D** (pt: **Ver em 3D**) instead: the photo is swapped for the model in `<model-viewer>` (turn with the mouse, zoom with the wheel, slow auto-rotate, camera from above). **Back to photo** brings the photo back; the next dish opens on its photo. The library loads only on that click. Dish cards show the cube too. Owner decision 2026-11-12: an in-page 3D view on computers only; phones keep going straight to AR. `isComputer` in `launch.ts` (no iPhone/iPad/Android/"Mobile" user agent, not an iPad posing as a Mac). | GLB |
+| iOS in-app browsers | no button | — |
 
 `src/lib/ar/launch.ts` picks the route and builds the URLs (pure, tested);
 `src/components/ar/ArButton.tsx` is the button. Nothing heavy loads for
@@ -40,7 +42,7 @@ a binary (usdc) repack with JPEG textures is ~3 MB (see follow-ups).
 | Back office UI | `src/app/(admin)/menu/products/[id]/ProductArTab.tsx` (owned API, or Supabase in legacy mode) |
 | Guest button and AR launch | `src/components/ar/ArButton.tsx`, `ar-copy.ts` (15 languages), `src/lib/ar/launch.ts` |
 | iOS file from the GLB | `src/lib/ar/usdz-export.ts` (back office on upload; phone fallback) |
-| Back-office preview only | `src/components/ar/ModelViewer.tsx` (`@google/model-viewer`) |
+| 3D viewer: back-office preview, and the dish sheet on computers | `src/components/ar/ModelViewer.tsx` (`@google/model-viewer`, loaded on demand); `ProductModal` (`useIsComputer`, `view3d`/`viewPhoto`/`turnHint` in `ar-copy.ts`, 15 languages) |
 | Public menu | `productArModelByProductId`: owned loader `src/lib/data/public-menu.ts`, legacy loader `src/lib/menu/public-menu-data.ts` → `MenuPage` → `ProductModal` |
 | Analytics | `model_viewer_opened` (button tapped), `ar_launched` (AR viewer opened); client events, `source: 'detail'` |
 | Headers | `Permissions-Policy: xr-spatial-tracking=(self)` in `next.config.ts` |

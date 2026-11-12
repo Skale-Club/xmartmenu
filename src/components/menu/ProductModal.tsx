@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
-import { Camera, Check, ChevronDown, ChevronLeft, ChevronRight, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
-import ArButton from '@/components/ar/ArButton'
+import { Box, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Image as ImageIcon, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
+import ArButton, { useIsComputer } from '@/components/ar/ArButton'
+import ModelViewer from '@/components/ar/ModelViewer'
+import { getArCopy } from '@/components/ar/ar-copy'
 import type { DishDetail } from '@/lib/public-dish-details'
 import DishDetails from './DishDetails'
 import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia, PublicProductArModel } from '@/types/database'
@@ -123,6 +125,12 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
   })().concat(extraImages.map(url => ({ type: 'image' as const, url })))
 
   const [slideIndex, setSlideIndex] = useState(0)
+  // Computers have no AR camera: the photo can be swapped for the 3D model. Kept
+  // per dish id, so moving to the next dish goes back to its photo.
+  const computer = useIsComputer()
+  const [view3dFor, setView3dFor] = useState<string | null>(null)
+  const desktop3d = !!arModel && computer
+  const showing3d = desktop3d && view3dFor === product.id
   const hasManySlides = mediaSlides.length > 1
   // Keep legacy aliases so the rest of the code still works
   const images = mediaSlides.filter(s => s.type === 'image').map(s => s.url)
@@ -459,8 +467,25 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
     </button>
   )
 
-  // Opens the phone's AR camera with the dish on the table; renders nothing on a computer.
-  const view3dButton = arModel ? (
+  const arCopy = getArCopy(lang)
+  // Computer: swaps the photo for the 3D viewer and back.
+  const desktop3dButton = desktop3d ? (
+    <button
+      type="button"
+      onClick={() => {
+        if (!showing3d) onModelViewerOpened?.()
+        setView3dFor(showing3d ? null : product.id)
+      }}
+      aria-pressed={showing3d}
+      className="flex h-10 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-sm font-semibold text-zinc-900 shadow-sm transition-[scale] hover:bg-white active:scale-95"
+    >
+      {showing3d ? <ImageIcon className="size-4" aria-hidden /> : <Box className="size-4" aria-hidden />}
+      {showing3d ? arCopy.viewPhoto : arCopy.view3d}
+    </button>
+  ) : null
+
+  // Phones: opens the AR camera with the dish on the table (renders nothing on a computer).
+  const view3dButton = desktop3dButton ?? (arModel ? (
     <ArButton
       key={product.id}
       model={arModel}
@@ -478,7 +503,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
       } : null}
       className="flex h-10 items-center gap-1.5 rounded-full bg-white/95 px-3.5 text-sm font-semibold text-zinc-900 shadow-sm transition-[scale] hover:bg-white active:scale-95"
     />
-  ) : null
+  ) : null)
 
   // Phones: a sheet from the bottom. Larger screens: centred, never taller than the viewport.
   return (
@@ -511,15 +536,31 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
         <span aria-hidden="true" className={`pointer-events-none absolute top-2 left-1/2 z-10 h-[5px] w-9 -translate-x-1/2 rounded-full sm:hidden ${mediaSlides.length > 0 ? 'bg-white/85 shadow-[0_1px_3px_rgb(0_0_0/0.25)]' : 'bg-zinc-300'}`} />
         {/* No scrollbar gutter: a desktop scrollbar would cut a strip beside the photo and square its corner. */}
         <div ref={scrollRef} className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {mediaSlides.length > 0 ? (
+          {mediaSlides.length > 0 || showing3d ? (
             <div
               className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-100"
-              onTouchStart={handleTouchStart}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={handleTouchEnd}
-              onTouchCancel={handleTouchEnd}
+              onTouchStart={showing3d ? undefined : handleTouchStart}
+              onTouchMove={showing3d ? undefined : handleTouchMove}
+              onTouchEnd={showing3d ? undefined : handleTouchEnd}
+              onTouchCancel={showing3d ? undefined : handleTouchEnd}
             >
-              {mediaSlides[slideIndex]?.type === 'video' ? (
+              {showing3d && arModel ? (
+                <>
+                  {/* Computer only: turn the dish with the mouse, zoom with the wheel. */}
+                  <ModelViewer
+                    key={arModel.glb_url}
+                    src={arModel.glb_url}
+                    iosSrc={arModel.usdz_url}
+                    poster={mediaSlides.find(slide => slide.type === 'image')?.url ?? null}
+                    alt={product.name}
+                    realScale={arModel.real_scale}
+                    arLabel={arCopy.viewOnTable}
+                    cameraOrbit="20deg 58deg auto"
+                    className="absolute inset-0 size-full bg-gradient-to-b from-zinc-50 to-zinc-200"
+                  />
+                  <p className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs font-medium text-zinc-500">{arCopy.turnHint}</p>
+                </>
+              ) : mediaSlides[slideIndex]?.type === 'video' ? (
                 <VideoSlide url={mediaSlides[slideIndex].url} />
               ) : (
                 <Image
@@ -533,7 +574,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
               )}
               {view3dButton && <div className="absolute top-3 left-3 z-10">{view3dButton}</div>}
               <div className="absolute top-3 right-3 z-10">{closeButton}</div>
-              {hasManySlides && (
+              {hasManySlides && !showing3d && (
                 <>
                   <button
                     type="button"

@@ -30,6 +30,13 @@ export interface ArCopy {
   close: string
   /** "?" button: shows the gestures again. */
   help: string
+  // Computers (no AR camera): the dish sheet's 3D viewer.
+  /** Button that swaps the dish photo for the 3D model. */
+  view3d: string
+  /** Button that brings the photo back. */
+  viewPhoto: string
+  /** Over the 3D model: mouse controls. */
+  turnHint: string
 }
 
 const en: ArCopy = {
@@ -46,6 +53,9 @@ const en: ArCopy = {
   added: 'Added ✓ · {count} in your order',
   close: 'Close',
   help: 'How to use',
+  view3d: 'View in 3D',
+  viewPhoto: 'Back to photo',
+  turnHint: 'Drag to turn · Scroll to zoom',
 }
 
 const COPY: Record<string, ArCopy> = {
@@ -64,6 +74,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'Adicionado ✓ · {count} no pedido',
     close: 'Fechar',
     help: 'Como usar',
+    view3d: 'Ver em 3D',
+    viewPhoto: 'Ver foto',
+    turnHint: 'Arraste para girar · Role para aproximar',
   },
   es: {
     viewOnTable: 'Ver en tu mesa',
@@ -79,6 +92,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'Añadido ✓ · {count} en tu pedido',
     close: 'Cerrar',
     help: 'Cómo usar',
+    view3d: 'Ver en 3D',
+    viewPhoto: 'Ver foto',
+    turnHint: 'Arrastra para girar · Desplázate para acercar',
   },
   fr: {
     viewOnTable: 'Voir sur votre table',
@@ -94,6 +110,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'Ajouté ✓ · {count} dans la commande',
     close: 'Fermer',
     help: 'Mode d’emploi',
+    view3d: 'Voir en 3D',
+    viewPhoto: 'Voir la photo',
+    turnHint: 'Faites glisser pour tourner · Molette pour zoomer',
   },
   de: {
     viewOnTable: 'Auf Ihrem Tisch ansehen',
@@ -109,6 +128,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'Hinzugefügt ✓ · {count} in der Bestellung',
     close: 'Schließen',
     help: 'So geht’s',
+    view3d: 'In 3D ansehen',
+    viewPhoto: 'Foto ansehen',
+    turnHint: 'Ziehen zum Drehen · Scrollen zum Zoomen',
   },
   it: {
     viewOnTable: 'Vedi sul tuo tavolo',
@@ -124,6 +146,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'Aggiunto ✓ · {count} nell’ordine',
     close: 'Chiudi',
     help: 'Come si usa',
+    view3d: 'Vedi in 3D',
+    viewPhoto: 'Vedi foto',
+    turnHint: 'Trascina per ruotare · Scorri per lo zoom',
   },
   nl: {
     viewOnTable: 'Bekijk op je tafel',
@@ -139,6 +164,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'Toegevoegd ✓ · {count} in je bestelling',
     close: 'Sluiten',
     help: 'Zo werkt het',
+    view3d: 'Bekijk in 3D',
+    viewPhoto: 'Bekijk foto',
+    turnHint: 'Sleep om te draaien · Scroll om te zoomen',
   },
   pl: {
     viewOnTable: 'Zobacz na swoim stole',
@@ -154,6 +182,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'Dodano ✓ · {count} w zamówieniu',
     close: 'Zamknij',
     help: 'Jak używać',
+    view3d: 'Zobacz w 3D',
+    viewPhoto: 'Zobacz zdjęcie',
+    turnHint: 'Przeciągnij, by obrócić · Przewiń, by przybliżyć',
   },
   tr: {
     viewOnTable: 'Masanızda görün',
@@ -169,6 +200,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'Eklendi ✓ · siparişte {count}',
     close: 'Kapat',
     help: 'Nasıl kullanılır',
+    view3d: '3B görüntüle',
+    viewPhoto: 'Fotoğrafı gör',
+    turnHint: 'Döndürmek için sürükleyin · Yakınlaştırmak için kaydırın',
   },
   ru: {
     viewOnTable: 'Посмотреть на столе',
@@ -184,6 +218,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'Добавлено ✓ · в заказе {count}',
     close: 'Закрыть',
     help: 'Как пользоваться',
+    view3d: 'Смотреть в 3D',
+    viewPhoto: 'Смотреть фото',
+    turnHint: 'Перетащите, чтобы повернуть · Прокрутите для масштаба',
   },
   hi: {
     viewOnTable: 'अपनी टेबल पर देखें',
@@ -199,6 +236,9 @@ const COPY: Record<string, ArCopy> = {
     added: 'जोड़ा गया ✓ · ऑर्डर में {count}',
     close: 'बंद करें',
     help: 'कैसे इस्तेमाल करें',
+    view3d: '3D में देखें',
+    viewPhoto: 'फ़ोटो देखें',
+    turnHint: 'घुमाने के लिए खींचें · ज़ूम के लिए स्क्रॉल करें',
   },
   ja: {
     viewOnTable: 'テーブルで見る',
@@ -214,6 +254,9 @@ const COPY: Record<string, ArCopy> = {
     added: '追加しました ✓ ・注文 {count} 点',
     close: '閉じる',
     help: '使い方',
+    view3d: '3Dで見る',
+    viewPhoto: '写真を見る',
+    turnHint: 'ドラッグで回転・スクロールで拡大',
   },
   ko: {
     viewOnTable: '테이블에서 보기',
@@ -229,6 +272,9 @@ const COPY: Record<string, ArCopy> = {
     added: '추가됨 ✓ · 주문 {count}개',
     close: '닫기',
     help: '사용 방법',
+    view3d: '3D로 보기',
+    viewPhoto: '사진 보기',
+    turnHint: '드래그해서 회전 · 스크롤로 확대',
   },
   zh: {
     viewOnTable: '在餐桌上查看',
@@ -244,6 +290,9 @@ const COPY: Record<string, ArCopy> = {
     added: '已加入 ✓ · 订单共 {count} 份',
     close: '关闭',
     help: '使用方法',
+    view3d: '3D 查看',
+    viewPhoto: '查看照片',
+    turnHint: '拖动旋转 · 滚动缩放',
   },
   'zh-TW': {
     viewOnTable: '在餐桌上檢視',
@@ -259,6 +308,9 @@ const COPY: Record<string, ArCopy> = {
     added: '已加入 ✓ · 訂單共 {count} 份',
     close: '關閉',
     help: '使用方法',
+    view3d: '3D 檢視',
+    viewPhoto: '查看照片',
+    turnHint: '拖曳旋轉 · 捲動縮放',
   },
 }
 
