@@ -31,3 +31,19 @@ They cover model routing (the session model plans and validates, cheaper models 
 This file adds only what is specific to this repository.
 <!-- /universal-rules -->
 
+<!-- media-policy:v1 -->
+## Media optimization (mandatory)
+
+Follow [the application-wide media policy](docs/product/media-policy.md) for every
+image and video across all tenants, screens, uploads, AI generation, imports,
+scripts, checked-in assets and production edits. Optimize and verify actual
+encoded byte limits before publication; staging is not publication. Never
+publish an unoptimized original when conversion fails or is unavailable.
+Use responsive/CDN delivery, lazy media and optimized posters, and protect
+ingestion with bounded input, queues, concurrency and compute/resource limits.
+Format-specific assets still need explicit budgets. The policy records current
+implementation gaps; do not claim they are fixed. New paths must enforce it.
+Profile changes need evidence/tests and a Journal decision; never add a silent
+bypass. Existing production/release authorization rules apply.
+<!-- /media-policy -->
+

@@ -38,6 +38,8 @@ Migration status, account-preservation rules and deployment coordination are in
 
 The application uses the Next.js App Router under `src/app`.
 
+Every image and video must follow the mandatory [application-wide media policy](docs/product/media-policy.md): optimized bytes before publication, fast delivery, and bounded server processing.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
