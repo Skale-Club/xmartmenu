@@ -2,7 +2,7 @@
 
 A restaurant can have its own address on our domain, for example
 `https://aurora.xmartmenu.skale.club/` instead of
-`https://xmartmenu.skale.club/aurora-kitchen-bar`. It is **opt-in per
+`https://xmartmenu.skale.club/aurora`. It is **opt-in per
 restaurant**: most keep the slug path, the ones that want (or that we want to
 give) a subdomain get one. A verified custom domain (`menu.aurora.com`) still
 wins over both.
