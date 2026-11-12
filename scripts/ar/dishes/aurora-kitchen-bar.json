@@ -1,0 +1,34 @@
+{
+  "$comment": "AR dish sizes for Aurora Kitchen & Bar. The owner sets each dish's size here; scripts/ar/publish-dish.mjs applies it. Sizes are the dish as it sits on the table, in cm: plate_cm = plate diameter (the plate is drawn in Blender), food_cm = the food's largest side when it is first placed on the plate, height_cm = height for drinks (no plate). A dish without plate_cm/food_cm/height_cm takes its category's default.",
+  "tenant_slug": "aurora",
+  "tenant_id": "b5f74b1e-4d7f-4d17-8ea0-c3a1a42ae808",
+  "photos": "public/brands/aurora-kitchen-bar",
+  "defaults": {
+    "main": { "plate_cm": 30, "food_ratio": 0.75 },
+    "starter": { "plate_cm": 23, "food_ratio": 0.75 },
+    "dessert": { "plate_cm": 21, "food_ratio": 0.5 },
+    "drink": {}
+  },
+  "dishes": {
+    "italian-bruschetta": { "product": "Italian Bruschetta", "category": "starter" },
+    "beef-carpaccio": { "product": "Beef Carpaccio", "category": "starter", "food_ratio": 0.85 },
+    "caesar-salad": { "product": "Caesar Salad", "category": "starter" },
+    "cod-fritters": { "product": "Cod Fritters", "category": "starter" },
+    "premium-picanha": { "product": "Premium Picanha", "category": "main", "plate_cm": 30 },
+    "ham-cheese-sandwich": { "product": "Ham & Cheese Sandwich with Crisps", "category": "main", "food_cm": 34.1, "$comment": "Photogrammetry scan on a wooden board (no plate); board rebuilt with scripts/ar/rebuild-board.py. food_cm = board length." },
+    "filet-mignon-madeira": { "product": "Filet Mignon with Madeira Sauce", "category": "main", "food_ratio": 0.6 },
+    "grilled-salmon": { "product": "Grilled Salmon", "category": "main" },
+    "porcini-risotto": { "product": "Porcini Risotto", "category": "main", "food_ratio": 0.65 },
+    "artisan-burger": { "product": "Artisan Burger", "category": "main" },
+    "chicken-parmigiana": { "product": "Chicken Parmigiana", "category": "main" },
+    "chocolate-lava-cake": { "product": "Chocolate Lava Cake", "category": "dessert", "food_cm": 9 },
+    "tiramisu": { "product": "Tiramisu", "category": "dessert", "food_cm": 9 },
+    "red-berry-cheesecake": { "product": "Red Berry Cheesecake", "category": "dessert", "food_cm": 11 },
+    "brazilian-caramel-flan": { "product": "Brazilian Caramel Flan", "category": "dessert", "food_cm": 12 },
+    "fresh-orange-juice": { "product": "Fresh Orange Juice", "category": "drink", "height_cm": 15 },
+    "cola-350ml": { "product": "Coca-Cola 350ml", "category": "drink", "height_cm": 12.2 },
+    "still-mineral-water": { "product": "Still Mineral Water 500ml", "category": "drink", "height_cm": 21 },
+    "lime-caipiroska": { "product": "Lime Caipiroska", "category": "drink", "height_cm": 10 },
+    "classic-mojito": { "product": "Classic Mojito", "category": "drink", "height_cm": 19 }
+  }
+}

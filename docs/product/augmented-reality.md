@@ -117,6 +117,62 @@ AR orders are recorded as `add_to_cart` with `source: 'ar'`.
 - Photogrammetry apps (Polycam, Luma, RealityScan) export usable GLBs from a
   phone scan of the real dish.
 
+## Generating models (Rodin + Blender)
+
+Showcase dishes (Aurora, since 2026-11-12) are made from their menu photo,
+with Blender in the middle so anything can be fixed by hand:
+
+1. **Generate** with Hyper3D Rodin Gen-2.5 (`Gen-2.5-High`, `Raw`,
+   ~80k triangles, GLB, PBR). The owner's account is on the Creator plan,
+   which has no REST API (`API_NO_ACTIVE_SUBSCRIPTION`), so generation goes
+   through the Hyper3D connector (MCP, OAuth, `https://api.hyper3d.com/api/mcp`):
+   `rodin_create_uploads` + HTTP PUT of the photo, `rodin_generate`,
+   `rodin_wait`, `rodin_get_result` (download `base_basic_pbr.glb`). On a
+   Business plan, `scripts/ar/rodin-generate.mjs` does the same with
+   `RODIN_API_KEY`. A short prompt saying "only the plate and the food; no
+   napkin…" keeps props out. Rodin tends to drop a dark plate and makes glass
+   opaque.
+2. **Prepare**: `node scripts/ar/dish.mjs prepare <tenant> <dish>` runs
+   Blender headless (`scripts/ar/prepare-dish-model.py`) with the dish's size
+   from `scripts/ar/dishes/<tenant>.json`. Standard sizes: main course on a
+   30 cm plate, starter 23 cm, dessert 21 cm (food at its real portion),
+   drinks by height; the owner changes any dish there. The first run scales
+   the food, draws the plate (lathed stoneware, foot ring, near-black glossy
+   speckled glaze; `--replace-plate` swaps an old one) and saves an editable
+   `.blend`; later runs only resize that `.blend`, keeping manual edits.
+   `--food-contrast/--food-saturation/--food-sharpen` grade the food texture,
+   always from the original kept in the `.blend` (`<image>__orig`).
+3. **Review (required)**: the `.blend` is opened in the Blender window
+   (launched via WMI, framed in Material Preview through the Blender MCP)
+   and the owner approves it or asks for changes before anything is
+   published. Edits are exported again with `--from-blend`. The real size is
+   baked in, so the row uses `scale = 1` and `model_width_cm` = the file's
+   largest side.
+4. **Publish**: `node scripts/ar/dish.mjs publish <tenant> <dish>` checks the
+   files with `checkArModelFile`, uploads them to R2
+   (`scripts/ar/upload-dish-model.ts`) and upserts the `product_ar_models`
+   row in the owned database inside the app container (product by name,
+   tenant check, advisory lock `xmartmenu-admin-menus:<tenant>`, one
+   transaction). The public menu shows it within 60 s.
+
+Special cases:
+
+- **Drinks in glass are built from scratch**, not generated: Rodin fuses
+  glass, ice and garnish into one frosted shell that cannot be made clear.
+  `scripts/ar/build-drink.py` (Blender) lathes a clear glass and adds the
+  liquid, translucent ice cubes, lime wedges and mint leaves as separate
+  parts with their own materials, sized from the menu photo (the Mojito:
+  15 cm highball, ~10k triangles, ~0.2 MB GLB). Transparency is glTF alpha
+  blend: AR shows it with highlights but no refraction.
+- **Scanned serving boards** with ragged sides are rebuilt with
+  `scripts/ar/rebuild-board.py` (clean board of the same outline, the scan's
+  wood baked on, `board-sides.py` for the sides; options for a handle hole,
+  patches, plain zones and touch-ups).
+
+Working files (raw GLB, `.blend`, exports, previews) are kept outside the
+repo in the owner's Drive, `AR_MODELS_DIR` in `.env.local`
+(`My Drive/Dev/xmartmenu/ar-models/<tenant>/{raw,blend,out}`).
+
 ## Open follow-ups
 
 - **Plan gating**: AR is shown whenever a dish has a model. If it becomes a
