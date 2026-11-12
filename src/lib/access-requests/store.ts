@@ -160,8 +160,10 @@ export async function approveAccessRequest(query: AdminMenuQuery, context: Tenan
   let tenantId: string
   if (parsed.data!.mode === 'new') {
     const { name, slug, plan_id } = parsed.data!
-    const created = await createTenant(query, context, { name, slug, plan_id, owner_user_id: request.userId }) as { tenant: { id: string } }
-    tenantId = created.tenant.id
+    const created = await createTenant(query, context, { name, slug, plan_id, owner_user_id: request.userId })
+    const createdId = created.tenant.id
+    if (typeof createdId !== 'string' || !UUID.test(createdId)) refuse(503, 'Restaurant creation returned no id')
+    tenantId = createdId as string
   } else {
     tenantId = parsed.data!.tenant_id
     if (!(await query('SELECT id FROM public.tenants WHERE id=$1 FOR UPDATE', [tenantId])).rows.length) refuse(404, 'Restaurant not found')
