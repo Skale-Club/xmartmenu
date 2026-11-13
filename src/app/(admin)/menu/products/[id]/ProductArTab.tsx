@@ -25,6 +25,7 @@ import { createClient } from '@/lib/supabase/client'
 import { notifyPublicMenuChanged } from '@/lib/menu/revalidate-client'
 import { AR_MODEL_ACCEPT, AR_MODEL_CONTENT_TYPES, RECOMMENDED_AR_MODEL_BYTES, formatModelSize, glbFootprint, type ArModelFormat, type ModelFootprint } from '@/lib/ar/model-file'
 import type { ProductArModel } from '@/types/database'
+import { saveRealSizeArtifacts } from '@/lib/ar/save-real-size'
 
 const ModelViewer = dynamic(() => import('@/components/ar/ModelViewer'), { ssr: false })
 
@@ -237,9 +238,12 @@ export default function ProductArTab({ productId, tenantId, canManage, ownedSour
         if (!res.ok) throw new Error(`Could not download the model (${res.status})`)
         return res.arrayBuffer()
       })
-      const usdz = await generatedUsdz(glb, scale)
-      await save({ scale, model_width_cm: footprint.largestSideCm, ...(usdz ?? {}) })
+      await saveRealSizeArtifacts({
+        scale, modelWidthCm: footprint.largestSideCm,
+        generate: () => generatedUsdz(glb, scale), save,
+      })
     } catch (err) {
+      setNotice(null)
       setError(message(err, 'Could not save the real size'))
     }
     setBusy(null)

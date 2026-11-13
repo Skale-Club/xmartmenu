@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { Box, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Image as ImageIcon, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
-import ArButton, { useIsComputer } from '@/components/ar/ArButton'
+import ArButton, { useIsComputer, type ArCart, type ArSequenceItem } from '@/components/ar/ArButton'
 import ModelViewer from '@/components/ar/ModelViewer'
 import { getArCopy } from '@/components/ar/ar-copy'
 import type { DishDetail } from '@/lib/public-dish-details'
@@ -75,11 +75,17 @@ function VideoSlide({ url }: { url: string }) {
   )
 }
 
-export default function ProductModal({ product, primaryColor, priceColor = '#18181b', currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [], arModel = null, onModelViewerOpened, onArLaunched, onAddToCartFromAr, cartCount = 0 }: {
+export default function ProductModal({ product, primaryColor, priceColor = '#18181b', currency, whatsapp, lang, onClose, onWhatsApp, onAddToCart, showcase: showcaseProp, contact = null, onCustomizationStarted, optionGroups = [], itemNotesEnabled = false, ingredientCustomizationEnabled = false, productIngredients = [], productMedia = [], initialEditorState = null, onPrevProduct, onNextProduct, details = [], extraImages = [], arModel = null, onModelViewerOpened, onArLaunched, onAddToCartFromAr, cartCount = 0, accentColor, arCart, arSequence }: {
   /** Adds one of this dish from the AR camera without closing the sheet (no upsell). */
   onAddToCartFromAr?: (selectedOptions: Record<string, unknown>, unitPrice: number, note?: string, ingredientModifications?: IngredientModifications | null, editorState?: CartEditorState | null) => void
   /** Items in the order, for the confirmation inside the camera. */
   cartCount?: number
+  /** The store's secondary colour (the AR camera's badges). */
+  accentColor?: string
+  /** The AR camera's view of the cart: this dish's count, "−", line total, order sheet, open cart. */
+  arCart?: Pick<ArCart, 'quantity' | 'onRemove' | 'lineLabel' | 'summary' | 'onOpenCart'>
+  /** The menu's 3D dishes, to walk through inside the camera. */
+  arSequence?: ArSequenceItem[]
   /** The dish's 3D model: shows "See it on your table" on phones with an AR camera. */
   arModel?: PublicProductArModel | null
   onModelViewerOpened?: () => void
@@ -493,7 +499,15 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
       lang={lang}
       onOpen={onModelViewerOpened}
       onArLaunch={onArLaunched}
+      priceLabel={money(finalUnitPrice)}
+      details={{
+        description: product.description,
+        ingredients: productIngredients.filter(pi => pi.is_default).map(pi => pi.ingredient.name),
+      }}
+      theme={{ primary: primaryColor, accent: accentColor ?? primaryColor }}
+      sequence={arSequence && arSequence.length > 1 ? { items: arSequence, startId: product.id } : null}
       cart={!showcase && !isEditing && onAddToCartFromAr ? {
+        ...arCart,
         mode: canAddToCart ? 'add' : 'choose',
         priceLabel: money(finalUnitPrice),
         count: cartCount,

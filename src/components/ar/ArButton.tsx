@@ -39,13 +39,16 @@ import {
   openQuickLook,
   quickLookUrl,
   sceneViewerIntentUrl,
+  sceneViewerModelUrl,
   type ArPlatform,
 } from '@/lib/ar/launch'
 import { getArCopy } from './ar-copy'
-import WebXrDishViewer, { type ArCart } from './WebXrDishViewer'
+import WebXrDishViewer, { type ArCart, type ArDishDetails, type ArTheme } from './WebXrDishViewer'
+import { measureArZones } from './ar-zones'
+import { mayPreload, neighbours, stepDish } from '@/lib/ar/dish-sequence'
 import type { DishSession, DishStage } from '@/lib/ar/webxr-dish-session'
 
-export type { ArCart } from './WebXrDishViewer'
+export type { ArCart, ArDishDetails, ArTheme } from './WebXrDishViewer'
 
 export interface ArButtonProps {
   model: Pick<PublicProductArModel, 'glb_url' | 'usdz_url' | 'real_scale'> & { scale?: number | null }
@@ -60,6 +63,28 @@ export interface ArButtonProps {
   /** Only the cube, named for screen readers (the feed's round buttons). */
   iconOnly?: boolean
   /** Ordering from the camera (Android); absent on a browse-only menu. */
+  cart?: ArCart | null
+  /** Unit price for the camera's price capsule (every menu type). */
+  priceLabel?: string
+  /** Description and ingredients for the camera's details sheet. */
+  details?: ArDishDetails | null
+  /** The store's primary and secondary colours. */
+  theme?: ArTheme
+  /**
+   * The menu's 3D dishes in menu order, to walk through inside the camera
+   * (Android WebXR). `startId` is this button's dish; the others bring their
+   * own name, model, price, details and cart actions.
+   */
+  sequence?: { items: ArSequenceItem[]; startId: string } | null
+}
+
+/** One dish of the AR carousel. */
+export interface ArSequenceItem {
+  id: string
+  name: string
+  model: ArButtonProps['model']
+  priceLabel?: string
+  details?: ArDishDetails | null
   cart?: ArCart | null
 }
 
@@ -114,7 +139,7 @@ export function ArBadge({ lang, className }: { lang: string; className?: string 
   )
 }
 
-export default function ArButton({ model, name, lang, onOpen, onArLaunch, className, iconOnly = false, cart = null }: ArButtonProps) {
+export default function ArButton({ model, name, lang, onOpen, onArLaunch, className, iconOnly = false, cart = null, priceLabel, details = null, theme, sequence = null }: ArButtonProps) {
   const copy = getArCopy(lang)
   // Nothing renders on the server or without an AR camera.
   const platform = useArPlatform()
@@ -124,9 +149,13 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
   const [route, setRoute] = useState<AndroidRoute>('loading')
   const [arActive, setArActive] = useState(false)
   const [stage, setStage] = useState<DishStage>('scanning')
-  const [scale, setScale] = useState(1)
+  const [trackingLost, setTrackingLost] = useState(false)
+  // The carousel: which dish is on the table, and its model's download.
+  const [currentId, setCurrentId] = useState<string | null>(null)
+  const [loadingPercent, setLoadingPercent] = useState<number | null | undefined>(undefined)
   const moduleRef = useRef<DishSessionModule | null>(null)
   const sessionRef = useRef<DishSession | null>(null)
+  const sessionAbortRef = useRef<AbortController | null>(null)
   const overlayRef = useRef<HTMLDivElement | null>(null)
   const gestureLayerRef = useRef<HTMLDivElement | null>(null)
 
@@ -161,34 +190,100 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
   }, [platform, model.glb_url])
 
   // Leaving the dish (or the menu) ends a running session.
-  useEffect(() => () => sessionRef.current?.end(), [])
+  useEffect(() => () => {
+    sessionAbortRef.current?.abort()
+    sessionRef.current?.end()
+  }, [])
+
+  function stopWebXr() {
+    sessionAbortRef.current?.abort()
+    sessionRef.current?.end()
+    setArActive(false)
+  }
 
   function startWebXr() {
     const viewer = moduleRef.current
     const overlay = overlayRef.current
     const gestureLayer = gestureLayerRef.current
-    if (!viewer || !overlay || !gestureLayer) return false
+    if (!viewer || !overlay || !gestureLayer || sessionAbortRef.current) return false
+    const controller = new AbortController()
+    sessionAbortRef.current = controller
     setStage('scanning')
-    setScale(1)
+    setTrackingLost(false)
+    setCurrentId(sequence?.startId ?? null)
+    setLoadingPercent(undefined)
     setArActive(true)
+    if (sequence) preloadAround(sequence.startId)
     // startDishSession requests the session first thing, inside this tap.
     viewer.startDishSession({
       glbUrl: model.glb_url,
       modelScale: model.scale ?? 1,
       overlay,
       gestureLayer,
+      // Gesture zoning: only touches that start in the scene reach the dish.
+      zones: () => measureArZones(overlay),
+      signal: controller.signal,
       onStage: setStage,
-      onScale: setScale,
-      onEnd: () => { sessionRef.current = null; setArActive(false) },
-    }).then(session => { sessionRef.current = session })
-      .catch(() => { setArActive(false); setNotice(copy.arUnavailable) })
+      onTracking: setTrackingLost,
+      onEnd: () => {
+        if (sessionAbortRef.current !== controller) return
+        sessionAbortRef.current = null
+        sessionRef.current = null
+        if (!controller.signal.aborted) setArActive(false)
+      },
+    }).then(session => {
+      if (controller.signal.aborted || sessionAbortRef.current !== controller) session.end()
+      else sessionRef.current = session
+    }).catch(() => {
+      if (controller.signal.aborted || (sessionAbortRef.current && sessionAbortRef.current !== controller)) return
+      if (sessionAbortRef.current === controller) sessionAbortRef.current = null
+      setArActive(false)
+      setNotice(copy.arUnavailable)
+    })
     return true
   }
 
+  // The dish on screen: this button's own, or another one picked in the carousel.
+  const sequenceItem = sequence && currentId && currentId !== sequence.startId
+    ? sequence.items.find(item => item.id === currentId) ?? null
+    : null
+  const shown = sequenceItem
+    ? { name: sequenceItem.name, model: sequenceItem.model, priceLabel: sequenceItem.priceLabel, details: sequenceItem.details ?? null, cart: sequenceItem.cart ?? null }
+    : { name, model, priceLabel, details, cart }
+
+  /** Downloads the dishes next to `id` in the background (not in data-saving mode). */
+  function preloadAround(id: string) {
+    const viewer = moduleRef.current
+    if (!viewer || !sequence) return
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
+    if (!mayPreload(connection)) return
+    for (const item of neighbours(sequence.items, id)) viewer.preloadDish(item.model.glb_url).catch(() => {})
+  }
+
+  /** Swipe / chevron: show the next or previous 3D dish on the same spot. */
+  function stepCarousel(direction: 'next' | 'prev') {
+    if (!sequence) return
+    const next = stepDish(sequence.items, currentId ?? sequence.startId, direction)
+    const session = sessionRef.current
+    if (!next || !session) return
+    setCurrentId(next.id)
+    session.swapDish(next.model.glb_url, next.model.scale ?? 1, percent => {
+      setLoadingPercent(percent === 100 ? undefined : percent)
+    }).then(shownNow => {
+      if (shownNow) setLoadingPercent(undefined)
+    }).catch(() => setLoadingPercent(undefined))
+    preloadAround(next.id)
+  }
+
+  const carouselIndex = sequence ? sequence.items.findIndex(item => item.id === (currentId ?? sequence.startId)) : -1
+  const carousel = sequence && sequence.items.length > 1 && carouselIndex >= 0
+    ? { index: carouselIndex, total: sequence.items.length, onPrev: () => stepCarousel('prev'), onNext: () => stepCarousel('next') }
+    : null
+
   /** "Choose options": leave the camera, then let the sheet show the missing choice. */
   function chooseFromCamera() {
-    sessionRef.current?.end()
-    cart?.onChoose()
+    stopWebXr()
+    shown.cart?.onChoose()
   }
 
   useEffect(() => {
@@ -213,7 +308,7 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
   async function openOnIphone() {
     if (model.usdz_url) {
       onArLaunch?.()
-      openQuickLook(quickLookUrl(model.usdz_url, quickLookAction), cart ? onQuickLookAction : undefined)
+      openQuickLook(quickLookUrl(model.usdz_url, quickLookAction, { realScale: model.real_scale }), cart ? onQuickLookAction : undefined)
       return
     }
     setPreparing(true)
@@ -226,7 +321,7 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
       const usdz = await glbToUsdz(glb, { scale: model.scale ?? 1 })
       const url = URL.createObjectURL(new Blob([usdz.slice().buffer], { type: 'model/vnd.usdz+zip' }))
       onArLaunch?.()
-      openQuickLook(quickLookUrl(url, quickLookAction), cart ? onQuickLookAction : undefined)
+      openQuickLook(quickLookUrl(url, quickLookAction, { realScale: model.real_scale }), cart ? onQuickLookAction : undefined)
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch {
       setNotice(copy.arUnavailable)
@@ -255,7 +350,7 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
       }
       onArLaunch?.()
       window.location.href = sceneViewerIntentUrl({
-        glbUrl: model.glb_url,
+        glbUrl: sceneViewerModelUrl(model.glb_url, model.scale, window.location.origin),
         title: name,
         fallbackUrl: arFallbackUrl(window.location.href),
         realScale: model.real_scale,
@@ -286,14 +381,24 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
         <WebXrDishViewer
           active={arActive}
           stage={stage}
-          scale={scale}
-          name={name}
+          name={shown.name}
           copy={copy}
-          cart={cart}
+          language={lang}
+          cart={shown.cart && shown.cart.onOpenCart ? {
+            ...shown.cart,
+            // "Go to cart": leave the camera first, then open the menu's cart.
+            onOpenCart: () => { stopWebXr(); shown.cart?.onOpenCart?.() },
+          } : shown.cart}
+          priceLabel={shown.priceLabel}
+          details={shown.details}
+          theme={theme}
+          carousel={carousel}
+          loadingPercent={loadingPercent}
           overlayRef={overlayRef}
           gestureLayerRef={gestureLayerRef}
-          onExit={() => sessionRef.current?.end()}
-          onResetScale={() => sessionRef.current?.resetScale()}
+          onExit={stopWebXr}
+          onReposition={() => sessionRef.current?.reposition()}
+          trackingLost={trackingLost}
           onChoose={chooseFromCamera}
         />
       )}

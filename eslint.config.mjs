@@ -14,6 +14,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Other checkouts and generated output, not this tree's source.
     ".claude/**",
+    ".worktrees/**",
+    // Git-ignored local review previews (output/), not app source.
+    "output/**",
     "coverage/**",
     "playwright-report/**",
     "test-results/**",

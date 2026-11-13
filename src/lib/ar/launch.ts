@@ -92,6 +92,17 @@ export function arFallbackUrl(href: string): string {
   return `${href.split('#')[0]}${AR_UNAVAILABLE_HASH}`
 }
 
+/** Scene Viewer cannot apply our database scale; serve a corrected GLB container. */
+export function sceneViewerModelUrl(glbUrl: string, scale: number | null | undefined, origin: string): string {
+  const correction = scale ?? 1
+  if (correction === 1) return glbUrl
+  if (!Number.isFinite(correction) || correction < 0.05 || correction > 20) throw new Error('Invalid model scale')
+  const url = new URL('/api/ar/scaled-model', origin)
+  url.searchParams.set('src', glbUrl)
+  url.searchParams.set('scale', String(Math.round(correction * 10000) / 10000))
+  return url.href
+}
+
 /** Quick Look's own button at the bottom of the AR view ("Add to order · R$ 34"). */
 export interface QuickLookAction {
   /** The button's text. */
@@ -106,17 +117,23 @@ export interface QuickLookAction {
 export const QUICK_LOOK_ACTION_MESSAGE = '_apple_ar_quicklook_button_tapped'
 
 /**
- * USDZ URL for Quick Look. Guests may resize the dish (Quick Look shows the %
- * and snaps back to 100 %, the real size); `action` adds Quick Look's order
- * button (callToAction / checkoutTitle / checkoutSubtitle in the fragment).
+ * USDZ URL for Quick Look. With `realScale` (the model's size was calibrated)
+ * the guest cannot resize the dish (`allowsContentScaling=0`), matching Scene
+ * Viewer's `resizable=false`: the dish stays at its real size. Without it,
+ * Quick Look lets the guest resize and snaps back to 100 %. `action` adds
+ * Quick Look's order button (callToAction / checkoutTitle / checkoutSubtitle
+ * in the fragment).
  */
-export function quickLookUrl(usdzUrl: string, action?: QuickLookAction | null): string {
-  if (!action) return usdzUrl
+export function quickLookUrl(usdzUrl: string, action?: QuickLookAction | null, opts: { realScale?: boolean } = {}): string {
   const params = [
-    `callToAction=${encodeURIComponent(action.label)}`,
-    `checkoutTitle=${encodeURIComponent(action.title.trim().slice(0, 60))}`,
-    ...(action.subtitle ? [`checkoutSubtitle=${encodeURIComponent(action.subtitle)}`] : []),
+    ...(opts.realScale ? ['allowsContentScaling=0'] : []),
+    ...(action ? [
+      `callToAction=${encodeURIComponent(action.label)}`,
+      `checkoutTitle=${encodeURIComponent(action.title.trim().slice(0, 60))}`,
+      ...(action.subtitle ? [`checkoutSubtitle=${encodeURIComponent(action.subtitle)}`] : []),
+    ] : []),
   ]
+  if (params.length === 0) return usdzUrl
   return `${usdzUrl}${usdzUrl.includes('#') ? '&' : '#'}${params.join('&')}`
 }
 

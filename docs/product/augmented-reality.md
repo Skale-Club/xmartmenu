@@ -76,6 +76,36 @@ the model by it; the iOS file is regenerated at that size
 (`glbToUsdz(glb, { scale })`). Example: the Aurora sandwich file measures
 35.5 × 28.4 cm.
 
+Scale corrections also apply on the Scene Viewer fallback: for `scale != 1`,
+the button points at `/api/ar/scaled-model`, which wraps each GLB scene in a
+scaled root node. Geometry, textures and binary buffers are copied unchanged;
+no guest-triggered texture conversion or mesh processing occurs. Already
+baked models (`scale = 1`) continue to use their CDN URL directly. The route
+only reads AR objects from the configured public product-image bucket,
+rejects redirects, limits input/output to 15 MiB and scene JSON to 1 MiB,
+times out after 10 seconds, and permits one active request per process with
+no queue. Shared rate limits cap each IP at 30/minute and all clients at
+60/minute; successful responses permit CDN/browser caching for one day.
+Errors are not cached, and no uncorrected model is substituted on failure.
+
+Saving a corrected size is atomic with the matching iOS artifact: if USDZ
+generation or upload fails, neither the scale nor the current USDZ fields
+are changed. The restaurant sees an error and can retry. This prevents
+Android and iPhone from showing different physical portions.
+
+WebXR registers session cleanup as soon as the camera session is acquired.
+Closing the dish or leaving AR cancels pending startup too. Failed startup
+ends the camera session and disposes private renderer resources, while shared
+preloaded model assets remain reusable. A nonhorizontal current hit clears
+the previous table candidate. Anchor generations discard obsolete asynchronous
+results after dragging, replacing or ending a session.
+
+Regression check: `node --max-old-space-size=160 node_modules/vitest/vitest.mjs run tests/unit/ar --pool=threads --maxWorkers=1 --minWorkers=1 --no-file-parallelism`.
+On the Surface (2026-11-12), the 98 targeted tests passed in about 4 seconds;
+strict TypeScript checking of `src/lib/ar` took about 3 seconds and scoped
+ESLint took about 8 seconds. Real-device camera/placement checks remain a
+separate release validation; these mocked tests do not emulate AR tracking.
+
 AR orders are recorded as `add_to_cart` with `source: 'ar'`.
 
 ## Production setup
