@@ -78,6 +78,13 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    // Restaurants whose slug changed: old links and printed QR codes keep working.
+    return [
+      { source: "/celes-confections", destination: "/celes", permanent: true },
+      { source: "/celes-confections/:path*", destination: "/celes/:path*", permanent: true },
+    ];
+  },
   async headers() {
     // Menu staging previews (/<slug>/preview/<token>, or /preview/<token> on a
     // custom domain): public for whoever holds the link, never indexed, never

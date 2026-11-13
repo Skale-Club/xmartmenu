@@ -5,7 +5,7 @@
  */
 const EXTRA_PHOTOS_BY_SLUG: Record<string, Record<string, string>> = {
   // Whole-cake photos are added here as they arrive.
-  'celes-confections': {},
+  celes: {},
 }
 
 export function extraDishImagesFor(

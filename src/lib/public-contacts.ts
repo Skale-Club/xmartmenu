@@ -4,7 +4,7 @@
  * Keyed by the restaurant's slug.
  */
 const CONTACT_EMAIL_BY_SLUG: Record<string, string> = {
-  'celes-confections': 'hello@celesconfections.com',
+  celes: 'hello@celesconfections.com',
 }
 
 export function contactEmailFor(slug: string | null | undefined): string | null {

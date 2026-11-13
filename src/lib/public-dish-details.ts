@@ -56,7 +56,7 @@ const CELES: Record<string, DishDetail[]> = {
 }
 
 const DETAILS_BY_SLUG: Record<string, Record<string, DishDetail[]>> = {
-  'celes-confections': CELES,
+  celes: CELES,
 }
 
 export function dishDetailsFor(

@@ -1,0 +1,14 @@
+{
+  "$comment": "AR dish sizes for Celes Confections (see aurora-kitchen-bar.json for the fields). Crepe cake slices: a 9-inch cake cut in 10, about 12 cm from tip to back, on a 21 cm dessert plate.",
+  "tenant_slug": "celes",
+  "tenant_id": "9716c998-af1f-420e-a5ec-e4d1ee69c64f",
+  "photos": "public/brands/celes-confections",
+  "grade": { "contrast": 1.2, "saturation": 1.1, "sharpen": 1.0 },
+  "defaults": {
+    "slice": { "plate_cm": 21, "food_cm": 12 },
+    "tray": {}
+  },
+  "dishes": {
+    "classic": { "product": "Classic", "category": "slice" }
+  }
+}

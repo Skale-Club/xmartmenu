@@ -154,6 +154,10 @@ AR orders are recorded as `add_to_cart` with `source: 'ar'`.
 Showcase dishes (Aurora, since 2026-11-12) are made from their menu photo,
 with Blender in the middle so anything can be fixed by hand:
 
+0. **Pick only dishes guests can see**: before spending credits, check the
+   product is `is_available` in production and shows on the public menu. A
+   hidden product's model is attached but nobody sees it (Celes "Classic",
+   2026-11-13, had to be switched on after the fact).
 1. **Generate** with Hyper3D Rodin Gen-2.5 (`Gen-2.5-High`, `Raw`,
    ~80k triangles, GLB, PBR). The owner's account is on the Creator plan,
    which has no REST API (`API_NO_ACTIVE_SUBSCRIPTION`), so generation goes
