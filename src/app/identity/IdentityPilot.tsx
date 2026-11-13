@@ -285,7 +285,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
           behind it that shows as a light edge around the popup. */}
       <style>{'html,body{background:#18181b;color-scheme:dark;--scrollbar-thumb:rgb(255 255 255 / 0.24)}'}</style>
       {/* Soft brand glow under the popup's gradient top line. */}
-      <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 h-24 w-48 -translate-x-1/2 rounded-full bg-[#F52323]/10 blur-3xl" />
+      <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-0 h-24 w-48 -translate-x-1/2 rounded-full bg-[#283F32]/10 blur-3xl" />
       <section aria-labelledby="identity-title" className="relative">
         <div className="mb-8 text-center">
 

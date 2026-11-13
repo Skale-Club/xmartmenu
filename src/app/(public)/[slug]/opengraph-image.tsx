@@ -1,3 +1,4 @@
+import { BRAND_PRIMARY } from '@/lib/brand'
 import { ImageResponse } from 'next/og'
 import { createServiceClient } from '@/lib/supabase/server'
 import { computePrimaryForeground } from '@/lib/color-utils'
@@ -41,7 +42,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
 
   const primary = settings?.primary_color && /^#[0-9a-fA-F]{3,8}$/.test(settings.primary_color)
     ? settings.primary_color
-    : '#F52323'
+    : BRAND_PRIMARY
   const foreground = computePrimaryForeground(primary)
   const tagline = settings?.tagline?.trim() || null
   const logoUrl = settings?.logo_url || null

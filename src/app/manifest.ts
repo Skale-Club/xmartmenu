@@ -1,4 +1,4 @@
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_BASE, BRAND_NAME, BRAND_PRIMARY } from '@/lib/brand'
 import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -9,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     start_url: '/',
     scope: '/',
     display: 'standalone',
-    background_color: '#ffffff',
-    theme_color: '#F52323',
+    background_color: BRAND_BASE,
+    theme_color: BRAND_PRIMARY,
     icons: [
       { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
       { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },

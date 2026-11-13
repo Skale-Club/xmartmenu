@@ -1,5 +1,6 @@
 'use client'
 
+import { BRAND_PRIMARY } from '@/lib/brand'
 import { useState } from 'react'
 import { compressImageForUpload } from '@/lib/media/client-compress'
 import Image from 'next/image'
@@ -22,7 +23,7 @@ const CUISINE_PRESETS = [
   { name: 'Burger',    primary: '#F39C12', accent: '#2C3E50' },
   { name: 'Cafe',      primary: '#6F4E37', accent: '#FDF5E6' },
   { name: 'Churrasco', primary: '#27AE60', accent: '#F39C12' },
-  { name: 'Default',   primary: '#F52323', accent: '#09090b' },
+  { name: 'Default',   primary: BRAND_PRIMARY, accent: '#09090b' },
 ]
 
 export default function BrandingClient({ settings, tenantSlug, tenantName }: Props) {

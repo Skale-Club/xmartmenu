@@ -1,3 +1,4 @@
+import { BRAND_PRIMARY } from '@/lib/brand'
 // Menu staging preview: the hidden staging copy of a menu, for the restaurant
 // to review and approve before it is published (docs/product/menu-staging.md).
 // Public for whoever holds the link, never indexed, never cached, browse-only.
@@ -31,7 +32,7 @@ export default async function StagingPreviewPage({ params, searchParams }: Props
   const priced = withMenuPrices(data)
   const { tenant, menu, categories, products, capabilities } = priced
   /* eslint-disable @typescript-eslint/no-explicit-any -- tenant rows are untyped, as in the public pages */
-  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#F52323'
+  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? BRAND_PRIMARY
   const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
   /* eslint-enable @typescript-eslint/no-explicit-any */
   const primaryForeground = computePrimaryForeground(primaryColor)
