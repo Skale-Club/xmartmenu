@@ -15,6 +15,9 @@ export const BRAND_URL = 'https://xprout.app'
 export const BRAND_PRIMARY = '#283F32' // burnt forest green
 export const BRAND_BASE = '#F3EFE5' // warm ivory
 
+/** Google Tag Manager container for Xprout's own pages (account "Xprout"; loads GA4 G-Z15QKG71XD). Never on restaurant menus. */
+export const BRAND_GTM_ID = 'GTM-TC3X2ZM9'
+
 /** Hosts that serve the product itself. */
 export const BRAND_HOSTS: readonly string[] = ['xprout.app', 'www.xprout.app']
 
