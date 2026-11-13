@@ -1,6 +1,6 @@
 /**
  * Restaurant subdomains (docs/product/tenant-subdomains.md): a restaurant can
- * live at https://<label>.<base>/ (e.g. aurora.xmartmenu.skale.club) instead
+ * live at https://<label>.<base>/ (e.g. aurora.xprout.app) instead
  * of https://<platform>/<slug>. Opt-in per restaurant (tenants.subdomain, NULL
  * = none) and off for everyone until TENANT_SUBDOMAIN_BASE is set, which is
  * only done once the wildcard DNS record and TLS certificate exist.
@@ -26,10 +26,10 @@ export const RESERVED_SUBDOMAINS: ReadonlySet<string> = new Set([
   'cdn', 'static', 'assets', 'media', 'img', 'images', 'files', 'storage', 'uploads',
   'blog', 'help', 'support', 'docs', 'status', 'billing', 'pay', 'payments', 'checkout', 'stripe',
   'dev', 'staging', 'stage', 'test', 'qa', 'demo', 'sandbox', 'preview', 'beta', 'local', 'localhost',
-  'xmartmenu', 'skale', 'skaleclub', 'coolify', 'traefik', 'monitoring', 'metrics', 'grafana', 'sentry',
+  'xmartmenu', 'xprout', 'skale', 'skaleclub', 'coolify', 'traefik', 'monitoring', 'metrics', 'grafana', 'sentry',
 ])
 
-/** The subdomain base (e.g. "xmartmenu.skale.club"), or null when the feature is off. */
+/** The subdomain base (e.g. "xprout.app"), or null when the feature is off. */
 export function subdomainBase(env: Record<string, string | undefined> = process.env): string | null {
   const raw = env.TENANT_SUBDOMAIN_BASE?.trim().toLowerCase().replace(/^\.+|\.+$/g, '')
   return raw && BASE.test(raw) ? raw : null
@@ -70,7 +70,7 @@ export function subdomainLabelFromHost(host: string | null | undefined, base: st
   return check.ok ? check.label : null
 }
 
-/** "aurora.xmartmenu.skale.club" for a restaurant with a subdomain, when the feature is on. */
+/** "aurora.xprout.app" for a restaurant with a subdomain, when the feature is on. */
 export function tenantSubdomainHost(subdomain: string | null | undefined, base: string | null): string | null {
   if (!subdomain || !base) return null
   const check = validateSubdomainLabel(subdomain)

@@ -1,5 +1,6 @@
 'use client'
 
+import { BRAND_HOST } from '@/lib/brand'
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import type { TenantSettings } from '@/types/database'
@@ -950,7 +951,7 @@ export default function StoreClient({ settings, tenantId, tenantSlug, stripeConn
                   <div className="bg-blue-100 rounded p-3 font-mono text-xs space-y-1">
                     <div><span className="font-semibold text-blue-800">Type:</span> CNAME</div>
                     <div><span className="font-semibold text-blue-800">Host:</span> @ (ou vazio)</div>
-                    <div><span className="font-semibold text-blue-800">Target:</span> xmartmenu.skale.club</div>
+                    <div><span className="font-semibold text-blue-800">Target:</span> {BRAND_HOST}</div>
                   </div>
                   <p className="text-xs text-blue-600">DNS propagation may take up to 24 hours.</p>
                 </div>

@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // responderiam os dois, e o mesmo arquivo teria dois URLs indexáveis.
   const path = `/blog/archive/${parsed.year}/${String(parsed.month).padStart(2, '0')}`
   return {
-    title: `${monthName(parsed.month)} de ${parsed.year} | Blog Xmartmenu`,
+    title: `${monthName(parsed.month)} de ${parsed.year} | Blog Xprout`,
     alternates: { canonical: `${PLATFORM_BASE}${path}` },
   }
 }

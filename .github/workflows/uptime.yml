@@ -20,7 +20,7 @@ jobs:
     steps:
       - name: Check /api/health/ready
         env:
-          APP_URL: ${{ vars.APP_URL || 'https://xmartmenu.skale.club' }}
+          APP_URL: ${{ vars.APP_URL || 'https://xprout.app' }}
           HEALTH_TOKEN: ${{ secrets.HEALTH_TOKEN }}
         run: |
           auth=()

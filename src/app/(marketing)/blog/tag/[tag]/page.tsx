@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!tag) return {}
 
   return {
-    title: `${tag.name} | Blog Xmartmenu`,
+    title: `${tag.name} | Blog Xprout`,
     description: `Posts sobre ${tag.name}.`,
     alternates: { canonical: `${PLATFORM_BASE}/blog/tag/${slug}` },
   }

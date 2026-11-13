@@ -34,7 +34,7 @@ export default function NativeConsentClient() {
   return <main className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 text-white">
     <section className="w-full max-w-md rounded-2xl border border-white/10 bg-zinc-900 p-8" aria-labelledby="consent-heading">
       <h1 id="consent-heading" className="text-xl font-bold">Autorizar acesso MCP</h1>
-      {login ? <><p className="my-4 text-zinc-300">Entre na sua conta XmartMenu para continuar.</p><a href={`/auth/login?from=${encodeURIComponent(back)}`} className="inline-block rounded-full bg-primary px-5 py-3 text-primary-foreground">Entrar</a></>
+      {login ? <><p className="my-4 text-zinc-300">Entre na sua conta Xprout para continuar.</p><a href={`/auth/login?from=${encodeURIComponent(back)}`} className="inline-block rounded-full bg-primary px-5 py-3 text-primary-foreground">Entrar</a></>
         : error ? <p role="alert" className="mt-4 text-red-300">{error}</p>
           : !details ? <p className="mt-4 text-zinc-300" role="status">Carregando autorização…</p>
             : <><p className="mt-4"><strong>{details.client.name}</strong> solicita acesso como <strong>{details.user.full_name ?? details.user.id}</strong>.</p>

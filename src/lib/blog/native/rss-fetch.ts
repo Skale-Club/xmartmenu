@@ -28,7 +28,7 @@ async function fetchHop(url:URL):Promise<Hop>{
  const selected=addresses[0]
  return new Promise((resolve,reject)=>{
   const requester=url.protocol==='https:'?https:http
-  const request=requester.get(url,({agent:false,autoSelectFamily:false,lookup:(_hostname,_options,callback)=>callback(null,selected.address,selected.family),headers:{'User-Agent':'Xmartmenu RSS Fetcher/1.0'}} as http.RequestOptions&{autoSelectFamily:boolean}),response=>{
+  const request=requester.get(url,({agent:false,autoSelectFamily:false,lookup:(_hostname,_options,callback)=>callback(null,selected.address,selected.family),headers:{'User-Agent':'Xprout RSS Fetcher/1.0'}} as http.RequestOptions&{autoSelectFamily:boolean}),response=>{
    if(REDIRECT_STATUS.has(response.statusCode??0)){
     const location=response.headers.location;response.destroy()
     if(!location||location.length>2048){reject(new Error('RSS redirect without a usable Location'));return}

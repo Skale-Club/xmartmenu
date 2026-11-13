@@ -463,12 +463,12 @@ async function seed() {
 
   // 8. Create QR Codes
   const qrCodes = [
-    { label: 'QR Table 1', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant?table=1', scans: 127 },
-    { label: 'QR Table 2', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant?table=2', scans: 89 },
-    { label: 'QR Table 3', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant?table=3', scans: 54 },
-    { label: 'QR Entrance', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant', scans: 342 },
-    { label: 'QR Digital Menu', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant', scans: 512 },
-    { label: 'QR Instagram', target_url: 'https://xmartmenu.skale.club/r/demo-restaurant?ref=instagram', scans: 78 }
+    { label: 'QR Table 1', target_url: 'https://xprout.app/r/demo-restaurant?table=1', scans: 127 },
+    { label: 'QR Table 2', target_url: 'https://xprout.app/r/demo-restaurant?table=2', scans: 89 },
+    { label: 'QR Table 3', target_url: 'https://xprout.app/r/demo-restaurant?table=3', scans: 54 },
+    { label: 'QR Entrance', target_url: 'https://xprout.app/r/demo-restaurant', scans: 342 },
+    { label: 'QR Digital Menu', target_url: 'https://xprout.app/r/demo-restaurant', scans: 512 },
+    { label: 'QR Instagram', target_url: 'https://xprout.app/r/demo-restaurant?ref=instagram', scans: 78 }
   ]
 
   for (const qr of qrCodes) {

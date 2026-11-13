@@ -16,7 +16,7 @@ const supabase = createClient(supabaseUrl, serviceKey, {
 const shouldApply = process.argv.includes('--apply')
 const tenantSlug = 'aurora'
 const assetBasePath = '/brands/aurora-kitchen-bar'
-const publicBaseUrl = 'https://xmartmenu.skale.club'
+const publicBaseUrl = 'https://xprout.app'
 const logoUrl = `${assetBasePath}/logo.webp`
 const bannerUrl = `${assetBasePath}/banner.webp`
 

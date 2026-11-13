@@ -1,5 +1,6 @@
 export const revalidate = 300
 
+import { BRAND_URL } from '@/lib/brand'
 import { DeliveryImage } from '@/components/delivery-image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
@@ -71,7 +72,7 @@ async function loadPost(
 }
 
 function siteOrigin(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com').replace(/\/+$/, '')
+  return (process.env.NEXT_PUBLIC_SITE_URL ?? BRAND_URL).replace(/\/+$/, '')
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

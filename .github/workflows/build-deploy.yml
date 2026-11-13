@@ -33,7 +33,7 @@ env:
   IMAGE_NAME: ghcr.io/skale-club/xmartmenu
   APP_UUID: gmaayluj11x1m6j7baogonfn
   COOLIFY_BASE: https://coolify.skale.club
-  PUBLIC_URL: https://xmartmenu.skale.club
+  PUBLIC_URL: https://xprout.app
 
 jobs:
   build-and-deploy:

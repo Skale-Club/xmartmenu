@@ -1,5 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 
+import { BRAND_NAME } from '@/lib/brand'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
@@ -35,7 +36,7 @@ export default async function AdminLayout({
   if (ownedAuthSelected()) return <OwnedAdminLayout>{children}</OwnedAdminLayout>
   const service = await createServiceClient()
   const { data: platformSettings } = await service.from('platform_settings').select('app_name, favicon_url').single()
-  const appName = platformSettings?.app_name ?? 'XmartMenu'
+  const appName = platformSettings?.app_name ?? BRAND_NAME
   const logoUrl = platformSettings?.favicon_url ?? null
 
   const supabase = await createClient()

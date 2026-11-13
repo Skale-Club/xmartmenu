@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const year = parseYear((await params).year)
   if (!year) return {}
   return {
-    title: `Arquivo de ${year} | Blog Xmartmenu`,
+    title: `Arquivo de ${year} | Blog Xprout`,
     alternates: { canonical: `${PLATFORM_BASE}/blog/archive/${year}` },
   }
 }

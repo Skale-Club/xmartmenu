@@ -218,7 +218,7 @@ export default function BlogAutomationClient({ initialState,nativeBlog=false }: 
         <div>
           <h1 className="text-2xl font-black tracking-tight text-zinc-950">Blog automático</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            O blog da plataforma — xmartmenu.com/blog. Não é o blog de nenhum cliente.
+            O blog da plataforma — xprout.app/blog. Não é o blog de nenhum cliente.
           </p>
         </div>
         <button

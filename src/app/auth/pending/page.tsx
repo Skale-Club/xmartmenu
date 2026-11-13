@@ -32,7 +32,7 @@ export default async function PendingPage() {
         </div>
         <h1 className="text-2xl font-black text-white mb-4 tracking-tight">Account under review</h1>
         <p className="text-sm font-medium text-zinc-500 mb-8 leading-relaxed">
-          Your request is under review. The XmartMenu team will get in touch with you soon to set up your menu.
+          Your request is under review. The Xprout team will get in touch with you soon to set up your menu.
         </p>
         <a
           href="/auth/login"

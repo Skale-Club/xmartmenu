@@ -4,7 +4,7 @@ import { registerMcpTools } from '@/lib/mcp/register'
 import { mcpTransport } from '@/lib/mcp/transport'
 
 /**
- * xmartmenu MCP server (Streamable HTTP) — owner-level management surface for
+ * Xprout MCP server (Streamable HTTP) — owner-level management surface for
  * Claude / Codex.
  *
  * - Authorization Server: Supabase Auth OAuth 2.1 (discovery + PKCE + consent).
@@ -24,7 +24,7 @@ const mcpHandler = createMcpHandler(
     registerMcpTools(server)
   },
   {
-    serverInfo: { name: 'xmartmenu-admin', version: '0.1.0' },
+    serverInfo: { name: 'xprout-admin', version: '0.1.0' },
   },
   {
     basePath: '/api',

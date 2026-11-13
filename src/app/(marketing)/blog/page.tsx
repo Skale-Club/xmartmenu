@@ -2,7 +2,7 @@ import {nativeBlogSelected} from '@/lib/blog/native/selected'
 /**
  * O blog da PLATAFORMA (autoblog-parity XM-18).
  *
- * `/blog` na Xmartmenu. O de cada restaurante vive em `/<slug>/blog` e partilha
+ * `/blog` na Xprout. O de cada restaurante vive em `/<slug>/blog` e partilha
  * a mesma camada de consultas e o mesmo componente de listagem — o que muda é o
  * escopo e o `basePath`.
  */
@@ -16,7 +16,7 @@ import { listArchive, listPublishedPosts, listTags } from '@/lib/blog/public-que
 export const revalidate = 300
 
 export const metadata: Metadata = {
-  title: 'Blog | Xmartmenu',
+  title: 'Blog | Xprout',
   description:
     'Cardápio, margem, delivery e operação — o que aprendemos ajudando restaurantes a vender mais.',
   alternates: { canonical: `${PLATFORM_BASE}/blog` },

@@ -1,7 +1,7 @@
 /**
  * Self-service restaurant onboarding (the old 4-step /onboarding form that
  * creates a restaurant with no approval) is kept in the code but OFF by
- * default: XmartMenu approves every business (XMM-D-2026-11-12-access-request-onboarding).
+ * default: Xprout approves every business (XMM-D-2026-11-12-access-request-onboarding).
  * Set SELF_SERVICE_ONBOARDING_ENABLED=true to bring it back.
  */
 export function selfServiceOnboardingEnabled(env: Record<string, string | undefined> = process.env): boolean {

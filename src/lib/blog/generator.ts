@@ -1,7 +1,7 @@
 // =============================================================================
 // src/lib/blog/generator.ts
 //
-// Auto-blog generation for Xmartmenu's OWN marketing blog (autoblog-parity
+// Auto-blog generation for Xprout's OWN marketing blog (autoblog-parity
 // XM-06, XM-07). This is a PLATFORM feature, not a per-tenant one: restaurants
 // do not get a blog, so nothing here carries a tenant_id and there is no
 // super-admin gate to pass — the superadmin is the only one who can reach it.
@@ -23,6 +23,7 @@
 //   - A run that cannot produce a good post FAILS rather than publishing a bad
 //     one. Yesterday's post staying up beats two lines under our name.
 // =============================================================================
+import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
 import { meteredFetch, resolveAiAccess } from '@/lib/ai/access'
 import type { KeyChoice } from '@/lib/ai/billing-rules'
 import { OPENROUTER_BASE_URL } from '@/lib/ai/openrouter'
@@ -108,15 +109,15 @@ const OPENROUTER_BASE = OPENROUTER_BASE_URL
 const DEFAULT_TEXT_MODEL = 'anthropic/claude-sonnet-5'
 
 const SITE_HEADERS = {
-  'HTTP-Referer': 'https://xmartmenu.com',
-  'X-Title': 'Xmartmenu',
+  'HTTP-Referer': BRAND_URL,
+  'X-Title': BRAND_NAME,
 }
 
 const WORDS_PER_MINUTE = 200
 
 /** The internal links a generated post may use. */
 const INTERNAL_LINKS: InternalLink[] = [
-  { label: 'Como funciona o Xmartmenu', path: '/#como-funciona' },
+  { label: 'Como funciona o Xprout', path: '/#como-funciona' },
   { label: 'Planos e preços', path: '/pricing' },
   { label: 'Ver uma demonstração', path: '/demo' },
 ]
@@ -363,7 +364,7 @@ export function buildBlogEditorialPrompt(settings:BlogSettingsRow,assignment:Pil
   const sections: string[] = [
     tenant
       ? `Você escreve o blog do ${tenant.name}${tenant.businessType ? `, ${tenant.businessType}` : ''}. Seu leitor é um CLIENTE em potencial: alguém decidindo onde comer, o que pedir ou se vale a pena ir até lá. Escreva em português brasileiro, na voz da casa ("a gente", "aqui"), como alguém que trabalha lá escreveria — não como uma agência escrevendo sobre um restaurante. Você NUNCA inventa: prato, prêmio, chef, história ou endereço que não esteja nos dados abaixo simplesmente não existe, e escrever sobre ele faz um cliente ir até a porta pedir algo que não há.`
-      : 'Você escreve o blog do Xmartmenu, uma plataforma brasileira de cardápio digital e pedidos para restaurantes. Seu leitor é o DONO ou gerente do restaurante — quem monta o cardápio, negocia com fornecedor, olha a margem e aguenta o pico do sábado. Escreva em português brasileiro, para ele, e nunca troque algo útil por propaganda do produto: o Xmartmenu aparece como ferramenta quando ajuda, nunca como assunto.',
+      : 'Você escreve o blog do Xprout, uma plataforma brasileira de cardápio digital e pedidos para restaurantes. Seu leitor é o DONO ou gerente do restaurante — quem monta o cardápio, negocia com fornecedor, olha a margem e aguenta o pico do sábado. Escreva em português brasileiro, para ele, e nunca troque algo útil por propaganda do produto: o Xprout aparece como ferramenta quando ajuda, nunca como assunto.',
     todaySection(new Date(), settings.timezone || 'UTC'),
     buildPillarSection(assignment),
   ]
@@ -687,8 +688,8 @@ export async function generateBlogPost(opts: {
         focus_keyword: generated.focusKeyword || null,
         tags: generated.tags || null,
         // The byline is the business the post belongs to, not the platform:
-        // a restaurant's post signed "Xmartmenu" reads as someone else's page.
-        author_name: tenantContext?.name ?? 'Xmartmenu',
+        // a restaurant's post signed "Xprout" reads as someone else's page.
+        author_name: tenantContext?.name ?? BRAND_NAME,
         cover_image_url: cover?.url ?? null,
         reading_time_minutes: readingTimeMinutes(generated.content),
         ai_generated: true,
@@ -732,7 +733,7 @@ export async function generateBlogPost(opts: {
       // pública. Passava o URL público e o cartão colava-lhe "/superadmin/blog"
       // no fim, o que dava um link que não existia em lado nenhum; e para um
       // restaurante teria mandado o dono para o painel da plataforma.
-      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com').replace(/\/+$/, '')
+      const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? BRAND_URL).replace(/\/+$/, '')
       void notifyDraftAwaitingApproval(
         svc,
         scope,

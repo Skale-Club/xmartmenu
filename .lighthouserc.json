@@ -2,8 +2,8 @@
   "ci": {
     "collect": {
       "url": [
-        "https://xmartmenu.skale.club/",
-        "https://xmartmenu.skale.club/aurora"
+        "https://xprout.app/",
+        "https://xprout.app/aurora"
       ],
       "numberOfRuns": 1
     },

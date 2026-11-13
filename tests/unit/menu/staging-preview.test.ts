@@ -26,7 +26,7 @@ describe('menu staging preview', () => {
   it('turns analytics, chat and delivery zones off without touching the dishes', () => {
     const data = {
       tenant: { id: 't', slug: 's', tenant_settings: { analytics_enabled: true, primary_color: '#123456' } },
-      footerBrand: 'XmartMenu', menu: { id: 'm' }, location: null, categories: [{ id: 'c' }], products: [{ id: 'p' }],
+      footerBrand: 'Xprout', menu: { id: 'm' }, location: null, categories: [{ id: 'c' }], products: [{ id: 'p' }],
       capabilities: full, optionGroupsByProductId: {}, productIngredientsByProductId: {}, productMediaByProductId: {},
       productArModelByProductId: { p: { product_id: 'p', glb_url: 'https://cdn.example/p.glb' } },
       deliveryZones: [{ id: 'z' }], chatAddonEnabled: true, chatAddonAudioEnabled: true, chatAddonTextEnabled: true,

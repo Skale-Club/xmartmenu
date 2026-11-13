@@ -4,7 +4,7 @@ import { z } from 'zod'
  * Access-request onboarding (docs/product/access-request-onboarding.md,
  * XMM-D-2026-11-12-access-request-onboarding).
  *
- * A business that signs up on the main XmartMenu site answers these questions
+ * A business that signs up on the main Xprout site answers these questions
  * and waits for the team. Submitting never grants access: only a platform
  * administrator's approval links the account to a restaurant.
  *

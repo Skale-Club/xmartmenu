@@ -11,7 +11,7 @@
  *
  * Setup:
  *  1. Go to Stripe Dashboard → Settings → Payment methods → Apple Pay
- *  2. Add your domain (e.g. xmartmenu.skale.club)
+ *  2. Add your domain (e.g. xprout.app)
  *  3. Download the domain association file content
  *  4. Set APPLE_PAY_DOMAIN_ASSOCIATION_FILE env var to that content
  */

@@ -168,7 +168,7 @@ export default function OnboardingForm({ owned = false }: { owned?: boolean }) {
         <div className="bg-white rounded-2xl border border-zinc-200 shadow-sm p-5 sm:p-8">
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-bold text-zinc-900">XmartMenu</span>
+              <span className="text-sm font-bold text-zinc-900">Xprout</span>
               {step <= TOTAL_STEPS && (
                 <span className="text-xs text-zinc-400">Step {step} of {TOTAL_STEPS}</span>
               )}

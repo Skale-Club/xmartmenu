@@ -1,10 +1,10 @@
-# XmartMenu
+# Xprout
 
 Multi-tenant restaurant menu and operations platform built with Next.js, Supabase, and Stripe.
 
 ## Product Language
 
-XmartMenu is English-first. New tenant and menu defaults should use English (`en`) for language and `USD` for currency unless a specific customer configuration says otherwise.
+Xprout (formerly XmartMenu) is English-first. New tenant and menu defaults should use English (`en`) for language and `USD` for currency unless a specific customer configuration says otherwise.
 
 Portuguese can be enabled as an additional menu language, but it is not the default product language or positioning.
 
@@ -51,7 +51,7 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Production Deployment
 
-Production runs as a **Next.js standalone Docker container on Coolify**, at [xmartmenu.skale.club](https://xmartmenu.skale.club). Vercel is not a deployment target for this repository.
+Production runs as a **Next.js standalone Docker container on Coolify**, at [xprout.app](https://xprout.app). Vercel is not a deployment target for this repository.
 
 The release pipeline is:
 
@@ -66,7 +66,7 @@ Runtime secrets are configured in Coolify. Public variables required by the Next
 After every release, verify:
 
 ```bash
-curl --fail https://xmartmenu.skale.club/api/health
+curl --fail https://xprout.app/api/health
 ```
 
 Deployment configuration lives in:
@@ -84,7 +84,7 @@ One-way outbound sync mirrors every tenant into the Xphere CRM org. It ships dar
 - **Post-deploy reachability check:** an UNSIGNED POST to the public worker URL must return `401` (route reachable but signature-protected):
 
   ```bash
-  curl -i -X POST https://xmartmenu.skale.club/api/internal/xphere-sync
+  curl -i -X POST https://xprout.app/api/internal/xphere-sync
   # expect: HTTP/.. 401
   ```
 

@@ -6,7 +6,7 @@
 // buildInternalLinksSection / buildKeywordDedupSection / sanitizeGeneratedLinks
 // back there (autoblog-parity XM-04, MASTER §5).
 //
-// The PILLARS are Xmartmenu's own. This is the PLATFORM's marketing blog, not a
+// The PILLARS are Xprout's own. This is the PLATFORM's marketing blog, not a
 // per-tenant feature: the reader is a restaurant owner we are selling to, not
 // their diner. So the posts are about running and selling food — menu
 // engineering, delivery margins, WhatsApp orders, photos that sell — and the
@@ -75,7 +75,7 @@ export const BLOG_TITLE_STYLES: Readonly<Record<string, string>> = {
   'two-part': 'Um título em duas partes com dois-pontos é permitido aqui ("Tema: o que muda no seu salão").',
 }
 
-// ─── Editorial pillars (Xmartmenu: cardápio digital para restaurantes) ───────
+// ─── Editorial pillars (Xprout: cardápio digital para restaurantes) ───────
 
 export interface BlogPillar {
   id: string
@@ -315,7 +315,7 @@ export function sanitizeGeneratedLinks(html: unknown, allowedPaths: string[]): s
 // ─── Pilares do blog DE UM RESTAURANTE (autoblog-parity XM-14) ──────────────
 //
 // O catálogo acima escreve PARA O DONO do restaurante — é o blog de marketing
-// da Xmartmenu, vendendo a plataforma. Estes pilares escrevem para quem vai
+// da Xprout, vendendo a plataforma. Estes pilares escrevem para quem vai
 // COMER, e o objetivo é outro: SEO local.
 //
 // A diferença é o produto inteiro. "Engenharia de cardápio" é um assunto que

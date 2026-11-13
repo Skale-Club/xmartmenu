@@ -126,7 +126,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
   if (authority !== 'legacy') return <SignInFrameDialog
     src={authority === 'owned' ? '/auth/login?embed=1' : null}
     unavailable={authority === 'unavailable'}
-    title="Sign in to XmartMenu"
+    title="Sign in to Xprout"
     closeLabel="Close sign in"
     tone="dark"
     // Top corner, as on the site's e-mail sign-in card.
@@ -163,7 +163,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
           {logoUrl && (
             <DeliveryImage src={logoUrl} width={48} height={48} sizes="48px" alt="Logo" className="w-12 h-12 mx-auto mb-5" />
           )}
-          <p className="text-2xl font-black text-white tracking-tight">XmartMenu</p>
+          <p className="text-2xl font-black text-white tracking-tight">Xprout</p>
           <p className="text-sm font-bold text-zinc-500 mt-2">Sign in to your menu dashboard</p>
         </div>
 

@@ -8,6 +8,7 @@
  * blog_posts.content without passing it through that sanitiser, this line stops
  * being safe — sanitise on write, not here, so the rule has one home.
  */
+import { BRAND_NAME } from '@/lib/brand'
 import { DeliveryImage } from '@/components/delivery-image'
 import type { Metadata } from 'next'
 import Link from 'next/link'
@@ -39,7 +40,7 @@ async function getPost(slug: string): Promise<PostRow | null> {
     const service = createServiceClient()
       // Escopo da PLATAFORMA. Sem este filtro, e depois de XM-14 ter dado
       // linhas próprias a cada restaurante, esta consulta listaria os posts de
-      // TODOS eles no blog da Xmartmenu — e o slug é único POR ESCOPO, portanto
+      // TODOS eles no blog da Xprout — e o slug é único POR ESCOPO, portanto
       // /blog/<slug> podia servir o artigo de um cliente no site da plataforma.
       const { data } = await scopeFilter(
         service
@@ -109,7 +110,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
     headline: post.title,
     description: post.meta_description ?? post.excerpt ?? undefined,
     datePublished: post.published_at ?? undefined,
-    author: { '@type': 'Organization', name: post.author_name ?? 'Xmartmenu' },
+    author: { '@type': 'Organization', name: post.author_name ?? BRAND_NAME },
     mainEntityOfPage: `${PLATFORM_BASE}/blog/${post.slug}`,
   }
 

@@ -117,7 +117,7 @@ export default function SeoClient({ settings, tenantName, canonicalUrl, isCustom
             <p className="text-[10px] font-black text-primary uppercase tracking-widest mb-1">Canonical URL</p>
             <p className="text-base font-black text-white tracking-tight truncate">{displayUrl}</p>
             <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">
-              {isCustomDomain ? 'Indexed on your custom domain' : 'Indexed on your XmartMenu address'}
+              {isCustomDomain ? 'Indexed on your custom domain' : 'Indexed on your Xprout address'}
             </p>
           </div>
         </div>

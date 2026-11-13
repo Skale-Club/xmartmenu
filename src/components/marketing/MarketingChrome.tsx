@@ -1,5 +1,6 @@
 'use client'
 
+import { BRAND_NAME } from '@/lib/brand'
 import Image from 'next/image'
 import { m } from 'framer-motion'
 import { ArrowRight, Camera, MessageCircle } from 'lucide-react'
@@ -23,7 +24,7 @@ export function Nav({ appName, logoUrl, onLoginOpen, startHref }: { appName?: st
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
             <Image src={logoUrl ?? '/icon.png'} alt="Logo" width={32} height={32} className="w-8 h-8 object-contain object-center" />
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">{appName ?? 'XmartMenu'}</span>
+            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">{appName ?? BRAND_NAME}</span>
           </a>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
@@ -51,8 +52,8 @@ export function Nav({ appName, logoUrl, onLoginOpen, startHref }: { appName?: st
 }
 
 export function Footer({ data, appName, logoUrl }: { data?: FooterData | null; appName?: string | null; logoUrl?: string | null }) {
-  const brandName = appName ?? 'XmartMenu'
-  const copyright = data?.copyright ? `© ${data.copyright}` : '© 2026 XmartMenu. All rights reserved.'
+  const brandName = appName ?? BRAND_NAME
+  const copyright = data?.copyright ? `© ${data.copyright}` : '© 2026 Xprout. All rights reserved.'
 
   return (
     <footer className="border-t border-white/10 bg-zinc-950 px-4 pt-16 md:pt-32 lg:pt-16 pb-8">

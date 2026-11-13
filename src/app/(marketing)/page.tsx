@@ -1,5 +1,6 @@
 export const revalidate = 60
 
+import { BRAND_NAME } from '@/lib/brand'
 import { createServiceClient } from '@/lib/supabase/server'
 import {
   PLATFORM_BASE,
@@ -43,7 +44,7 @@ async function getPlatformSettings() {
 
 export default async function LandingPage() {
   const { landing: platformLanding, appName, logoUrl, description, socialLinks } = await getPlatformSettings()
-  const name = appName ?? 'XmartMenu'
+  const name = appName ?? BRAND_NAME
 
   const organization = buildPlatformOrganizationJsonLd({
     name,

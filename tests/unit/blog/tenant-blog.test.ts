@@ -87,7 +87,7 @@ describe('disponibilidade por dado', () => {
   })
 
   it('sem catálogo explícito, continua sendo o da plataforma', () => {
-    // Compatibilidade: o blog da própria Xmartmenu não muda de comportamento.
+    // Compatibilidade: o blog da própria Xprout não muda de comportamento.
     const assignment = assignPillar([], { hasRssItem: false }, 7)
     expect(BLOG_PILLARS.map((p) => p.id)).toContain(assignment.pillar.id)
   })

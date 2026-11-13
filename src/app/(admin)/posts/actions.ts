@@ -1,4 +1,5 @@
 'use server'
+import { BRAND_URL } from '@/lib/brand'
 import {nativeBlogSelected,legacyBlogWritesBlocked,LEGACY_BLOG_WRITES_MESSAGE} from '@/lib/blog/native/selected'
 import {loadNativeTenantBlogState,nativeTenantBlogMutation,generateNativeTenantPost,fetchNativeTenantRss,checkNativeTenantTelegram,saveNativeTenantTelegram} from '@/lib/blog/native/actions'
 /**
@@ -48,7 +49,7 @@ interface BlogTenant {
  *
  * Era `revalidatePath('/blog')`, que é o blog da PLATAFORMA. O dono aprovava um
  * post, via "ok", e não encontrava nada no site dele até o cache expirar
- * sozinho — enquanto a página do blog da Xmartmenu era revalidada sem razão
+ * sozinho — enquanto a página do blog da Xprout era revalidada sem razão
  * nenhuma. O caminho tem de levar o slug porque é isso que o URL público tem.
  */
 function revalidateTenantBlog(slug: string): void {
@@ -503,7 +504,7 @@ function describeTelegram(row: Record<string, unknown> | null): TenantTelegramSt
 }
 
 function siteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com').replace(/\/+$/, '')
+  return (process.env.NEXT_PUBLIC_SITE_URL ?? BRAND_URL).replace(/\/+$/, '')
 }
 
 const telegramSchema = z.object({
