@@ -17,7 +17,7 @@ export async function updateSession(request: NextRequest, rewriteUrl?: URL) {
   // actually served (/<slug>/…): "/" there is the restaurant's menu, not the
   // marketing home, and a menu called "menu-lunch" is not the /menu admin.
   const pathname = (rewriteUrl ?? request.nextUrl).pathname
-  const MARKETING_PATHS = ['/', '/sitemap.xml', '/robots.txt']
+  const MARKETING_PATHS = ['/', '/pricing', '/sitemap.xml', '/robots.txt']
   const isMarketing = MARKETING_PATHS.includes(pathname) || pathname.startsWith('/opengraph-image')
   if (isMarketing) return makeResponse()
 

@@ -45,6 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 1,
     },
+    { url: `${PLATFORM_BASE}/pricing`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
   ]
 
   if (ownedModeActive()) return ownedSitemap(entries)
