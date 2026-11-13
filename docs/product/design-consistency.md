@@ -5,6 +5,8 @@ icons, buttons and spacing must form one coherent design across related
 customer views. This is a mandatory rule for new and revised UI, not a claim
 that the existing application has already been fully aligned.
 
+> Platform brand colours (Xprout green `#283F32` and ivory `#F3EFE5`, see [brand-identity.md](brand-identity.md)) never replace a restaurant's own colours in the customer views covered here.
+
 ## Scope
 
 Apply to dish cards, list/grid and featured rows, visual feed, product detail,

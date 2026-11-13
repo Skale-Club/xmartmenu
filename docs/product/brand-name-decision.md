@@ -2,6 +2,8 @@
 
 **Decided (owner, 2026-11-12): the product is renamed Xprout; main domain xprout.app** (XMM-D-2026-11-12-brand-name, approved).
 
+Brand colours (decided 2026-11-12): primary burnt forest green `#283F32` and base warm ivory `#F3EFE5`; the red `#F52323` is retired. Full identity: [brand-identity.md](brand-identity.md).
+
 - Xprout = "es-prout" = sprout: the family shape of Xpeed, Xtudio, Xkedule, Xtimator (a plain word, X replacing S/Es/Sch right before a consonant), reads the same in English and Portuguese, means growth and hides a vegetable.
 - Rebrand plan: [docs/plans/2026-11-12-rebrand-xprout.md](../plans/2026-11-12-rebrand-xprout.md).
 - Full research, rules, scores and the 100+ discarded names: Notion, Projects → XmartMenu → [Brand Name Research](https://app.notion.com/p/416b7a6861218102b297f0d07a74beaa).
