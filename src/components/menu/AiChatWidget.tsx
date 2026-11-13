@@ -1,5 +1,6 @@
 'use client'
 
+import { BRAND_PRIMARY } from '@/lib/brand'
 import { useEffect, useRef, useState } from 'react'
 import { MessageCircle, X, Send, Mic, ShoppingBag, Bot, Trash2, Loader2 } from 'lucide-react'
 import type { Product, IngredientModifications } from '@/types/database'
@@ -65,7 +66,7 @@ interface Message {
 
 const SESSION_KEY_PREFIX = 'aiChat:'
 
-export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = '#F52323', audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false, language = 'en', cart = null, canOrder = true, tableId = null, phoneContext = null, locale = 'en' }: Props) {
+export default function AiChatWidget({ tenantSlug, tenantName, primaryColor = BRAND_PRIMARY, audioEnabled = false, textEnabled = true, products, onAddToCart, menuId = null, locationId = null, cartOpen = false, onOpenCart, orderBarVisible = false, language = 'en', cart = null, canOrder = true, tableId = null, phoneContext = null, locale = 'en' }: Props) {
   const copy = getGuestCopy(language)
   const menuCopy = getMenuCopy(language)
   // Text and icons on the brand colour: black or white, whichever reads (never a fixed one).

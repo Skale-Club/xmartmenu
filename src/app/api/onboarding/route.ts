@@ -1,3 +1,4 @@
+import { BRAND_PRIMARY } from '@/lib/brand'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { slugify } from '@/lib/utils'
@@ -66,7 +67,7 @@ async function ownedPost(request: Request) {
     if (!parsed.success) return NextResponse.json({ error: 'Invalid onboarding data' },{ status: 400 })
     const data = parsed.data, tenantSlug = slugify(data.company_name)
     if (!tenantSlug || RESERVED_PATHS.has(tenantSlug)) return NextResponse.json({ error: 'This name is reserved. Please choose a different restaurant name.' },{ status: 400 })
-    const palette = CUISINE_PALETTES[data.business_type?.trim().toLowerCase() ?? ''] ?? { primary: '#F52323',accent: '#09090b' }
+    const palette = CUISINE_PALETTES[data.business_type?.trim().toLowerCase() ?? ''] ?? { primary: BRAND_PRIMARY,accent: '#09090b' }
     const input = { company_name: data.company_name.trim(),tenant_slug: tenantSlug,
       full_name: data.responsible_name?.trim() || principal.fullName,phone: data.phone?.trim() || null,address: data.address?.trim() || null,
       primary_color: palette.primary,accent_color: palette.accent,menu_name: data.menu_name.trim(),menu_slug: slugify(data.menu_name) || 'menu',
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
       product_name,
       product_price,
     } = parsed.data
-    const defaultPalette = CUISINE_PALETTES[business_type?.trim().toLowerCase() ?? ''] ?? { primary: '#F52323', accent: '#09090b' }
+    const defaultPalette = CUISINE_PALETTES[business_type?.trim().toLowerCase() ?? ''] ?? { primary: BRAND_PRIMARY, accent: '#09090b' }
 
     // Reject slugs that collide with reserved marketing paths | dual enforcement
     // (middleware blocks access; API blocks creation). D-07 from CONTEXT.md.

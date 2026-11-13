@@ -1,6 +1,6 @@
 'use client'
 
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, BRAND_PRIMARY } from '@/lib/brand'
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { idempotencyKeyFor, type IdempotencySlot } from '@/lib/orders/idempotency-client'
@@ -225,7 +225,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const autoOpenedRef = useRef(false)
 
   const settings = tenant.tenant_settings
-  const primaryColor = settings?.primary_color ?? '#F52323'
+  const primaryColor = settings?.primary_color ?? BRAND_PRIMARY
   const accentColor = safeCssColor(settings?.accent_color, '#09090b')
   // The secondary colour as text on white: a light one is deepened so prices stay readable.
   const accentText = computePrimaryForeground(accentColor) === '#ffffff' ? accentColor : `color-mix(in srgb, ${accentColor} 55%, #09090b)`

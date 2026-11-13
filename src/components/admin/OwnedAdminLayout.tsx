@@ -1,4 +1,4 @@
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, BRAND_PRIMARY } from '@/lib/brand'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { ArrowLeft } from 'lucide-react'
@@ -24,7 +24,7 @@ export default async function OwnedAdminLayout({ children }: { children: React.R
     getOwnedShellPlatform(), getOwnedShellTenant(principal, effective.tenantId),
   ])
   const active = activeAdminMenu(context.menus, cookieStore.get('selected_menu_id')?.value)
-  const primary = context.settings?.primary_color ?? '#F52323'
+  const primary = context.settings?.primary_color ?? BRAND_PRIMARY
   const accent = context.settings?.accent_color ?? '#09090b'
   const preview = principal.role === 'superadmin'
   const exitHref = `/api/admin/exit-preview?next=${encodeURIComponent(`/tenants/${effective.tenantId}`)}`

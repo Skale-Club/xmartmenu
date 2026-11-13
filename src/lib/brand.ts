@@ -11,6 +11,10 @@ export const BRAND_NAME = 'Xprout'
 export const BRAND_HOST = 'xprout.app'
 export const BRAND_URL = 'https://xprout.app'
 
+/** Brand colours (owner, 2026-11-12; see docs/product/brand-identity.md). Never override a restaurant's own colours. */
+export const BRAND_PRIMARY = '#283F32' // burnt forest green
+export const BRAND_BASE = '#F3EFE5' // warm ivory
+
 /** Hosts that serve the product itself. */
 export const BRAND_HOSTS: readonly string[] = ['xprout.app', 'www.xprout.app']
 

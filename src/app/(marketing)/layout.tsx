@@ -1,4 +1,4 @@
-import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
+import { BRAND_NAME, BRAND_URL, BRAND_PRIMARY } from '@/lib/brand'
 import type { Metadata } from 'next'
 import '../globals.css'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -81,7 +81,7 @@ export default async function MarketingLayout({
   children: React.ReactNode
 }) {
   const ps = await getPlatformSettings()
-  const primary = ps?.cta_color ?? '#F52323'
+  const primary = ps?.cta_color ?? BRAND_PRIMARY
   const primaryFg = computePrimaryForeground(primary)
 
   return (

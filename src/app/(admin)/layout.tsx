@@ -1,6 +1,6 @@
 ﻿export const dynamic = 'force-dynamic'
 
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, BRAND_PRIMARY } from '@/lib/brand'
 import { redirect } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
@@ -91,7 +91,7 @@ export default async function AdminLayout({
       getChatAddonStatus(tenant.id).catch(() => null),
     ])
 
-    const previewPrimary = previewSettings?.primary_color ?? '#F52323'
+    const previewPrimary = previewSettings?.primary_color ?? BRAND_PRIMARY
     const previewAccent = previewSettings?.accent_color ?? '#09090b'
     const previewPrimaryFg = computePrimaryForeground(previewPrimary)
     const exitPreviewHref = `/api/admin/exit-preview?next=${encodeURIComponent(`/tenants/${tenant.id}`)}`
@@ -159,7 +159,7 @@ export default async function AdminLayout({
     getChatAddonStatus(tenantId).catch(() => null),
   ])
 
-  const adminPrimary = settingsRow?.primary_color ?? '#F52323'
+  const adminPrimary = settingsRow?.primary_color ?? BRAND_PRIMARY
   const adminAccent = settingsRow?.accent_color ?? '#09090b'
   const adminPrimaryFg = computePrimaryForeground(adminPrimary)
 

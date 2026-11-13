@@ -1,6 +1,6 @@
 'use client'
 
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, BRAND_PRIMARY } from '@/lib/brand'
 import { DeliveryImage } from '@/components/delivery-image'
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
@@ -351,7 +351,7 @@ export default function SettingsClient({ settings }: Props) {
     brand_name: s.brand_name ?? BRAND_NAME,
     default_primary_color: s.default_primary_color ?? '#000000',
     default_accent_color: s.default_accent_color ?? '#FF5722',
-    cta_color: s.cta_color ?? '#F52323',
+    cta_color: s.cta_color ?? BRAND_PRIMARY,
     menu_footer_brand: s.menu_footer_brand ?? BRAND_NAME,
     favicon_url: s.favicon_url ?? '',
   })
