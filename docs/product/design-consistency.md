@@ -102,3 +102,31 @@ read as notifications against primary-coloured fills. On dark AR sheets, a
 primary-coloured button whose brand colour is too dark to see uses the
 store's secondary colour instead (owner choice, 2026-11-12).
 
+## Visual tokens: the feed is the reference (owner, 2026-11-12)
+
+The visual feed's look is the reference for every customer surface. Type and
+button shapes come from one file, `src/components/menu/menu-ui.ts`:
+
+- `ui.dishTitle` — dish names (heavy, tight); `ui.sheetTitle` / `ui.barTitle`
+  for sheet and header titles;
+- `ui.label` — the small uppercase, widely tracked label ("Ingredients",
+  "Size", "Subtotal", "02 / 05");
+- `ui.price` — prices and totals;
+- `ui.cta` + `ctaStyle(colour, foreground)` — the primary action as a full
+  pill, uppercase, with the store colour's soft glow (h-12 in the menu, h-11
+  in the AR camera); `ui.ctaQuiet` for quiet secondary actions.
+
+Used by the feed, the dish sheet, the cart, checkout, "complete your order",
+the feed size picker and the AR camera's sheets. Colours stay per surface
+(light sheets, dark camera). Change a token and every screen follows; do not
+restyle one surface locally. The feature pill is `DishFeaturePill`
+(docs/product/dish-tags.md).
+
+**Dish name and price: `DishHeading`** (`src/components/menu/DishHeading.tsx`).
+Every surface that shows a dish uses it: name on the left, price on the right
+on the same row, in `ui.dishTitle` / `ui.price` at the sizes in
+`ui.dishHeading` (`feed` over the photo, `sheet` on the dish screen and the 3D
+camera's details sheet). The price never goes inside a button: the add button
+reads just "Add to order". `ui.sheetTitle` is only for titles that are not a
+dish ("Your order", "Cart").
+

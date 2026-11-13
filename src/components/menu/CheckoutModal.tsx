@@ -12,6 +12,7 @@ import BottomSheet from '@/components/ui/BottomSheet'
 import PhoneField from '@/components/ui/PhoneField'
 import { keepFieldVisible, nextFieldOnEnter, useVisibleBox } from '@/components/ui/keyboard-fields'
 import type { PhoneContext } from './showcase'
+import { ctaStyle, ui } from './menu-ui'
 
 function findMatchingZone(zipcode: string | undefined, zones: DeliveryZone[] | undefined): DeliveryZone | null {
   if (!zipcode || !zones || zones.length === 0) return null
@@ -130,7 +131,7 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                 <ChevronLeft className="size-5" />
               </button>
             ) : <span className="size-11" />}
-            <h2 className="flex-1 text-center text-[17px] font-semibold text-zinc-900">{orderSuccess ? copy.orderPlaced : copy.checkoutTitle}</h2>
+            <h2 className={`flex-1 text-center ${ui.barTitle} text-zinc-900`}>{orderSuccess ? copy.orderPlaced : copy.checkoutTitle}</h2>
             <button type="button" onClick={onClose} className="flex size-11 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900" aria-label={copy.close}>
               <X className="size-5" />
             </button>
@@ -344,8 +345,8 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                   <button
                     type="submit"
                     disabled={submittingOrder}
-                    style={{ backgroundColor: primary, color: onPrimary }}
-                    className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-6 text-base font-semibold shadow-float transition-[opacity,scale] hover:opacity-95 active:scale-[0.98] disabled:opacity-60"
+                    style={ctaStyle(primary, onPrimary)}
+                    className={`${ui.cta} h-12 w-full hover:opacity-95 disabled:opacity-60`}
                   >
                     {submittingOrder ? copy.placingOrder : (
                       <>
@@ -366,7 +367,7 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
 function Card({ title, className = '', children }: { title?: string; className?: string; children: ReactNode }) {
   return (
     <section className={`overflow-hidden rounded-2xl bg-white shadow-card ${className}`}>
-      {title && <h3 className="px-4 pt-4 pb-3 text-[15px] font-semibold text-zinc-900">{title}</h3>}
+      {title && <h3 className={`px-4 pt-4 pb-3 ${ui.label} text-zinc-500`}>{title}</h3>}
       {children}
     </section>
   )

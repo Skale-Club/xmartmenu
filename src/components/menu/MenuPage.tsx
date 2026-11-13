@@ -13,7 +13,7 @@ import { type CartItem, type CartAddedVia, type CartEditorState, buildCartKey, g
 import { arOrderSummary, dishQuantity, lineToDecrement } from './ar-cart'
 import { getGuestCopy } from './guest-copy'
 import WaiterCallButtons from './WaiterCallButtons'
-import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, translateTag } from './menu-i18n'
+import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage } from './menu-i18n'
 import { computeOpenState, resolveTimeZone } from '@/lib/chat-context'
 import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
 import { contactLinks, displayPrice, whatsappUrl } from './showcase'
@@ -49,7 +49,8 @@ import {
 } from './menu-session'
 import BottomSheet from '@/components/ui/BottomSheet'
 import LanguagePicker from './LanguagePicker'
-import { primaryTag, tagStyle } from '@/lib/menu/dish-tags'
+import { dishFeature } from '@/lib/menu/dish-tags'
+import DishFeaturePill from './DishFeaturePill'
 import UpsellSheet from './UpsellSheet'
 import { buildUpsellSteps, canQuickAdd, type UpsellStep } from './upsell'
 import {
@@ -956,6 +957,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
       onAdd: () => addToCart(p, {}, p.price, undefined, undefined, undefined, 'ar'),
       onChoose: () => openProduct(p, 'detail'),
     } : null,
+    onMoreInfo: () => openProduct(p, 'detail'),
   }))
 
   const hasCustomization = (productId: string) =>
@@ -1647,7 +1649,7 @@ function ProductCard({ product, lang, currency, accentText, price, onOpen, cartQ
   }, [justAdded])
   const showCheck = justAdded && showStepper
   // A 44px tap area around a smaller visible circle.
-  const cardTag = primaryTag(product.tags)
+  const cardFeature = dishFeature(product)
   const hit = "relative before:absolute before:-inset-1.5 before:content-['']"
   return (
     <article
@@ -1666,10 +1668,8 @@ function ProductCard({ product, lang, currency, accentText, price, onOpen, cartQ
         {product.description && (
           <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-zinc-500">{product.description}</p>
         )}
-        {/* One tag pill per card (docs/product/dish-tags.md); the dish sheet lists them all. */}
-        {cardTag && (
-          <span className="mt-2 self-start rounded-full px-2 py-0.5 text-[11px] font-medium" style={tagStyle(cardTag)}>{translateTag(cardTag, lang)}</span>
-        )}
+        {/* One feature pill per dish, the system-wide pill (docs/product/dish-tags.md). */}
+        {cardFeature && <DishFeaturePill tag={cardFeature} lang={lang} className="mt-2" />}
       </div>
       {/* The price, plain text, at the foot of the text column. "From" (sizes) or the struck old price (promotions) go on a small line above. */}
       <div className="pointer-events-none col-start-1 row-start-2 px-3.5 pt-2 pb-3 sm:order-3 sm:mt-auto sm:px-4 sm:pb-4">

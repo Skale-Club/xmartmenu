@@ -22,7 +22,8 @@
  *             old model without a USDZ is converted on the phone first. With a
  *             cart, Quick Look shows its own "Add to order" button: a dish
  *             without choices is added, one with choices comes back to them.
- *   other     no button: a computer (or an iPhone in-app browser) has no AR camera.
+ *   other     no button: a computer, or an iPhone in-app browser that cannot open
+ *             Quick Look (Telegram, Instagram; Chrome, Edge and Firefox can).
  *             On a computer the dish sheet offers its 3D viewer instead
  *             (useIsComputer, ProductModal + ModelViewer).
  */
@@ -76,6 +77,11 @@ export interface ArButtonProps {
    * own name, model, price, details and cart actions.
    */
   sequence?: { items: ArSequenceItem[]; startId: string } | null
+  /**
+   * The details sheet's "More info": the camera closes, then this opens the
+   * dish's own screen. A no-op where that screen is already open underneath.
+   */
+  onMoreInfo?: () => void
 }
 
 /** One dish of the AR carousel. */
@@ -86,6 +92,8 @@ export interface ArSequenceItem {
   priceLabel?: string
   details?: ArDishDetails | null
   cart?: ArCart | null
+  /** Opens this dish's own screen (the camera's "More info"). */
+  onMoreInfo?: () => void
 }
 
 type DishSessionModule = typeof import('@/lib/ar/webxr-dish-session')
@@ -139,7 +147,7 @@ export function ArBadge({ lang, className }: { lang: string; className?: string 
   )
 }
 
-export default function ArButton({ model, name, lang, onOpen, onArLaunch, className, iconOnly = false, cart = null, priceLabel, details = null, theme, sequence = null }: ArButtonProps) {
+export default function ArButton({ model, name, lang, onOpen, onArLaunch, className, iconOnly = false, cart = null, priceLabel, details = null, theme, sequence = null, onMoreInfo }: ArButtonProps) {
   const copy = getArCopy(lang)
   // Nothing renders on the server or without an AR camera.
   const platform = useArPlatform()
@@ -250,6 +258,7 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
   const shown = sequenceItem
     ? { name: sequenceItem.name, model: sequenceItem.model, priceLabel: sequenceItem.priceLabel, details: sequenceItem.details ?? null, cart: sequenceItem.cart ?? null }
     : { name, model, priceLabel, details, cart }
+  const moreInfo = sequenceItem ? sequenceItem.onMoreInfo : onMoreInfo
 
   /** Downloads the dishes next to `id` in the background (not in data-saving mode). */
   function preloadAround(id: string) {
@@ -400,6 +409,7 @@ export default function ArButton({ model, name, lang, onOpen, onArLaunch, classN
           onReposition={() => sessionRef.current?.reposition()}
           trackingLost={trackingLost}
           onChoose={chooseFromCamera}
+          onMoreInfo={moreInfo ? () => { stopWebXr(); moreInfo() } : undefined}
         />
       )}
     </>

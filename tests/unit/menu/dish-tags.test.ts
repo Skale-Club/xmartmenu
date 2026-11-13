@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeTags, primaryTag, sortTags, tagColor } from '@/lib/menu/dish-tags'
+import { dishFeature, normalizeTags, primaryTag, sortTags, tagColor } from '@/lib/menu/dish-tags'
 
 describe('dish tags', () => {
   it('shows the highest-ranked known tag', () => {
@@ -38,5 +38,17 @@ describe('dish tags', () => {
     expect(normalizeTags([' House favourite '])).toEqual(['House favourite'])
     expect(normalizeTags([])).toEqual([])
     expect(normalizeTags(undefined)).toEqual([])
+  })
+})
+
+describe('one feature per dish', () => {
+  it('shows the tag, never the tag and the featured flag together', () => {
+    expect(dishFeature({ tags: ['Spicy'], is_featured: true })).toBe('Spicy')
+    expect(dishFeature({ tags: ['Vegan', "Chef's special"], is_featured: false })).toBe("Chef's special")
+  })
+
+  it("marks a featured dish without a tag as the chef's special", () => {
+    expect(dishFeature({ tags: [], is_featured: true })).toBe("Chef's special")
+    expect(dishFeature({ tags: null, is_featured: false })).toBeNull()
   })
 })

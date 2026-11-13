@@ -11,8 +11,10 @@ import DishDetails from './DishDetails'
 import type { Product, ProductIngredientWithIngredient, IngredientModifications, IngredientRemoval, IngredientExtra, ProductMedia, PublicProductArModel } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { getProductImages, type CartEditorState } from './menu-utils'
-import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
-import { normalizeTags, tagStyle } from '@/lib/menu/dish-tags'
+import { fill, formatMoney, getMenuCopy } from './menu-i18n'
+import { dishFeature } from '@/lib/menu/dish-tags'
+import DishFeaturePill from './DishFeaturePill'
+import { ctaStyle, ui } from './menu-ui'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { baseName } from '@/lib/menu-translations'
 import { getGuestCopy } from './guest-copy'
@@ -21,6 +23,7 @@ import ModalPortal from '@/components/ui/ModalPortal'
 import { keepFieldVisible, useVisibleBox } from '@/components/ui/keyboard-fields'
 import { useDragToDismiss } from '@/components/ui/use-drag-to-dismiss'
 import { halfAndHalfUnit } from '@/lib/menu/option-pricing'
+import DishHeading from './DishHeading'
 
 type MediaSlide = { type: 'image'; url: string } | { type: 'video'; url: string }
 
@@ -498,6 +501,8 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
       name={product.name}
       lang={lang}
       onOpen={onModelViewerOpened}
+      // The dish's screen is this one, already open under the camera: closing the camera is enough.
+      onMoreInfo={() => {}}
       onArLaunch={onArLaunched}
       priceLabel={money(finalUnitPrice)}
       details={{
@@ -626,31 +631,22 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
 
           <div className="space-y-4 px-5 pt-4 pb-6" onTouchStart={handleBodyTouchStart} onTouchEnd={handleBodyTouchEnd}>
             <div>
-              <div className="flex items-start justify-between gap-4">
-                <h2 className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900">{product.name}</h2>
-                {!hasFooterPrice && <div className="shrink-0 text-right">
-                  <p className="text-[20px] font-bold tabular-nums tracking-tight" style={{ color: priceColor }}>
-                    {headerPrice.from ? fill(guestCopy.fromPrice, { price: money(headerPrice.amount) }) : money(headerPrice.amount)}
-                  </p>
+              <DishHeading size="sheet" name={product.name} titleClassName="text-zinc-900" priceStyle={{ color: priceColor }}
+                price={hasFooterPrice ? undefined : <>
+                  <p>{headerPrice.from ? fill(guestCopy.fromPrice, { price: money(headerPrice.amount) }) : money(headerPrice.amount)}</p>
                   {!headerPrice.from && product.original_price && product.original_price > product.price && (
-                    <p className="text-[13px] tabular-nums text-zinc-400 line-through">{money(product.original_price)}</p>
+                    <p className="text-[13px] font-normal text-zinc-400 line-through">{money(product.original_price)}</p>
                   )}
-                </div>}
-              </div>
+                </>} />
               {product.description && <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">{product.description}</p>}
               <DishDetails details={details} />
-              {product.tags?.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {normalizeTags(product.tags).map(tag => (
-                    <span key={tag} className="rounded-full px-2.5 py-1 text-[12px] font-medium" style={tagStyle(tag)}>{translateTag(tag, lang)}</span>
-                  ))}
-                </div>
-              )}
+              {/* One feature pill per dish, the system-wide pill. */}
+              {dishFeature(product) && <div className="mt-3 flex"><DishFeaturePill tag={dishFeature(product)!} lang={lang} /></div>}
             </div>
 
             {showcase && optionGroups.map(group => group.options.length > 0 && (
               <section key={group.id} className="overflow-hidden rounded-2xl bg-white shadow-card">
-                <h3 className="px-4 pt-4 pb-2 text-[15px] font-semibold text-zinc-900">{group.name}</h3>
+                <h3 className={`px-4 pt-4 pb-2 ${ui.label} text-zinc-500`}>{group.name}</h3>
                 <ul>
                   {optionPriceList(group, money).map(row => (
                     <li key={row.id} className="flex min-h-[44px] items-center justify-between gap-3 border-t border-zinc-100 px-4 py-2">
@@ -672,7 +668,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                   className={`overflow-hidden rounded-2xl bg-white shadow-card transition-shadow ${needsAttention ? 'ring-2 ring-red-300' : ''}`}
                 >
                   <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2">
-                    <h3 className="text-[15px] font-semibold text-zinc-900">{group.name}</h3>
+                    <h3 className={`${ui.label} text-zinc-500`}>{group.name}</h3>
                     <span className={`text-right text-[12px] font-medium ${needsAttention ? 'text-red-600' : 'text-zinc-500'}`}>{groupHint(group)}</span>
                   </div>
 
@@ -865,7 +861,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
             {!showcase && ingredientCustomizationEnabled && extraIngredients.length > 0 && (
               <section className="overflow-hidden rounded-2xl bg-white shadow-card">
                 <div className="px-4 pt-4 pb-2">
-                  <h3 className="text-[15px] font-semibold text-zinc-900">{copy.extras}</h3>
+                  <h3 className={`${ui.label} text-zinc-500`}>{copy.extras}</h3>
                 </div>
                 {extraIngredients.map(pi => {
                   const checked = addedIngredients.includes(pi.ingredient_id)
@@ -923,18 +919,18 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                   language. No quantity picker before adding: "+1, +2" appears on the dish card once it is in the bag. */}
               <div className="flex items-center gap-4">
                 <div className="shrink-0 pl-1" aria-live="polite">
-                  <p className="flex items-baseline gap-1.5 text-[12px] font-medium text-zinc-500">
+                  <p className={`flex items-baseline gap-1.5 ${ui.label} text-zinc-500`}>
                     {footerPriceLabel}
                     {footerPromo && <span className="tabular-nums text-zinc-400 line-through">{money(footerPromo)}</span>}
                   </p>
-                  <p className="text-[20px] font-bold leading-tight tabular-nums tracking-tight" style={{ color: priceColor }}>{money(finalUnitPrice)}</p>
+                  <p className={`text-[20px] leading-tight ${ui.price}`} style={{ color: priceColor }}>{money(finalUnitPrice)}</p>
                 </div>
                 <button
                   type="button"
                   onClick={submit}
                   aria-disabled={!canAddToCart}
-                  style={{ backgroundColor: primaryColor, color: onPrimary }}
-                  className={`flex h-[52px] min-w-0 flex-1 items-center justify-center gap-2 rounded-2xl px-4 text-[16px] font-semibold shadow-float transition-[opacity,scale] active:scale-[0.98] ${canAddToCart ? 'hover:opacity-95' : 'opacity-50'}`}
+                  style={ctaStyle(primaryColor, onPrimary)}
+                  className={`${ui.cta} h-12 min-w-0 flex-1 ${canAddToCart ? 'hover:opacity-95' : 'opacity-50'}`}
                 >
                   {isEditing
                     ? <Check className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />
@@ -950,7 +946,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                 onClick={() => onWhatsApp(whatsappItem())}
                 className={!showcase && onAddToCart
                   ? 'w-full py-1.5 text-[14px] font-medium text-emerald-700 hover:underline'
-                  : 'flex h-[52px] w-full items-center justify-center rounded-2xl bg-[#25D366] text-[16px] font-semibold text-white transition-opacity hover:opacity-95'}
+                  : `${ui.cta} h-12 w-full bg-[#25D366] text-white hover:opacity-95`}
               >
                 {copy.orderWhatsApp}
               </button>

@@ -24,14 +24,16 @@
 
 import { useEffect, useRef, useState, type PointerEvent, type Ref } from 'react'
 import { createPortal } from 'react-dom'
-import { ChevronLeft, ChevronRight, HelpCircle, Minus, Plus, ShoppingBag, Smartphone, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Minus, Plus, ShoppingBag, Smartphone, X } from 'lucide-react'
 import type { DishStage } from '@/lib/ar/webxr-dish-session'
 import { scanningHintIndex } from '@/lib/ar/surface-finder'
 import { dishSwipe } from '@/lib/ar/gesture-router'
 import { computePrimaryForeground, relativeLuminance } from '@/lib/color-utils'
 import DragSheet from '@/components/sheet/DragSheet'
+import { ui } from '@/components/menu/menu-ui'
 import type { ArCopy } from './ar-copy'
 import ArGestureOnboarding from './ArGestureOnboarding'
+import DishHeading from '@/components/menu/DishHeading'
 
 /** One row of the order sheet. */
 export interface ArOrderLine { key: string; name: string; qty: number; line: string; /** Unit price, shown when qty > 1. */ unit?: string }
@@ -83,6 +85,8 @@ export interface WebXrDishViewerProps {
   /** The placed dish lost its table (from the session's onTracking). */
   trackingLost?: boolean
   onChoose: () => void
+  /** Details sheet's "More info": leaves the camera and opens the dish's own screen. */
+  onMoreInfo?: () => void
   /** The menu's 3D dishes: position and steps (swipe the name strip or tap the chevrons). */
   carousel?: { index: number; total: number; onPrev: () => void; onNext: () => void } | null
   /** A dish's model is downloading: its percentage, null when the size is unknown; undefined when nothing loads. */
@@ -98,9 +102,8 @@ const pill = 'pointer-events-auto flex h-11 items-center justify-center gap-1.5 
 const glass = 'bg-[rgb(21_24_25/0.88)] text-white'
 const shadowText = '[text-shadow:1px_2px_2px_rgb(0_0_0/45%)]'
 
-export default function WebXrDishViewer({ active, stage, name, priceLabel, copy, cart, details, theme = DEFAULT_THEME, overlayRef, gestureLayerRef, onExit, onReposition, onChoose, trackingLost = false, carousel = null, loadingPercent }: WebXrDishViewerProps) {
+export default function WebXrDishViewer({ active, stage, name, priceLabel, copy, cart, details, theme = DEFAULT_THEME, overlayRef, gestureLayerRef, onExit, onReposition, onChoose, onMoreInfo, trackingLost = false, carousel = null, loadingPercent }: WebXrDishViewerProps) {
   const [sheet, setSheet] = useState<'order' | 'details' | null>(null)
-  const [howTo, setHowTo] = useState(false)
   // Name-strip swipe (gesture zoning: the only place where a sideways swipe changes dish).
   const swipeStart = useRef<{ x: number; y: number } | null>(null)
   const swiped = useRef(false)
@@ -134,7 +137,7 @@ export default function WebXrDishViewer({ active, stage, name, priceLabel, copy,
   const [wasActive, setWasActive] = useState(active)
   if (wasActive !== active) {
     setWasActive(active)
-    if (!active) { setSheet(null); setHowTo(false) }
+    if (!active) setSheet(null)
   }
 
   if (typeof document === 'undefined') return null
@@ -149,8 +152,7 @@ export default function WebXrDishViewer({ active, stage, name, priceLabel, copy,
   const price = cart?.priceLabel ?? priceLabel
   const quantity = cart?.quantity ?? 0
   const stepper = cart?.mode === 'add' && quantity > 0 && cart.onRemove
-  const gestures = copy.gestures.split(/ · |・/)
-  const closeSheet = () => { setSheet(null); setHowTo(false) }
+  const closeSheet = () => setSheet(null)
   const openOrder = () => {
     if (cart?.summary) setSheet('order')
     else cart?.onOpenCart?.()
@@ -309,48 +311,53 @@ export default function WebXrDishViewer({ active, stage, name, priceLabel, copy,
       )}
 
       {sheet === 'details' && (
-        <DragSheet tone="dark" contained label={name} closeLabel={copy.back} onClose={closeSheet}
-          header={<h3 className="pb-1 text-[17px] font-semibold">{name}</h3>}>
-          {details?.description && <p className="mb-3.5 text-sm leading-5 text-white/80">{details.description}</p>}
-          {details?.ingredients && details.ingredients.length > 0 && <>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-[0.04em] text-white/55">{copy.ingredients}</p>
-            <div className="mb-3.5 flex flex-wrap gap-1.5">
-              {details.ingredients.map(item => <span key={item} className="rounded-full bg-white/10 px-3 py-1 text-[13px] leading-[18px]">{item}</span>)}
-            </div>
-          </>}
-          <button type="button" onClick={() => setHowTo(value => !value)} aria-expanded={howTo}
-            className="mb-2 flex min-h-11 w-full items-center gap-2.5 border-t border-white/10 text-left text-sm font-medium text-white/80">
-            <HelpCircle className="size-[18px] shrink-0" aria-hidden />
-            <span className="flex-1">{copy.help}</span>
-            <ChevronRight className={`size-[18px] shrink-0 opacity-60 transition-transform ${howTo ? 'rotate-90' : ''}`} aria-hidden />
-          </button>
-          {howTo && (
-            <ul className="mb-3.5 grid gap-1.5 rounded-2xl bg-white/[0.06] px-3 py-2.5 text-sm">
-              {gestures.map(text => <li key={text}>{text}</li>)}
-            </ul>
-          )}
-          {cart && (cart.mode === 'choose' ? (
-            <button type="button" onClick={() => { closeSheet(); onChoose() }} className="h-11 w-full rounded-full text-[15px] font-semibold" style={sheetPrimary}>{copy.chooseOptions}</button>
-          ) : stepper ? (
-            <div className="flex min-h-[52px] items-center justify-between gap-3 rounded-full bg-white/[0.08] py-1 pr-1 pl-6">
-              <div className="flex min-w-0 flex-col leading-tight">
-                <span className="text-xs text-white/65">{copy.inYourOrder}</span>
-                {cart.lineLabel && <strong className="text-base font-bold tabular-nums">{cart.lineLabel}</strong>}
-              </div>
-              {stepperControl}
-            </div>
-          ) : (
-            <button type="button" onClick={cart.onAdd} className="h-11 w-full rounded-full text-[15px] font-semibold" style={sheetPrimary}>
-              {price ? `${copy.addToOrder} · ${price}` : copy.addToOrder}
+        <DragSheet tone="dark" contained label={name} closeLabel={copy.close} onClose={closeSheet}
+          header={<DishHeading as="h3" size="sheet" name={name} price={price} className="pb-1" />}>
+          {details?.description && <p className="mb-2 text-sm leading-5 text-white/80">{details.description}</p>}
+          {onMoreInfo && (
+            <button type="button" onClick={() => { closeSheet(); onMoreInfo() }}
+              className="-ml-0.5 mb-3 inline-flex min-h-11 items-center gap-0.5 text-sm font-semibold text-white/85">
+              {copy.moreInfo}<ChevronRight className="size-4 opacity-70" aria-hidden />
             </button>
-          ))}
-          <button type="button" onClick={closeSheet} className="mt-1 h-11 w-full rounded-full text-[15px] font-medium text-white/80">{copy.back}</button>
+          )}
+          {/* Order row (owner, 2026-11-12): add → "− qty +" in place, and the bag beside it
+              whenever the order has anything (also what was added before opening the camera). */}
+          {cart && (
+            <div className="mt-1 flex items-center gap-2.5 pr-1">{/* pr-1: room for the bag's badge */}
+              <div className="min-w-0 flex-1">
+                {cart.mode === 'choose' ? (
+                  <button type="button" onClick={() => { closeSheet(); onChoose() }} className={`${ui.cta} h-[52px] w-full`} style={sheetPrimary}>{copy.chooseOptions}</button>
+                ) : stepper ? (
+                  <div className="flex h-[52px] items-center justify-between gap-3 rounded-full bg-white/[0.08] pr-1 pl-5">
+                    <div className="flex min-w-0 flex-col leading-tight">
+                      <span className={`${ui.label} text-white/65`}>{copy.inYourOrder}</span>
+                      {cart.lineLabel && <strong className={`text-base ${ui.price}`}>{cart.lineLabel}</strong>}
+                    </div>
+                    {stepperControl}
+                  </div>
+                ) : (
+                  <button type="button" onClick={cart.onAdd} className={`${ui.cta} h-[52px] w-full`} style={sheetPrimary}>{copy.addToOrder}</button>
+                )}
+              </div>
+              {cart.count > 0 && (cart.summary || cart.onOpenCart) && (
+                <span className="relative inline-flex shrink-0">
+                  <button type="button" onClick={openOrder} aria-label={`${copy.viewOrder} · ${cart.count}`}
+                    className="flex size-[52px] items-center justify-center rounded-full bg-white/[0.12] text-white active:bg-white/20">
+                    <ShoppingBag className="size-5" />
+                  </button>
+                  <span aria-hidden className="absolute -top-1 -right-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-xs font-bold tabular-nums shadow-[0_1px_3px_rgb(0_0_0/0.3)]" style={accent}>
+                    {cart.count}
+                  </span>
+                </span>
+              )}
+            </div>
+          )}
         </DragSheet>
       )}
 
       {sheet === 'order' && cart?.summary && (
         <DragSheet tone="dark" contained label={copy.yourOrder} closeLabel={copy.back} onClose={closeSheet}
-          header={<h3 className="pb-1 text-[17px] font-semibold">{copy.yourOrder}</h3>}>
+          header={<h3 className={`pb-1 ${ui.sheetTitle}`}>{copy.yourOrder}</h3>}>
           <ul className="mt-1">
             {cart.summary.items.map(item => (
               <li key={item.key} className="flex min-h-10 items-center gap-2.5 border-b border-white/[0.08] text-[15px]">
@@ -363,11 +370,11 @@ export default function WebXrDishViewer({ active, stage, name, priceLabel, copy,
               </li>
             ))}
           </ul>
-          <div className="mt-3 mb-3.5 flex justify-between text-base font-bold tabular-nums"><span>{copy.total}</span><span>{cart.summary.total}</span></div>
+          <div className={`mt-3 mb-3.5 flex items-baseline justify-between text-base ${ui.price}`}><span className={`${ui.label} text-white/65`}>{copy.total}</span><span>{cart.summary.total}</span></div>
           {cart.onOpenCart && (
-            <button type="button" onClick={() => { closeSheet(); cart.onOpenCart?.() }} className="h-11 w-full rounded-full text-[15px] font-semibold" style={sheetPrimary}>{copy.goToCart}</button>
+            <button type="button" onClick={() => { closeSheet(); cart.onOpenCart?.() }} className={`${ui.cta} h-11 w-full`} style={sheetPrimary}>{copy.goToCart}</button>
           )}
-          <button type="button" onClick={closeSheet} className="mt-1 h-11 w-full rounded-full text-[15px] font-medium text-white/80">{copy.keepBrowsing}</button>
+          <button type="button" onClick={closeSheet} className={`${ui.ctaQuiet} mt-1 h-11 w-full text-white/80`}>{copy.keepBrowsing}</button>
         </DragSheet>
       )}
     </div>,

@@ -14,8 +14,16 @@ describe('arPlatform', () => {
     expect(arPlatform({ userAgent: UA.ipadDesktop, quickLook: true, maxTouchPoints: 5 })).toBe('quick-look')
   })
 
-  it('has no AR route on an iPhone browser without Quick Look (in-app browsers)', () => {
+  it('opens Quick Look in Chrome, Edge, Firefox, the Google app and DuckDuckGo on iPhone (rel="ar" reports false there)', () => {
+    const iphone = (app: string) => `${UA.iphone.replace(' Safari/604.1', '')} ${app} Safari/604.1`
+    for (const app of ['CriOS/131.0.6778.73', 'EdgiOS/131.0.2903.50', 'FxiOS/133.0', 'GSA/343.0.695551749', 'DuckDuckGo/7']) {
+      expect(arPlatform({ userAgent: iphone(app), quickLook: false })).toBe('quick-look')
+    }
+  })
+
+  it('has no AR route in other iPhone in-app browsers (Telegram, Instagram)', () => {
     expect(arPlatform({ userAgent: UA.iphone, quickLook: false })).toBeNull()
+    expect(arPlatform({ userAgent: `${UA.iphone} Instagram 360.0.0.0`, quickLook: false })).toBeNull()
     expect(arPlatform({ userAgent: UA.ipadDesktop, quickLook: false, maxTouchPoints: 5 })).toBeNull()
   })
 

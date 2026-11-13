@@ -21,6 +21,19 @@ important one, and the next save trims them.
 Do not add a second pill, a tag row or a "+N" counter anywhere. New surfaces
 (search results, upsell, featured, etc.) call `primaryTag(product.tags)`.
 
+## One feature pill, one component (owner, 2026-11-12)
+
+A dish shows at most ONE feature pill on every surface: its tag; with no
+tag, a dish marked as featured (`is_featured`) shows "Chef's special".
+`is_featured` is a placement (the featured row), never a second pill. The
+decision is `dishFeature` in `src/lib/menu/dish-tags.ts`; the pill is
+`src/components/menu/DishFeaturePill.tsx` (shape and type from the visual
+feed; `glass` over photos, `solid` on light surfaces), used by the feed, the
+menu cards, the dish sheet and the admin product list. Change it there and it
+changes everywhere. Saves keep one tag on every write path (admin data layer
+and MCP: `normalizeTags`); a per-client exception would be a deliberate,
+documented switch, not the default.
+
 ## Which tag wins
 
 `primaryTag` picks the highest-ranked known tag:

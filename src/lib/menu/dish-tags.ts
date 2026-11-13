@@ -72,6 +72,16 @@ export function sortTags(tags: ReadonlyArray<string> | null | undefined): string
     .map(t => t.tag)
 }
 
+/**
+ * The ONE feature pill a dish shows anywhere (owner rule 2026-11-12: one
+ * feature per dish, system-wide): its tag; with no tag, a dish marked as
+ * featured shows "Chef's special"; otherwise none. `is_featured` itself is a
+ * placement (the featured row), never a second pill.
+ */
+export function dishFeature(product: { tags?: ReadonlyArray<string> | null; is_featured?: boolean | null }): string | null {
+  return primaryTag(product.tags) ?? (product.is_featured ? "Chef's special" : null)
+}
+
 /** What gets saved: at most one tag, the most important of those given. */
 export function normalizeTags(tags: ReadonlyArray<string> | null | undefined): string[] {
   const tag = primaryTag(tags)

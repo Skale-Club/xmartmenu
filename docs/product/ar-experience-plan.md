@@ -80,7 +80,7 @@ stability state machine and the coplanar-dot filter (pure functions in
 
 - **Top bar:** close (X, 44px) left; right: cart bag (only with guest ordering
   and items) and details **i** (plain "i" glyph inside the round 44px button).
-  The ? help button is removed; gesture help lives in the details sheet.
+  The ? help button is removed; gesture help is the first-time hints only.
 - **Dish name:** centred under the top bar, incoming-call style, 24px/600,
   white with `text-shadow: 1px 2px 2px rgb(0 0 0 / 45%)`. Tapping the name
   also opens the details.
@@ -97,12 +97,16 @@ stability state machine and the coplanar-dot filter (pure functions in
 - **Cart:** bag icon with a count badge in the store's secondary colour
   (`accent_color`), soft shadow, no ring. Opens the order sheet (items, line
   totals, total, "Go to cart" leaves AR to the menu cart, "Keep browsing").
-- **Details sheet:** description, ingredients (existing product data),
-  "How to use AR" disclosure, and with guest ordering "Add to order · price".
-  Adding keeps the sheet open: the button becomes an "In your order" row with
-  the line total and the same stepper; closing the sheet shows the same
-  quantity in the dock. No allergens section (the system has no allergen
-  field).
+- **Details sheet (owner, 2026-11-12):** `DishHeading` on top (name left,
+  price right on the name's last line; the name wraps past 60% of the width),
+  the description and a "More info" link that leaves the camera and opens the
+  dish's own screen. With guest ordering, an order row: "Add to order" (no
+  price inside) that turns into the "In your order" row with the line total and
+  the `− qty +` stepper, and the cart bag with its badge beside it whenever the
+  order has anything (including what was added before opening the camera).
+  No ingredients, no "How to use", no "Back" button (the sheet closes with the
+  grabber or a tap outside; the X at the top leaves the camera). No allergens
+  section (the system has no allergen field).
 - **Sheets everywhere:** iOS-style — grabber, drag down to dismiss, drag up to
   expand, rubber band, scrim fades with the drag (rule recorded in the design
   contract for the whole app).
@@ -231,3 +235,14 @@ run on the desktop or in CI, not on the Surface.
   700 ms check (recorded as a rollout gap in the design contract).
 - Hit-test with many rays: measure frame time on a low-end Android.
 - Tune gesture thresholds and the dish-grab tolerance on real phones.
+
+## Which iPhone browsers show 3D (owner, 2026-11-12)
+
+The 3D icons and buttons appear only where the phone can open the dish in AR.
+On iPhone that is Safari (`relList.supports('ar')`) and the browsers built on
+Apple's web view that open AR Quick Look even though that check reports false:
+Chrome (`CriOS`), Edge (`EdgiOS`), Firefox (`FxiOS`), the Google app (`GSA`)
+and DuckDuckGo, the same list Google's `<model-viewer>` uses
+(`arPlatform` in `src/lib/ar/launch.ts`). Other in-app browsers (Telegram,
+Instagram, Facebook) cannot open Quick Look, so no 3D shows there. The owner
+accepted that: no "open in Safari" notice.

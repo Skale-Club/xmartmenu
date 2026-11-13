@@ -84,7 +84,7 @@ export default function DragSheet({ label, closeLabel, onClose, header, children
       role="dialog"
       aria-modal="true"
       aria-label={label}
-      className={`${place} inset-x-0 bottom-0 z-[96] flex flex-col overflow-hidden rounded-t-3xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))] motion-safe:animate-[sheet-in_280ms_cubic-bezier(.2,.8,.2,1)_backwards] ${dark ? 'bg-[rgb(21_24_25/0.94)] text-white backdrop-blur-xl' : 'bg-white text-zinc-900 shadow-[0_-8px_32px_rgb(0_0_0/0.12)]'}`}
+      className={`${place} inset-x-0 bottom-0 z-[96] flex flex-col overflow-hidden rounded-t-3xl px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] motion-safe:animate-[sheet-in_280ms_cubic-bezier(.2,.8,.2,1)_backwards] ${dark ? 'bg-[rgb(21_24_25/0.94)] text-white backdrop-blur-xl' : 'bg-white text-zinc-900 shadow-[0_-8px_32px_rgb(0_0_0/0.12)]'}`}
       style={{
         maxHeight: expanded ? 'calc(100% - 56px)' : '64%',
         transform: closing ? 'translateY(100%)' : `translateY(${dy}px)`,
@@ -92,8 +92,8 @@ export default function DragSheet({ label, closeLabel, onClose, header, children
         touchAction: 'none',
       }}
     >
-      <div className="shrink-0 cursor-grab pt-1.5 active:cursor-grabbing" style={{ touchAction: 'none' }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
-        <span aria-hidden className={`mx-auto mb-2.5 block h-[5px] w-9 rounded-full ${dark ? 'bg-white/35' : 'bg-zinc-300'}`} />
+      <div className="shrink-0 cursor-grab pt-2 pb-2 active:cursor-grabbing" style={{ touchAction: 'none' }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}>
+        <span aria-hidden className={`mx-auto mb-4 block h-[5px] w-9 rounded-full ${dark ? 'bg-white/35' : 'bg-zinc-300'}`} />
         {header}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain" style={{ touchAction: 'pan-y' }}>{children}</div>

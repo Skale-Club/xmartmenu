@@ -12,7 +12,8 @@ import ConfirmDialog from '@/components/ui/ConfirmDialog'
 import { Plus, Package, Trash2, Edit3, X, ChevronRight, AlertCircle, ShieldCheck, Star, Utensils, Tag, Image as ImageIcon, CheckCircle2, GalleryVerticalEnd } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Modal from '@/components/ui/Modal'
-import { normalizeTags, primaryTag, tagColor, tagStyle } from '@/lib/menu/dish-tags'
+import { dishFeature, normalizeTags, tagColor, tagStyle } from '@/lib/menu/dish-tags'
+import DishFeaturePill from '@/components/menu/DishFeaturePill'
 
 interface ProductWithCategory extends Product {
   category: { id: string; name: string } | null
@@ -673,12 +674,10 @@ export default function ProductsClient({ products: initial, categories, tenantId
                   )}
                 </div>
 
-                {primaryTag(product.tags) && (
-                  // The dish's one tag, as guests see it.
+                {dishFeature(product) && (
+                  // The dish's one feature, with the same pill guests see.
                   <div className="absolute bottom-4 left-4 right-4 flex">
-                    <span className="text-[9px] font-black uppercase tracking-tighter px-2.5 py-1 rounded-full" style={tagStyle(primaryTag(product.tags)!)}>
-                      {primaryTag(product.tags)}
-                    </span>
+                    <DishFeaturePill tag={dishFeature(product)!} lang="en" />
                   </div>
                 )}
               </div>

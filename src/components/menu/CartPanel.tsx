@@ -9,6 +9,7 @@ import { formatMoney, getMenuCopy, itemsLabel, fill } from './menu-i18n'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import BottomSheet from '@/components/ui/BottomSheet'
 import { lockBodyScroll } from '@/components/ui/ModalPortal'
+import { ctaStyle, ui } from './menu-ui'
 
 // Tablets and computers (sm, 640px and up) keep the order in a drawer on the right.
 const WIDE = '(min-width: 640px)'
@@ -64,7 +65,7 @@ export default function CartPanel({
       <>
         {/* Header: on phones it drags the sheet like the grabber */}
         <div data-sheet-grip={wide ? undefined : true} className={`flex shrink-0 items-center justify-between border-b border-zinc-100 bg-white px-5 ${wide ? 'py-4' : 'touch-none pt-0.5 pb-3'}`}>
-          <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-zinc-900">
+          <h2 className={`flex items-center gap-2 ${ui.sheetTitle} text-zinc-900`}>
             {copy.yourOrder}
             {count > 0 && (
               <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[13px] font-semibold text-zinc-600">{count}</span>
@@ -164,14 +165,14 @@ export default function CartPanel({
         {cart.length > 0 && (
           <div className="space-y-3 border-t border-zinc-100 bg-white px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
             <div className="flex items-baseline justify-between">
-              <span className="text-[15px] font-medium text-zinc-600">{copy.subtotal} · {itemsLabel(copy, count, lang)}</span>
-              <span className="text-xl font-semibold tabular-nums text-zinc-900">{money(subtotal)}</span>
+              <span className={`${ui.label} text-zinc-500`}>{copy.subtotal} · {itemsLabel(copy, count, lang)}</span>
+              <span className={`text-xl ${ui.price} text-zinc-900`}>{money(subtotal)}</span>
             </div>
             <button
               type="button"
               onClick={onCheckout}
-              style={{ backgroundColor: primaryColor, color: onPrimary }}
-              className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-6 text-base font-semibold shadow-float transition-[opacity,scale] hover:opacity-95 active:scale-[0.98]"
+              style={ctaStyle(primaryColor, onPrimary)}
+              className={`${ui.cta} h-12 w-full hover:opacity-95`}
             >
               {copy.checkout}
               <ArrowRight className="size-5" />
