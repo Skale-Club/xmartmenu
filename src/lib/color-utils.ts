@@ -1,53 +1,83 @@
-/**
- * Computes the text-on-primary foreground color using relative luminance (WCAG 2.1).
- * Returns '#ffffff' for dark primary colors and '#09090b' for light ones.
- * Threshold: L > 0.4 → dark foreground, L ≤ 0.4 → white foreground.
- */
-export function computePrimaryForeground(hex: string): string {
-  // Strip leading # and handle 3-char shorthand
-  const clean = hex.replace('#', '')
-  const full = clean.length === 3
-    ? clean.split('').map(c => c + c).join('')
-    : clean
-
-  const r = parseInt(full.slice(0, 2), 16) / 255
-  const g = parseInt(full.slice(2, 4), 16) / 255
-  const b = parseInt(full.slice(4, 6), 16) / 255
-
-  // sRGB linearisation
-  const linearize = (c: number) =>
-    c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
-
-  const L = 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
-
-  return L > 0.4 ? '#09090b' : '#ffffff'
-}
-
 const HEX_COLOR = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
+type Rgb = [number, number, number]
+const WHITE: Rgb = [255, 255, 255]
 
-/**
- * Returns `value` only if it is a safe CSS hex color (#rgb, #rgba, #rrggbb,
- * #rrggbbaa); otherwise returns `fallback`. Use whenever a (potentially
- * user-controlled) color is interpolated into a <style> block or inline style,
- * to prevent CSS/markup injection from stored tenant branding (e.g. a color
- * value containing `</style>...`).
- */
+/** Validate stored colours before interpolating them into CSS. */
 export function safeCssColor(value: string | null | undefined, fallback = '#000000'): string {
   return typeof value === 'string' && HEX_COLOR.test(value.trim()) ? value.trim() : fallback
 }
 
-/**
- * WCAG relative luminance of a #rgb / #rrggbb colour (0 = black, 1 = white);
- * 0 for anything else. Used to keep brand fills visible on dark surfaces
- * (the AR sheets: a near-black primary colour falls back to the accent).
- */
-export function relativeLuminance(hex: string): number {
-  const clean = hex.replace('#', '')
-  const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean
-  if (!/^[0-9a-fA-F]{6}$/.test(full)) return 0
-  const channel = (i: number) => {
-    const c = parseInt(full.slice(i, i + 2), 16) / 255
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+function parse(hex: string): { rgb: Rgb; alpha: number } | null {
+  if (!HEX_COLOR.test(hex.trim())) return null
+  let value = hex.trim().slice(1)
+  if (value.length <= 4) value = value.split('').map(c => c + c).join('')
+  return {
+    rgb: [0, 2, 4].map(i => parseInt(value.slice(i, i + 2), 16)) as Rgb,
+    alpha: value.length === 8 ? parseInt(value.slice(6), 16) / 255 : 1,
   }
-  return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)
+}
+
+function composite(hex: string, background: Rgb): Rgb {
+  const colour = parse(hex)
+  return colour ? colour.rgb.map((c, i) => c * colour.alpha + background[i] * (1 - colour.alpha)) as Rgb : background
+}
+
+function luminance(rgb: Rgb): number {
+  const linear = rgb.map(value => {
+    const c = value / 255
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  })
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+}
+
+function ratio(a: Rgb, b: Rgb): number {
+  const x = luminance(a), y = luminance(b)
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+}
+
+/** Alpha colours are composited onto the supplied surface (white by default). */
+export function relativeLuminance(hex: string, surface = '#ffffff'): number {
+  return parse(hex) ? luminance(composite(hex, composite(surface, WHITE))) : 0
+}
+
+/** Text over a background, with translucent backgrounds composited over surface. */
+export function contrastRatio(foreground: string, background: string, surface = '#ffffff'): number {
+  const bg = composite(background, composite(surface, WHITE))
+  return ratio(composite(foreground, bg), bg)
+}
+
+/** Choose the most readable foreground; callers specify the real surface for alpha fills. */
+export function computePrimaryForeground(hex: string, surface = '#ffffff'): string {
+  const fill = safeCssColor(hex, '#09090b')
+  const white = contrastRatio('#ffffff', fill, surface)
+  const dark = contrastRatio('#09090b', fill, surface)
+  // Near-black and white leave a tiny gap around middle grey; pure black closes it.
+  if (white < 4.5 && dark < 4.5) return '#000000'
+  return white >= dark ? '#ffffff' : '#09090b'
+}
+
+function toHex(rgb: Rgb): string {
+  return '#' + rgb.map(c => Math.round(c).toString(16).padStart(2, '0')).join('')
+}
+
+/** Explicit derived text role: preserve readable tenant colours, otherwise adjust toward a readable foreground. */
+export function readableTextColor(colour: string, background = '#fafaf9', minimum = 4.5): string {
+  const source = safeCssColor(colour, '#09090b')
+  if (contrastRatio(source, background) >= minimum) return source
+  const bg = composite(background, WHITE)
+  const rgb = composite(source, bg)
+  const target = parse(computePrimaryForeground(background))!.rgb
+  for (let step = 1; step <= 100; step++) {
+    const amount = step / 100
+    const candidate = toHex(rgb.map((c, i) => c + (target[i] - c) * amount) as Rgb)
+    if (contrastRatio(candidate, background) >= minimum) return candidate
+  }
+  return toHex(target)
+}
+
+/** Filled-control role for dark sheets: primary, then accent, then a visible accent variant. */
+export function visibleFillColor(primary: string, accent: string, surface = '#151819', minimum = 3): string {
+  if (contrastRatio(primary, surface) >= minimum) return safeCssColor(primary, '#09090b')
+  if (contrastRatio(accent, surface) >= minimum) return safeCssColor(accent, '#09090b')
+  return readableTextColor(accent, surface, minimum)
 }

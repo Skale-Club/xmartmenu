@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Lock } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import { computePrimaryForeground } from '@/lib/color-utils'
 
 const LoginModal = dynamic(() => import('./LoginModal'), { ssr: false })
 
@@ -31,7 +32,7 @@ export default function PrivateMenuWrapper({ slug, menuSlug, primaryColor, serve
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 px-4">
         <div className="text-center max-w-sm">
           <div className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg" style={{ backgroundColor: primaryColor }}>
-            <Lock className="w-10 h-10" style={{ color: '#09090b' }} />
+            <Lock className="w-10 h-10" style={{ color: computePrimaryForeground(primaryColor) }} />
           </div>
           <h1 className="text-2xl font-black text-zinc-950 tracking-tight mb-2">Private Menu</h1>
           <p className="text-sm font-medium text-zinc-500 mb-8">
@@ -40,7 +41,7 @@ export default function PrivateMenuWrapper({ slug, menuSlug, primaryColor, serve
           <button
             onClick={() => setShowLogin(true)}
             className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full text-sm font-black uppercase tracking-widest transition-all active:scale-95 shadow-lg"
-            style={{ backgroundColor: primaryColor, color: '#09090b' }}
+            style={{ backgroundColor: primaryColor, color: computePrimaryForeground(primaryColor) }}
           >
             Sign In with Phone
           </button>

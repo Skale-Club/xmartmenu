@@ -11,7 +11,7 @@ import type { GuestBrand } from '@/lib/auth/guest-brand'
 import GuestSignInHeader from '@/components/auth/GuestSignInHeader'
 import PhoneField from '@/components/ui/PhoneField'
 import { keepFieldVisible, nextFieldOnEnter } from '@/components/ui/keyboard-fields'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { computePrimaryForeground, readableTextColor } from '@/lib/color-utils'
 import { fill, getMenuCopy, localeFor } from '@/components/menu/menu-i18n'
 import { phoneLabel, toE164Phone } from '@/components/menu/showcase'
 import { DEV_PHONE_SIGN_IN, devPhoneStart, devPhoneVerify } from '@/lib/auth/dev-phone-client'
@@ -152,8 +152,15 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
     catch { throw new IdentityRequestError('Your access could not be confirmed. Try again or contact support for reviewed recovery.') }
   }
 
-  const field = 'w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 disabled:opacity-50'
-  const button = 'w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground transition-colors hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary disabled:opacity-50'
+  // Keep the existing-account verification form intact inside the restaurant's light sign-in frame.
+  const tenantLinkBrand = brand && embedded && continueToApp && customerFlow && existingAccountLink && !staffAccess ? brand : null
+  const tenantLinkFocus = tenantLinkBrand ? readableTextColor(tenantLinkBrand.primaryColor, '#ffffff') : undefined
+  const field = tenantLinkBrand
+    ? 'w-full rounded-xl border border-zinc-300 bg-white px-4 py-3 text-zinc-950 placeholder:text-zinc-500 outline-none focus:border-[var(--tenant-link-focus)] focus:ring-2 focus:ring-[var(--tenant-link-focus)] disabled:opacity-50'
+    : 'w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-platform-ivory outline-none focus:border-primary-on-dark focus:ring-2 focus:ring-primary-on-dark disabled:opacity-50'
+  const button = tenantLinkBrand
+    ? 'w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground transition-transform hover:scale-[1.01] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--tenant-link-focus)] disabled:opacity-50'
+    : 'w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground transition-colors hover:scale-[1.01] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-on-dark disabled:opacity-50'
 
 
   // ── Inside a restaurant's menu: the guest sign-in in the restaurant's look, language and country.
@@ -164,7 +171,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
     const context = { country: brand.country, currency: brand.currency }
     const brandQuery = `&embed=1&tenant=${encodeURIComponent(brand.slug)}&lang=${encodeURIComponent(brand.lang)}`
     const fieldClass = 'block h-12 w-full rounded-xl border border-zinc-300 bg-white px-4 text-[16px] text-zinc-950 placeholder:text-zinc-500 transition-[border-color,box-shadow] focus:border-[var(--accent)] focus:outline-none focus:ring-[3px] focus:ring-[color-mix(in_srgb,var(--accent)_22%,transparent)] disabled:bg-zinc-50'
-    const primary = 'flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[16px] font-semibold transition-[scale,filter] active:scale-[0.98] enabled:hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50'
+    const primary = 'flex h-12 w-full items-center justify-center gap-2 rounded-xl text-[16px] font-semibold transition-[scale,filter] active:scale-[0.98] enabled:hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-50'
     const accentStyle = { backgroundColor: accent, color: onAccent }
     const label = 'mb-1.5 block text-[14px] font-medium text-zinc-700'
     const submit = () => void run(async () => {
@@ -249,7 +256,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
   // ── Inside the marketing site's popup: the platform sign-in on the site's own dark card (logo, Google first,
   // then the phone with its country), so nobody leaves the page to sign in.
   if (embedded && !brand && continueToApp && !customerFlow && !existingAccountLink && !staffAccess) {
-    const fieldClass = 'block h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-[16px] text-white placeholder:text-zinc-500 transition-[border-color,box-shadow] focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50'
+    const fieldClass = 'block h-12 w-full rounded-xl border border-white/10 bg-white/5 px-4 text-[16px] text-platform-ivory placeholder:text-zinc-400 transition-[border-color,box-shadow] focus:border-primary-on-dark focus:outline-none focus:ring-2 focus:ring-primary-on-dark disabled:opacity-50'
     const primary = 'flex h-14 w-full items-center justify-center gap-2 rounded-full bg-primary text-base font-black text-primary-foreground transition-all enabled:hover:scale-[1.02] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50'
     const label = 'mb-2 ml-1 block text-[11px] font-bold uppercase tracking-widest text-zinc-400'
     const submit = () => void run(async () => {
@@ -280,7 +287,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       attempt.current = await phoneProof(config, e164)
       setSentPhone(e164); setSent(true); setMessage('')
     })
-    return <main className="relative overflow-hidden bg-zinc-900 px-6 pb-6 pt-8 text-white" style={{ colorScheme: 'dark' }}>
+    return <main className="platform-dark relative overflow-hidden bg-zinc-900 px-6 pb-6 pt-8 text-platform-ivory" style={{ colorScheme: 'dark' }}>
       {/* The frame's page must share the card's colour and scheme, or the browser paints a white backdrop
           behind it that shows as a light edge around the popup. */}
       <style>{'html,body{background:#18181b;color-scheme:dark;--scrollbar-thumb:rgb(255 255 255 / 0.24)}'}</style>
@@ -321,27 +328,36 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         {!sent ? <>
           <div className="my-6 flex items-center gap-3" aria-hidden="true">
             <div className="h-px flex-1 bg-white/10" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">or</span>
+            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400">or</span>
             <div className="h-px flex-1 bg-white/10" />
           </div>
           <button type="button" disabled={busy} onClick={() => void run(async () => { await complete(await googleProof(config)) })}
-            className="flex w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-bold text-white transition-all hover:scale-[1.02] hover:bg-white/10 active:scale-95 disabled:opacity-50">
+            className="flex w-full items-center justify-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-3.5 text-sm font-bold text-platform-ivory transition-all hover:scale-[1.02] hover:bg-white/10 active:scale-95 disabled:opacity-50">
             <svg viewBox="0 0 24 24" className="size-5" aria-hidden="true"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.27-4.74 3.27-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.84 14.1A6.6 6.6 0 0 1 5.5 12c0-.73.13-1.44.34-2.1V7.06H2.18A11 11 0 0 0 1 12c0 1.77.43 3.45 1.18 4.94l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1A11 11 0 0 0 2.18 7.06l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38z"/></svg>
             Continue with Google
           </button>
         </> : null}
-        <p className="mt-6 px-4 text-center text-[11px] font-medium leading-relaxed text-zinc-500">By signing in, you agree to the platform terms of use and privacy policy.</p>
+        <p className="mt-6 px-4 text-center text-[11px] font-medium leading-relaxed text-zinc-400">By signing in, you agree to the platform terms of use and privacy policy.</p>
       </section>
     </main>
   }
 
-  return <main className={embedded ? 'bg-zinc-950 text-white' : 'grid min-h-screen place-items-center bg-zinc-950 px-5 py-10 text-white'}>
+  return <main className={tenantLinkBrand ? 'bg-white text-zinc-950' : embedded ? 'platform-dark bg-zinc-950 text-platform-ivory' : 'platform-dark grid min-h-screen place-items-center bg-zinc-950 px-5 py-10 text-platform-ivory'}
+    style={tenantLinkBrand ? { '--primary': tenantLinkBrand.primaryColor, '--primary-foreground': computePrimaryForeground(tenantLinkBrand.primaryColor), '--tenant-link-focus': tenantLinkFocus } as React.CSSProperties : undefined}>
+    {tenantLinkBrand ? <>
+      <style>{'html,body{background:#fff;color-scheme:light}'}</style>
+      <GuestSignInHeader bannerUrl={tenantLinkBrand.bannerUrl} logoUrl={tenantLinkBrand.logoUrl} restaurantName={tenantLinkBrand.name}
+        accent={tenantLinkBrand.primaryColor} onAccent={computePrimaryForeground(tenantLinkBrand.primaryColor)}
+        title="Link your existing account" subtitle="Prove your previous account, then verify a phone number or Google account. Your company access stays unchanged." />
+    </> : null}
     <section aria-labelledby="identity-title" className={embedded ? 'w-full px-6 pb-6 pt-7' : 'w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-900/60 p-6 sm:p-8'}>
+      {!tenantLinkBrand ? <>
       <p className="mb-6 text-sm font-black tracking-wide">Xprout</p>
       <h1 id="identity-title" className="text-2xl font-bold tracking-tight">{existingAccountLink ? 'Link your existing account' : 'Sign in with your phone'}</h1>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{existingAccountLink ? 'Prove your previous account, then verify a phone number or Google account. Your company access stays unchanged.' : 'Verify your number by SMS, or continue with Google.'}</p>
-      {error ? <p role="alert" className="mt-5 text-sm leading-6 text-red-300">{error}</p> : null}
-      {message ? <p role="status" className="mt-5 text-sm leading-6 text-emerald-300">{message}</p> : null}
+      </> : null}
+      {error ? <p role="alert" className={tenantLinkBrand ? 'mt-5 text-sm leading-6 text-red-800' : 'mt-5 text-sm leading-6 text-red-300'}>{error}</p> : null}
+      {message ? <p role="status" className={tenantLinkBrand ? 'mt-5 text-sm leading-6 text-emerald-800' : 'mt-5 text-sm leading-6 text-emerald-300'}>{message}</p> : null}
       {/* One form for everything typed (old account e-mail and password, phone, code): the keyboard's
           Next walks through the fields and Go on the last one sends; the button sits right under them. */}
       <form className="mt-6 space-y-4" onSubmit={event => { event.preventDefault(); void run(async () => {
@@ -379,11 +395,11 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         <button data-testid="identity-phone-submit" className={button} disabled={busy}>{busy ? 'Please wait…' : sent ? 'Verify and continue' : 'Send verification code'}</button>
         {sent ? <button type="button" disabled={busy}
           onClick={() => { attempt.current?.cancel(); attempt.current = null; setSent(false); setCode(''); setMessage(''); setError('') }}
-          className="flex min-h-11 w-full items-center justify-center gap-1 text-sm font-semibold text-zinc-300 hover:text-white disabled:opacity-50">
+          className={`flex min-h-11 w-full items-center justify-center gap-1 text-sm font-semibold disabled:opacity-50 ${tenantLinkBrand ? 'text-zinc-700 hover:text-zinc-950' : 'text-zinc-300 hover:text-platform-ivory'}`}>
           <ChevronLeft className="size-4" aria-hidden="true" /> Use another number
         </button> : null}
       </form>
-      <button className={`${button} mt-4 border border-white/15 bg-transparent text-white hover:bg-white/5`} disabled={busy || sent} onClick={() => void run(async () => {
+      <button className={tenantLinkBrand ? 'mt-4 w-full rounded-full border border-zinc-300 bg-white px-5 py-3 font-bold text-zinc-900 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--tenant-link-focus)] disabled:opacity-50' : `${button} mt-4 border border-white/15 bg-transparent text-platform-ivory hover:bg-white/5`} disabled={busy || sent} onClick={() => void run(async () => {
         requireExistingCredentials()
         const token = await googleProof(config)
         // Linking: show the Google account first and let the person confirm it is theirs.
@@ -393,7 +409,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       {confirmLink ? <div role="alertdialog" aria-label="Confirm Google account" className="mt-4 space-y-3 rounded-2xl border border-white/15 p-4">
         <p className="text-sm leading-6">Link <strong>{confirmLink.email}</strong> to your account? Only continue if this is your own Google account.</p>
         <button className={button} disabled={busy} onClick={() => void run(async () => { const token = confirmLink.token; setConfirmLink(null); await complete(token) })}>Link this Google account</button>
-        <button className="w-full text-sm font-semibold text-zinc-300 hover:text-white" disabled={busy} onClick={() => setConfirmLink(null)}>Cancel</button>
+        <button className={`w-full text-sm font-semibold ${tenantLinkBrand ? 'text-zinc-700 hover:text-zinc-950' : 'text-zinc-300 hover:text-platform-ivory'}`} disabled={busy} onClick={() => setConfirmLink(null)}>Cancel</button>
       </div> : null}
       {!staffAccess && !existingAccountLink && (!continueToApp || signedIn) ? <label className="mt-6 flex items-start gap-3 text-sm leading-5 text-zinc-400">
         <input className="mt-1 accent-primary" type="checkbox" checked={link} onChange={event => setLink(event.target.checked)} disabled={busy} />
@@ -402,11 +418,11 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       {!staffAccess && continueToApp && !existingAccountLink ? <Link className="mt-6 block text-sm font-semibold text-zinc-300 underline underline-offset-4" href={`/auth/login?action=existing-account-link${customerFlow ? `&flow=customer&from=${encodeURIComponent(next)}${embedded ? '&embed=1' : ''}` : ''}`}>Have an account with e-mail and password? Enter it once to add your phone</Link> : null}
       {continueToApp && linkCurrentAccount ? <Link className="mt-4 block text-sm font-semibold text-zinc-300 underline underline-offset-4"
         href={`/auth/login?flow=customer&from=${encodeURIComponent(`/identity?action=link&flow=customer&from=${encodeURIComponent(next)}`)}`}>Sign in again before linking if your current sign-in is no longer recent</Link> : null}
-      {continueToApp ? <p className="mt-4 text-xs leading-5 text-zinc-500">If your account requires recovery or no longer has access to its previous sign-in, contact support for reviewed recovery.</p> : null}
+      {continueToApp ? <p className={`mt-4 text-xs leading-5 ${tenantLinkBrand ? 'text-zinc-600' : 'text-zinc-400'}`}>If your account requires recovery or no longer has access to its previous sign-in, contact support for reviewed recovery.</p> : null}
       {signedIn ? <div className="mt-6 space-y-3 border-t border-white/10 pt-5">
         {continueToApp && !staffAccess ? <button className={button} disabled={busy} onClick={() => void run(continueToDashboard)}>Continue to your account</button> : null}
-        <button className="w-full text-sm font-semibold text-zinc-300 hover:text-white disabled:opacity-50" disabled={busy} onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false); setMessage('You are signed out.') })}>Sign out</button>
-        <button className="w-full text-sm font-semibold text-zinc-400 hover:text-white disabled:opacity-50" disabled={busy} onClick={() => void run(async () => { await post('revoke-all', {}); setSignedIn(false); setMessage('All your sessions have been signed out.') })}>Sign out all devices</button>
+        <button className={`w-full text-sm font-semibold disabled:opacity-50 ${tenantLinkBrand ? 'text-zinc-700 hover:text-zinc-950' : 'text-zinc-300 hover:text-platform-ivory'}`} disabled={busy} onClick={() => void run(async () => { await post('logout', {}); setSignedIn(false); setMessage('You are signed out.') })}>Sign out</button>
+        <button className={`w-full text-sm font-semibold disabled:opacity-50 ${tenantLinkBrand ? 'text-zinc-600 hover:text-zinc-950' : 'text-zinc-400 hover:text-platform-ivory'}`} disabled={busy} onClick={() => void run(async () => { await post('revoke-all', {}); setSignedIn(false); setMessage('All your sessions have been signed out.') })}>Sign out all devices</button>
       </div> : null}
     </section>
   </main>

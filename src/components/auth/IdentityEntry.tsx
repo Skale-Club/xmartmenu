@@ -9,9 +9,9 @@ export default async function IdentityEntry(props: { continueToApp?: boolean; ex
   if (process.env.GOOGLE_AUTH_ENABLED !== 'true') notFound()
   let config: ReturnType<typeof identityRuntimeConfig>
   try { config = identityRuntimeConfig() }
-  catch { return <main className="grid min-h-screen place-items-center bg-zinc-950 px-6 text-white"><p>Sign-in is temporarily unavailable. Please try again later.</p></main> }
+  catch { return <main className="platform-dark grid min-h-screen place-items-center bg-zinc-950 px-6 text-platform-ivory"><p>Sign-in is temporarily unavailable. Please try again later.</p></main> }
   if ((await headers()).get('host')?.toLowerCase() !== new URL(config.origin).host.toLowerCase()) notFound()
   try { await verifyPublicProject({ ...config.web, projectNumber: config.projectNumber, origin: config.origin }) }
-  catch { return <main className="grid min-h-screen place-items-center bg-zinc-950 px-6 text-white"><p>Sign-in is temporarily unavailable. Please try again later.</p></main> }
+  catch { return <main className="platform-dark grid min-h-screen place-items-center bg-zinc-950 px-6 text-platform-ivory"><p>Sign-in is temporarily unavailable. Please try again later.</p></main> }
   return <IdentityPilot key={props.existingAccountLink ? 'existing' : props.linkCurrentAccount ? 'link' : 'login'} config={config.web} {...props} />
 }

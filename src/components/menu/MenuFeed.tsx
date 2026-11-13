@@ -16,6 +16,7 @@ import type { DishDetail } from '@/lib/public-dish-details'
 import { getFeedSlideDuration, getProductImages, getFeedSlides, isFeedPortrait } from './menu-utils'
 import { LOOP_COPIES, dishAt, dragOffset, lockAxis, loops, recenter, resolveSwipe, startPosition, type SwipeAxis } from './feed-gestures'
 import DishHeading from './DishHeading'
+import { computePrimaryForeground, readableTextColor } from '@/lib/color-utils'
 
 function feedImageSrc(url: string) {
   if (!url.includes('/brands/celes-confections/')) return url
@@ -203,7 +204,7 @@ export default function MenuFeed({
             className="pointer-events-auto relative flex size-11 items-center justify-center rounded-full border border-white/15 bg-black/45 text-white shadow-xl backdrop-blur-xl transition active:scale-95"
           >
             <ShoppingBag className="size-4" />
-            <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full px-1 text-[9px] font-black text-white ring-2 ring-zinc-950" style={{ backgroundColor: primaryColor }}>
+            <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full px-1 text-[9px] font-black" style={{ backgroundColor: accentColor, color: computePrimaryForeground(accentColor, '#09090b') }}>
               {cartCount}
             </span>
           </button>
@@ -267,6 +268,7 @@ export default function MenuFeed({
           currency={currency}
           lang={lang}
           primaryColor={primaryColor}
+          priceColor={readableTextColor(accentColor)}
           onClose={() => setSizePick(null)}
           onConfirm={size => {
             onAdd(sizePick.product, size)
@@ -425,7 +427,7 @@ function FeedCard({
                 else onAdd(product)
               }}
               className={`${ui.cta} min-h-12 flex-1`}
-              style={ctaStyle(primaryColor, '#ffffff')}
+              style={ctaStyle(primaryColor, computePrimaryForeground(primaryColor, '#09090b'))}
             >
               <ShoppingBag className="size-4" /> {copy.orderNow}
             </button>
@@ -444,7 +446,7 @@ function FeedCard({
               type="button"
               onClick={() => onOpen(product)}
               className="min-h-12 flex-1 rounded-full bg-white px-5 text-xs font-black uppercase tracking-widest"
-              style={{ color: accentColor }}
+              style={{ color: readableTextColor(accentColor, '#ffffff') }}
             >
               {copy.viewDish}
             </button>

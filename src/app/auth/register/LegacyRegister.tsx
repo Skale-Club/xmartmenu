@@ -82,8 +82,8 @@ function RegisterForm() {
     <div className="rounded-[1.25rem] border border-white/10 bg-zinc-900/50 p-5 backdrop-blur-xl sm:p-8">
       <div className="mb-8 text-center">
         <DeliveryImage src={logoSrc} width={48} height={48} sizes="48px" alt="Logo" className="w-12 h-12 mx-auto mb-5" />
-        <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">Xprout</a>
-        <p className="text-sm font-bold text-zinc-500 mt-2">
+        <a href="/" className="text-2xl font-black text-platform-ivory hover:text-primary transition-colors tracking-tight">Xprout</a>
+        <p className="text-sm font-bold text-zinc-400 mt-2">
           {isQrFlow ? 'Enter your details to continue' : 'Create your account'}
         </p>
       </div>
@@ -94,8 +94,8 @@ function RegisterForm() {
             <CheckCircle2 className="w-8 h-8 text-primary" />
           </div>
           <div>
-            <h2 className="text-xl font-black text-white">Account created!</h2>
-            <p className="text-sm text-zinc-500 font-medium mt-3 leading-relaxed">
+            <h2 className="text-xl font-black text-platform-ivory">Account created!</h2>
+            <p className="text-sm text-zinc-400 font-medium mt-3 leading-relaxed">
               Check your email to confirm your account. After confirming, you&apos;ll be taken back to the menu.
             </p>
           </div>
@@ -114,7 +114,7 @@ function RegisterForm() {
               <button
                 onClick={handleGoogleLogin}
                 disabled={googleLoading || loading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-white/10 rounded-full text-sm font-bold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
+                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-white/10 rounded-full text-sm font-bold text-platform-ivory bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
               >
                 {googleLoading ? (
                   <svg className="w-5 h-5 animate-spin text-zinc-400" fill="none" viewBox="0 0 24 24">
@@ -134,7 +134,7 @@ function RegisterForm() {
 
               <div className="flex items-center gap-3 my-8">
                 <div className="flex-1 h-px bg-white/5" />
-                <span className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.2em]">or sign up with email</span>
+                <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">or sign up with email</span>
                 <div className="flex-1 h-px bg-white/5" />
               </div>
             </>
@@ -149,7 +149,7 @@ function RegisterForm() {
                 value={name}
                 onChange={e => setName(e.target.value)}
                 placeholder="Your name"
-                className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-platform-ivory placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
               />
             </div>
 
@@ -162,7 +162,7 @@ function RegisterForm() {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="your@email.com"
-                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-platform-ivory placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
                 />
               </div>
             )}
@@ -175,7 +175,7 @@ function RegisterForm() {
                 value={phone}
                 onChange={e => setPhone(e.target.value)}
                 placeholder="+1 (000) 000-0000"
-                className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-platform-ivory placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
               />
             </div>
 
@@ -188,9 +188,9 @@ function RegisterForm() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-platform-ivory placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
                 />
-                <p className="text-[10px] text-zinc-600 mt-2 ml-1 font-bold">Minimum 8 characters</p>
+                <p className="text-[10px] text-zinc-400 mt-2 ml-1 font-bold">Minimum 8 characters</p>
               </div>
             )}
 
@@ -199,7 +199,7 @@ function RegisterForm() {
             <button
               type="submit"
               disabled={loading || googleLoading}
-              className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
+              className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
             >
               {loading ? 'Creating account...' : (
                 <>
@@ -211,9 +211,9 @@ function RegisterForm() {
 
             {!isQrFlow && (
               <div className="mt-8 pt-8 border-t border-white/5 text-center">
-                <p className="text-sm text-zinc-500 font-medium">
+                <p className="text-sm text-zinc-400 font-medium">
                   Already have an account?{' '}
-                  <a href={`/auth/login?from=${from}`} className="text-white font-black hover:text-primary transition-colors underline underline-offset-4 decoration-white/20 hover:decoration-primary/50">
+                  <a href={`/auth/login?from=${from}`} className="text-platform-ivory font-black hover:text-primary transition-colors underline underline-offset-4 decoration-white/20 hover:decoration-primary/50">
                     Sign in
                   </a>
                 </p>
@@ -228,7 +228,7 @@ function RegisterForm() {
 
 export default function RegisterPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 selection:bg-primary/30 relative overflow-hidden">
+    <div className="platform-dark min-h-screen flex items-center justify-center bg-zinc-950 px-4 selection:bg-primary/30 relative overflow-hidden">
       {/* Background Glows */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] opacity-40 pointer-events-none" />
 
@@ -237,7 +237,7 @@ export default function RegisterPage() {
           <RegisterForm />
         </Suspense>
         <p className="text-[10px] font-bold text-zinc-700 text-center mt-8 uppercase tracking-[0.2em]">
-          <a href="/" className="hover:text-zinc-500 transition-colors">Xprout</a> © {new Date().getFullYear()}
+          <a href="/" className="hover:text-zinc-400 transition-colors">Xprout</a> © {new Date().getFullYear()}
         </p>
       </div>
     </div>

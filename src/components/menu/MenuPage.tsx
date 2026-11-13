@@ -26,7 +26,7 @@ import { contactEmailFor } from '@/lib/public-contacts'
 import { dishDetailsFor } from '@/lib/public-dish-details'
 import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
-import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
+import { computePrimaryForeground, readableTextColor, safeCssColor } from '@/lib/color-utils'
 import { ArBadge, type ArSequenceItem } from '@/components/ar/ArButton'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
@@ -228,8 +228,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   const settings = tenant.tenant_settings
   const primaryColor = settings?.primary_color ?? BRAND_PRIMARY
   const accentColor = safeCssColor(settings?.accent_color, '#09090b')
-  // The secondary colour as text on white: a light one is deepened so prices stay readable.
-  const accentText = computePrimaryForeground(accentColor) === '#ffffff' ? accentColor : `color-mix(in srgb, ${accentColor} 55%, #09090b)`
+  // Explicit price-text role, readable on both the menu ground and white sheets.
+  const accentText = readableTextColor(accentColor)
   // "Order on WhatsApp" on each dish (any plan, needs a number).
   const whatsapp = capabilities.whatsappOrders ? settings?.whatsapp ?? null : null
   const currency = settings?.currency ?? 'USD'
@@ -1324,7 +1324,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
               </>
             )}
             {footerBrand && (
-              <p className={`text-[12px] text-zinc-400 ${hasContact ? 'mt-8' : ''}`}>
+              <p className={`text-[12px] text-zinc-500 ${hasContact ? 'mt-8' : ''}`}>
                 {copy.poweredBy} <a href="/" className="font-medium text-zinc-600 hover:text-zinc-900">{footerBrand}</a>
               </p>
             )}
@@ -1434,6 +1434,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           lang={selectedLanguage}
           currency={currency}
           primaryColor={primaryColor}
+          priceColor={accentText}
           canQuickAdd={product => canQuickAdd(optionGroupsByProductId[product.id])}
           onAdd={quickAddUpsell}
           onChoose={chooseUpsell}
@@ -1677,7 +1678,7 @@ function ProductCard({ product, lang, currency, accentText, price, onOpen, cartQ
       <div className="pointer-events-none col-start-1 row-start-2 px-3.5 pt-2 pb-3 sm:order-3 sm:mt-auto sm:px-4 sm:pb-4">
         {(price.fromLabel || promo) && (
           <p className="mb-0.5 text-[11px] font-medium leading-tight text-zinc-500">
-            {price.fromLabel ?? <span className="tabular-nums text-zinc-400 line-through">{formatMoney(promo as number, currency, lang)}</span>}
+            {price.fromLabel ?? <span className="tabular-nums text-zinc-500 line-through">{formatMoney(promo as number, currency, lang)}</span>}
           </p>
         )}
         <span className="whitespace-nowrap text-[15px] font-bold tabular-nums" style={{ color: accentText }}>{price.amount}</span>

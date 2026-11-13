@@ -15,7 +15,7 @@ import { fill, formatMoney, getMenuCopy } from './menu-i18n'
 import { dishFeature } from '@/lib/menu/dish-tags'
 import DishFeaturePill from './DishFeaturePill'
 import { ctaStyle, ui } from './menu-ui'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { readableTextColor, computePrimaryForeground } from '@/lib/color-utils'
 import { baseName } from '@/lib/menu-translations'
 import { getGuestCopy } from './guest-copy'
 import { contactLinks, displayPrice, optionPriceList, orderedItemText, showcaseItemText } from './showcase'
@@ -635,7 +635,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                 price={hasFooterPrice ? undefined : <>
                   <p>{headerPrice.from ? fill(guestCopy.fromPrice, { price: money(headerPrice.amount) }) : money(headerPrice.amount)}</p>
                   {!headerPrice.from && product.original_price && product.original_price > product.price && (
-                    <p className="text-[13px] font-normal text-zinc-400 line-through">{money(product.original_price)}</p>
+                    <p className="text-[13px] font-normal text-zinc-500 line-through">{money(product.original_price)}</p>
                   )}
                 </>} />
               {product.description && <p className="mt-2 text-[15px] leading-relaxed text-zinc-600">{product.description}</p>}
@@ -835,7 +835,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                   return (
                     <div key={pi.ingredient_id} className="flex min-h-[52px] items-center justify-between gap-3 border-t border-zinc-100 px-4 py-2">
                       <span className="min-w-0">
-                        <span className={`text-[15px] ${value === -1 ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>{pi.ingredient.name}</span>
+                        <span className={`text-[15px] ${value === -1 ? 'text-zinc-500 line-through' : 'text-zinc-900'}`}>{pi.ingredient.name}</span>
                         {value === 1 && extraPrice > 0 && (
                           <span className="ml-2 text-[13px] tabular-nums text-zinc-500">+{money(extraPrice)}</span>
                         )}
@@ -921,7 +921,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                 <div className="shrink-0 pl-1" aria-live="polite">
                   <p className={`flex items-baseline gap-1.5 ${ui.label} text-zinc-500`}>
                     {footerPriceLabel}
-                    {footerPromo && <span className="tabular-nums text-zinc-400 line-through">{money(footerPromo)}</span>}
+                    {footerPromo && <span className="tabular-nums text-zinc-500 line-through">{money(footerPromo)}</span>}
                   </p>
                   <p className={`text-[20px] leading-tight ${ui.price}`} style={{ color: priceColor }}>{money(finalUnitPrice)}</p>
                 </div>
@@ -930,7 +930,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                   onClick={submit}
                   aria-disabled={!canAddToCart}
                   style={ctaStyle(primaryColor, onPrimary)}
-                  className={`${ui.cta} h-12 min-w-0 flex-1 ${canAddToCart ? 'hover:opacity-95' : 'opacity-50'}`}
+                  className={`${ui.cta} h-12 min-w-0 flex-1 ${canAddToCart ? '' : 'opacity-50'}`}
                 >
                   {isEditing
                     ? <Check className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />
@@ -946,7 +946,7 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
                 onClick={() => onWhatsApp(whatsappItem())}
                 className={!showcase && onAddToCart
                   ? 'w-full py-1.5 text-[14px] font-medium text-emerald-700 hover:underline'
-                  : `${ui.cta} h-12 w-full bg-[#25D366] text-white hover:opacity-95`}
+                  : `${ui.cta} h-12 w-full bg-[#25D366] text-zinc-950 `}
               >
                 {copy.orderWhatsApp}
               </button>
@@ -988,9 +988,9 @@ function RadioMark({ selected, color }: { selected: boolean; color: string }) {
     <span
       aria-hidden="true"
       className="flex size-[22px] shrink-0 items-center justify-center rounded-full border-[1.5px] transition-colors"
-      style={selected ? { backgroundColor: color, borderColor: color } : { borderColor: '#d4d4d8' }}
+      style={selected ? { backgroundColor: color, borderColor: readableTextColor(color, '#ffffff', 3), color: computePrimaryForeground(color) } : { borderColor: '#71717a' }}
     >
-      {selected && <span className="size-2 rounded-full bg-white" />}
+      {selected && <span className="size-2 rounded-full bg-current" />}
     </span>
   )
 }
@@ -1000,9 +1000,9 @@ function CheckMark({ checked, color }: { checked: boolean; color: string }) {
     <span
       aria-hidden="true"
       className="flex size-[22px] shrink-0 items-center justify-center rounded-md border-[1.5px] transition-colors"
-      style={checked ? { backgroundColor: color, borderColor: color } : { borderColor: '#d4d4d8' }}
+      style={checked ? { backgroundColor: color, borderColor: readableTextColor(color, '#ffffff', 3), color: computePrimaryForeground(color) } : { borderColor: '#71717a' }}
     >
-      {checked && <Check className="size-3.5 text-white" strokeWidth={3} />}
+      {checked && <Check className="size-3.5" strokeWidth={3} />}
     </span>
   )
 }

@@ -35,9 +35,9 @@ export default function NativeRegister({ config, customer, next }: { config: Ide
     await post(customer ? 'register-customer' : 'register-business',{ idToken,challenge,name })
     window.location.assign(await ownedLoginDestination(customer ? next : '/onboarding',fetch,customer))
   }
-  const field = 'w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-white disabled:opacity-50'
+  const field = 'w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-platform-ivory disabled:opacity-50'
   const button = 'w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground disabled:opacity-50'
-  return <main className="grid min-h-screen place-items-center bg-zinc-950 px-5 py-10 text-white">
+  return <main className="platform-dark grid min-h-screen place-items-center bg-zinc-950 px-5 py-10 text-platform-ivory">
     <section aria-labelledby="register-title" className="w-full max-w-sm space-y-5 rounded-3xl border border-white/10 bg-zinc-900/60 p-6 sm:p-8">
       <Link href="/" className="font-black">Xprout</Link>
       <h1 id="register-title" className="text-2xl font-bold">{customer ? 'Create your customer account' : 'Create your business account'}</h1>
@@ -70,7 +70,7 @@ export default function NativeRegister({ config, customer, next }: { config: Ide
         {sent ? <button type="button" disabled={busy} onClick={() => { attempt.current?.cancel(); attempt.current = null; setSent(false); setCode('') }} className="min-h-11 w-full text-sm underline">Use another number</button> : null}
       </form>
       <button type="button" disabled={busy || sent} onClick={() => void run(async () => complete(await googleProof(config)))} className={button}>Create account with Google</button>
-      <p className="text-sm text-zinc-400">Already have an account? <Link className="text-white underline" href={`/auth/login?from=${encodeURIComponent(next)}${customer ? '&flow=customer' : ''}`}>Sign in</Link> or <Link className="text-white underline" href="/auth/login?action=existing-account-link">link your existing account</Link>.</p>
+      <p className="text-sm text-zinc-400">Already have an account? <Link className="text-platform-ivory underline" href={`/auth/login?from=${encodeURIComponent(next)}${customer ? '&flow=customer' : ''}`}>Sign in</Link> or <Link className="text-platform-ivory underline" href="/auth/login?action=existing-account-link">link your existing account</Link>.</p>
     </section>
   </main>
 }

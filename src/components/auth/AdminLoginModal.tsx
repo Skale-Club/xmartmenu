@@ -138,7 +138,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
   return (
     <ModalPortal closeOnEscape={false}>
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="platform-dark fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
@@ -163,8 +163,8 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
           {logoUrl && (
             <DeliveryImage src={logoUrl} width={48} height={48} sizes="48px" alt="Logo" className="w-12 h-12 mx-auto mb-5" />
           )}
-          <p className="text-2xl font-black text-white tracking-tight">Xprout</p>
-          <p className="text-sm font-bold text-zinc-500 mt-2">Sign in to your menu dashboard</p>
+          <p className="text-2xl font-black text-platform-ivory tracking-tight">Xprout</p>
+          <p className="text-sm font-bold text-zinc-400 mt-2">Sign in to your menu dashboard</p>
         </div>
 
         {step === 'email' ? (
@@ -173,7 +173,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
             <button
               onClick={handleGoogleLogin}
               disabled={googleLoading}
-              className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-white/10 rounded-full text-sm font-bold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
+              className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-white/10 rounded-full text-sm font-bold text-platform-ivory bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
             >
               {googleLoading ? (
                 <svg className="w-5 h-5 animate-spin text-zinc-400" fill="none" viewBox="0 0 24 24">
@@ -193,7 +193,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
 
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-white/5" />
-              <span className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.2em]">or sign in with email</span>
+              <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">or sign in with email</span>
               <div className="flex-1 h-px bg-white/5" />
             </div>
 
@@ -207,14 +207,14 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   placeholder="you@example.com"
-                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-platform-ivory placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
                 />
               </div>
               {error && <p className="text-xs text-red-500 font-bold ml-1">{error}</p>}
               <button
                 type="submit"
                 disabled={googleLoading}
-                className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+                className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
               >
                 Continue <ArrowRight className="w-4 h-4" />
               </button>
@@ -225,7 +225,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
             <div className="mb-6">
               <button
                 onClick={() => { setStep('email'); setError(null) }}
-                className="flex items-center gap-1 text-xs font-bold text-zinc-500 hover:text-zinc-300 transition-colors mb-4"
+                className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-zinc-300 transition-colors mb-4"
               >
                 <ChevronLeft className="w-3.5 h-3.5" /> Back
               </button>
@@ -242,14 +242,14 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                  className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-platform-ivory placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
                 />
               </div>
               {error && <p className="text-xs text-red-500 font-bold ml-1">{error}</p>}
               <button
                 type="submit"
                 disabled={emailLoading}
-                className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
+                className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black transition-all hover:scale-[1.02] active:scale-95 flex items-center justify-center gap-2"
               >
                 {emailLoading ? 'Signing in...' : <><span>Sign in</span><ArrowRight className="w-4 h-4" /></>}
               </button>
@@ -257,7 +257,7 @@ export default function AdminLoginModal({ open, onClose, logoUrl }: Props) {
           </>
         )}
 
-        <p className="text-[10px] font-medium text-zinc-600 text-center mt-6 px-4 leading-relaxed">
+        <p className="text-[10px] font-medium text-zinc-400 text-center mt-6 px-4 leading-relaxed">
           By signing in, you agree to the platform terms of use and privacy policy.
         </p>
       </div>

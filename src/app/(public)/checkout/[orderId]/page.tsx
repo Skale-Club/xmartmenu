@@ -14,6 +14,7 @@ import { ArrowLeft, ShoppingBag } from 'lucide-react'
 import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
 import { embeddedCurrency } from '@/components/menu/menu-utils'
+import { checkoutTheme } from '@/lib/payments/checkout-theme'
 
 interface CheckoutPageProps {
   params: Promise<{ orderId: string }>
@@ -31,9 +32,11 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
   // Fetch order with items and tenant info
   const { data: order, error } = owned?{data:await loadOwnedPaymentCheckout(orderId),error:null}:await supabase!
     .from('orders')
-    .select('*, order_items(*), tenants(slug, name, tenant_settings(currency))')
+    .select('*, order_items(*), tenants(slug, name, tenant_settings(currency, primary_color, accent_color))')
     .eq('id', orderId)
     .single()
+
+  const theme = checkoutTheme(order?.tenants)
 
   // Handle order not found
   if (error || !order) {
@@ -41,10 +44,11 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Order Not Found</h1>
-          <p className="text-gray-600 mb-6">The order you're looking for doesn't exist or has been removed.</p>
+          <p className="text-gray-600 mb-6">The order you&apos;re looking for doesn&apos;t exist or has been removed.</p>
           <Link
             href="/"
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-700"
+            className="inline-flex items-center underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900"
+            style={{ color: theme.focus }}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Return to menu
@@ -74,7 +78,8 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           <p className="text-gray-600 mb-6">{message}</p>
           <Link
             href={`/checkout/${order.id}/confirmation`}
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-700"
+            className="inline-flex items-center underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900"
+            style={{ color: theme.focus }}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             View Order
@@ -99,7 +104,8 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           </p>
           <Link
             href={`/${order.tenants.slug}`}
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-700"
+            className="inline-flex items-center underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900"
+            style={{ color: theme.focus }}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Return to menu
@@ -132,7 +138,8 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           <p className="text-gray-600 mb-6">Failed to initialize payment. Please try again later.</p>
           <Link
             href={`/${order.tenants.slug}`}
-            className="inline-flex items-center text-indigo-600 hover:text-indigo-700"
+            className="inline-flex items-center underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900"
+            style={{ color: theme.focus }}
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
             Return to menu
@@ -184,7 +191,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
                     </p>
                   ) : null}
                 </div>
-                <span className="text-gray-900 font-medium">
+                <span className="font-medium tabular-nums" style={{ color: theme.accentText }}>
                   {formatPrice(Number(item.unit_price) || 0, currency)}
                 </span>
               </div>
@@ -194,7 +201,7 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
           {/* Order total */}
           <div className="border-t border-gray-200 mt-4 pt-4 flex justify-between items-center">
             <span className="text-lg font-bold text-gray-900">Total</span>
-            <span className="text-lg font-bold text-indigo-600">
+            <span className="text-lg font-bold tabular-nums" style={{ color: theme.accentText }}>
               {formatPrice(Number(order.total) || 0, currency)}
             </span>
           </div>
@@ -203,8 +210,8 @@ export default async function CheckoutPage({ params }: CheckoutPageProps) {
         {/* Payment form */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Payment Details</h2>
-          <StripeProvider clientSecret={clientSecret}>
-            <CheckoutForm orderId={order.id} returnUrl={returnUrl} />
+          <StripeProvider clientSecret={clientSecret} primaryColor={theme.primary} onPrimary={theme.onPrimary} focusColor={theme.focus}>
+            <CheckoutForm orderId={order.id} returnUrl={returnUrl} primaryColor={theme.primary} onPrimary={theme.onPrimary} />
           </StripeProvider>
         </div>
 

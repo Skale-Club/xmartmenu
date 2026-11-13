@@ -20,9 +20,9 @@ type Phase = { kind: 'loading' } | { kind: 'error' } | { kind: 'flow' } | { kind
 const FETCH_INIT = { credentials: 'same-origin', cache: 'no-store', redirect: 'error' } as const
 const JSON_HEADERS = { 'Content-Type': 'application/json' }
 
-const input = 'w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-[16px] text-white placeholder:text-zinc-500 disabled:opacity-50'
+const input = 'w-full rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-[16px] text-platform-ivory placeholder:text-zinc-400 disabled:opacity-50'
 const primary = 'min-h-11 rounded-full bg-primary px-6 py-3 font-bold text-primary-foreground disabled:opacity-50'
-const secondary = 'min-h-11 rounded-full border border-white/15 px-5 py-3 font-semibold text-white disabled:opacity-40'
+const secondary = 'min-h-11 rounded-full border border-white/15 px-5 py-3 font-semibold text-platform-ivory disabled:opacity-40'
 
 export default function AccessRequestFlow({ teamWhatsApp }: { teamWhatsApp: string | null }) {
   const router = useRouter()
@@ -179,9 +179,9 @@ export default function AccessRequestFlow({ teamWhatsApp }: { teamWhatsApp: stri
       >
         <div className="shrink-0">
           <div role="progressbar" aria-valuemin={1} aria-valuemax={ACCESS_REQUEST_STEPS.length} aria-valuenow={index + 1} aria-label={t.stepOf(index + 1, ACCESS_REQUEST_STEPS.length)} className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${((index + 1) / ACCESS_REQUEST_STEPS.length) * 100}%` }} />
+            <div className="h-full rounded-full bg-primary-on-dark transition-all" style={{ width: `${((index + 1) / ACCESS_REQUEST_STEPS.length) * 100}%` }} />
           </div>
-          <p className="mt-2 text-xs text-zinc-500">{t.stepOf(index + 1, ACCESS_REQUEST_STEPS.length)}</p>
+          <p className="mt-2 text-xs text-zinc-400">{t.stepOf(index + 1, ACCESS_REQUEST_STEPS.length)}</p>
         </div>
 
         <div key={step} ref={content} className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-6">
@@ -194,7 +194,7 @@ export default function AccessRequestFlow({ teamWhatsApp }: { teamWhatsApp: stri
             />
             {isLast ? (
               <label className="flex items-start gap-3 pt-2 text-left text-sm text-zinc-300">
-                <input type="checkbox" checked={optIn} onChange={e => setOptIn(e.target.checked)} disabled={submitting} className="mt-0.5 h-5 w-5 rounded border-white/20 accent-primary" />
+                <input type="checkbox" checked={optIn} onChange={e => setOptIn(e.target.checked)} disabled={submitting} className="mt-0.5 h-5 w-5 rounded border-white/20 accent-platform-ivory" />
                 <span>{t.whatsappConsent}</span>
               </label>
             ) : null}
@@ -227,7 +227,7 @@ function clearOptional(step: AccessRequestStep, a: AccessRequestAnswers): Access
 
 function Frame({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   return (
-    <main data-testid="access-request-flow" className="fixed inset-0 flex justify-center bg-zinc-950 px-5 text-white">
+    <main data-testid="access-request-flow" className="platform-dark fixed inset-0 flex justify-center bg-zinc-950 px-5 text-platform-ivory">
       <div className={`flex min-h-0 w-full flex-col py-5 ${wide ? 'max-w-xl' : 'max-w-md justify-center'}`}>
         <p className="mb-4 shrink-0 font-black">Xprout</p>
         {wide ? children : <section className="rounded-3xl border border-white/10 bg-zinc-900/60 p-6 sm:p-8">{children}</section>}
@@ -256,7 +256,7 @@ function Choice({ selected, onClick, children, multi, disabled }: { selected: bo
     <button
       type="button" onClick={onClick} disabled={disabled}
       role={multi ? 'checkbox' : 'radio'} aria-checked={selected}
-      className={`min-h-12 w-full rounded-xl border px-4 py-3 text-left font-semibold transition-colors disabled:opacity-50 ${selected ? 'border-primary bg-primary/15 text-white' : 'border-white/15 bg-zinc-900 text-zinc-200 hover:border-white/30'}`}
+      className={`min-h-12 w-full rounded-xl border px-4 py-3 text-left font-semibold transition-colors disabled:opacity-50 ${selected ? 'border-primary-on-dark bg-primary/15 text-platform-ivory' : 'border-white/15 bg-zinc-900 text-zinc-200 hover:border-white/30'}`}
     >{children}</button>
   )
 }
@@ -299,7 +299,7 @@ function StepFields({ step, answers, set, t, region, lang, disabled, onChoose, o
           <label htmlFor="ar-phone" className="mb-1 block text-sm font-semibold">{t.fields.phone}</label>
           <PhoneField id="ar-phone" value={answers.contactPhone ?? ''} onChange={v => set('contactPhone', v)} phoneContext={{ country: region }} locale={lang}
             countryLabel={t.fields.countryLabel} countrySearchLabel={t.fields.countrySearch} required tone="dark" onFocus={keepFieldVisible} onKeyDown={nextFieldOnEnter}
-            className="rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-[16px] text-white" />
+            className="rounded-xl border border-white/15 bg-zinc-950 px-4 py-3 text-[16px] text-platform-ivory" />
         </div>
         <div>
           <label htmlFor="ar-email" className="mb-1 block text-sm font-semibold">{t.fields.email}</label>
