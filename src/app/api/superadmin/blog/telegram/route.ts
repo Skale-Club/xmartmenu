@@ -1,3 +1,4 @@
+import { BRAND_URL } from '@/lib/brand'
 import {nativeBlogSelected,legacyBlogWritesBlocked,LEGACY_BLOG_WRITES_MESSAGE} from '@/lib/blog/native/selected'
 import {nativeBlogAdminHttp} from '@/lib/blog/native/admin-http'
 /**
@@ -198,7 +199,7 @@ function decryptOrNull(encrypted: string | null | undefined): string | null {
 }
 
 function siteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com').replace(/\/+$/, '')
+  return (process.env.NEXT_PUBLIC_SITE_URL ?? BRAND_URL).replace(/\/+$/, '')
 }
 
 export const GET = withApi('GET /api/superadmin/blog/telegram', handleGET)

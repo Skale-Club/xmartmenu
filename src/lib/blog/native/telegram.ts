@@ -1,3 +1,4 @@
+import { BRAND_URL } from '@/lib/brand'
 import {randomBytes,randomUUID} from 'node:crypto'
 import {AdminMenuError,type AdminMenuQuery} from '../../data/admin-menus'
 import {ownedAdminTransaction} from '../../data/admin-menus-runtime'
@@ -12,7 +13,7 @@ import {reserveNativeBlogOperation,claimNativeBlogOperation,lockNativeBlogOperat
 import {NativeBlogDefinitiveError,NativeBlogUnknownOutcomeError,definitiveHttpStatus} from './outcome'
 import {nativeBlogResponseJson} from './provider-call'
 const decrypt=(value:unknown)=>{if(typeof value!=='string'||!value)return null;try{return decryptApiKey(value)||null}catch{return null}}
-const origin=()=>{const url=new URL(process.env.NEXT_PUBLIC_SITE_URL??'https://xmartmenu.com');if(url.protocol!=='https:'||url.username||url.password)throw new AdminMenuError(503,'Public blog URL unavailable');return url.origin}
+const origin=()=>{const url=new URL(process.env.NEXT_PUBLIC_SITE_URL??BRAND_URL);if(url.protocol!=='https:'||url.username||url.password)throw new AdminMenuError(503,'Public blog URL unavailable');return url.origin}
 const readSettings=async(query:AdminMenuQuery,scope:string|null)=>(await query('SELECT * FROM public.telegram_settings WHERE tenant_id IS NOT DISTINCT FROM $1::uuid',[scope])).rows[0]
 const settingsDigest=(row:Record<string,unknown>|undefined)=>tenantEffectDigest(row?Object.fromEntries(Object.entries(row).map(([key,value])=>[key,value instanceof Date?value.toISOString():value])):null)
 const plainToken=(row:Record<string,unknown>)=>decrypt(row.approvals_bot_token)??decrypt(row.bot_token)

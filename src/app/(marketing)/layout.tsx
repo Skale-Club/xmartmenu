@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
 import type { Metadata } from 'next'
 import '../globals.css'
 import { createServiceClient } from '@/lib/supabase/server'
@@ -34,16 +35,16 @@ async function getPlatformSettings(): Promise<MarketingSettings | null> {
 export async function generateMetadata(): Promise<Metadata> {
   const ps = await getPlatformSettings()
 
-  const appName = ps?.app_name ?? 'XmartMenu'
+  const appName = ps?.app_name ?? BRAND_NAME
   const title = ps?.seo_title ?? `${appName} | Digital menus built for service`
   const description =
     ps?.seo_description ??
     'Create a beautiful digital menu, generate a QR code, and start taking orders. No tech skills needed.'
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://xmartmenu.skale.club'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || BRAND_URL
 
   return {
     // Absolute: this title already carries the brand, so the root layout's
-    // '%s | XmartMenu' template must not append it a second time.
+    // '%s | Xprout' template must not append it a second time.
     title: { absolute: title },
     description,
     metadataBase: new URL(appUrl),

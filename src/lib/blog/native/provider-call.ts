@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
 import {ownedAdminTransaction} from '../../data/admin-menus-runtime'
 import {OPENROUTER_BASE_URL} from '../../ai/openrouter'
 import {AdminMenuError} from '../../data/admin-menus'
@@ -36,7 +37,7 @@ export async function callNativeBlogAi(input:{context:NativeBlogContext;operatio
  })
  let status=0
  try{
-  const response=await send(endpoint,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${input.choice.apiKey}`,'Content-Type':'application/json','HTTP-Referer':process.env.NEXT_PUBLIC_SITE_URL||'https://xmartmenu.com','X-Title':'XmartMenu'},body:JSON.stringify(request),signal:AbortSignal.timeout(input.image?90000:60000)})
+  const response=await send(endpoint,{method:'POST',redirect:'error',headers:{Authorization:`Bearer ${input.choice.apiKey}`,'Content-Type':'application/json','HTTP-Referer':process.env.NEXT_PUBLIC_SITE_URL||BRAND_URL,'X-Title':BRAND_NAME},body:JSON.stringify(request),signal:AbortSignal.timeout(input.image?90000:60000)})
   status=response.status
   if(definitiveHttpStatus(status)){await response.body?.cancel().catch(()=>{});throw new NativeBlogDefinitiveError(`AI provider refused the request (HTTP ${status})`)}
   const body=await nativeBlogResponseJson(response)

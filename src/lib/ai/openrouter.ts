@@ -1,5 +1,5 @@
 /**
- * Every AI call in XmartMenu goes through OpenRouter: text and structured
+ * Every AI call in Xprout goes through OpenRouter: text and structured
  * output (menu seed, OCR, translation, chat, blog), image generation (Google
  * Gemini Image or OpenAI GPT Image) and speech-to-text (Whisper, Deepgram).
  * No route talks to Google, OpenAI or any other AI vendor directly.
@@ -13,6 +13,7 @@
  * Model ids are OpenRouter slugs ("vendor/model") and can be overridden per
  * deployment with the OPENROUTER_*_MODEL variables below.
  */
+import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
 import { createOpenAI } from '@ai-sdk/openai'
 import { defaultSettingsMiddleware, wrapLanguageModel, type LanguageModel } from 'ai'
 
@@ -24,8 +25,8 @@ type Env = Record<string, string | undefined>
 /** OpenRouter's app attribution headers. */
 function attributionHeaders(env: Env = process.env): Record<string, string> {
   return {
-    'HTTP-Referer': env.NEXT_PUBLIC_SITE_URL || 'https://xmartmenu.com',
-    'X-Title': 'XmartMenu',
+    'HTTP-Referer': env.NEXT_PUBLIC_SITE_URL || BRAND_URL,
+    'X-Title': BRAND_NAME,
   }
 }
 

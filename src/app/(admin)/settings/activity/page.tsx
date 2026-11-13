@@ -39,7 +39,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
       rows = await readOwnedOwnerAuditPage({ tenantId: effective.tenantId, role: effective.role }, { table, actor, days, before })
       for (const row of rows) {
         if (!row.actor_id) continue
-        if (row.actor_external) personName.set(row.actor_id, 'XmartMenu support')
+        if (row.actor_external) personName.set(row.actor_id, 'Xprout support')
         else if (row.actor_name !== null) personName.set(row.actor_id, row.actor_name || (row.actor_role === 'store-staff' ? 'Staff member' : 'Owner'))
       }
     } catch {
@@ -67,7 +67,7 @@ export default async function ActivityPage({ searchParams }: { searchParams: Pro
       : { data: [] as Array<{ id: string; full_name: string | null; role: string; tenant_id: string | null }> }
     // People outside the restaurant are the platform team; their names stay private.
     for (const person of people ?? []) personName.set(person.id,
-      person.tenant_id === effective.tenantId ? (person.full_name || (person.role === 'store-staff' ? 'Staff member' : 'Owner')) : 'XmartMenu support')
+      person.tenant_id === effective.tenantId ? (person.full_name || (person.role === 'store-staff' ? 'Staff member' : 'Owner')) : 'Xprout support')
   }
 
   const link = (patch: Partial<Search>) => {

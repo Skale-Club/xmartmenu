@@ -44,7 +44,7 @@ async function fetchPage(url: string): Promise<FetchedPage> {
     const res = await fetch(url, {
       redirect: "follow",
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      headers: { "user-agent": "Mozilla/5.0 (compatible; XmartMenuLaunchChecklist/1.0)" },
+      headers: { "user-agent": "Mozilla/5.0 (compatible; XproutLaunchChecklist/1.0)" },
     });
     const text = (await res.text()).slice(0, MAX_BODY_BYTES);
     const headers: Record<string, string> = {};

@@ -1,7 +1,8 @@
+import { BRAND_URL } from '@/lib/brand'
 import type { TenantSettings, BusinessHours, Category, Product } from '@/types/database'
 import { subdomainBase, tenantSubdomainHost } from './tenant-subdomain'
 
-export const PLATFORM_BASE = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? 'https://xmartmenu.skale.club'
+export const PLATFORM_BASE = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, '') ?? BRAND_URL
 
 /** Hostname (no scheme/port) of the platform domain — used for per-host robots/sitemap logic. */
 export const PLATFORM_HOST = PLATFORM_BASE.replace(/^https?:\/\//, '').split(':')[0]

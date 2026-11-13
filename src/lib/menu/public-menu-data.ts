@@ -19,6 +19,7 @@
  * ?table= row is picked from the cached table list, and a private menu's
  * phone-session check runs on every request.
  */
+import { BRAND_NAME } from '@/lib/brand'
 import { cache } from 'react'
 import { publicMenuSource } from '@/lib/data/public-menu'
 import { arModelsByProductId, buildOptionGroupsByProductId, groupByProductId, pickDefaultMenu, pickSectionMenu } from './public-menu-model'
@@ -122,7 +123,7 @@ async function loadPublicMenuFromSource(source: 'legacy' | 'owned-v1', slug: str
     supabase.from('platform_settings').select('menu_footer_brand').single(),
   ])
   if (!tenant) return { kind: 'not_found' }
-  const footerBrand: string = platformRow?.menu_footer_brand ?? 'XmartMenu'
+  const footerBrand: string = platformRow?.menu_footer_brand ?? BRAND_NAME
   const settings = tenant.tenant_settings as any
 
   // Stage 2 — needs tenant.id.

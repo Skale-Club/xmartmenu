@@ -152,7 +152,7 @@ const ROWS: Row[] = [
   { label: 'Card, Apple Pay and Google Pay', menu: false, waiter: false, payments: true },
   { label: 'Online pickup orders, paid ahead', menu: false, waiter: false, payments: true },
   { label: 'Money goes straight to your Stripe account', menu: false, waiter: false, payments: true },
-  { label: 'Fee per payment through XmartMenu', menu: false, waiter: false, payments: `${PLANS.payments.paymentFeePercent}%` },
+  { label: 'Fee per payment through Xprout', menu: false, waiter: false, payments: `${PLANS.payments.paymentFeePercent}%` },
 ]
 
 function CellView({ v, hl }: { v: Cell; hl?: boolean }) {
@@ -207,7 +207,7 @@ function PlansSection() {
         </table>
       </div>
       <p className="mt-4 text-sm text-zinc-400">
-        The {PLANS.payments.paymentFeePercent}% applies only when the guest pays through XmartMenu. Stripe&apos;s own processing fee is charged by Stripe.
+        The {PLANS.payments.paymentFeePercent}% applies only when the guest pays through Xprout. Stripe&apos;s own processing fee is charged by Stripe.
         {' '}{MIN_MONTHS}-month minimum, then month to month.
       </p>
     </section>
@@ -340,7 +340,7 @@ function Estimator() {
           </div>
           <p className="text-4xl font-extrabold tabular-nums text-white">{formatUsd(e.project)}</p>
           <p className="text-sm text-zinc-400">
-            Then {formatUsd(e.monthly)} / month from month two{e.paymentFeePercent ? `, plus ${e.paymentFeePercent}% of payments made through XmartMenu` : ''}.
+            Then {formatUsd(e.monthly)} / month from month two{e.paymentFeePercent ? `, plus ${e.paymentFeePercent}% of payments made through Xprout` : ''}.
           </p>
           <p className="text-sm text-zinc-400">First year: <strong className="tabular-nums text-white">{formatUsd(e.firstYear)}</strong> (first month included in the project).</p>
           <a href={PRICING_CTA_HREF} className={`${ctaBtn} w-full sm:w-fit`}>Talk to us <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>

@@ -39,7 +39,7 @@ export default function NativeRegister({ config, customer, next }: { config: Ide
   const button = 'w-full rounded-full bg-primary px-5 py-3 font-bold text-primary-foreground disabled:opacity-50'
   return <main className="grid min-h-screen place-items-center bg-zinc-950 px-5 py-10 text-white">
     <section aria-labelledby="register-title" className="w-full max-w-sm space-y-5 rounded-3xl border border-white/10 bg-zinc-900/60 p-6 sm:p-8">
-      <Link href="/" className="font-black">XmartMenu</Link>
+      <Link href="/" className="font-black">Xprout</Link>
       <h1 id="register-title" className="text-2xl font-bold">{customer ? 'Create your customer account' : 'Create your business account'}</h1>
       <p className="text-sm leading-6 text-zinc-400">Verify your phone by SMS, or use Google to create a new account.</p>
       {error ? <p role="alert" className="text-sm text-red-300">{error}</p> : null}

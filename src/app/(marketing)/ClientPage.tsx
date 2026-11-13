@@ -492,7 +492,7 @@ function PricingTeaser() {
 
 function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOpen: () => void }) {
   const heading = data?.heading ?? 'Ready to get started?'
-  const text = data?.text ?? 'Join the first restaurants using XmartMenu and transform your customer experience today.'
+  const text = data?.text ?? 'Join the first restaurants using Xprout and transform your customer experience today.'
   const button = data?.button ?? 'Sign in now'
 
   return (

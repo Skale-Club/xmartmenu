@@ -1,3 +1,4 @@
+import { BRAND_NAME } from '@/lib/brand'
 import type { CachedPublicMenu } from '../menu/public-menu-data'
 import { arModelsByProductId, buildOptionGroupsByProductId, groupByProductId, pickDefaultMenu, pickSectionMenu } from '../menu/public-menu-model'
 import { resolveTenantCapabilities, type ServiceSettings } from '../service-modes'
@@ -86,7 +87,7 @@ export async function readOwnedPublicMenu(query: PublicMenuQuery, slug: string, 
       : null
     const settings = tenant.tenant_settings
     const footer = one(await rows<Row>(query, 'SELECT jsonb_build_object(\'menu_footer_brand\', menu_footer_brand) AS row FROM public.platform_settings LIMIT 2', [], 1))
-    const footerBrand = typeof footer?.menu_footer_brand === 'string' ? footer.menu_footer_brand : 'XmartMenu'
+    const footerBrand = typeof footer?.menu_footer_brand === 'string' ? footer.menu_footer_brand : BRAND_NAME
     // A preview reads exactly one hidden staging menu, the token matched within
     // this restaurant, once the staging columns exist (named columns only, so a
     // column-level reader grant suffices). The token itself is not in the DTO.

@@ -12,7 +12,7 @@ export async function GET(): Promise<Response> {
 
   return new Response(
     buildFeedXml({
-      title: 'Blog | Xmartmenu',
+      title: 'Blog | Xprout',
       description:
         'Cardápio, margem, delivery e operação — o que aprendemos ajudando restaurantes a vender mais.',
       blogUrl: `${PLATFORM_BASE}/blog`,

@@ -1,6 +1,6 @@
 /**
  * The thin brand-gradient line on top of a prominent dark card (the sign-in
- * popup), with a soft red glow under it: XmartMenu red fading to the light
+ * popup), with a soft red glow under it: Xprout red fading to the light
  * red of the site's headline gradient. The parent must be positioned and clip
  * its overflow (rounded corners).
  */

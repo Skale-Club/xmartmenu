@@ -1,3 +1,4 @@
+import { BRAND_NAME } from '@/lib/brand'
 import {randomUUID} from 'node:crypto'
 import {ownedAdminTransaction} from '../../data/admin-menus-runtime'
 import {AdminMenuError} from '../../data/admin-menus'
@@ -101,7 +102,7 @@ export async function generateNativeBlogPost(context:NativeBlogContext,input:{tr
    for(let suffix=2;(await query('SELECT id FROM public.blog_posts WHERE tenant_id IS NOT DISTINCT FROM $1::uuid AND slug=$2',[scope,slug])).rows.length;suffix++){if(suffix>1000)throw new AdminMenuError(409,'Post slug collision limit reached');slug=`${base}-${suffix}`}
    const postId=randomUUID()
    await query(`INSERT INTO public.blog_posts(id,tenant_id,title,slug,content,excerpt,meta_description,focus_keyword,tags,author_name,cover_image_url,reading_time_minutes,ai_generated,status,published_at)
-    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true,$13,$14)`,[postId,scope,generated.title,slug,generated.content,generated.excerpt||null,generated.metaDescription||null,generated.focusKeyword||null,generated.tags||null,facts.tenantContext?.name??'Xmartmenu',coverUrl,readingTimeMinutes(generated.content),settings.auto_publish?'published':'draft',settings.auto_publish?now:null])
+    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true,$13,$14)`,[postId,scope,generated.title,slug,generated.content,generated.excerpt||null,generated.metaDescription||null,generated.focusKeyword||null,generated.tags||null,facts.tenantContext?.name??BRAND_NAME,coverUrl,readingTimeMinutes(generated.content),settings.auto_publish?'published':'draft',settings.auto_publish?now:null])
    if(facts.rssItem)await query("UPDATE public.blog_rss_items SET status='used',used_at=clock_timestamp(),used_post_id=$3 WHERE id=$1 AND tenant_id IS NOT DISTINCT FROM $2::uuid AND status='pending'",[facts.rssItem.id,scope,postId])
    await query("UPDATE public.blog_generation_jobs SET status='completed',post_id=$2,topic=$3,completed_at=clock_timestamp(),durations_ms=$4::jsonb WHERE id=$1",[jobId,postId,topic,JSON.stringify({topic:topicMs,content:contentMs,image:imageMs,upload:uploadMs,total:Date.now()-started})])
    const outcome={status:'generated' as const,postId,jobId,title:generated.title,...(coverSkipped?{coverSkipped:true}:{})}

@@ -41,7 +41,7 @@ export default function GlobalError({
               color: '#F52323',
             }}
           >
-            XmartMenu
+            Xprout
           </p>
           <h1 style={{ margin: '0 0 12px', fontSize: '24px', fontWeight: 700 }}>
             Something went wrong

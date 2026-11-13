@@ -47,8 +47,8 @@ const en: Strings = {
   menuSizes: { up_to_30: 'Up to 30 dishes', '30_80': '30 to 80 dishes', '80_plus': 'More than 80' },
   contactTimes: { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' },
   whatsappConsent: 'You can contact me on WhatsApp',
-  pending: { title: 'We got your request!', text: 'The XmartMenu team will contact you to schedule a meeting and set up your menu with you.', whatsapp: 'Talk to us on WhatsApp', whatsappMessage: 'Hi! I just sent my XmartMenu request.', signOut: 'Sign out' },
-  declined: { title: "We can't offer XmartMenu to your business right now", text: 'Thank you for your interest. If you think this is a mistake or your situation changes, please get in touch and we will gladly take another look.' },
+  pending: { title: 'We got your request!', text: 'The Xprout team will contact you to schedule a meeting and set up your menu with you.', whatsapp: 'Talk to us on WhatsApp', whatsappMessage: 'Hi! I just sent my Xprout request.', signOut: 'Sign out' },
+  declined: { title: "We can't offer Xprout to your business right now", text: 'Thank you for your interest. If you think this is a mistake or your situation changes, please get in touch and we will gladly take another look.' },
   loading: 'Loading...',
 }
 
@@ -78,8 +78,8 @@ const pt: Strings = {
   menuSizes: { up_to_30: 'Até 30 pratos', '30_80': '30 a 80 pratos', '80_plus': 'Mais de 80' },
   contactTimes: { morning: 'Manhã', afternoon: 'Tarde', evening: 'Noite' },
   whatsappConsent: 'Podem falar comigo pelo WhatsApp',
-  pending: { title: 'Recebemos seu pedido!', text: 'A equipe do XmartMenu vai entrar em contato para marcar uma reunião e montar o seu cardápio com você.', whatsapp: 'Falar no WhatsApp', whatsappMessage: 'Olá! Acabei de enviar meu pedido do XmartMenu.', signOut: 'Sair' },
-  declined: { title: 'Não podemos oferecer o XmartMenu ao seu negócio agora', text: 'Obrigado pelo interesse. Se acha que foi um engano ou se sua situação mudar, fale com a gente e teremos prazer em olhar de novo.' },
+  pending: { title: 'Recebemos seu pedido!', text: 'A equipe do Xprout vai entrar em contato para marcar uma reunião e montar o seu cardápio com você.', whatsapp: 'Falar no WhatsApp', whatsappMessage: 'Olá! Acabei de enviar meu pedido do Xprout.', signOut: 'Sair' },
+  declined: { title: 'Não podemos oferecer o Xprout ao seu negócio agora', text: 'Obrigado pelo interesse. Se acha que foi um engano ou se sua situação mudar, fale com a gente e teremos prazer em olhar de novo.' },
   loading: 'Carregando...',
 }
 
@@ -109,8 +109,8 @@ const es: Strings = {
   menuSizes: { up_to_30: 'Hasta 30 platos', '30_80': '30 a 80 platos', '80_plus': 'Más de 80' },
   contactTimes: { morning: 'Mañana', afternoon: 'Tarde', evening: 'Noche' },
   whatsappConsent: 'Pueden contactarme por WhatsApp',
-  pending: { title: '¡Recibimos tu solicitud!', text: 'El equipo de XmartMenu te contactará para agendar una reunión y armar tu menú contigo.', whatsapp: 'Hablar por WhatsApp', whatsappMessage: '¡Hola! Acabo de enviar mi solicitud de XmartMenu.', signOut: 'Cerrar sesión' },
-  declined: { title: 'Por ahora no podemos ofrecer XmartMenu a tu negocio', text: 'Gracias por tu interés. Si crees que es un error o tu situación cambia, escríbenos y con gusto lo revisaremos de nuevo.' },
+  pending: { title: '¡Recibimos tu solicitud!', text: 'El equipo de Xprout te contactará para agendar una reunión y armar tu menú contigo.', whatsapp: 'Hablar por WhatsApp', whatsappMessage: '¡Hola! Acabo de enviar mi solicitud de Xprout.', signOut: 'Cerrar sesión' },
+  declined: { title: 'Por ahora no podemos ofrecer Xprout a tu negocio', text: 'Gracias por tu interés. Si crees que es un error o tu situación cambia, escríbenos y con gusto lo revisaremos de nuevo.' },
   loading: 'Cargando...',
 }
 

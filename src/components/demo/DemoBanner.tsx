@@ -34,7 +34,7 @@ export default function DemoBanner() {
         </span>
         {/* One sentence per line: the title, then a short neutral line. */}
         <p className="flex flex-1 flex-col text-sm font-medium leading-snug">
-          <span className="font-bold">You&apos;re exploring the XmartMenu demo.</span>
+          <span className="font-bold">You&apos;re exploring the Xprout demo.</span>
           <span className="hidden text-zinc-400 sm:block">Take a look around.</span>
         </p>
         <button

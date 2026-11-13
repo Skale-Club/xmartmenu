@@ -1,3 +1,4 @@
+import { BRAND_URL } from '@/lib/brand'
 import 'server-only'
 import { ownedAdminTransaction } from '@/lib/data/admin-menus-runtime'
 import { decryptApiKey } from '@/lib/crypto'
@@ -35,12 +36,12 @@ function warnOnce(message: string) {
   console.warn(`access_request.notify_unavailable: ${message}`)
 }
 
-/** The main XmartMenu origin (where /access-requests lives): the identity origin, then the app URL. */
+/** The main Xprout origin (where /access-requests lives): the identity origin, then the app URL. */
 function siteOrigin() {
   for (const candidate of [() => getIdentityServices().config.origin, () => process.env.NEXT_PUBLIC_APP_URL]) {
     try { const value = candidate(); if (value) return new URL(value).origin } catch { /* next candidate */ }
   }
-  return 'https://xmartmenu.skale.club'
+  return BRAND_URL
 }
 
 function whatsappLink(phone: string | null | undefined, greeting: string) {
@@ -73,7 +74,7 @@ async function deliver(text: string): Promise<boolean> {
 export function submittedMessage(lead: SubmittedLead): string {
   const a = lead.answers
   const business = a.businessType === 'other' && a.businessTypeOther ? `Outro (${a.businessTypeOther})` : label('businessType', a.businessType)
-  const lines = ['<b>NOVO PEDIDO DE ACESSO · XMARTMENU</b>', '']
+  const lines = ['<b>NOVO PEDIDO DE ACESSO · XPROUT</b>', '']
   const add = (name: string, value: unknown) => { if (value) lines.push(`${name}: ${esc(value)}`) }
   add('Nome', lead.name)
   add('Telefone da conta', lead.accountPhone)
@@ -88,7 +89,7 @@ export function submittedMessage(lead: SubmittedLead): string {
   add('Tamanho do cardapio', label('menuSize', a.menuSize))
   add('Rede social', a.socialUrl)
   add('Melhor horario', label('contactTime', a.contactTime))
-  const wa = whatsappLink(a.contactPhone || lead.accountPhone, `Olá, ${firstName(lead.name)}! Recebemos seu cadastro no XmartMenu e queremos agendar uma conversa com você.`)
+  const wa = whatsappLink(a.contactPhone || lead.accountPhone, `Olá, ${firstName(lead.name)}! Recebemos seu cadastro no Xprout e queremos agendar uma conversa com você.`)
   lines.push('')
   if (wa) lines.push(`WhatsApp: ${esc(wa)}`)
   lines.push(`Analisar: ${siteOrigin()}/access-requests`)
@@ -96,13 +97,13 @@ export function submittedMessage(lead: SubmittedLead): string {
 }
 
 export function abandonedMessage(draft: AbandonedDraft): string {
-  const lines = ['<b>CADASTRO ABANDONADO · XMARTMENU</b>', '']
+  const lines = ['<b>CADASTRO ABANDONADO · XPROUT</b>', '']
   const add = (name: string, value: unknown) => { if (value) lines.push(`${name}: ${esc(value)}`) }
   add('Nome', draft.full_name)
   add('Telefone', draft.answers.contactPhone || draft.phone)
   add('Negocio', draft.answers.businessName)
   add('Parou em', STEP_LABELS[draft.step] ?? draft.step)
-  const wa = whatsappLink(draft.answers.contactPhone || draft.phone, `Olá, ${firstName(draft.full_name)}! Vimos que você começou seu cadastro no XmartMenu. Posso ajudar?`)
+  const wa = whatsappLink(draft.answers.contactPhone || draft.phone, `Olá, ${firstName(draft.full_name)}! Vimos que você começou seu cadastro no Xprout. Posso ajudar?`)
   if (wa) lines.push('', `WhatsApp: ${esc(wa)}`)
   return lines.join('\n')
 }

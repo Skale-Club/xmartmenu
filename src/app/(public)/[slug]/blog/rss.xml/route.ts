@@ -1,3 +1,4 @@
+import { BRAND_URL } from '@/lib/brand'
 import {nativeBlogSelected} from '@/lib/blog/native/selected'
 import { createServiceClient } from '@/lib/supabase/server'
 import { buildFeedXml } from '@/lib/blog/feed'
@@ -8,7 +9,7 @@ import { resolveTenantBlog } from '@/lib/blog/tenant-blog-gate'
 export const revalidate = 3600
 
 function siteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://xmartmenu.com').replace(/\/+$/, '')
+  return (process.env.NEXT_PUBLIC_SITE_URL ?? BRAND_URL).replace(/\/+$/, '')
 }
 
 export async function GET(

@@ -232,7 +232,7 @@ export default function SubscriptionClient({
           <CreditCard className="w-10 h-10 text-zinc-200" />
         </div>
         <h1 className="text-4xl font-black text-zinc-950 tracking-tight mb-2">No Active Subscription</h1>
-        <p className="text-zinc-500 font-medium mb-8 max-w-sm">You don't have an active plan. Link your account to get started with XmartMenu.</p>
+        <p className="text-zinc-500 font-medium mb-8 max-w-sm">You don't have an active plan. Link your account to get started with Xprout.</p>
         <button className="bg-zinc-950 text-white px-10 py-5 rounded-full text-sm font-black uppercase tracking-widest hover:bg-primary hover:text-primary-foreground transition-all shadow-xl shadow-zinc-950/10 flex items-center gap-2">
           Contact Enterprise Support
           <ChevronRight className="w-4 h-4" />

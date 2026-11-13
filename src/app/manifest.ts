@@ -1,9 +1,10 @@
+import { BRAND_NAME } from '@/lib/brand'
 import type { MetadataRoute } from 'next'
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'XmartMenu',
-    short_name: 'XmartMenu',
+    name: BRAND_NAME,
+    short_name: BRAND_NAME,
     description: 'A digital menu platform built for restaurant service, QR code ordering, and menu operations.',
     start_url: '/',
     scope: '/',

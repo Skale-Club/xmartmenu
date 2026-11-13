@@ -1,3 +1,4 @@
+import { isPlatformHost } from './lib/brand'
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from './lib/supabase/middleware'
 // Zero-import module — safe for the Edge bundle. See that file for the
@@ -22,11 +23,9 @@ const CACHE_MISS_TTL_MS = 30_000
 async function resolveTenantSlugFromHost(host: string): Promise<string | null> {
   const normalized = host.split(':')[0].toLowerCase()
 
-  const platformHost = process.env.NEXT_PUBLIC_APP_URL
-    ?.replace(/^https?:\/\//, '').split(':')[0]
-    ?? 'xmartmenu.skale.club'
-
-  if (normalized === platformHost) return null
+  // The product's own addresses (current, legacy and the configured app URL)
+  // are never tenant custom domains.
+  if (isPlatformHost(normalized)) return null
 
   // Edge cannot load pg: owned mode asks the Node route on this same server,
   // which also answers restaurant subdomains (<label>.<TENANT_SUBDOMAIN_BASE>).
