@@ -24,6 +24,14 @@ describe('AR gesture onboarding claim', () => {
     expect(createGestureOnboardingClaim()(storage)).toBe(false)
   })
 
+  it('migrates an existing pre-rebrand hint claim without replaying it', () => {
+    const storage = memoryStorage()
+    storage.setItem('xmartmenu:ar-move-hint:v2', 'shown')
+    expect(createGestureOnboardingClaim()(storage)).toBe(false)
+    expect(storage.getItem('xprout:ar-move-hint:v2')).toBe('shown')
+    expect(storage.getItem('xmartmenu:ar-move-hint:v2')).toBe('shown')
+  })
+
   it('keeps a memory claim when reading and writing storage throw', () => {
     const storage = { getItem: () => { throw new Error('blocked') }, setItem: () => { throw new Error('blocked') } }
     const claim = createGestureOnboardingClaim()

@@ -282,8 +282,9 @@ for obj in bpy.data.objects:
     obj.select_set(False)
 
 # 6. Even wood grain on the sides and underside (the bake there is patchy).
+# CLI resolves beside this script; GUI exec callers run from the repository root.
 exec(open(os.path.join(os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals()
-                       else r'C:\Users\Vanildo\Dev\xmartmenu\scripts\ar', 'board-sides.py')).read())
+                       else os.path.join(os.getcwd(), 'scripts', 'ar'), 'board-sides.py')).read())
 result = {'food_faces': len(scan.data.polygons), 'board_faces': len(board.data.polygons),
           'missed_pixels_pct': round(float((~hit).mean()) * 100, 1)}
 print('BOARD ' + json.dumps(result))

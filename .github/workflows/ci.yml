@@ -69,22 +69,23 @@ jobs:
 
       - name: Offline database rehearsal policy and authenticated crypto fixtures
         run: |
-          bash -n scripts/ops/xmartmenu-database-rehearsal.sh
-          node scripts/ops/xmartmenu-database-rehearsal.mjs --plan
-          bash scripts/ops/xmartmenu-database-rehearsal.sh --plan
-          node --test scripts/ops/import-xmartmenu-private-candidate.test.mjs
-          node --test scripts/ops/xmartmenu-database-rehearsal.test.mjs
-          python3 -B scripts/ops/test_xmartmenu_private_transport.py
-          python3 -B scripts/ops/test_install_xmartmenu_private_transport.py
-          python3 -B scripts/ops/test_xmartmenu_pg_stdio.py
-          python3 -B scripts/ops/test_upgrade_xmartmenu_pg_stdio.py
-          node --test scripts/ops/prepare-xmartmenu-identity-foundation.test.mjs
-          python3 -B scripts/ops/test_backup_xmartmenu_identity_candidate.py
-          python3 -B scripts/ops/test_apply_xmartmenu_identity_foundation.py
-          bash -n scripts/ops/run-xmartmenu-final-cutover.sh
-          python3 -B scripts/ops/test_xmartmenu_final_cutover.py
-          python3 -B scripts/ops/test_xmartmenu_offsite_backup.py
-          python3 -B scripts/ops/install-xmartmenu-offsite-backup.py --plan > /dev/null
+          bash -n scripts/ops/xprout-database-rehearsal.sh
+          node scripts/ops/xprout-database-rehearsal.mjs --plan
+          bash scripts/ops/xprout-database-rehearsal.sh --plan
+          node --test scripts/ops/import-xprout-private-candidate.test.mjs
+          node --test scripts/ops/xprout-database-rehearsal.test.mjs
+          node --test scripts/ops/xprout-deploy-image.test.mjs
+          python3 -B scripts/ops/test_xprout_private_transport.py
+          python3 -B scripts/ops/test_install_xprout_private_transport.py
+          python3 -B scripts/ops/test_xprout_pg_stdio.py
+          python3 -B scripts/ops/test_upgrade_xprout_pg_stdio.py
+          node --test scripts/ops/prepare-xprout-identity-foundation.test.mjs
+          python3 -B scripts/ops/test_backup_xprout_identity_candidate.py
+          python3 -B scripts/ops/test_apply_xprout_identity_foundation.py
+          bash -n scripts/ops/run-xprout-final-cutover.sh
+          python3 -B scripts/ops/test_xprout_final_cutover.py
+          python3 -B scripts/ops/test_xprout_offsite_backup.py
+          python3 -B scripts/ops/install-xprout-offsite-backup.py --plan > /dev/null
 
       - name: Xphere contract checks
         run: npm run xphere:check:all
@@ -282,7 +283,7 @@ jobs:
       - name: Copy, fence, proposals, login, env and rollback against real PostgreSQL
         env:
           XM_TEST_PG_CONTAINER: xm-cutover-ci
-        run: python3 -B scripts/ops/test_xmartmenu_final_cutover.py
+        run: python3 -B scripts/ops/test_xprout_final_cutover.py
 
   offsite-backup-postgres:
     runs-on: ubuntu-latest
@@ -296,7 +297,7 @@ jobs:
       - name: Dump, encrypt, restore in a limited throwaway container, compare, receipt, retention, locks
         env:
           XM_TEST_PG_CONTAINER: xm-offsite-ci
-        run: python3 -B scripts/ops/test_xmartmenu_offsite_backup.py
+        run: python3 -B scripts/ops/test_xprout_offsite_backup.py
 
   owned-schema-postgres:
     runs-on: ubuntu-latest
@@ -310,7 +311,7 @@ jobs:
       - name: docs/owned-schema files through the operator against real PostgreSQL
         env:
           XM_TEST_PG_CONTAINER: xm-owned-schema-ci
-        run: python3 -B scripts/ops/test_xmartmenu_owned_schema.py
+        run: python3 -B scripts/ops/test_xprout_owned_schema.py
 
   deploy:
     needs: [checks, e2e, identity-postgres, cutover-postgres, offsite-backup-postgres, owned-schema-postgres]

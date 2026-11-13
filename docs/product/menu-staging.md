@@ -68,7 +68,7 @@ staged: they apply to every version at once.
   `product_ar_models` (CASCADE), which it did not know before.
 - Tests: `tests/integration/menu-staging.test.ts`, the preview case in
   `tests/integration/public-menu.test.ts`, `tests/unit/menu/staging-preview.test.ts`,
-  `scripts/ops/test_xmartmenu_owned_schema.py` (staging file).
+  `scripts/ops/test_xprout_owned_schema.py` (staging file).
 
 ## Known limits
 

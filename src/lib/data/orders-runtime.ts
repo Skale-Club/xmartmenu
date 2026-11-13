@@ -7,7 +7,7 @@ let pool: pg.Pool | undefined, configuration: string | undefined
 export function createOrdersPool(env: Record<string, string | undefined>) {
   const created = new pg.Pool({ ...postgresRuntimeConfig(env, 'ORDERS'), max: 2,
     connectionTimeoutMillis: 5000, idleTimeoutMillis: 10000, statement_timeout: 5000, query_timeout: 6000,
-    options: '-c default_transaction_read_only=on -c lock_timeout=2000', application_name: 'xmartmenu-orders' })
+    options: '-c default_transaction_read_only=on -c lock_timeout=2000', application_name: 'xprout-orders' })
   created.on('error', () => {})
   return created
 }

@@ -3,7 +3,7 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
-import { assertManifest, compareManifests, MANIFEST_SQL, TABLES } from '../../scripts/ops/xmartmenu-source-protocol.mjs'
+import { assertManifest, compareManifests, MANIFEST_SQL, TABLES } from '../../scripts/ops/xprout-source-protocol.mjs'
 
 const raw = process.env.IDENTITY_TEST_DATABASE_URL
 if (!raw) throw Error('Explicit disposable CI target required')

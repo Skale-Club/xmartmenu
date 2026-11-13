@@ -2,11 +2,11 @@
 
 Decision: owner, 2026-11-12 (XMM-D-2026-11-12-brand-name, approved). The product is renamed **Xprout** ("es-prout" = sprout); the main address becomes **https://xprout.app**. Research and the rejected names: Notion → Projects → XmartMenu → Brand Name Research.
 
-Status: plan only. Nothing bought, changed or deployed yet.
+Status updated 2026-11-13: the product/domain rebrand is live. The owner now requires a complete repository/workspace rename, superseding the original internal-name exemption below. See [the full rename record](../product/xprout-rename-2026-11-13.md) for verified changes, compatibility identifiers and pending operational migration. The original inventory and deployment sequence below remain historical planning evidence.
 
 ## Principles
 
-- Rename what customers and guests see. Keep internal identifiers (repository, Docker image, database names, R2 buckets, Coolify app id, env var names) unless a step says otherwise. Renaming them adds risk and no value.
+- Superseded on 2026-11-13: the original scope kept internal identifiers. The owner now requires Xprout throughout active product, repository and workspace naming. Existing data, authentication, archive and payment protocols require compatible transitions; historical records remain intact.
 - The old address never dies: `xmartmenu.skale.club` answers forever with a permanent redirect to the same path on `xprout.app`, because restaurants have printed QR codes.
 - One change at a time in production, with the owner's OK before each production step (universal rules).
 - Start from `dev` on a branch `feat/rebrand-xprout`; release through the normal CI/deploy flow.

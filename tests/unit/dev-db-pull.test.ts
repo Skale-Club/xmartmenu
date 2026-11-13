@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { PRODUCTION_PROJECT_REFS, SOURCE_SUPABASE_PROJECT } from '../../scripts/lib/database-target.mjs'
 import {
   EXCLUDED_TABLES, SCRUBBED_COLUMNS, SOURCE_CANDIDATE_NOTICE, SOURCE_IS_CANDIDATE,
-  assertPullDestination, compareSchemas, foreignKeyOrder, isExcludedTable, isScrubbedColumn, truncationSet,
+  assertPullDestination, compareSchemas, DEV_PULL_BACKUP_DIRECTORY, foreignKeyOrder, isExcludedTable, isScrubbedColumn, productionPullSource, truncationSet,
 } from '../../scripts/lib/dev-db-pull'
 
 const ref = 'abcdefghijklmnopqrst'
@@ -14,6 +14,23 @@ const good = (extra: Record<string, string> = {}): NodeJS.ProcessEnv => ({
   DEV_SUPABASE_PROJECT_REF: ref,
   DEV_DATABASE_URL: `postgresql://postgres.${ref}:${secret}@aws-1-us-east-1.pooler.supabase.com:5432/postgres`,
   ...extra,
+})
+
+describe('Xprout pull configuration compatibility', () => {
+  it('prefers current aliases independently while retaining legacy machine settings', () => {
+    expect(productionPullSource({ XPROUT_PROD_SSH: 'new-host', XMARTMENU_PROD_SSH: 'old-host',
+      XPROUT_PROD_DB_CONTAINER: 'newcontainer', XMARTMENU_PROD_DB_CONTAINER: 'oldcontainer',
+      XPROUT_PROD_DB_NAME: 'selected_db', XMARTMENU_PROD_DB_NAME: 'legacy_db' }))
+      .toEqual({ sshTarget: 'new-host', container: 'newcontainer', database: 'selected_db' })
+    expect(productionPullSource({ XMARTMENU_PROD_SSH: 'old-host', XMARTMENU_PROD_DB_CONTAINER: 'oldcontainer', XMARTMENU_PROD_DB_NAME: 'legacy_db' }))
+      .toEqual({ sshTarget: 'old-host', container: 'oldcontainer', database: 'legacy_db' })
+    expect(productionPullSource({ XPROUT_PROD_SSH: '', XMARTMENU_PROD_SSH: 'old-host' }).sshTarget).toBe('old-host')
+  })
+
+  it('renames backup storage without renaming the physical source database or enabling a source', () => {
+    expect(DEV_PULL_BACKUP_DIRECTORY).toBe('xprout-db-backups')
+    expect(productionPullSource({})).toEqual({ sshTarget: undefined, container: 'e12scyfsrp822dag7m9wwd4x', database: 'xmartmenu' })
+  })
 })
 
 describe('db:pull destination (pure)', () => {

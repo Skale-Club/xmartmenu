@@ -7,7 +7,7 @@ import { ownedModeActive } from './owned-mode'
  * repository (identity, platform appearance, public menu, back office, orders,
  * payments).
  *
- * Budget (docs/xmartmenu-private-postgres-transport.md): the `xmartmenu_runtime`
+ * Budget (docs/xprout-private-postgres-transport.md): the `xmartmenu_runtime`
  * role is limited to 12 connections, and the private SSH transport has 12
  * channel slots of which one is taken by its periodic heartbeat. Coolify's
  * rolling deployment keeps the old and the new container alive together, so
@@ -46,7 +46,7 @@ function registry(): Map<string, Pool> {
 export function createSharedPool(config: RuntimeConfig) {
   const created = new Pool({ connectionString: config.connectionString, ssl: config.ssl, max: SHARED_POOL_MAX,
     connectionTimeoutMillis: 5_000, idleTimeoutMillis: 10_000, statement_timeout: 5_000, query_timeout: 6_000,
-    options: '-c lock_timeout=2000', application_name: 'xmartmenu-runtime' })
+    options: '-c lock_timeout=2000', application_name: 'xprout-runtime' })
   // Idle connection errors must not crash the process or log credential details.
   created.on('error', () => {})
   // pg-pool detaches its idle error listener while a client is checked out, so a

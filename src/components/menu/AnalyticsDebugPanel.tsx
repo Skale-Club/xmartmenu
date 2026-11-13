@@ -12,8 +12,8 @@ export default function AnalyticsDebugPanel({ sessionId, onClose }: { sessionId:
       const event = rawEvent as CustomEvent<ClientAnalyticsEventInput>
       setEvents(current => [event.detail, ...current].slice(0, 20))
     }
-    window.addEventListener('xmartmenu:analytics-debug', listener)
-    return () => window.removeEventListener('xmartmenu:analytics-debug', listener)
+    window.addEventListener('xprout:analytics-debug', listener)
+    return () => window.removeEventListener('xprout:analytics-debug', listener)
   }, [])
 
   return (

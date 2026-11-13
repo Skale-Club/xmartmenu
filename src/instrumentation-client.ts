@@ -12,7 +12,7 @@ Sentry.init({
   tracesSampleRate: 0.1,
   sendDefaultPii: false,
   beforeSend: event => scrubEvent(event),
-  initialScope: { tags: { service: 'xmartmenu', runtime: 'browser' } },
+  initialScope: { tags: { service: 'xprout', runtime: 'browser' } },
 })
 
 export const onRouterTransitionStart = Sentry.captureRouterTransitionStart

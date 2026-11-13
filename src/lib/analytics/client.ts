@@ -56,7 +56,7 @@ export class MenuAnalyticsTracker {
 
   constructor(options: MenuAnalyticsTrackerOptions) {
     this.storageKey = [
-      'xmartmenu:analytics',
+      'xprout:analytics',
       options.tenantId,
       options.menuId,
       options.locationId ?? '-',
@@ -97,7 +97,7 @@ export class MenuAnalyticsTracker {
     } as ClientAnalyticsEventInput
     this.queue.push(fullEvent)
     if (this.session.is_test) {
-      window.dispatchEvent(new CustomEvent('xmartmenu:analytics-debug', { detail: fullEvent }))
+      window.dispatchEvent(new CustomEvent('xprout:analytics-debug', { detail: fullEvent }))
     }
     if (this.queue.length > MAX_MEMORY_EVENTS) {
       this.queue.splice(0, this.queue.length - MAX_MEMORY_EVENTS)
@@ -175,7 +175,9 @@ export class MenuAnalyticsTracker {
 
   private readStoredSession(): StoredSession | null {
     try {
+      // Reuse an active pre-rebrand session; new writes use the Xprout namespace.
       const raw = window.sessionStorage.getItem(this.storageKey)
+        ?? window.sessionStorage.getItem(this.storageKey.replace(/^xprout:/, 'xmartmenu:'))
       if (!raw) return null
       const parsed = JSON.parse(raw) as Partial<StoredSession>
       if (typeof parsed.id !== 'string' || !UUID_PATTERN.test(parsed.id) || typeof parsed.lastSeenAt !== 'number') return null

@@ -13,6 +13,18 @@ import { developmentDatabaseTarget, findProductionProjectRef } from './database-
 /** A single `pg.Client`: the pull drives BEGIN/COMMIT itself, so it needs one session. */
 export type Db = pg.Client
 
+export const DEV_PULL_BACKUP_DIRECTORY = 'xprout-db-backups'
+
+/** Preferred Xprout names retain existing machine configuration through legacy aliases. */
+export function productionPullSource(env: Readonly<Record<string, string | undefined>> = process.env) {
+  return {
+    sshTarget: env.XPROUT_PROD_SSH || env.XMARTMENU_PROD_SSH,
+    container: env.XPROUT_PROD_DB_CONTAINER || env.XMARTMENU_PROD_DB_CONTAINER || 'e12scyfsrp822dag7m9wwd4x',
+    // Physical database identity is unchanged by the product rename.
+    database: env.XPROUT_PROD_DB_NAME || env.XMARTMENU_PROD_DB_NAME || 'xmartmenu',
+  }
+}
+
 /**
  * Public tables whose rows are NEVER copied from production and are kept as the
  * developer has them (sign-in state and short-lived challenges). The migration ledger
@@ -41,14 +53,14 @@ export const SCRUBBED_COLUMNS: Readonly<Record<string, readonly string[]>> = {
 }
 
 /**
- * The source is the Xmartmenu database imported into the shared PostgreSQL cluster on
+ * The source is the Xprout database imported into the shared PostgreSQL cluster on
  * 2026-11-04. Production still reads its prior data source (Supabase), so this copy is
  * frozen at the import until the application cutover. Flip this to false at the cutover;
  * a test pins it so the change is deliberate.
  */
 export const SOURCE_IS_CANDIDATE = true
 export const SOURCE_CANDIDATE_NOTICE =
-  'SOURCE IS A CANDIDATE: the xmartmenu database on the shared cluster holds the data imported on 2026-11-04 '
+  'SOURCE IS A CANDIDATE: the Xprout source database (physical name: xmartmenu) on the shared cluster holds the data imported on 2026-11-04 '
   + 'and is NOT updated by production, which still reads its prior data source. Expect stale data.'
 
 export function isExcludedTable(table: string, excluded: readonly string[] = EXCLUDED_TABLES): boolean {

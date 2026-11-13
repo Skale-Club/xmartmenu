@@ -9,7 +9,7 @@ export function createPublicMenuPool(env: Record<string, string | undefined>) {
   const config = postgresRuntimeConfig(env, 'PUBLIC_MENU')
   const created = new pg.Pool({ ...config, max: 2, connectionTimeoutMillis: 5_000, idleTimeoutMillis: 10_000,
     statement_timeout: 5_000, query_timeout: 6_000,
-    options: '-c default_transaction_read_only=on -c lock_timeout=2000', application_name: 'xmartmenu-public-menu' })
+    options: '-c default_transaction_read_only=on -c lock_timeout=2000', application_name: 'xprout-public-menu' })
   created.on('error', () => {})
   return created
 }

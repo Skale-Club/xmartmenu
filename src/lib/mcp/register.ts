@@ -21,7 +21,7 @@ import { nativeMcpSelected } from './oauth-model'
 import { registerNativeMcpTools } from './native-tools'
 
 /**
- * Registers every xmartmenu MCP tool on the server instance.
+ * Registers every Xprout MCP tool on the server instance.
  *
  * Tiers:
  * - read/list/get — always on.

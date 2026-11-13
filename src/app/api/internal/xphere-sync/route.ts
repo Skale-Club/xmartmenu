@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
       .maybeSingle()
 
     // The owner email lives in auth.users (NOT on profiles) and is REQUIRED for
-    // the CRM Contact — the identity invariant needs phone OR email and XmartMenu
+    // the CRM Contact — the identity invariant needs phone OR email and Xprout
     // collects no phone. Resolve it via the service-role auth admin API.
     let owner: SyncMapInput['owner'] = null
     if (ownerRow) {

@@ -1,4 +1,4 @@
-# XmartMenu: Supabase production exit
+# Xprout: Supabase production exit
 
 Date: 2026-11-03 (America/New_York). Program: `../xmail/docs/supabase-exit-plan.md` in the sibling Xmail checkout.
 

@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import pg from 'pg'
 import { IdentityStore } from '../../src/lib/auth/identity-store'
 import { planClaims } from '../../scripts/ops/import-google-subject-claims'
-import { migrationSources, nativeIdentityProjection } from '../../scripts/ops/prepare-xmartmenu-identity-foundation.mjs'
+import { migrationSources, nativeIdentityProjection } from '../../scripts/ops/prepare-xprout-identity-foundation.mjs'
 import type { VerifiedGoogleIdentity } from '../../src/lib/auth/google-identity'
 
 const raw = process.env.IDENTITY_TEST_DATABASE_URL

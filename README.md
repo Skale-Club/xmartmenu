@@ -2,6 +2,8 @@
 
 Multi-tenant restaurant menu and operations platform built with Next.js, Supabase, and Stripe.
 
+Repository: [Skale-Club/xprout](https://github.com/Skale-Club/xprout). Project deliverables: `N:\My Drive\Xprout`. The local checkout rename from `C:\Users\Vanildo\Dev\xmartmenu` to `C:\Users\Vanildo\Dev\xprout` is prepared; see [the rename status](docs/product/xprout-rename-2026-11-13.md) before using the new path.
+
 ## Product Language
 
 Xprout (formerly XmartMenu) is English-first. New tenant and menu defaults should use English (`en`) for language and `USD` for currency unless a specific customer configuration says otherwise.
@@ -57,7 +59,7 @@ The release pipeline is:
 
 1. A push to `main` starts `.github/workflows/build-deploy.yml`.
 2. GitHub Actions builds the Docker image using `Dockerfile`.
-3. The image is published to `ghcr.io/skale-club/xmartmenu` with `latest` and commit-SHA tags.
+3. The prepared pipeline publishes `ghcr.io/skale-club/xprout` with `latest` and commit-SHA tags, retaining the legacy package during the transition. The running release still uses the previous image until the next authorized release.
 4. The workflow calls the Coolify API for application `gmaayluj11x1m6j7baogonfn`.
 5. Coolify pulls the prebuilt image through `docker-compose.yaml`, starts it, and checks container health.
 

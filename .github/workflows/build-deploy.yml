@@ -30,7 +30,8 @@ permissions:
   packages: write
 
 env:
-  IMAGE_NAME: ghcr.io/skale-club/xmartmenu
+  IMAGE_NAME: ghcr.io/skale-club/xprout
+  LEGACY_IMAGE_NAME: ghcr.io/skale-club/xmartmenu
   APP_UUID: gmaayluj11x1m6j7baogonfn
   COOLIFY_BASE: https://coolify.skale.club
   PUBLIC_URL: https://xprout.app
@@ -54,6 +55,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Dual-publish the same build while old deployment/rollback consumers transition.
       - name: Build image and push to GHCR
         uses: docker/build-push-action@v6
         with:
@@ -62,6 +64,8 @@ jobs:
           tags: |
             ${{ env.IMAGE_NAME }}:latest
             ${{ env.IMAGE_NAME }}:${{ inputs.sha }}
+            ${{ env.LEGACY_IMAGE_NAME }}:latest
+            ${{ env.LEGACY_IMAGE_NAME }}:${{ inputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # Public values only. Secrets go through `secrets:` (BuildKit mounts),

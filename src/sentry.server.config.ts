@@ -13,5 +13,5 @@ Sentry.init({
   tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE ?? 0.1),
   sendDefaultPii: false,
   beforeSend: event => scrubEvent(event),
-  initialScope: { tags: { service: 'xmartmenu', runtime: 'node' } },
+  initialScope: { tags: { service: 'xprout', runtime: 'node' } },
 })

@@ -16,11 +16,11 @@ it('fails closed before constructing any legacy server or service client', async
 
 it('bypasses legacy refresh in owned mode while preserving custom-domain rewrite', async () => {
   const { updateSession } = await import('@/lib/supabase/middleware')
-  const request = new NextRequest('https://xmartmenu.test/dashboard')
+  const request = new NextRequest('https://xprout.test/dashboard')
   const response = await updateSession(request)
   expect(response.headers.get('x-middleware-next')).toBe('1')
-  const rewrite = await updateSession(request, new URL('https://xmartmenu.test/fixture/menu'))
-  expect(rewrite.headers.get('x-middleware-rewrite')).toBe('https://xmartmenu.test/fixture/menu')
+  const rewrite = await updateSession(request, new URL('https://xprout.test/fixture/menu'))
+  expect(rewrite.headers.get('x-middleware-rewrite')).toBe('https://xprout.test/fixture/menu')
   expect(mocks.server).not.toHaveBeenCalled()
 })
 

@@ -48,7 +48,7 @@ export async function nativeOAuthHttp(kind:'register'|'authorize'|'details'|'dec
   } catch (error) {
     if (error instanceof McpOAuthError) {
       const response=json({ error:error.code,error_description:error.message },error.status,publicCors)
-      if(error.code==='invalid_client' && error.status===401) response.headers.set('WWW-Authenticate','Basic realm="xmartmenu-mcp"')
+      if(error.code==='invalid_client' && error.status===401) response.headers.set('WWW-Authenticate','Basic realm="xprout-mcp"')
       if(error.status===429) response.headers.set('Retry-After','60')
       return response
     }

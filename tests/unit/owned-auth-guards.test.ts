@@ -2,7 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const state = vi.hoisted(() => ({ legacy: vi.fn(), service: vi.fn(), session: vi.fn(), logout: vi.fn(), query: vi.fn(),
-  services: vi.fn(), context: vi.fn(), cookie: '', host: 'xmartmenu.test', preview: '' }))
+  services: vi.fn(), context: vi.fn(), cookie: '', host: 'xprout.test', preview: '' }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: state.legacy, createServiceClient: state.service }))
 vi.mock('@/lib/auth/identity-services', () => ({ getIdentityServices: state.services }))
 vi.mock('@/lib/observability/context', () => ({ setRequestContext: state.context }))
@@ -17,10 +17,10 @@ const profile = (role = 'store-admin') => ({ id: user, role, tenant_id: tenant, 
 
 beforeEach(() => {
   vi.resetModules(); vi.clearAllMocks(); vi.stubEnv('OWNED_AUTH_ENABLED', 'true')
-  state.cookie = `__Host-xm_identity=${token}`; state.host = 'xmartmenu.test'; state.preview = ''
+  state.cookie = `__Host-xm_identity=${token}`; state.host = 'xprout.test'; state.preview = ''
   state.session.mockResolvedValue({ userId: user, authenticatedAt: new Date(Date.now()-60_000) })
   state.logout.mockResolvedValue(undefined); state.query.mockResolvedValue({ rows: [profile()] })
-  state.services.mockReturnValue({ config: { origin: 'https://xmartmenu.test' },
+  state.services.mockReturnValue({ config: { origin: 'https://xprout.test' },
     store: { session: state.session, logout: state.logout }, pool: { query: state.query } })
   state.legacy.mockImplementation(() => { throw new Error('Legacy must not run') })
   state.service.mockImplementation(() => { throw new Error('Service API must not run') })
@@ -89,11 +89,11 @@ describe('owned core guards', () => {
     state.query.mockResolvedValue({ rows: [profile('customer')] })
     const { POST } = await import('@/app/api/auth/resolve-redirect/route')
     for (const next of ['//outside.test', '/\\outside.test', '/\nunsafe']) {
-      const result = await POST(new Request('https://xmartmenu.test/api/auth/resolve-redirect', { method: 'POST', body: JSON.stringify({ next }) }))
+      const result = await POST(new Request('https://xprout.test/api/auth/resolve-redirect', { method: 'POST', body: JSON.stringify({ next }) }))
       expect(await result.json()).toEqual({ redirectTo: '/' })
     }
     state.query.mockResolvedValue({ rows: [profile('superadmin')] })
-    const result = await POST(new Request('https://xmartmenu.test/api/auth/resolve-redirect', { method: 'POST', body: '{}' }))
+    const result = await POST(new Request('https://xprout.test/api/auth/resolve-redirect', { method: 'POST', body: '{}' }))
     expect(await result.json()).toEqual({ redirectTo: '/overview' })
     expect(state.service).not.toHaveBeenCalled(); expect(state.legacy).not.toHaveBeenCalled()
   })
@@ -101,7 +101,7 @@ describe('owned core guards', () => {
   it('returns to a safe customer surface without granting privileges or bypassing recovery',async()=>{
     state.query.mockResolvedValue({rows:[profile('superadmin')]})
     const {POST}=await import('@/app/api/auth/resolve-redirect/route')
-    const request=(next:string)=>new Request('https://xmartmenu.test/api/auth/resolve-redirect',{method:'POST',body:JSON.stringify({next,purpose:'customer'})})
+    const request=(next:string)=>new Request('https://xprout.test/api/auth/resolve-redirect',{method:'POST',body:JSON.stringify({next,purpose:'customer'})})
     expect(await (await POST(request('/fixture/me'))).json()).toEqual({redirectTo:'/fixture/me'})
     expect(await (await POST(request('//outside.test'))).json()).toEqual({redirectTo:'/'})
     state.query.mockResolvedValue({rows:[{...profile('superadmin'),must_change_password:true}]})
@@ -110,11 +110,11 @@ describe('owned core guards', () => {
 
   it('logs out only the native session, clears its cookies and rejects cross-origin POSTs', async () => {
     const { POST } = await import('@/app/api/auth/signout/route')
-    const request = (origin: string) => new Request('https://xmartmenu.test/api/auth/signout', { method: 'POST',
-      headers: { host: 'xmartmenu.test', origin, cookie: `__Host-xm_identity=${token}` } })
+    const request = (origin: string) => new Request('https://xprout.test/api/auth/signout', { method: 'POST',
+      headers: { host: 'xprout.test', origin, cookie: `__Host-xm_identity=${token}` } })
     expect((await POST(request('https://other.test'))).status).toBe(403)
     expect(state.logout).not.toHaveBeenCalled()
-    const response = await POST(request('https://xmartmenu.test'))
+    const response = await POST(request('https://xprout.test'))
     expect(response.status).toBe(303); expect(state.logout).toHaveBeenCalledWith(token)
     expect(response.headers.get('set-cookie')).toContain('__Host-xm_identity=')
     expect(response.headers.get('set-cookie')).toContain('Max-Age=0')
@@ -125,15 +125,15 @@ describe('owned core guards', () => {
     const menu = randomUUID()
     state.query.mockImplementation(async (sql: string) => sql.startsWith('SELECT id FROM public.menus') ? { rows: [{ id: menu }] } : { rows: [profile()] })
     const { POST } = await import('@/app/api/admin/menus/select/route')
-    const request = (origin: string, id: string = menu) => new Request('https://xmartmenu.test/api/admin/menus/select', { method: 'POST', headers: { origin }, body: JSON.stringify({ menu_id: id }) })
+    const request = (origin: string, id: string = menu) => new Request('https://xprout.test/api/admin/menus/select', { method: 'POST', headers: { origin }, body: JSON.stringify({ menu_id: id }) })
     expect((await POST(request('https://other.test'), undefined)).status).toBe(403)
-    expect((await POST(request('https://xmartmenu.test', 'invalid'), undefined)).status).toBe(400)
-    const result = await POST(request('https://xmartmenu.test'), undefined)
+    expect((await POST(request('https://xprout.test', 'invalid'), undefined)).status).toBe(400)
+    const result = await POST(request('https://xprout.test'), undefined)
     expect(result.status).toBe(200)
     expect(state.query).toHaveBeenLastCalledWith('SELECT id FROM public.menus WHERE id=$1 AND tenant_id=$2', [menu, tenant])
     expect(result.headers.get('set-cookie')).toContain(`selected_menu_id=${menu}`)
     state.query.mockImplementation(async (sql: string) => sql.startsWith('SELECT id FROM public.menus') ? { rows: [] } : { rows: [profile()] })
-    expect((await POST(request('https://xmartmenu.test'), undefined)).status).toBe(404)
+    expect((await POST(request('https://xprout.test'), undefined)).status).toBe(404)
     expect(state.legacy).not.toHaveBeenCalled()
   })
 

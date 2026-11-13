@@ -83,4 +83,4 @@ cache is dropped on save, so the canonical address changes right away.
 - Tests: `tests/unit/tenant-subdomain.test.ts`, the subdomain cases in
   `tests/integration/owned-remaining-reads.test.ts` and
   `tests/integration/public-menu.test.ts`, and the operator test in
-  `scripts/ops/test_xmartmenu_owned_schema.py` (CI, Docker).
+  `scripts/ops/test_xprout_owned_schema.py` (CI, Docker).

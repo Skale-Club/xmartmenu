@@ -2,7 +2,7 @@
 // src/lib/blog/contract.ts
 //
 // SOURCE OF TRUTH: xkedule/shared/blog-contract.ts — sync changes back.
-// Ported to: skaleclub, websites, xtimator, xmartmenu (see
+// Ported to: skaleclub, websites, xtimator, xprout (see
 // .planning/initiatives/autoblog-parity/MASTER.md §3).
 //
 // The auto-blog data contract, shared by every Skale Club product. It exists so
@@ -118,7 +118,7 @@ export type BlogRssItemStatus = z.infer<typeof blogRssItemStatusSchema>;
 /**
  * The shape of `blog_settings` every product converges on. Single-site products
  * (skaleclub, xtimator) omit `tenantId` and treat `superAdminEnabled` as always
- * true; multi-tenant products (xkedule, websites, xmartmenu) carry both.
+ * true; multi-tenant products (xkedule, websites, xprout) carry both.
  *
  * `openrouterApiKey` is deliberately absent: it is never read into this shape,
  * never serialised to a client, and never logged. Callers read it from storage

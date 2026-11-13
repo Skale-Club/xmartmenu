@@ -78,7 +78,13 @@ jobs:
 
       - name: The image for this commit exists
         if: inputs.mode == 'apply'
-        run: docker manifest inspect "ghcr.io/skale-club/xmartmenu:${{ github.sha }}" > /dev/null
+        run: |
+          repository="ghcr.io/skale-club/xprout"
+          if ! docker manifest inspect "${repository}:${{ github.sha }}" > /dev/null 2>&1; then
+            repository="ghcr.io/skale-club/xmartmenu"
+            docker manifest inspect "${repository}:${{ github.sha }}" > /dev/null
+          fi
+          echo "IMAGE_REPOSITORY=${repository}" >> "$GITHUB_ENV"
 
       - name: Run the operation
         env:
@@ -89,4 +95,4 @@ jobs:
           CUTOVER_SSH_HOST: ${{ secrets.CUTOVER_SSH_HOST }}
           CUTOVER_SSH_KEY: ${{ secrets.CUTOVER_SSH_KEY }}
           CUTOVER_SSH_HOST_KEY: ${{ secrets.CUTOVER_SSH_HOST_KEY }}
-        run: bash scripts/ops/run-xmartmenu-final-cutover.sh "${{ inputs.mode }}" "${{ github.sha }}" "${{ inputs.discard_new_writes }}"
+        run: bash scripts/ops/run-xprout-final-cutover.sh "${{ inputs.mode }}" "${{ github.sha }}" "${{ inputs.discard_new_writes }}"
