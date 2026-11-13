@@ -47,3 +47,15 @@ Profile changes need evidence/tests and a Journal decision; never add a silent
 bypass. Existing production/release authorization rules apply.
 <!-- /media-policy -->
 
+<!-- ui-consistency:v1 -->
+## Customer menu design consistency (mandatory)
+
+Follow [the shared customer-menu design contract](docs/product/design-consistency.md)
+when reviewing or changing cards, feed, product detail, AR, cart, checkout or
+related customer surfaces. Keep pricing format/semantics, tenant colour roles,
+the Inter/menu font stack, role-based typography, control dimensions, icons,
+spacing and feedback coherent across equivalent views. Respect menu capabilities:
+read-only menus must not acquire cart actions. Review the related screens
+together; document rollout gaps instead of claiming global alignment is complete.
+<!-- /ui-consistency -->
+
