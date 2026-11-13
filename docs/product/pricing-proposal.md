@@ -1,79 +1,76 @@
-# XmartMenu pricing (proposal v3)
+# XmartMenu pricing (proposal v4)
 
 Status: **proposal for the owner's decision**, 2026-11-12. All prices in US dollars. Nothing here is live: the plans table, Stripe prices and the public pricing section still show the old numbers.
 
 ## How we got here
 
-- v1 (setup $490, monthly $79–199) undervalued the work: a 60-dish menu with photos and AR for ~$500 does not pay it.
-- v2 priced it like an agency with photoscan AR ($2,490–15,900 builds, monthly $149–349) — too expensive: our AR is generated with a low-cost tool (Hyper3D Rodin + Blender review), not photogrammetry, and AR agency prices assume photoscan.
-- v3 is the balance the owner asked for: **XmartMenu is the restaurant's website, built and maintained by us**, priced for the work we actually do, without the photoscan premium, and kept simple: one build priced by scope, photos and AR per dish, three monthly versions.
+- v1 (setup $490, monthly $79–199) undervalued the work.
+- v2 (agency/photoscan level, $2,490–15,900) was too expensive: our AR is generated with a low-cost tool from photos, not photoscan.
+- v3 balanced it but mixed too many items (60-item base, photos, NFC plates).
+- **v4, owner's direction:** two **closed projects**, a **20-item base**, a price per extra item, and the monthly versions. **NFC plates are not part of XmartMenu pricing**: they are a separate product (Stuscle), sold as a separate project.
 
 ## Principles
 
-- Build + monthly, first month included in the build, no free plan.
-- Price by scope: number of dishes, photos, AR dishes.
-- Three monthly versions (owner's structure): **Menu**, **Waiter**, **Payments**. Only Payments has a per-transaction fee, because only there the money passes through XmartMenu (Stripe Connect application fee, already in the code: `plans.transaction_fee_pct` → `application_fee_amount`).
-- NFC plates follow the approved Stuscle table (2026-10-12).
+- **Remote-first** (owner, 2026-11-12): the restaurant sends its own phone photos; we treat them and generate AR from them (Hyper3D Rodin, Tripo or similar); kickoff and training by video call. Nothing requires someone on site.
+- **Closed project + monthly.** First month included in the project, no free plan.
+- **Three monthly versions:** Menu, Waiter, Payments. Only Payments has a per-transaction fee, because only there the money passes through XmartMenu (Stripe Connect application fee, already in the code: `plans.transaction_fee_pct` → `application_fee_amount`).
 
 ## Our work in hours (estimate, measure on the first 5 restaurants)
 
 | Work | Time |
 |---|---|
-| Website/menu build, up to 60 items (import, structure, 2 languages, SEO pages, QR/NFC, training) | ~8 h |
-| On-site photos + editing, 60 dishes | ~9 h |
-| AR per food dish (Rodin ~$0.50 + Blender prep + review) | ~40–45 min |
-| AR per drink in glass (built from scratch) | ~60–90 min |
+| Menu website with 20 items (structure, 2 languages, photo treatment, SEO pages, QR codes, training by video call) | ~5 h |
+| Each extra item (data + photo treatment) | ~5 min |
+| AR per dish (Rodin ~$0.50 + Blender prep + review) | ~40–45 min |
 
 ## Proposal
 
-### 1. Build (one-time)
+### 1. Closed projects (one-time)
 
-| Item | Price |
-|---|---|
-| **Menu website**, up to 60 items: branded site for the restaurant (its domain or ours), the restaurant's own photos treated and optimized, 2 languages, hours/contacts/map, SEO pages, Google/Instagram links, QR codes, 1 NFC counter stand, training, first month | **$1,490** |
-| More than 60 items | +$15 per item |
-| **On-site dish photos** (shoot + editing) | **$19 per dish** (60 dishes = $1,140) |
-| **AR dish** (real size on the table, iPhone + Android + desktop 3D) | **$99 per dish**, $149 per drink in glass |
-| AR for 10 dishes or more | $79 per dish |
-| Extra language | +$190 |
-| NFC table plates, each programmed to its table | 10 for $199, 20 for $349 |
+| Project | Price | Extra item |
+|---|---|---|
+| **Menu** — menu website for the restaurant (its domain or ours), **up to 20 items**, phone photo guide and treatment of the restaurant's photos, 2 languages, hours/contacts/map, SEO pages, Google/Instagram links, QR codes, training by video call, first month | **$990** | **+$19 per item** |
+| **Menu with AR** — everything in Menu, and **all 20 items in augmented reality** (the guest sees the dish at real size on the table; iPhone, Android and desktop 3D) | **$2,490** | **+$99 per item with AR** (+$19 if the extra item has no AR) |
 
-Payment of the build: 50% to start, 50% at launch.
+- Extra language: +$190.
+- Payment: 50% to start, 50% at launch.
+- AR needs a good photo of each dish (dish alone, good light, 2–3 angles); a photo that cannot make a good model is asked again before we start.
 
 **Examples**
 
-| Restaurant | Build |
+| Restaurant | Project |
 |---|---|
-| 40 dishes, own photos | $1,490 |
-| 60 dishes, our photos, 20 table plates | $1,490 + $1,140 + $349 = **$2,979** |
-| 60 dishes, our photos, AR on 10 hero dishes, 20 table plates | $2,979 + $790 = **$3,769** |
-| 60 dishes, our photos, AR on all 60, 20 table plates | $2,979 + $4,740 = **$7,719** |
+| 20 items, menu only | $990 |
+| 45 items, menu only | $990 + 25 × $19 = **$1,465** |
+| 20 items, all in AR | **$2,490** |
+| 20 hero dishes in AR + 25 more items without AR | $2,490 + 25 × $19 = **$2,965** |
+| 45 items, all in AR | $2,490 + 25 × $99 = **$4,965** |
 
-Effective rate on AR: ~$105–130/h at $79–99 per dish — values the work without charging photoscan prices.
+Effective rate: Menu ~$200/h; Menu with AR ~$125/h (20 AR dishes ≈ 15 h + 5 h of menu).
 
 ### 2. Monthly (hosting, software, changes and support)
 
 | Version | Monthly | Yearly (2 months free) | Per transaction |
 |---|---|---|---|
 | **Menu** — the menu website, AR viewer, analytics, 3 change requests per month by us, support | **$99** | $990 | — |
-| **Waiter** — Menu + guests order from the table (per-table NFC/QR) and call the waiter; orders go to the kitchen display/staff; bill paid the usual way | **$179** | $1,790 | — |
+| **Waiter** — Menu + guests order from the table and call the waiter; orders go to the kitchen display/staff; bill paid the usual way | **$179** | $1,790 | — |
 | **Payments** — Waiter + guests pay in the menu (card, Apple Pay, Google Pay) into the restaurant's Stripe; online pickup orders | **$249** | $2,490 | **1% of each payment made through XmartMenu** (+ Stripe's own fees) |
 
 - Growth add-on: +$99/mo (AI chat in text and audio, monthly blog/SEO content, unlimited languages).
 - Extra location: +$79/mo.
 - 3-month minimum, then monthly.
-- Market check: Popmenu $179–499, Owner.com $249 + 5% per order, ChowNow $229–449. Payments at $249 + 1% sits at the entry of that bracket with more included (site built for them, photos, AR).
+- Market check: Popmenu $179–499, Owner.com $249 + 5% per order, ChowNow $229–449.
 
 ## What changes in the product when approved
 
 - `plans`: `menu` $99/$990, `orders` (Waiter) $179/$1,790, `payments` $249/$2,490 with `transaction_fee_pct` 0.01; Growth add-on $99; Stripe prices to match. Existing restaurants keep their price.
-- The build is quoted and invoiced outside the app (Stripe invoice or payment link) and noted on the access request at approval.
-- Public site: no self-serve prices; "Menu websites from $1,490 — talk to us".
-- Plan › "Pitch de vendas presencial": replace "XmartMenu $29/mo" with "XmartMenu from $1,490 + $99/mo".
+- The project is quoted and invoiced outside the app (Stripe invoice or payment link) and noted on the access request at approval.
+- Public site: no self-serve prices; "Menu websites from $990 — talk to us".
+- Plan › "Pitch de vendas presencial": replace "XmartMenu $29/mo" with "XmartMenu from $990 + $99/mo".
 
 ## Open decisions (owner)
 
-1. Build $1,490 up to 60 items?
-2. Photos $19/dish and AR $99/dish ($79 from 10)?
+1. Menu $990 for 20 items, +$19 per extra item?
+2. Menu with AR $2,490 for 20 items, +$99 per extra AR item?
 3. Monthly $99 / $179 / $249, and 1% on Payments?
-4. 3-month minimum and 50/50 build payment?
+4. 3-month minimum and 50/50 project payment?
