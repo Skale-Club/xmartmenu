@@ -35,3 +35,19 @@ const HEX_COLOR = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/
 export function safeCssColor(value: string | null | undefined, fallback = '#000000'): string {
   return typeof value === 'string' && HEX_COLOR.test(value.trim()) ? value.trim() : fallback
 }
+
+/**
+ * WCAG relative luminance of a #rgb / #rrggbb colour (0 = black, 1 = white);
+ * 0 for anything else. Used to keep brand fills visible on dark surfaces
+ * (the AR sheets: a near-black primary colour falls back to the accent).
+ */
+export function relativeLuminance(hex: string): number {
+  const clean = hex.replace('#', '')
+  const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean
+  if (!/^[0-9a-fA-F]{6}$/.test(full)) return 0
+  const channel = (i: number) => {
+    const c = parseInt(full.slice(i, i + 2), 16) / 255
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * channel(0) + 0.7152 * channel(2) + 0.0722 * channel(4)
+}

@@ -16,6 +16,7 @@
 // src/app/api/superadmin/platform/upload/route.ts). O blog é da plataforma, não
 // de nenhum tenant, então não existe prefixo de tenant sob o qual guardá-lo.
 // =============================================================================
+import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
 import { getStorageClient } from '@/lib/storage'
 import { OPENROUTER_BASE_URL } from '@/lib/ai/openrouter'
 import { optimizeImageToWebP } from '@/lib/media/optimize-image'
@@ -67,8 +68,8 @@ async function requestImage(
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
-      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || 'https://xmartmenu.com',
-      'X-Title': 'XmartMenu',
+      'HTTP-Referer': process.env.NEXT_PUBLIC_SITE_URL || BRAND_URL,
+      'X-Title': BRAND_NAME,
     },
     body: JSON.stringify({
       model,
@@ -175,7 +176,7 @@ export async function generateCoverImage(args: {
     // em cache na borda.
     const safeSlug = args.slug.replace(/[^a-z0-9-]/gi, '').slice(0, 60) || 'post'
     // A pasta separa os dois: `_platform/blog/` continua sendo o blog da
-    // Xmartmenu, e cada restaurante recebe a sua. Sem isso, apagar um tenant
+    // Xprout, e cada restaurante recebe a sua. Sem isso, apagar um tenant
     // deixaria as capas dele para sempre no meio das da plataforma.
     const folder = args.scope ? `tenants/${args.scope}/blog` : '_platform/blog'
     const path = `${folder}/${Date.now()}-${safeSlug}.${normalised.extension}`

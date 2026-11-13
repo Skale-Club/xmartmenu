@@ -7,6 +7,7 @@ import { useDragToDismiss } from '@/components/ui/use-drag-to-dismiss'
 import { computePrimaryForeground } from '@/lib/color-utils'
 import { formatMoney, getMenuCopy } from './menu-i18n'
 import type { FeedSize } from './feed-sizes'
+import { ctaStyle, ui } from './menu-ui'
 
 /**
  * Half-height sheet that rises from the bottom of the feed: pick a size, then
@@ -44,11 +45,11 @@ export default function FeedSizeSheet({
       <div className="fixed inset-0 z-[70] flex items-end" role="dialog" aria-modal="true" aria-label={copy.selectOption}>
         <button ref={backdropRef} type="button" aria-label={copy.close} onClick={onClose} className="absolute inset-0 bg-zinc-950/55 backdrop-blur-[2px]" />
         <div ref={sheetRef} className="relative max-h-[60dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl bg-white px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-zinc-900 shadow-float">
-          <div className="mx-auto mb-3 h-1.5 w-12 rounded-full bg-zinc-300" aria-hidden="true" />
+          <div className="mx-auto mb-3 h-[5px] w-9 rounded-full bg-zinc-300" aria-hidden="true" />
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500">{copy.selectOption}</p>
-              <h2 className="mt-0.5 truncate text-lg font-semibold tracking-tight">{productName}</h2>
+              <p className={`${ui.label} text-zinc-500`}>{copy.selectOption}</p>
+              <h2 className={`mt-1 truncate ${ui.sheetTitle}`}>{productName}</h2>
             </div>
             <button type="button" onClick={onClose} aria-label={copy.close} className="flex size-10 shrink-0 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100">
               <X className="size-5" />
@@ -83,8 +84,8 @@ export default function FeedSizeSheet({
           <button
             type="button"
             onClick={() => onConfirm(selected)}
-            style={{ backgroundColor: primaryColor, color: onPrimary }}
-            className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-2xl px-4 text-base font-semibold shadow-float transition-[opacity,scale] hover:opacity-95 active:scale-[0.98]"
+            style={ctaStyle(primaryColor, onPrimary)}
+            className={`${ui.cta} mt-4 h-12 w-full hover:opacity-95`}
           >
             {/* The chosen size's price is in its row above; the button is one short word. */}
             <Plus className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />

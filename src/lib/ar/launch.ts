@@ -12,8 +12,9 @@
  *             model is uploaded; made on the phone if it is missing).
  *   computer  no AR camera: the dish sheet shows the model in a 3D viewer in
  *             the page instead (turn it with the mouse, zoom with the wheel;
- *             owner decision 2026-11-12, computers only). iPhone in-app
- *             browsers get neither.
+ *             owner decision 2026-11-12, computers only). iPhone
+ *             in-app browsers that cannot open Quick Look (Telegram, Instagram)
+ *             get neither; Chrome, Edge and Firefox on iPhone open it.
  *
  * Both viewers place the dish at its modelled size (metres) on the table;
  * scaling is turned off when the model is at real scale.
@@ -35,12 +36,21 @@ export interface ArEnvironment {
   maxTouchPoints?: number
 }
 
+/**
+ * iPhone browsers built on Apple's web view that do open AR Quick Look although
+ * `relList.supports('ar')` reports false there (Chrome, Edge, Firefox, the
+ * Google app, DuckDuckGo) — the same list Google's <model-viewer> uses. Other
+ * in-app browsers (Telegram, Instagram, Facebook) cannot open it: no 3D there,
+ * accepted by the owner on 2026-11-12.
+ */
+const IOS_QUICK_LOOK_BROWSERS = /CriOS\/|EdgiOS\/|FxiOS\/|GSA\/|DuckDuckGo\//
+
 /** Which AR viewer this device opens, or null when it has no AR camera. */
 export function arPlatform(env: ArEnvironment): ArPlatform | null {
   if (env.quickLook) return 'quick-look'
   const ua = env.userAgent
   const iOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && (env.maxTouchPoints ?? 0) > 1)
-  if (iOS) return null // Quick Look missing (an in-app browser): no AR route on iOS
+  if (iOS) return IOS_QUICK_LOOK_BROWSERS.test(ua) ? 'quick-look' : null // other in-app browsers: no AR route
   if (/Android/i.test(ua)) return 'scene-viewer'
   return null
 }
@@ -92,6 +102,17 @@ export function arFallbackUrl(href: string): string {
   return `${href.split('#')[0]}${AR_UNAVAILABLE_HASH}`
 }
 
+/** Scene Viewer cannot apply our database scale; serve a corrected GLB container. */
+export function sceneViewerModelUrl(glbUrl: string, scale: number | null | undefined, origin: string): string {
+  const correction = scale ?? 1
+  if (correction === 1) return glbUrl
+  if (!Number.isFinite(correction) || correction < 0.05 || correction > 20) throw new Error('Invalid model scale')
+  const url = new URL('/api/ar/scaled-model', origin)
+  url.searchParams.set('src', glbUrl)
+  url.searchParams.set('scale', String(Math.round(correction * 10000) / 10000))
+  return url.href
+}
+
 /** Quick Look's own button at the bottom of the AR view ("Add to order · R$ 34"). */
 export interface QuickLookAction {
   /** The button's text. */
@@ -106,17 +127,23 @@ export interface QuickLookAction {
 export const QUICK_LOOK_ACTION_MESSAGE = '_apple_ar_quicklook_button_tapped'
 
 /**
- * USDZ URL for Quick Look. Guests may resize the dish (Quick Look shows the %
- * and snaps back to 100 %, the real size); `action` adds Quick Look's order
- * button (callToAction / checkoutTitle / checkoutSubtitle in the fragment).
+ * USDZ URL for Quick Look. With `realScale` (the model's size was calibrated)
+ * the guest cannot resize the dish (`allowsContentScaling=0`), matching Scene
+ * Viewer's `resizable=false`: the dish stays at its real size. Without it,
+ * Quick Look lets the guest resize and snaps back to 100 %. `action` adds
+ * Quick Look's order button (callToAction / checkoutTitle / checkoutSubtitle
+ * in the fragment).
  */
-export function quickLookUrl(usdzUrl: string, action?: QuickLookAction | null): string {
-  if (!action) return usdzUrl
+export function quickLookUrl(usdzUrl: string, action?: QuickLookAction | null, opts: { realScale?: boolean } = {}): string {
   const params = [
-    `callToAction=${encodeURIComponent(action.label)}`,
-    `checkoutTitle=${encodeURIComponent(action.title.trim().slice(0, 60))}`,
-    ...(action.subtitle ? [`checkoutSubtitle=${encodeURIComponent(action.subtitle)}`] : []),
+    ...(opts.realScale ? ['allowsContentScaling=0'] : []),
+    ...(action ? [
+      `callToAction=${encodeURIComponent(action.label)}`,
+      `checkoutTitle=${encodeURIComponent(action.title.trim().slice(0, 60))}`,
+      ...(action.subtitle ? [`checkoutSubtitle=${encodeURIComponent(action.subtitle)}`] : []),
+    ] : []),
   ]
+  if (params.length === 0) return usdzUrl
   return `${usdzUrl}${usdzUrl.includes('#') ? '&' : '#'}${params.join('&')}`
 }
 

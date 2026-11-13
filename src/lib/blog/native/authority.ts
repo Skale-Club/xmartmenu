@@ -1,3 +1,4 @@
+import { BRAND_NAME } from '@/lib/brand'
 import {AdminMenuError,type AdminMenuQuery} from '../../data/admin-menus'
 import {UUID} from '../../auth/owned-principal'
 import {readNativeTenantPlan} from '../../data/tenant-plan'
@@ -10,7 +11,7 @@ export async function requireNativeBlogContext(query:AdminMenuQuery,context:Nati
  const scope=context.scope
  if(scope!==null&&!UUID.test(scope))throw new AdminMenuError(403,'Invalid blog scope')
  if(write)await query("SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-account-authority',0))")
- let tenant={slug:'',name:'Xmartmenu'}
+ let tenant={slug:'',name:BRAND_NAME}
  if(scope!==null){
   const row=(await query(`SELECT slug,name FROM public.tenants WHERE id=$1 AND is_active=true ${write?'FOR NO KEY UPDATE':''}`,[scope])).rows[0]
   if(!row||!(await readNativeTenantPlan(query,scope,write))?.features.includes('blog'))throw new AdminMenuError(403,'Blog capability unavailable')
@@ -41,7 +42,7 @@ export async function requireNativeBlogActor(query:AdminMenuQuery,actor:NativeBl
   if(!tenant||!(await readNativeTenantPlan(query,actor.scope,write))?.features.includes('blog'))throw new AdminMenuError(403,'Blog capability unavailable')
   return {slug:String(tenant.slug),name:String(tenant.name)}
  }
- return {slug:'',name:'Xmartmenu'}
+ return {slug:'',name:BRAND_NAME}
 }
 export async function lockNativeBlogScope(query:AdminMenuQuery,scope:string|null){
  await query("SELECT pg_advisory_xact_lock(hashtextextended('xmartmenu-blog:'||coalesce($1::text,'platform'),0))",[scope])

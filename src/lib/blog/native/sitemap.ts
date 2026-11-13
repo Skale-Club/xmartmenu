@@ -27,7 +27,7 @@ async function blogEntries():Promise<Entries>{
 /** Degrades block by block, like the legacy sitemap: a failing tenant or blog
  * read costs only that block, and the landing entry is always returned. */
 export async function nativePlatformSitemap():Promise<Entries>{
- const entries:Entries=[{url:PLATFORM_BASE,lastModified:new Date(),changeFrequency:'weekly',priority:1}]
+ const entries:Entries=[{url:PLATFORM_BASE,lastModified:new Date(),changeFrequency:'weekly',priority:1},{url:`${PLATFORM_BASE}/pricing`,lastModified:new Date(),changeFrequency:'monthly',priority:0.8}]
  try{requireNativeBlogConfiguration()}catch{return entries}
  try{entries.push(...await tenantEntries())}catch{}
  try{entries.push(...await blogEntries())}catch{}

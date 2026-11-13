@@ -80,7 +80,7 @@ describe('openRouterModel', () => {
     expect(calls).toHaveLength(1)
     expect(calls[0].url).toBe(`${OPENROUTER_BASE_URL}/chat/completions`)
     expect(calls[0].headers.get('authorization')).toBe('Bearer sk-or-test')
-    expect(calls[0].headers.get('x-title')).toBe('XmartMenu')
+    expect(calls[0].headers.get('x-title')).toBe('Xprout')
     expect(calls[0].body.model).toBe('google/gemini-2.5-flash')
     const format = calls[0].body.response_format as { type: string; json_schema: { strict: boolean } }
     expect(format.type).toBe('json_schema')

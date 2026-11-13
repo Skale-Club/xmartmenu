@@ -82,7 +82,7 @@ function RegisterForm() {
     <div className="rounded-[1.25rem] border border-white/10 bg-zinc-900/50 p-5 backdrop-blur-xl sm:p-8">
       <div className="mb-8 text-center">
         <DeliveryImage src={logoSrc} width={48} height={48} sizes="48px" alt="Logo" className="w-12 h-12 mx-auto mb-5" />
-        <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">XmartMenu</a>
+        <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">Xprout</a>
         <p className="text-sm font-bold text-zinc-500 mt-2">
           {isQrFlow ? 'Enter your details to continue' : 'Create your account'}
         </p>
@@ -237,7 +237,7 @@ export default function RegisterPage() {
           <RegisterForm />
         </Suspense>
         <p className="text-[10px] font-bold text-zinc-700 text-center mt-8 uppercase tracking-[0.2em]">
-          <a href="/" className="hover:text-zinc-500 transition-colors">XmartMenu</a> © {new Date().getFullYear()}
+          <a href="/" className="hover:text-zinc-500 transition-colors">Xprout</a> © {new Date().getFullYear()}
         </p>
       </div>
     </div>

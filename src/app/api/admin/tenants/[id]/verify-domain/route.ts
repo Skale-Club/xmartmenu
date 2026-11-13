@@ -1,3 +1,4 @@
+import { BRAND_HOST, LEGACY_HOSTS } from '@/lib/brand'
 import { NextResponse } from 'next/server'
 import dns from 'dns'
 import { getEffectiveTenant } from '@/lib/get-effective-tenant'
@@ -47,7 +48,7 @@ async function handlePOST(
   const normalizedDomain = custom_domain.trim().toLowerCase()
   const platformHost = (process.env.NEXT_PUBLIC_APP_URL
     ?.replace(/^https?:\/\//, '')
-    .split(':')[0]) ?? 'xmartmenu.skale.club'
+    .split(':')[0]) ?? BRAND_HOST
 
   // Superadmin force bypass: skip DNS check when force=true
   if (force) {
@@ -70,7 +71,9 @@ async function handlePOST(
   // the A records matching one of the platform's A records (Vercel rotates
   // IPs, so a single-IP equality check is too brittle).
   const cnames = await dnsResolveCname(normalizedDomain)
-  const cnameMatches = cnames.some((c) => c.toLowerCase().replace(/\.$/, '') === platformHost)
+  // Restaurants that pointed their CNAME at a former address stay verified.
+  const acceptedTargets = [platformHost, BRAND_HOST, ...LEGACY_HOSTS]
+  const cnameMatches = cnames.some((c) => acceptedTargets.includes(c.toLowerCase().replace(/\.$/, '')))
 
   let aMatches = false
   if (!cnameMatches) {

@@ -267,7 +267,7 @@ export default function PanelClient({ tenant, orders, customerPhone,ownedAuth = 
         )}
 
         <p className="text-center text-[12px] text-zinc-500 pb-4">
-          Powered by XmartMenu
+          Powered by Xprout
         </p>
       </div>
     </div>

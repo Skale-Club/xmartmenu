@@ -1,3 +1,4 @@
+import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { getPlatformAppearance } from '@/lib/data/platform-appearance-runtime'
@@ -22,19 +23,19 @@ export async function generateViewport(): Promise<Viewport> {
 
 export async function generateMetadata(): Promise<Metadata> {
   const ps = await getPlatformAppearance()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://xmartmenu.skale.club'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || BRAND_URL
   return {
     title: {
-      template: '%s | XmartMenu',
-      default: 'XmartMenu | Digital menu for restaurants',
+      template: `%s | ${BRAND_NAME}`,
+      default: `${BRAND_NAME} | Digital menu for restaurants`,
     },
     description: 'A digital menu platform built for restaurant service, QR code ordering, and menu operations.',
     metadataBase: new URL(appUrl),
-    applicationName: 'XmartMenu',
+    applicationName: BRAND_NAME,
     appleWebApp: {
       capable: true,
       statusBarStyle: 'default',
-      title: 'XmartMenu',
+      title: BRAND_NAME,
     },
     icons: ps?.favicon_url
       ? { icon: ps.favicon_url, shortcut: ps.favicon_url, apple: '/icons/apple-touch-icon.png' }
@@ -42,8 +43,8 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       type: 'website',
       locale: 'en_US',
-      siteName: 'XmartMenu',
-      images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'XmartMenu' }],
+      siteName: BRAND_NAME,
+      images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: BRAND_NAME }],
     },
     twitter: { card: 'summary_large_image' },
   }

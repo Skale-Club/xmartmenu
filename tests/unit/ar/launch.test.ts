@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { AR_UNAVAILABLE_HASH, arFallbackUrl, arPlatform, isComputer, quickLookUrl, sceneViewerIntentUrl } from '@/lib/ar/launch'
+import { AR_UNAVAILABLE_HASH, arFallbackUrl, arPlatform, isComputer, quickLookUrl, sceneViewerIntentUrl, sceneViewerModelUrl } from '@/lib/ar/launch'
 
 const UA = {
   android: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36',
@@ -14,8 +14,16 @@ describe('arPlatform', () => {
     expect(arPlatform({ userAgent: UA.ipadDesktop, quickLook: true, maxTouchPoints: 5 })).toBe('quick-look')
   })
 
-  it('has no AR route on an iPhone browser without Quick Look (in-app browsers)', () => {
+  it('opens Quick Look in Chrome, Edge, Firefox, the Google app and DuckDuckGo on iPhone (rel="ar" reports false there)', () => {
+    const iphone = (app: string) => `${UA.iphone.replace(' Safari/604.1', '')} ${app} Safari/604.1`
+    for (const app of ['CriOS/131.0.6778.73', 'EdgiOS/131.0.2903.50', 'FxiOS/133.0', 'GSA/343.0.695551749', 'DuckDuckGo/7']) {
+      expect(arPlatform({ userAgent: iphone(app), quickLook: false })).toBe('quick-look')
+    }
+  })
+
+  it('has no AR route in other iPhone in-app browsers (Telegram, Instagram)', () => {
     expect(arPlatform({ userAgent: UA.iphone, quickLook: false })).toBeNull()
+    expect(arPlatform({ userAgent: `${UA.iphone} Instagram 360.0.0.0`, quickLook: false })).toBeNull()
     expect(arPlatform({ userAgent: UA.ipadDesktop, quickLook: false, maxTouchPoints: 5 })).toBeNull()
   })
 
@@ -83,10 +91,31 @@ describe('arFallbackUrl', () => {
   })
 })
 
+describe('Scene Viewer scale correction', () => {
+  it('keeps baked models on the CDN and routes corrected models to a scaled GLB', () => {
+    const glb = 'https://images.example/a.glb'
+    expect(sceneViewerModelUrl(glb, 1, 'https://menu.example')).toBe(glb)
+    expect(sceneViewerModelUrl(glb, null, 'https://menu.example')).toBe(glb)
+    const corrected = new URL(sceneViewerModelUrl(glb, 0.3, 'https://menu.example'))
+    expect(corrected.origin).toBe('https://menu.example')
+    expect(corrected.pathname).toBe('/api/ar/scaled-model')
+    expect(corrected.searchParams.get('src')).toBe(glb)
+    expect(corrected.searchParams.get('scale')).toBe('0.3')
+    expect(sceneViewerIntentUrl({ glbUrl: corrected.href, title: 'Dish', realScale: true, fallbackUrl: 'https://menu.example' }))
+      .toContain(encodeURIComponent(corrected.href))
+  })
+})
+
 describe('quickLookUrl', () => {
-  it('lets guests resize: no scaling switch in the URL', () => {
+  it('lets guests resize a model without a calibrated size: no scaling switch in the URL', () => {
     expect(quickLookUrl('https://cdn.example.com/a.usdz')).toBe('https://cdn.example.com/a.usdz')
     expect(quickLookUrl('blob:https://m.example.com/123', null)).toBe('blob:https://m.example.com/123')
+    expect(quickLookUrl('https://cdn.example.com/a.usdz', null, { realScale: false })).toBe('https://cdn.example.com/a.usdz')
+  })
+
+  it('locks a real-size model at its real size, alone or before the order button', () => {
+    expect(quickLookUrl('https://cdn.example.com/a.usdz', null, { realScale: true })).toBe('https://cdn.example.com/a.usdz#allowsContentScaling=0')
+    expect(quickLookUrl('blob:x', { label: 'Add', title: 'Pie' }, { realScale: true })).toBe('blob:x#allowsContentScaling=0&callToAction=Add&checkoutTitle=Pie')
   })
 
   it('adds Quick Look\'s order button with the dish and price', () => {

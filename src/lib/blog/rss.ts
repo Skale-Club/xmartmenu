@@ -21,7 +21,7 @@ const MAX_SUMMARY_CHARS = 1000
 const MAX_TITLE_CHARS = 1000
 const MAX_ERROR_MESSAGE_CHARS = 500
 const FETCH_TIMEOUT_MS = 15_000
-const USER_AGENT = 'Xmartmenu RSS Fetcher/1.0'
+const USER_AGENT = 'Xprout RSS Fetcher/1.0'
 
 const parser = new Parser({
   headers: { 'User-Agent': USER_AGENT },

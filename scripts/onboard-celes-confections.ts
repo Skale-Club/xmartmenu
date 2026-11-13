@@ -18,7 +18,7 @@ const supabase = createClient(supabaseUrl, serviceKey, {
 const shouldApply = process.argv.includes('--apply')
 const tenantSlug = 'celes-confections'
 const ownerEmail = 'hello@celesconfections.com'
-const publicBaseUrl = 'https://xmartmenu.skale.club'
+const publicBaseUrl = 'https://xprout.app'
 const assetBasePath = '/brands/celes-confections'
 
 type ProductSeed = {

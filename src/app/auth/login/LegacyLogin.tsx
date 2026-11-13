@@ -92,7 +92,7 @@ export default function LegacyLogin() {
           {/* Marca */}
           <div className="mb-8 text-center">
             <DeliveryImage src={logoUrl} width={48} height={48} sizes="48px" alt="Logo" className="w-12 h-12 mx-auto mb-5" />
-            <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">XmartMenu</a>
+            <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">Xprout</a>
             <p className="text-sm font-bold text-zinc-500 mt-2">Sign in to your menu dashboard</p>
           </div>
 
@@ -214,7 +214,7 @@ export default function LegacyLogin() {
         </div>
 
         <p className="text-[10px] font-bold text-zinc-700 text-center mt-8 uppercase tracking-[0.2em]">
-          <a href="/" className="hover:text-zinc-500 transition-colors">XmartMenu</a> © {new Date().getFullYear()}
+          <a href="/" className="hover:text-zinc-500 transition-colors">Xprout</a> © {new Date().getFullYear()}
         </p>
       </div>
     </div>

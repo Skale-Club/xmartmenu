@@ -1,5 +1,6 @@
 'use client'
 
+import { BRAND_NAME } from '@/lib/brand'
 import { DeliveryImage } from '@/components/delivery-image'
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
@@ -295,7 +296,7 @@ const DEFAULT_LANDING = {
   features: { title: 'Everything you need', subtitle: 'Features designed for restaurants', items: [{ icon: 'Link2', title: 'Unique link per restaurant', desc: 'Each customer has their own digital menu address.' }, { icon: 'MessageCircle', title: 'Order via WhatsApp', desc: 'Customers tap a product and WhatsApp opens ready to order.' }, { icon: 'Palette', title: 'Custom branding', desc: 'Logo, colors and visual identity for your restaurant.' }, { icon: 'BarChart2', title: 'Scan counter', desc: 'See how many times your QR Code has been scanned.' }, { icon: 'Search', title: 'Menu search', desc: 'Customers find any product in seconds.' }, { icon: 'Zap', title: 'No app required', desc: 'Everything opens directly in the phone browser, zero friction.' }] },
   pricing: { title: 'Simple plans', subtitle: 'Start free, scale when you need', plans: [{ name: 'Free', price: '$0', period: '/mo', desc: 'To get started', features: ['Digital menu', 'QR Code generated', 'Up to 20 products', 'Basic branding'], cta: 'Get started free', highlight: false }, { name: 'Pro', price: '$49', period: '/mo', desc: 'To grow', features: ['Everything in Free', 'Unlimited products', 'Full branding', 'Scan analytics', 'Priority support'], cta: 'Subscribe to Pro', highlight: true }, { name: 'Enterprise', price: '$149', period: '/mo', desc: 'For chains', features: ['Everything in Pro', 'Multiple locations', 'Custom domain', 'Dedicated onboarding', 'Guaranteed SLA'], cta: 'Talk to sales', highlight: false }] },
   cta: { heading: 'Ready to digitize\nyour menu?', text: 'Create your account and build a menu that works for daily service.', button: 'Create free account', bg_image_url: '' },
-  footer: { copyright: 'XmartMenu. All rights reserved.' },
+  footer: { copyright: 'Xprout. All rights reserved.' },
 }
 
 function FaviconUploader({ url, onUpload }: { url: string; onUpload: (url: string) => void }) {
@@ -346,12 +347,12 @@ export default function SettingsClient({ settings }: Props) {
   const l = { ...DEFAULT_LANDING, ...(s.landing ?? {}) }
 
   const [platform, setPlatform] = useState({
-    app_name: s.app_name ?? 'XmartMenu',
-    brand_name: s.brand_name ?? 'XmartMenu',
+    app_name: s.app_name ?? BRAND_NAME,
+    brand_name: s.brand_name ?? BRAND_NAME,
     default_primary_color: s.default_primary_color ?? '#000000',
     default_accent_color: s.default_accent_color ?? '#FF5722',
     cta_color: s.cta_color ?? '#F52323',
-    menu_footer_brand: s.menu_footer_brand ?? 'XmartMenu',
+    menu_footer_brand: s.menu_footer_brand ?? BRAND_NAME,
     favicon_url: s.favicon_url ?? '',
   })
 

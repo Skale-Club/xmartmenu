@@ -1,4 +1,4 @@
-# AGENTS.md - xmartmenu
+# AGENTS.md - xmartmenu (product name: Xprout)
 
 <!-- journal-protocol:v1 -->
 ## Journal (mandatory)
@@ -57,3 +57,14 @@ This version has breaking changes — APIs, conventions, and file structure may 
 This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
 
 <!-- END:nextjs-agent-rules -->
+<!-- ui-consistency:v1 -->
+## Customer menu design consistency (mandatory)
+
+Follow [the shared customer-menu design contract](docs/product/design-consistency.md)
+when reviewing or changing cards, feed, product detail, AR, cart, checkout or
+related customer surfaces. Keep pricing format/semantics, tenant colour roles,
+the Inter/menu font stack, role-based typography, control dimensions, icons,
+spacing and feedback coherent across equivalent views. Respect menu capabilities:
+read-only menus must not acquire cart actions. Review the related screens
+together; document rollout gaps instead of claiming global alignment is complete.
+<!-- /ui-consistency -->

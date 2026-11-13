@@ -3,7 +3,7 @@
 //
 // Which blog a piece of work belongs to (autoblog-parity XM-14).
 //
-//   null          → Xmartmenu's own marketing blog at /blog. Reader: a
+//   null          → Xprout's own marketing blog at /blog. Reader: a
 //                   restaurant owner we are selling to.
 //   <tenant uuid> → that restaurant's blog at /<slug>/blog. Reader: a diner,
 //                   and the point is local SEO.

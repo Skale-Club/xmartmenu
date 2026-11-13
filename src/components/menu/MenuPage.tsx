@@ -1,5 +1,6 @@
 'use client'
 
+import { BRAND_NAME } from '@/lib/brand'
 import dynamic from 'next/dynamic'
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { idempotencyKeyFor, type IdempotencySlot } from '@/lib/orders/idempotency-client'
@@ -11,9 +12,10 @@ import { MenuAnalyticsTracker } from '@/lib/analytics/client'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia, PublicProductArModel } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { type CartItem, type CartAddedVia, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed, summarizeOptions } from './menu-utils'
+import { arOrderSummary, dishQuantity, lineToDecrement } from './ar-cart'
 import { getGuestCopy } from './guest-copy'
 import WaiterCallButtons from './WaiterCallButtons'
-import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, translateTag } from './menu-i18n'
+import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage } from './menu-i18n'
 import { computeOpenState, resolveTimeZone } from '@/lib/chat-context'
 import { NO_CAPABILITIES, type TenantCapabilities } from '@/lib/service-modes'
 import { contactLinks, displayPrice, whatsappUrl } from './showcase'
@@ -25,7 +27,7 @@ import { dishDetailsFor } from '@/lib/public-dish-details'
 import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
-import { ArBadge } from '@/components/ar/ArButton'
+import { ArBadge, type ArSequenceItem } from '@/components/ar/ArButton'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
   CART_TTL_MS,
@@ -49,7 +51,8 @@ import {
 } from './menu-session'
 import BottomSheet from '@/components/ui/BottomSheet'
 import LanguagePicker from './LanguagePicker'
-import { primaryTag, tagStyle } from '@/lib/menu/dish-tags'
+import { dishFeature } from '@/lib/menu/dish-tags'
+import DishFeaturePill from './DishFeaturePill'
 import UpsellSheet from './UpsellSheet'
 import { buildUpsellSteps, canQuickAdd, type UpsellStep } from './upsell'
 import {
@@ -140,7 +143,7 @@ function getTranslatedMenuField(
   return typeof value === 'string' && value.trim() ? value : fallback
 }
 
-export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = 'XmartMenu', optionGroupsByProductId: baseOptionGroups = {}, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, productArModelByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true, capabilities = NO_CAPABILITIES, table = null, waiterCallTable = null }: Props) {
+export default function MenuPage({ tenant, categories: baseCategories, products: baseProducts, menu = null, location = null, initialLanguage, initialView, footerBrand = BRAND_NAME, optionGroupsByProductId: baseOptionGroups = {}, productIngredientsByProductId = {}, deliveryZones = [], productMediaByProductId = {}, productArModelByProductId = {}, chatAddonEnabled = false, chatAddonAudioEnabled = false, chatAddonTextEnabled = true, capabilities = NO_CAPABILITIES, table = null, waiterCallTable = null }: Props) {
   const router = useRouter()
   const [feedPreview, setFeedPreview] = useState(false)
   const feedEnabled = (tenant.tenant_settings?.visual_feed_enabled ?? true) || feedPreview
@@ -914,6 +917,18 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   // ── Presentation ───────────────────────────────────────────────────────────
   const onPrimary = computePrimaryForeground(primaryColor)
   const money = (value: number) => formatMoney(value, currency, selectedLanguage)
+  // The AR camera's view of the cart: order sheet, this dish's count, its "−" and line total.
+  const arOrder = arOrderSummary(cart, money)
+  const arCartFor = (productId: string, onOpenCart: () => void) => ({
+    quantity: dishQuantity(cart, productId),
+    onRemove: () => {
+      const line = lineToDecrement(cart, productId)
+      if (line) updateCartQuantity(line.cartKey, line.quantity - 1)
+    },
+    lineLabel: money(cart.reduce((sum, item) => sum + (item.product.id === productId ? item.unitPrice * item.quantity : 0), 0)),
+    summary: arOrder,
+    onOpenCart,
+  })
   // "From $15.00" for a dish whose sizes set the price (showcase.ts).
   const priceOf = (product: Product) => {
     const shown = displayPrice(product.price, optionGroupsByProductId[product.id])
@@ -925,6 +940,28 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
       fromLabel: shown.from ? fill(guestCopy.fromPrice, { price: '' }).trim() : null,
     }
   }
+  // The AR carousel: every dish with a 3D model, in menu order, with its own price, details and cart actions.
+  const arSequence: ArSequenceItem[] = orderedProducts.filter(p => productArModelByProductId[p.id]).map(p => ({
+    id: p.id,
+    name: p.name,
+    model: productArModelByProductId[p.id],
+    priceLabel: priceOf(p).text,
+    details: {
+      description: p.description,
+      ingredients: (productIngredientsByProductId[p.id] ?? []).filter(pi => pi.is_default).map(pi => pi.ingredient.name),
+    },
+    cart: directOrdersEnabled ? {
+      ...arCartFor(p.id, () => { closeProductModal(); setCartOpen(true) }),
+      // A dish with a required choice goes back to its sheet; any other is added as it is.
+      mode: (optionGroupsByProductId[p.id] ?? []).some(group => group.required) ? 'choose' as const : 'add' as const,
+      priceLabel: money(p.price),
+      count: cartCount,
+      onAdd: () => addToCart(p, {}, p.price, undefined, undefined, undefined, 'ar'),
+      onChoose: () => openProduct(p, 'detail'),
+    } : null,
+    onMoreInfo: () => openProduct(p, 'detail'),
+  }))
+
   const hasCustomization = (productId: string) =>
     (optionGroupsByProductId[productId]?.length ?? 0) > 0
     || (ingredientCustomizationEnabled && (productIngredientsByProductId[productId]?.length ?? 0) > 0)
@@ -1155,6 +1192,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             autoplayVideos={feedAutoplayVideos}
             directOrdersEnabled={directOrdersEnabled}
             cartCount={cartCount}
+            arOrder={arOrder}
+            arSequence={arSequence}
             onAddFromAr={product => addToCart(product, {}, product.price, undefined, undefined, undefined, 'ar')}
             exitLabel={copy.viewMenu}
             onExit={() => changeView('list')}
@@ -1323,6 +1362,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           onPrevProduct={!editingCartKey && !upsell?.choosing && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
           onNextProduct={!editingCartKey && !upsell?.choosing && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           primaryColor={primaryColor}
+          accentColor={accentColor}
           priceColor={accentText}
           currency={currency}
           whatsapp={whatsapp}
@@ -1342,6 +1382,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
           arModel={productArModelByProductId[selectedProduct.id] ?? null}
           cartCount={cartCount}
+          arCart={directOrdersEnabled ? arCartFor(selectedProduct.id, () => { closeProductModal(); setCartOpen(true) }) : undefined}
+          arSequence={arSequence}
           onAddToCartFromAr={directOrdersEnabled
             // The camera stays open: no closing the sheet, no "Complete your order".
             ? (selectedOptions, unitPrice, note, ingredientModifications, editorState) =>
@@ -1609,7 +1651,7 @@ function ProductCard({ product, lang, currency, accentText, price, onOpen, cartQ
   }, [justAdded])
   const showCheck = justAdded && showStepper
   // A 44px tap area around a smaller visible circle.
-  const cardTag = primaryTag(product.tags)
+  const cardFeature = dishFeature(product)
   const hit = "relative before:absolute before:-inset-1.5 before:content-['']"
   return (
     <article
@@ -1628,10 +1670,8 @@ function ProductCard({ product, lang, currency, accentText, price, onOpen, cartQ
         {product.description && (
           <p className="mt-1 line-clamp-2 text-[13px] leading-relaxed text-zinc-500">{product.description}</p>
         )}
-        {/* One tag pill per card (docs/product/dish-tags.md); the dish sheet lists them all. */}
-        {cardTag && (
-          <span className="mt-2 self-start rounded-full px-2 py-0.5 text-[11px] font-medium" style={tagStyle(cardTag)}>{translateTag(cardTag, lang)}</span>
-        )}
+        {/* One feature pill per dish, the system-wide pill (docs/product/dish-tags.md). */}
+        {cardFeature && <DishFeaturePill tag={cardFeature} lang={lang} className="mt-2" />}
       </div>
       {/* The price, plain text, at the foot of the text column. "From" (sizes) or the struck old price (promotions) go on a small line above. */}
       <div className="pointer-events-none col-start-1 row-start-2 px-3.5 pt-2 pb-3 sm:order-3 sm:mt-auto sm:px-4 sm:pb-4">

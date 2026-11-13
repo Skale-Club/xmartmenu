@@ -43,10 +43,10 @@ test('done and N/A count as finished; retired keys are ignored', () => {
 test('links use the menu address, encoded for third-party tools; {domain} needs a custom domain', () => {
   assert.equal(resolveLaunchChecklistLink('{url}/robots.txt', 'https://bellavista.com', 'bellavista.com'), 'https://bellavista.com/robots.txt')
   assert.equal(
-    resolveLaunchChecklistLink('https://pagespeed.web.dev/analysis?url={url}', 'https://xmartmenu.skale.club/bella', null),
-    'https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fxmartmenu.skale.club%2Fbella',
+    resolveLaunchChecklistLink('https://pagespeed.web.dev/analysis?url={url}', 'https://xprout.app/bella', null),
+    'https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fxprout.app%2Fbella',
   )
-  assert.equal(resolveLaunchChecklistLink('https://www.ssllabs.com/ssltest/analyze.html?d={domain}', 'https://xmartmenu.skale.club/bella', null), null)
+  assert.equal(resolveLaunchChecklistLink('https://www.ssllabs.com/ssltest/analyze.html?d={domain}', 'https://xprout.app/bella', null), null)
 })
 
 test('an active, indexable restaurant on a verified domain', () => {

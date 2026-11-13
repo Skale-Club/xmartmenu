@@ -20,7 +20,7 @@ export function escapeXml(value: string): string {
 export function buildFeedXml(args: {
   title: string
   description: string
-  /** Base ABSOLUTA do blog, ex. `https://xmartmenu.com/blog`. */
+  /** Base ABSOLUTA do blog, ex. `https://xprout.app/blog`. */
   blogUrl: string
   posts: PublicPostCard[]
 }): string {

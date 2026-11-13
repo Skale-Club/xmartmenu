@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import { BRAND_NAME } from '@/lib/brand'
 import { DeliveryImage } from '@/components/delivery-image'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -67,7 +68,7 @@ export default function AdminSidebar({
   tenantName,
   tenantSlug,
   role,
-  appName = 'XmartMenu',
+  appName = BRAND_NAME,
   logoUrl,
   menus = [],
   activeMenuId = null,

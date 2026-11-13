@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 
+import { BRAND_NAME } from '@/lib/brand'
 import { redirect } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
@@ -17,9 +18,9 @@ export default async function SuperadminLayout({ children }: { children: React.R
     if (principal.role !== 'superadmin') redirect('/dashboard')
     const ps = await getOwnedShellPlatform(), primary = ps?.cta_color ?? '#F52323'
     return <><style>{`:root{--primary:${safeCssColor(primary)};--primary-foreground:${computePrimaryForeground(primary)};}`}</style>
-      <DashboardShell appName={ps?.app_name ?? 'XmartMenu'} contextName="Super Admin" eyebrow="Super Admin Console"
+      <DashboardShell appName={ps?.app_name ?? BRAND_NAME} contextName="Super Admin" eyebrow="Super Admin Console"
         logoUrl={ps?.favicon_url} backgroundClassName="bg-zinc-50"
-        sidebar={<SuperadminSidebar appName={ps?.app_name ?? 'XmartMenu'} logoUrl={ps?.favicon_url} />}>{children}</DashboardShell></>
+        sidebar={<SuperadminSidebar appName={ps?.app_name ?? BRAND_NAME} logoUrl={ps?.favicon_url} />}>{children}</DashboardShell></>
   }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -40,12 +41,12 @@ export default async function SuperadminLayout({ children }: { children: React.R
     <>
     <style>{`:root{--primary:${safeCssColor(primary)};--primary-foreground:${primaryFg};}`}</style>
     <DashboardShell
-      appName={ps?.app_name ?? 'XmartMenu'}
+      appName={ps?.app_name ?? BRAND_NAME}
       contextName="Super Admin"
       eyebrow="Super Admin Console"
       logoUrl={ps?.favicon_url}
       backgroundClassName="bg-zinc-50"
-      sidebar={<SuperadminSidebar appName={ps?.app_name ?? 'XmartMenu'} logoUrl={ps?.favicon_url} />}
+      sidebar={<SuperadminSidebar appName={ps?.app_name ?? BRAND_NAME} logoUrl={ps?.favicon_url} />}
     >
       {children}
     </DashboardShell>

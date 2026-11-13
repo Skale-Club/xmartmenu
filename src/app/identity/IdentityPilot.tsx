@@ -290,7 +290,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
         <div className="mb-8 text-center">
 
           {platformLogo ? <DeliveryImage src={platformLogo} width={48} height={48} sizes="48px" alt="" className="mx-auto mb-5 size-12 object-contain" /> : <span aria-hidden="true" className="mx-auto mb-5 block size-12 rounded-xl bg-primary" />}
-          <h1 id="identity-title" className="text-2xl font-black tracking-tight">XmartMenu</h1>
+          <h1 id="identity-title" className="text-2xl font-black tracking-tight">Xprout</h1>
           <p className="mt-2 text-sm font-bold text-zinc-400">{sent ? `Enter the code we sent to ${phoneLabel(sentPhone) || sentPhone}` : 'Sign in to your menu dashboard'}</p>
         </div>
         {error ? <p role="alert" className="mb-4 rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-[14px] font-medium leading-snug text-red-200">{error}</p> : null}
@@ -337,7 +337,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
 
   return <main className={embedded ? 'bg-zinc-950 text-white' : 'grid min-h-screen place-items-center bg-zinc-950 px-5 py-10 text-white'}>
     <section aria-labelledby="identity-title" className={embedded ? 'w-full px-6 pb-6 pt-7' : 'w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-900/60 p-6 sm:p-8'}>
-      <p className="mb-6 text-sm font-black tracking-wide">XmartMenu</p>
+      <p className="mb-6 text-sm font-black tracking-wide">Xprout</p>
       <h1 id="identity-title" className="text-2xl font-bold tracking-tight">{existingAccountLink ? 'Link your existing account' : 'Sign in with your phone'}</h1>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{existingAccountLink ? 'Prove your previous account, then verify a phone number or Google account. Your company access stays unchanged.' : 'Verify your number by SMS, or continue with Google.'}</p>
       {error ? <p role="alert" className="mt-5 text-sm leading-6 text-red-300">{error}</p> : null}

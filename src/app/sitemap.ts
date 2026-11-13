@@ -45,6 +45,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'weekly',
       priority: 1,
     },
+    { url: `${PLATFORM_BASE}/pricing`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.8 },
   ]
 
   if (ownedModeActive()) return ownedSitemap(entries)
@@ -83,7 +84,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     })
 
-    // Escopo da PLATAFORMA. Era a pior das três fugas: o sitemap da Xmartmenu
+    // Escopo da PLATAFORMA. Era a pior das três fugas: o sitemap da Xprout
     // listaria os posts de cada restaurante sob URLs da plataforma — a pedir a
     // indexação de páginas que não existem lá.
     const { data: posts } = await scopeFilter(supabase.from('blog_posts').select('slug, published_at, updated_at'), null)

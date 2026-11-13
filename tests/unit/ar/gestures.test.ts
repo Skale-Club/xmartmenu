@@ -1,46 +1,17 @@
 import { describe, expect, it } from 'vitest'
+import * as gestures from '@/lib/ar/gestures'
 import {
-  MAX_DISH_SCALE,
-  MIN_DISH_SCALE,
   angle,
   angleDelta,
-  clampDishScale,
   distance,
   isHorizontalSurface,
-  pinchScale,
-  scalePercent,
   twistYaw,
 } from '@/lib/ar/gestures'
 
-describe('clampDishScale', () => {
-  it('keeps the dish between 50 % and 300 %', () => {
-    expect(clampDishScale(0.1)).toBe(MIN_DISH_SCALE)
-    expect(clampDishScale(9)).toBe(MAX_DISH_SCALE)
-    expect(clampDishScale(1.6)).toBe(1.6)
-  })
-
-  it('snaps to the real size when close to it', () => {
-    expect(clampDishScale(1.04)).toBe(1)
-    expect(clampDishScale(0.96)).toBe(1)
-    expect(clampDishScale(1.1)).toBe(1.1)
-  })
-
-  it('falls back to real size on nonsense', () => {
-    expect(clampDishScale(Number.NaN)).toBe(1)
-    expect(clampDishScale(0)).toBe(1)
-    expect(clampDishScale(-2)).toBe(1)
-  })
-})
-
-describe('pinchScale', () => {
-  it('scales by how far the fingers moved apart', () => {
-    expect(pinchScale(1, 100, 150)).toBe(1.5)
-    expect(pinchScale(2, 100, 50)).toBe(1)
-    expect(pinchScale(1, 100, 1000)).toBe(MAX_DISH_SCALE)
-  })
-
-  it('ignores a zero start distance', () => {
-    expect(pinchScale(1.5, 0, 100)).toBe(1.5)
+describe('real size only', () => {
+  it('offers no resize math: the dish always shows at its real size', () => {
+    expect(Object.keys(gestures)).not.toEqual(expect.arrayContaining(['pinchScale']))
+    expect(Object.keys(gestures).some(name => /scale/i.test(name))).toBe(false)
   })
 })
 
@@ -62,13 +33,7 @@ describe('twist', () => {
   })
 })
 
-describe('labels and surfaces', () => {
-  it('rounds the size chip to 5 %', () => {
-    expect(scalePercent(1)).toBe(100)
-    expect(scalePercent(1.33)).toBe(135)
-    expect(scalePercent(0.52)).toBe(50)
-  })
-
+describe('surfaces', () => {
   it('accepts only surfaces that face up', () => {
     expect(isHorizontalSurface(1)).toBe(true)
     expect(isHorizontalSurface(0.95)).toBe(true)

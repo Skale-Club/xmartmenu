@@ -16,7 +16,7 @@ const supabase = createClient(supabaseUrl, serviceKey, {
 const shouldApply = process.argv.includes('--apply')
 const tenantSlug = 'bella-vista'
 const assetBasePath = '/brands/bella-vista'
-const publicBaseUrl = 'https://xmartmenu.skale.club'
+const publicBaseUrl = 'https://xprout.app'
 const logoUrl = `${assetBasePath}/logo.webp`
 const bannerUrl = `${assetBasePath}/banner.webp`
 

@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic'
 
 /**
  * Auto-blog console for the PLATFORM's own marketing blog (autoblog-parity
- * XM-09). This is xmartmenu.com's blog, not any tenant's — the whole feature is
+ * XM-09). This is xprout.app's blog, not any tenant's — the whole feature is
  * single-site and superadmin-only by design (MASTER D-10), which is why there
  * is no tenant selector anywhere on this page.
  *

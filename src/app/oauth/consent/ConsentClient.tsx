@@ -99,7 +99,7 @@ export default function ConsentClient() {
             <div className="text-center">
               <h1 className="text-xl font-black text-white">Entre para continuar</h1>
               <p className="text-sm text-zinc-400 mt-2 mb-6">
-                Faça login na sua conta XmartMenu para autorizar o acesso.
+                Faça login na sua conta Xprout para autorizar o acesso.
               </p>
               <a
                 href={view.loginHref}
@@ -119,7 +119,7 @@ export default function ConsentClient() {
                 <h1 className="text-xl font-black text-white">Autorizar acesso</h1>
                 <p className="text-sm text-zinc-400 mt-2">
                   <span className="font-black text-white">{view.details.client.name || 'Um aplicativo'}</span> quer
-                  acessar o XmartMenu como <span className="text-zinc-300">{view.email}</span>.
+                  acessar o Xprout como <span className="text-zinc-300">{view.email}</span>.
                 </p>
               </div>
 

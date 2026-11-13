@@ -1,4 +1,4 @@
-// XmartMenu service worker.
+// Xprout service worker.
 // Safe-by-default caching:
 //  - Precache only the offline shell.
 //  - Runtime-cache content-hashed build assets (/_next/static) with cache-first.

@@ -8,6 +8,7 @@ import { computePrimaryForeground } from '@/lib/color-utils'
 import { fill, formatMoney, getMenuCopy } from './menu-i18n'
 import { getProductImages } from './menu-utils'
 import type { UpsellStep } from './upsell'
+import { ui } from './menu-ui'
 
 /**
  * "Complete your order": one step at a time (goes well with…, a side, a drink,
@@ -77,7 +78,7 @@ export default function UpsellSheet({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pt-4 pb-2">
-            <h2 id="upsell-heading" className="text-[22px] font-bold leading-tight tracking-tight text-zinc-900">{heading}</h2>
+            <h2 id="upsell-heading" className={`${ui.sheetTitle} text-zinc-900`}>{heading}</h2>
             {steps.length > 1 && (
               <div className="mt-3 flex gap-1" aria-hidden="true">
                 {steps.map((_, i) => (
