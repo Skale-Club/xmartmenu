@@ -6,6 +6,12 @@ export function getProductImages(product: Product) {
   return Array.from(new Set([...fromArray, ...fromSingle]))
 }
 
+/** Source roles are explicit; never infer a portrait from loaded image dimensions. */
+export function isFeedPortrait(product: Pick<Product, 'feed_image_url'>, url: string | undefined) {
+  const portrait = product.feed_image_url?.trim()
+  return Boolean(portrait && url === portrait)
+}
+
 /** An authored feed scene replaces stills only in the feed; detail keeps its gallery. */
 export function getFeedSlides(product: Product, media: readonly { type: 'image' | 'video'; url: string; display_order: number }[], extraImages: readonly string[] = []) {
   const ordered = orderFeedMedia(media)

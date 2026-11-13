@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getFeedSlides, getProductImages } from '../../src/components/menu/menu-utils'
+import { getFeedSlides, getProductImages, isFeedPortrait } from '../../src/components/menu/menu-utils'
 import type { Product } from '../../src/types/database'
 
 const product = { image_url: '/main.webp', image_urls: ['/gallery.webp'], feed_image_url: '/portrait.webp' } as Product
@@ -25,4 +25,13 @@ describe('dedicated feed photo source', () => {
       ])
     }
   })
+})
+
+it('selects the shared portrait crop by the explicit source URL, preserving legacy and main roles', () => {
+  const source = { feed_image_url: '  /portrait.webp  ' }
+  expect(isFeedPortrait(source, '/portrait.webp')).toBe(true)
+  expect(isFeedPortrait(source, '/gallery.webp')).toBe(false)
+  expect(isFeedPortrait({ feed_image_url: null }, '/portrait.webp')).toBe(false)
+  expect(isFeedPortrait({ feed_image_url: ' ' }, undefined)).toBe(false)
+  expect(isFeedPortrait({}, '/portrait.webp')).toBe(false)
 })

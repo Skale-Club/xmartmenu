@@ -13,7 +13,7 @@ import FeedDescription from './FeedDescription'
 import FeedSizeSheet from './FeedSizeSheet'
 import type { FeedSize } from './feed-sizes'
 import type { DishDetail } from '@/lib/public-dish-details'
-import { getFeedSlideDuration, getProductImages, getFeedSlides } from './menu-utils'
+import { getFeedSlideDuration, getProductImages, getFeedSlides, isFeedPortrait } from './menu-utils'
 import { LOOP_COPIES, dishAt, dragOffset, lockAxis, loops, recenter, resolveSwipe, startPosition, type SwipeAxis } from './feed-gestures'
 import DishHeading from './DishHeading'
 
@@ -634,6 +634,7 @@ function FeedMedia({
                   priority={priority && isCurrent}
                   tone="dark"
                   fit="feed"
+                  portrait={isFeedPortrait(product, slide.url)}
                   sizes="100vw"
                 />
               ) : direct && isCurrent ? (
@@ -665,7 +666,7 @@ function FeedMedia({
                   }}
                 />
               ) : direct ? (
-                images[0] ? <DishPhoto src={feedImageSrc(images[0])} alt="" fit="feed" tone="dark" sizes="100vw" /> : null
+                images[0] ? <DishPhoto src={feedImageSrc(images[0])} alt="" fit="feed" portrait={isFeedPortrait(product, images[0])} tone="dark" sizes="100vw" /> : null
               ) : (
                 <button type="button" onClick={onOpen} className="absolute inset-0 flex items-center justify-center bg-black/15" aria-label={`Open ${product.name} video in details`}><span className="flex size-14 items-center justify-center rounded-full border border-white/40 bg-black/45 text-white backdrop-blur"><Play className="ml-1 size-5 fill-current" /></span></button>
               )}

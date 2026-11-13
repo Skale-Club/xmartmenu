@@ -1,45 +1,74 @@
 # Repeatable menu photo recipe
 
-Status: under evaluation with the owner, 2026-11-12. The composition must be practical to repeat for other dishes, not a custom picanha-only art direction. Keep a versioned recipe and source references; generative output still needs visual review and is not pixel-deterministic.
+Status: owner-approved continuous feed composition; catalog rollout in progress, 2026-11-13. The owner approved the revised picanha v2 screenshot, then explicitly requested the same treatment for every product in Aurora (20), Bella Vista (19) and Celes Confections (18, including two unavailable products), together with corrected main images. This is 57 products, with two explicit presentation roles. Generation, optimization and visual review are underway; this document does not claim the catalog is published or the runtime deployed.
 
-## Inputs: only what changes
+## Inputs and repeatability
 
-1. The existing dish photo (the identity reference; preserve serving, ingredients and vessel).
-2. Dish name and one shape: `plate` (plates, bowls, boards, ordinary desserts) or `tall` (glass, bottle, tower-shaped serving).
-3. The restaurant's established style reference, reused across the batch. Do not redesign the venue for each dish.
+Use only the existing dish photo, dish name, one shape profile (`plate` or `tall`), and the restaurant's shared style reference. Start from that clean identity source for each role. Preserve exact ingredients, serving quantity, vessel and natural proportions. Do not borrow food from another dish, chain edits through unrelated generations, add manual per-dish CSS, or redesign the venue for each product.
 
-Start from a clean source each time rather than repeatedly editing previous generations. Keep the accepted crop/zoom in the versioned recipe, not in a growing chain of one-off instructions. Prefer one source/master per dish; use a role-specific derivative when one composition cannot meet both feed and menu requirements. Do not mix the feed derivative into the normal photo carousel.
+Shared restaurant styling:
 
-## Fixed feed composition
+- Aurora: evening bar, charcoal stone tabletop, warm side light, copper details, petroleum-teal linen and softly blurred bar.
+- Bella Vista: its existing Italian trattoria setting/tabletop, warm natural light and restrained Italian styling.
+- Celes Confections: its existing editorial bakery setting, light tabletop, soft daylight and refined warm neutrals. Do not add staging props, signs, printed menus, brand cards, logos, labels or readable text. Preserve food identity and avoid unrelated decorative sweets.
 
-- Portrait 9:20, one continuous actual scene to all four edges. No inset rectangle, flat bands, collage or blurred-copy fill.
-- Full serving, including rim/base/garnish, within 4–96% of canvas width and 22–56% of canvas height. These are authoring targets, not automatic food detection.
-- `plate`: serving width about 88–90% of canvas, center about 42% down. Constrain height as well so the complete serving remains above 56%.
-- `tall`: keep natural proportions, height up to 34% of canvas, center about 39% down; fit within the same safe rectangle. Do not stretch a glass or crop garnish/base to make it larger.
-- Continue the venue above and tabletop below, with a restrained caption-friendly lower region. The owner asked for a modestly closer serving and roughly 25% less visible lower-table gap than the first full-bleed pilot, not an exact universal pixel crop.
-- Do not require per-dish CSS zoom or hand-painted background patches. If a subject fails the rectangle, redo the composition under its shape profile or explicitly revise the recipe with evidence.
+The selected recipe is `feed-v2-main-v1`. Main and feed are separately authored because a portrait scene cannot guarantee a complete serving in every ordinary-menu crop. Do not add the feed variant to the ordinary gallery.
 
-## Copy-ready generation template
+## Fixed compositions
 
-Use the original dish photo as edit target and the restaurant reference as style guidance. Substitute the three bracketed inputs; choose exactly one shape sentence.
+| Role | Composition and safe profile |
+| --- | --- |
+| Main | Square 1:1. Complete serving centered horizontally and vertically at canvas center; width at most 70%, height at most 58%. Keep rim, base and garnish complete in square, 3:4 and central 4:3 crops. |
+| Feed, plate | Portrait 9:20. Complete plate/bowl/board/tray, about 88–90% of canvas width, centered horizontally around 41% down. Entire serving within x=4–96%, y=22–56%; reduce scale only as needed to keep every edge. |
+| Feed, tall | Same portrait and safe rectangle. Entire glass/bottle/tall serving, including garnish and base, natural proportions, no more than 34% of canvas height, center around 39% down. The base is critical: review its clearance above the caption on short screens. |
+
+All edges continue the real scene with coherent perspective, light and materials. No inset panel, seams, flat bands, collage or duplicated blurred background. Keep a modest tabletop gap below the serving; the bottom 40% remains continuous subdued tabletop for controls and captions. These rectangles are authoring targets, not automatic food detection or guaranteed acceptance.
+
+## Standard feed prompt
+
+Attach the original dish image, substitute the name and shared tenant style, and select exactly one shape paragraph. Save the exact expanded prompt with its artifact.
 
 ```text
-Create a full-bleed 9:20 portrait menu-feed photograph of [DISH NAME] from the attached original dish image. Preserve its exact ingredients, serving quantity, vessel, natural proportions and food identity. Match [RESTAURANT STYLE REFERENCE] consistently with the other dishes.
+Create a single full-bleed 9:20 portrait restaurant menu feed photograph of [DISH NAME]. EDIT TARGET: attached original dish photograph. Preserve the exact ingredients, serving quantity, vessel, natural proportions and food identity. Restaurant scene: [SHARED TENANT STYLE]. Never borrow food from another product.
 
-Extend the actual environment naturally above and below: a coherent scene with continuous perspective, lighting, materials and depth of field to every canvas edge. No inset image, seams, flat bands, collage, duplicated blurry fill, UI, text, logos or watermarks.
+Extend the actual environment naturally above and below to all four image edges, with coherent perspective, materials, lighting and depth of field. One real continuous photograph. No inset panel, seams, horizontal bands, collage, duplicated blurry backdrop, text, UI or watermarks.
 
-[PLATE SHAPE: show the complete plate/bowl/board, about 88–90% of canvas width, centered horizontally and around 42% down the canvas. Keep the entire serving within x=4–96%, y=22–56%. Reduce scale only as needed to fit the complete serving, never crop its rim.]
-[TALL SHAPE: show the entire glass/bottle/tall serving including garnish and base, centered horizontally around 39% down, no more than 34% of canvas height. Keep natural proportions and fit within x=4–96%, y=22–56%.]
+[PLATE PROFILE: show the complete plate/bowl/board/tray including its rim and all food, about 88–90% of canvas width and centered horizontally around 41% down the canvas. Reduce scale only as needed to include the entire serving.]
+[TALL PROFILE: show the complete glass/bottle including garnish and base, at natural proportions, no more than 34% of canvas height, centered horizontally and around 39% down the canvas.]
 
-Give the serving clear visual presence while leaving coherent ambience above and continuous subdued tabletop below for feed controls and caption. Avoid excessive empty lower tabletop. This must look like one real photograph, not a photo laid over a background.
+Keep the complete serving inside x=4–96%, y=22–56%. Give it strong readable presence, with only a modest gap of tabletop below the serving before the lower-caption region. The bottom 40% continues the actual subdued tabletop; the upper region continues the venue. Preserve every edge of the serving. This is a repeatable composition, not a custom design. Output only the one portrait photograph.
+STRICT OUTPUT: Do not add any signs, printed menus, brand cards, logos, labels, letters or readable text anywhere in the scene.
 ```
 
-## Repeatable checks, not one-off approval by dish
+## Standard main prompt
 
-Encode with the shared photo policy (1200px long edge, at most 100KiB); save source, recipe version, prompt and final WebP. Reuse the standard pipeline rather than a new compression script for each batch.
+```text
+Create one square 1:1 main restaurant menu photograph of [DISH NAME], editing the attached original. Preserve exact food ingredients, serving quantity, vessel, natural proportions and identity. [SHARED TENANT STYLE]. The complete serving including rim/base/garnish must be horizontally AND vertically centered at canvas center, with generous natural scene margin: width at most 70% and height at most 58%. It must stay complete in square, portrait-card and central 4:3 crops. Naturally extend the same setting to every edge without stretching food. Crisp appetizing food, coherent perspective, soft realistic light. No text, borders, flat padding, collage, watermark or added unrelated dishes. Output only the square photo.
+STRICT OUTPUT: Do not add staging props, signs, printed menus, brand cards, logos, labels, letters or readable text anywhere in the scene.
+```
 
-Check the real feed at 360×640, 390×844 and 430×932 with its actual controls/caption, plus normal cards, featured and detail. Verify complete serving, visual center, continuous edges, no overlay collision and readable food. Confirm bytes, responsive sources and no extra decorative image download. A single-image solution must pass every context; a portrait derivative is not automatically suitable for normal-menu crops.
+## Runtime roles and optimization
 
-The current pilot covers picanha only. Validate the same recipe on at least a bowl/ordinary dish, a dessert and a tall drink before declaring it a reusable production standard or regenerating an entire catalog. If any requires manual special treatment, document that limitation and improve the shared shape profile. Do not silently introduce per-product layout hacks.
+`products.feed_image_url` is nullable and optional in the DTO. When present, it supplies the feed's single still scene; existing videos remain. When absent, the existing media/gallery remains the feed fallback. `image_url` and `image_urls` keep the normal-menu/gallery role. Admin edits preserve the dedicated field independently. Never put the portrait in the ordinary carousel.
 
-See [framing review](menu-image-framing.md) and [mandatory media policy](media-policy.md). No mass regeneration or deployment is implied by this recipe.
+`DishPhoto` renders one responsive image immediately with `object-cover`: no load-time aspect detection, inset containment, duplicated blur or drift/zoom. Detail and featured sources keep their existing container ratios with a centered crop. This runtime implementation is prepared locally; schema application alone is not runtime deployment.
+
+Both roles use `src/lib/media/optimize-image.ts` and the photo profile: WebP, longest edge at most 1200px, actual encoded output at most 100KiB (102,400 bytes). The shared encoder may reduce dimensions to fit, including 1100px output; 1100px is not a separate allowance. Verify actual bytes and decoded dimensions for every file. Never publish a raw generated source or an oversized conversion fallback.
+
+## Evidence and acceptance
+
+Sources, exact prompts, batch jobs, role artifacts, encoded byte counts, dimensions and SHA-256 records are retained under `output/catalog-photo-rollout/`. `manifest.json` identifies product, role/source and recipe; each saved role has its own JSON record. These local artifacts are review evidence, not a publication claim.
+
+The local review harness under `output/catalog-photo-rollout/review/` mounts actual MenuFeed, ProductModal and DishPhoto using exported real names, descriptions, prices, tags and tenant settings. It captures feed at 360×640, 390×844 and 430×932, normal 4:3/square/3:4 crops and detail, plus tenant contact sheets. Next Image delivery and unused AR imports are stubbed; this verifies framing/layout, not CDN optimization, AR or full production entitlement behavior. See its README and metrics for exact coverage.
+
+Review every complete serving, its perceived center, continuous background, garnish/base/rim clearance and actual caption overlap. A browser rectangle check does not locate food. Tall drinks need special visual attention on 360×640; the reviewed shared explicit-portrait crop is described below, with no per-product layout exception. First cross-shape review includes Porcini Risotto, Lemon and Aperol Spritz; full 57-product review remains in progress. Keep rejected outputs separate and regenerate from the clean source under the same profile.
+
+Owned schema: the root operator reports the additive feed-field migration applied on the intended owned PostgreSQL host with a schema-only backup (339,615 bytes), six reviewed files, one previously pending and zero changed. The new field is available; this does not mean product references were populated or the runtime released. Production asset/data publication and deployment retain their existing authorization and verification rules.
+
+See [framing review](menu-image-framing.md) and [mandatory media policy](media-policy.md).
+
+## Shared portrait crop refinement
+
+After visual comparison across all 20 Aurora products at 360×640, the reviewed shared crop is `object-position: center 65%` **only for an explicit `feed_image_url` source**. URL role matching happens before any image load; no aspect detection or per-dish CSS is involved. Main/gallery images and legacy feed fallbacks remain centered. With a 9:20 source, this moves the scene up about 24px on 360×640 and only about 3.4px on 390×844, preserving the approved taller-screen composition while improving dense-caption clearance.
+
+The long Filet Madeira title was the limiting first-pass case: at centered cover its recipe rectangle overlapped the first caption by about 19.6px; the shared 65% crop leaves about 4.4px conservative clearance (the actual plate rim has more space). Mojito and Cola garnish remained clear of header/progress controls in visual review. Evidence is retained under `output/catalog-photo-rollout/review/crop-65/`. Recipe bounds are not food detection. Long captions, expanded details and each remaining catalog image still need visual QA; this refinement is not proof of a completed production rollout.
