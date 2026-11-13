@@ -61,11 +61,12 @@ describe('platform sitemap degrades by block and never throws',()=>{
   const list=await urls()
   expect(list).not.toContain('https://synthetic.example/cafe');expect(list).toContain('https://synthetic.example/blog/first')
  })
- it('total database failure and a bad configuration still return the landing entry (never a 500)',async()=>{
+ // The static marketing pages (landing, /pricing) never depend on the database.
+ it('total database failure and a bad configuration still return the static marketing entries (never a 500)',async()=>{
   mocks.tx.mockRejectedValue(new Error('db down'))
-  expect(await urls()).toEqual(['https://synthetic.example'])
+  expect(await urls()).toEqual(['https://synthetic.example','https://synthetic.example/pricing'])
   vi.stubEnv('OWNED_AUTH_ENABLED','false')
-  expect(await urls()).toEqual(['https://synthetic.example'])
+  expect(await urls()).toEqual(['https://synthetic.example','https://synthetic.example/pricing'])
   expect(()=>requireNativeBlogConfiguration()).toThrow()
  })
 })
