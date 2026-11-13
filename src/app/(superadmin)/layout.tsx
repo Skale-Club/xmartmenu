@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { BRAND_NAME } from '@/lib/brand'
+import { BRAND_NAME, BRAND_PRIMARY } from '@/lib/brand'
 import { redirect } from 'next/navigation'
 import { createClient, createServiceClient } from '@/lib/supabase/server'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
@@ -16,7 +16,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
     if (!principal) redirect('/auth/login')
     if (principal.mustChangePassword) redirect('/identity?recovery=required')
     if (principal.role !== 'superadmin') redirect('/dashboard')
-    const ps = await getOwnedShellPlatform(), primary = ps?.cta_color ?? '#F52323'
+    const ps = await getOwnedShellPlatform(), primary = ps?.cta_color ?? BRAND_PRIMARY
     return <><style>{`:root{--primary:${safeCssColor(primary)};--primary-foreground:${computePrimaryForeground(primary)};}`}</style>
       <DashboardShell appName={ps?.app_name ?? BRAND_NAME} contextName="Super Admin" eyebrow="Super Admin Console"
         logoUrl={ps?.favicon_url} backgroundClassName="bg-zinc-50"
@@ -34,7 +34,7 @@ export default async function SuperadminLayout({ children }: { children: React.R
 
   if (profile?.role !== 'superadmin') redirect('/dashboard')
 
-  const primary = ps?.cta_color ?? '#F52323'
+  const primary = ps?.cta_color ?? BRAND_PRIMARY
   const primaryFg = computePrimaryForeground(primary)
 
   return (

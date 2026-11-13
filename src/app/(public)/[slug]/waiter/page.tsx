@@ -1,3 +1,4 @@
+import { BRAND_PRIMARY } from '@/lib/brand'
 export const dynamic = 'force-dynamic'
 
 import { redirect } from 'next/navigation'
@@ -63,7 +64,7 @@ export default async function WaiterServerPage({ params }: Props) {
         capabilities={capabilities}
         activeOrders={data.activeOrders as never[]}
         currency={colors?.currency ?? 'USD'}
-        primaryColor={colors?.primary_color ?? '#F52323'}
+        primaryColor={colors?.primary_color ?? BRAND_PRIMARY}
       />
     )
   }
@@ -169,7 +170,7 @@ export default async function WaiterServerPage({ params }: Props) {
     .not('table_name', 'is', null)
 
   const currency = settings?.currency ?? 'USD'
-  const primaryColor = settings?.primary_color ?? '#F52323'
+  const primaryColor = settings?.primary_color ?? BRAND_PRIMARY
 
   return (
     <WaiterPage

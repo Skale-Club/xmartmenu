@@ -1,5 +1,6 @@
 'use client'
 
+import { BRAND_PRIMARY } from '@/lib/brand'
 import { useState } from 'react'
 import { compressImageForUpload } from '@/lib/media/client-compress'
 import Image from 'next/image'
@@ -285,7 +286,7 @@ export default function SeoClient({ settings, tenantName, canonicalUrl, isCustom
                 ) : (
                   <div
                     className="w-full h-full flex flex-col items-center justify-center text-center px-6"
-                    style={{ background: settings?.primary_color ?? '#F52323' }}
+                    style={{ background: settings?.primary_color ?? BRAND_PRIMARY }}
                   >
                     <p className="text-2xl font-black text-white truncate max-w-full">{tenantName}</p>
                     {tagline && <p className="text-sm font-medium text-white/80 mt-1 line-clamp-2">{tagline}</p>}

@@ -1,3 +1,4 @@
+import { BRAND_PRIMARY } from '@/lib/brand'
 export const revalidate = 60
 
 import { notFound } from 'next/navigation'
@@ -89,7 +90,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
 
   // LOC-03: 2+ active locations → branch picker
   if (data.kind === 'branches') {
-    const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#F52323'
+    const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? BRAND_PRIMARY
     const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
     const primaryForeground = computePrimaryForeground(primaryColor)
     return (
@@ -115,7 +116,7 @@ export default async function PublicMenuPage({ params, searchParams }: Props) {
   // here would fire at most once per cache window. Scan recording is done
   // from the client via <ScanRecorder /> below so each visit is captured.
 
-  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? '#F52323'
+  const primaryColor = (tenant.tenant_settings as any)?.primary_color ?? BRAND_PRIMARY
   const accentColor = (tenant.tenant_settings as any)?.accent_color ?? '#09090b'
   const primaryForeground = computePrimaryForeground(primaryColor)
   const canonicalUrl = getCanonicalUrl(tenant, '/')

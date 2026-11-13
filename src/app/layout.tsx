@@ -1,4 +1,4 @@
-import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
+import { BRAND_NAME, BRAND_URL, BRAND_PRIMARY } from '@/lib/brand'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { getPlatformAppearance } from '@/lib/data/platform-appearance-runtime'
@@ -16,7 +16,7 @@ const inter = Inter({
 export async function generateViewport(): Promise<Viewport> {
   const ps = await getPlatformAppearance()
   return {
-    themeColor: ps?.cta_color ?? '#F52323',
+    themeColor: ps?.cta_color ?? BRAND_PRIMARY,
     viewportFit: 'cover',
   }
 }
@@ -56,7 +56,7 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const ps = await getPlatformAppearance()
-  const primary = ps?.cta_color ?? '#F52323'
+  const primary = ps?.cta_color ?? BRAND_PRIMARY
   const primaryFg = computePrimaryForeground(primary)
 
   return (
