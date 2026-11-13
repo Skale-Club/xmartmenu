@@ -56,7 +56,7 @@ try {
     $pinApplication = static function ($application) {
         demand($application->id === 2 && $application->environment_id === 1 && $application->build_pack === 'dockercompose'
             && $application->environment->project->id === 1 && $application->environment->project->team_id === 0
-            && in_array($application->git_repository, ['Skale-Club/xprout', 'Skale-Club/xmartmenu'], true) && $application->git_branch === 'main'
+            && $application->git_repository === 'Skale-Club/xprout' && $application->git_branch === 'main'
             && $application->docker_compose_location === '/docker-compose.yaml');
     };
     $application = $loadApplication(); $pinApplication($application);

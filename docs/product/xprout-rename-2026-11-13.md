@@ -8,6 +8,7 @@ Owner instruction, 2026-11-13: rename the application everywhere, including the 
 | --- | --- |
 | GitHub | `Skale-Club/xprout`, same repository ID `R_kgDOR7fMtA`, history and branches preserved; homepage `https://xprout.app`, Xprout description |
 | Git remote | `https://github.com/Skale-Club/xprout.git`; new remote reads main/dev; old repository API resolves to the renamed repository |
+| Coolify metadata | Verified 2026-11-13 11:32 EST: display name `xprout`, source `Skale-Club/xprout`; same application UUID, branch, build pack, domain mapping and service configuration; healthy, no deployment requested |
 | Package | `package.json` and both lockfile root names use `xprout`; dependencies unchanged |
 | Runtime labels | Xprout telemetry, PostgreSQL application names, MCP realm, Firebase transient instance and analytics debug namespace |
 | Browser continuity | New analytics/AR hint keys write under Xprout and read old keys to preserve active sessions and once-only guidance |
@@ -17,7 +18,7 @@ Owner instruction, 2026-11-13: rename the application everywhere, including the 
 | Notion | Product container title is Xprout; Journal keeps its existing identity/history and XMM prefix |
 | Drive deliverables | `N:\My Drive\Xprout` remains canonical; child folder `Add Feature Xmartmenu` renamed to `Add Feature Xprout`; brand pack and color-review evidence remain there |
 
-## Pending local move and access limits
+## Pending local move and resolved Coolify access
 
 The real checkout remains **`C:\Users\Vanildo\Dev\xmartmenu`**. Windows refused the directory rename because Codex-owned connector processes hold that working directory open. A content-move attempt moved Git metadata before failing on the hidden source directory; all Git metadata was restored and HEAD/status verified. An **empty destination scaffold** remains at `C:\Users\Vanildo\Dev\xprout\.git`; it is not a second checkout. No tracked source or Git history was discarded.
 
@@ -31,13 +32,13 @@ pwsh -NoProfile -File "C:\Users\Vanildo\Dev\xmartmenu\scripts\ops\finish-xprout-
 
 It refuses nonempty destination collisions, removes only the verified empty scaffold, renames the checkout, verifies the same HEAD, and updates the existing Codex project name/root without changing its ID. With the optional switch, it moves `N:\My Drive\Dev\xmartmenu` into `N:\My Drive\Xprout\Runtime`, preserves its files/backups, updates only the AR_MODELS_DIR filesystem prefix, and recreates the existing environment symlink. No environment contents are printed. Until completed, the current environment link and AR files intentionally remain at their working old Drive location. No Codex SQLite database was edited.
 
-Coolify remains healthy at UUID `gmaayluj11x1m6j7baogonfn`; its live display/source values still say `xmartmenu` / `Skale-Club/xmartmenu`. PATCH was rejected with HTTP 403: `Missing required permissions: write`. The exact pending metadata patch is:
+Coolify remains healthy at UUID `gmaayluj11x1m6j7baogonfn`. The initial token's PATCH returned HTTP 403, missing write. The owner generated a replacement and entered it into a masked local terminal; the token is stored in the Xprout environment file, without being printed or passed as a process argument. At 11:32 EST on 2026-11-13, the following metadata patch succeeded with the new token:
 
 ```json
 {"name":"xprout","git_repository":"Skale-Club/xprout","instant_deploy":false}
 ```
 
-Apply it through the authorized Coolify administrator/API credential with write permission, then read back name/source/UUID/branch/build pack. Preserve domains, environments and the app UUID. The old GitHub URL redirects, but the metadata should still be corrected. No deployment or production environment/data mutation was performed here.
+Readback confirms `xprout` / `Skale-Club/xprout`. Protected UUID, branch, build pack, Compose location, domain mapping, environment/destination/source IDs and public origin fields are unchanged. The application remained `running:healthy` and public `/api/health` returned HTTP 200. No deployment, database or runtime-environment mutation was requested. The repository's staging guard now pins the exact new source rather than accepting the transitional old repository alias. Safe metadata snapshots are delivered with the review; token values are excluded.
 
 ## Compatibility and remaining infrastructure migration
 
@@ -54,6 +55,7 @@ GHCR publication, new package permissions, host pull and a real rollback have **
 
 ## Evidence
 
+- Coolify authenticated GET/PATCH/GET succeeded; whitelisted before/after fields and a protected-configuration comparison passed, with public health HTTP 200. The 12 offline Google-staging tests passed again after pinning the new repository source.
 - Parent verification: **88 tests across 12 unit files passed**, including raw legacy host routing, session-key migration, AR hint continuity, MCP realm, order/auth boundaries and new/legacy environment settings. The two configuration suites were rerun after tightening the helper input type: 23 passed.
 - Full TypeScript noEmit passed after the input type correction; scoped ESLint and whitespace checks passed.
 - Parent reran two offline deployment image tests, 15 transport installer cases, the final-cutover suite (33 cases, 18 existing platform/Docker skips), and 12 Google staging guard cases: no failures.
