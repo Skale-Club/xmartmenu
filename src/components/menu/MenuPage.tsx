@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactN
 import { idempotencyKeyFor, type IdempotencySlot } from '@/lib/orders/idempotency-client'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import DishPhoto from './DishPhoto'
 import { getInitials } from '@/lib/utils'
 import { MenuAnalyticsTracker } from '@/lib/analytics/client'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia, PublicProductArModel } from '@/types/database'
@@ -1117,7 +1118,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
                 >
                   <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-zinc-100">
                     {image
-                      ? <Image src={image} alt="" fill draggable={false} sizes="(max-width: 640px) 156px, 220px" className="object-cover object-[center_18%]" />
+                      ? <DishPhoto src={image} alt="" fit="cover" sizes="(max-width: 640px) 156px, 220px" />
                       : <DishPlaceholder />}
                   </div>
                   <p className="mt-2 line-clamp-2 text-[14px] font-semibold leading-snug text-zinc-900 sm:text-[15px]">{p.name}</p>

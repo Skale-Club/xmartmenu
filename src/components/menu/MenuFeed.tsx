@@ -1,6 +1,5 @@
 'use client'
 
-import Image from 'next/image'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
@@ -11,8 +10,9 @@ import FeedDescription from './FeedDescription'
 import FeedSizeSheet from './FeedSizeSheet'
 import type { FeedSize } from './feed-sizes'
 import type { DishDetail } from '@/lib/public-dish-details'
-import { getFeedSlideDuration, getProductImages, orderFeedMedia } from './menu-utils'
+import { getFeedSlideDuration, getProductImages, getFeedSlides } from './menu-utils'
 import { dragOffset, lockAxis, resolveSwipe, type SwipeAxis } from './feed-gestures'
+import DishPhoto from './DishPhoto'
 
 function feedImageSrc(url: string) {
   if (!url.includes('/brands/celes-confections/')) return url
@@ -134,7 +134,7 @@ export default function MenuFeed({
 
   return (
     <section className="fixed inset-0 z-40 bg-zinc-950 text-white md:hidden" aria-label="Visual menu feed">
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div data-feed-header className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={onExit}
@@ -181,7 +181,6 @@ export default function MenuFeed({
                 extraImages={extraImagesFor(product)}
                 onSlidesChange={reportSlides}
                 priority={index === 0}
-                panDirection={index % 2 === 0 ? 'alternate' : 'alternate-reverse'}
                 autoplay={autoplayVideos}
                 dishIndex={index}
                 onAdvanceDish={advanceDish}
@@ -192,6 +191,7 @@ export default function MenuFeed({
 
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/95" />
               <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-28">
+                <div data-feed-content className="flow-root">
                 {(slideInfo[product.id]?.count ?? 0) > 1 ? <SlideDots count={slideInfo[product.id].count} index={slideInfo[product.id].index} label={product.name} /> : null}
 
                 <div className="mb-3 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.18em] text-white/65">
@@ -279,6 +279,7 @@ export default function MenuFeed({
                     </button>
                   ) : null}
                 </div>
+                </div>
               </div>
             </article>
           )
@@ -309,7 +310,6 @@ function FeedMedia({
   extraImages,
   onSlidesChange,
   priority,
-  panDirection,
   autoplay,
   dishIndex,
   onAdvanceDish,
@@ -322,7 +322,6 @@ function FeedMedia({
   extraImages: string[]
   onSlidesChange: (productId: string, index: number, count: number) => void
   priority: boolean
-  panDirection: 'alternate' | 'alternate-reverse'
   autoplay: boolean
   dishIndex: number
   onAdvanceDish: (dishIndex: number) => void
@@ -343,15 +342,10 @@ function FeedMedia({
   const gestureRef = useRef<{ pointerId: number; startX: number; startY: number; startedAt: number; axis: SwipeAxis | null } | null>(null)
   const [dragX, setDragX] = useState(0)
   const [settling, setSettling] = useState(false)
-  // A finger (or the mouse button) on the photo freezes the progress bar, the drift and any video.
+  // A finger (or the mouse button) on the photo freezes the progress bar and any video.
   const [held, setHeld] = useState(false)
-  const orderedMedia = useMemo(() => orderFeedMedia(media), [media])
   const images = useMemo(() => getProductImages(product), [product])
-  const slides = useMemo<Array<{ type: 'image' | 'video'; url: string }>>(() => (
-    orderedMedia.length > 0
-      ? orderedMedia.map(item => ({ type: item.type, url: item.url }))
-      : images.map(url => ({ type: 'image' as const, url }))
-  ).concat(extraImages.map(url => ({ type: 'image' as const, url }))), [extraImages, images, orderedMedia])
+  const slides = useMemo(() => getFeedSlides(product, media, extraImages), [product, media, extraImages])
   const current = slides[mediaIndex] ?? null
 
   useEffect(() => {
@@ -509,13 +503,12 @@ function FeedMedia({
           }}
         />
       ) : imageUrl ? (
-        <Image
+        <DishPhoto
           src={feedImageSrc(imageUrl)}
           alt={product.name}
-          fill
           priority={priority}
-          className={`object-cover ${active ? 'menu-feed-image-pan' : 'translate-y-10 scale-[1.08]'}`}
-          style={{ animationDirection: panDirection, animationPlayState: held ? 'paused' : 'running' }}
+          tone="dark"
+          fit="feed"
           sizes="100vw"
         />
       ) : (
@@ -530,7 +523,7 @@ function FeedMedia({
       ) : null}
 
       {slides.length > 0 ? (
-        <div className="absolute inset-x-4 top-[max(4.5rem,calc(env(safe-area-inset-top)+3.75rem))] z-10 flex gap-1" role="group" aria-label={`Media ${mediaIndex + 1} of ${slides.length}${slides.length > 1 ? ' — swipe sideways for more' : ''}`}>
+        <div data-feed-progress className="absolute inset-x-4 top-[max(4.5rem,calc(env(safe-area-inset-top)+3.75rem))] z-10 flex gap-1" role="group" aria-label={`Media ${mediaIndex + 1} of ${slides.length}${slides.length > 1 ? ' — swipe sideways for more' : ''}`}>
           {slides.map((slide, index) => (
             <span key={`${slide.url}-${index}`} className="relative h-1 flex-1 overflow-hidden rounded-full bg-white/30 shadow-sm">
               {index < mediaIndex ? <span className="absolute inset-0 bg-white" /> : null}

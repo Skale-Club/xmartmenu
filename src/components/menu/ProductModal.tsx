@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import Image from 'next/image'
+import DishPhoto from './DishPhoto'
 import { Box, Camera, Check, ChevronDown, ChevronLeft, ChevronRight, Image as ImageIcon, MessageCircle, Minus, Phone, Plus, X } from 'lucide-react'
 import ArButton, { useIsComputer } from '@/components/ar/ArButton'
 import ModelViewer from '@/components/ar/ModelViewer'
@@ -563,11 +563,11 @@ export default function ProductModal({ product, primaryColor, priceColor = '#181
               ) : mediaSlides[slideIndex]?.type === 'video' ? (
                 <VideoSlide url={mediaSlides[slideIndex].url} />
               ) : (
-                <Image
+                <DishPhoto
                   src={mediaSlides[slideIndex]?.url ?? ''}
+                  fit="cover"
                   alt={`${product.name} ${imageIndex + 1}`}
-                  fill
-                  className={`object-cover object-[center_15%] ${isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}`}
+                  className={isDraggingImage ? '' : 'transition-transform duration-200 ease-out'}
                   style={{ transform: `translateX(${touchOffsetX}px)` }}
                   sizes="(max-width: 640px) 100vw, 512px"
                 />

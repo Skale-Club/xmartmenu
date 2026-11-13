@@ -58,6 +58,14 @@ describe('independent PostgreSQL public catalog', () => {
     }
     expect(queries.every(item => !/SELECT\s+\*|auth\.|storage\.|api_key|stripe_|xphere_/i.test(item.text))).toBe(true)
   })
+  it('projects the dedicated feed source beside the unchanged main gallery', async () => {
+    const photo = { id: productId, price: 12.25, image_url: '/main.webp', image_urls: ['/gallery.webp'], feed_image_url: '/portrait.webp' }
+    const { query, queries } = fixture({ products: [photo] })
+    const result = await readOwnedPublicMenu(query, 'restaurant', undefined)
+    if (result.kind !== 'menu') throw Error()
+    expect(result.products[0]).toEqual(photo)
+    expect(queries.find(item => item.text.includes('FROM public.products p'))?.text).toContain('p.feed_image_url')
+  })
   it('reads 3D models only once the AR table is readable, scoped to tenant, menu and dishes', async () => {
     const model = { product_id: productId, glb_url: 'https://cdn.example/dish.glb', usdz_url: null, poster_url: null, real_scale: true }
     const { query, queries } = fixture({ product_ar_models: [model] })

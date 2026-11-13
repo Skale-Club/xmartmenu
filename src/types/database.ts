@@ -212,6 +212,8 @@ export interface Product {
   original_price: number | null
   image_url: string | null
   image_urls: string[]
+  /** Optional portrait scene used only by the visual feed. */
+  feed_image_url?: string | null
   is_available: boolean
   is_featured: boolean
   /** Dishes suggested with this one in "Complete your order", in order. */

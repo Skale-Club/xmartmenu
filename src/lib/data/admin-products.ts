@@ -33,7 +33,7 @@ function validImage(value: unknown) {
 }
 export function productPatch(input: unknown, creating = false) {
   const body = object(input), patch: Record<string, unknown> = {}
-  const allowed = ['name', 'description', 'price', 'original_price', 'category_id', 'image_url', 'image_urls', 'is_available', 'is_featured', 'show_in_feed', 'tags']
+  const allowed = ['name', 'description', 'price', 'original_price', 'category_id', 'image_url', 'image_urls', 'feed_image_url', 'is_available', 'is_featured', 'show_in_feed', 'tags']
   if (Object.keys(body).some(key => !allowed.includes(key))) throw new AdminMenuError(400, 'Invalid product fields')
   for (const key of allowed) if (Object.hasOwn(body, key)) patch[key] = body[key]
   if (creating || 'name' in patch) {
@@ -48,7 +48,7 @@ export function productPatch(input: unknown, creating = false) {
   }
   if ('category_id' in patch && patch.category_id !== null && (typeof patch.category_id !== 'string' || !uuid.test(patch.category_id))) throw new AdminMenuError(400, 'Invalid category')
   for (const key of ['is_available', 'is_featured', 'show_in_feed']) if (key in patch && typeof patch[key] !== 'boolean') throw new AdminMenuError(400, 'Invalid product setting')
-  if ('image_url' in patch && patch.image_url !== null && !validImage(patch.image_url)) throw new AdminMenuError(400, 'Invalid image URL')
+  for (const key of ['image_url', 'feed_image_url']) if (key in patch && patch[key] !== null && !validImage(patch[key])) throw new AdminMenuError(400, 'Invalid image URL')
   if ('image_urls' in patch && (!Array.isArray(patch.image_urls) || patch.image_urls.length > 20 || !patch.image_urls.every(validImage))) throw new AdminMenuError(400, 'Invalid images')
   if ('tags' in patch && (!Array.isArray(patch.tags) || patch.tags.length > 50 || patch.tags.some(tag => typeof tag !== 'string' || tag.length > 100))) throw new AdminMenuError(400, 'Invalid product tags')
   // One tag per dish (docs/product/dish-tags.md): keep the most important one.

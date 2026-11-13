@@ -19,7 +19,7 @@ export const PUBLIC_MENU_COLUMNS = {
   menu: 'id tenant_id name slug description language supported_languages translations purpose is_active is_default is_private price_multiplier position created_at',
   location: 'id tenant_id name slug address city phone business_hours region postal_code country latitude longitude menu_id is_active created_at updated_at',
   category: 'id tenant_id menu_id name translations course description position is_active created_at',
-  product: 'id tenant_id menu_id category_id name translations description price original_price image_url image_urls is_available is_featured upsell_product_ids show_in_feed tags position created_at updated_at',
+  product: 'id tenant_id menu_id category_id name translations description price original_price image_url image_urls feed_image_url is_available is_featured upsell_product_ids show_in_feed tags position created_at updated_at',
   group: 'id product_id tenant_id name type required min_selections max_selections price_rule position translations created_at updated_at',
   option: 'id group_id tenant_id name base_price price_modifier is_available position translations created_at updated_at',
   ingredient: 'id tenant_id name image_url default_extra_price default_add_price is_available position translations created_at updated_at',

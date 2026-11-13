@@ -6,6 +6,20 @@ export function getProductImages(product: Product) {
   return Array.from(new Set([...fromArray, ...fromSingle]))
 }
 
+/** An authored feed scene replaces stills only in the feed; detail keeps its gallery. */
+export function getFeedSlides(product: Product, media: readonly { type: 'image' | 'video'; url: string; display_order: number }[], extraImages: readonly string[] = []) {
+  const ordered = orderFeedMedia(media)
+  const portrait = product.feed_image_url?.trim()
+  if (portrait) return [
+    ...ordered.filter(item => item.type === 'video').map(item => ({ type: item.type, url: item.url })),
+    { type: 'image' as const, url: portrait },
+  ]
+  return (ordered.length
+    ? ordered.map(item => ({ type: item.type, url: item.url }))
+    : getProductImages(product).map(url => ({ type: 'image' as const, url })))
+    .concat(extraImages.map(url => ({ type: 'image' as const, url })))
+}
+
 export function isProductVisibleInFeed(product: { show_in_feed?: boolean | null }) {
   return product.show_in_feed !== false
 }

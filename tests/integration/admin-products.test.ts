@@ -254,3 +254,18 @@ test('upsell writes preserve ordered IDs and reject foreign menu or tenant candi
   assert.deepEqual((await page()).products.find(row => row.id === own.id)!.upsell_product_ids, [candidate])
   await write([])
 })
+
+test('dedicated feed photo roundtrips independently of the main gallery and survives normal edits', async () => {
+  const url = 'https://cdn.example/portrait.webp'
+  const before = await mutate({ kind: 'create', body: { name: 'Feed photo dish', price: 12, expectedMenuId: menu, image_url: 'https://cdn.example/main.webp', image_urls: ['https://cdn.example/main.webp'] } }) as AdminProduct
+  const product = before.id
+  const saved = await mutate({ kind: 'patch', id: product, body: { feed_image_url: url } }) as AdminProduct
+  assert.equal(saved.feed_image_url, url)
+  assert.equal(saved.image_url, before.image_url)
+  assert.deepEqual(saved.image_urls, before.image_urls)
+  await mutate({ kind: 'patch', id: product, body: { name: 'Dish with portrait' } })
+  assert.equal((await page()).products.find(row => row.id === product)?.feed_image_url, url)
+  const cleared = await mutate({ kind: 'patch', id: product, body: { feed_image_url: null } }) as AdminProduct
+  assert.equal(cleared.feed_image_url, null)
+  assert.equal(cleared.image_url, before.image_url)
+})

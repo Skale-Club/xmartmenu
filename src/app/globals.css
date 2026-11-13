@@ -213,16 +213,6 @@ input[type="file"] {
   display: none;
 }
 
-@keyframes menu-feed-horizontal-drift {
-  from { transform: scale(1.16) translate3d(-5.25%, 2.5rem, 0); }
-  to   { transform: scale(1.16) translate3d(5.25%, 2.5rem, 0); }
-}
-
-.menu-feed-image-pan {
-  animation: menu-feed-horizontal-drift 12s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite alternate;
-  will-change: transform;
-}
-
 @keyframes menu-feed-slide-progress {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
@@ -254,11 +244,6 @@ input[type="file"] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .menu-feed-image-pan {
-    animation: none;
-    transform: scale(1.04) translateY(2.5rem);
-  }
-
   .menu-feed-slide-progress {
     animation: none;
     transform: scaleX(0);
