@@ -3,12 +3,13 @@
 import { DeliveryImage } from '@/components/delivery-image'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Building2, ClipboardList, History, LayoutDashboard, LogOut, Newspaper, Rocket, Settings, Sparkles, Users } from 'lucide-react'
+import { Building2, ClipboardList, History, LayoutDashboard, LogOut, Newspaper, Rocket, Settings, Sparkles, UserCheck, Users } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const items = [
   { href: '/overview', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/tenants', label: 'Clients', icon: Building2 },
+  { href: '/access-requests', label: 'Access requests', icon: UserCheck },
   { href: '/tenants/launch', label: 'Launch checklist', icon: Rocket },
   { href: '/users', label: 'Users', icon: Users },
   { href: '/audit', label: 'Audit trail', icon: History },
