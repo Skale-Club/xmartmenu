@@ -303,3 +303,21 @@ input[type="file"] {
   0%, 100% { transform: translateX(-14px) rotate(-8deg); }
   50% { transform: translateX(14px) rotate(8deg); }
 }
+
+/* AR camera: a scanning tip fading in (src/components/ar/WebXrDishViewer.tsx). */
+@keyframes ar-tip-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* iOS-style sheet entering from the bottom (src/components/sheet/DragSheet.tsx). */
+@keyframes sheet-in {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+/* AR camera: the sheen running along the model loading bar (WebXrDishViewer). */
+@keyframes ar-shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}

@@ -6,7 +6,7 @@ import { Eye, Minus, Play, Plus, Rows3, ShoppingBag } from 'lucide-react'
 import { fill, formatMoney, getMenuCopy, translateTag } from './menu-i18n'
 import { primaryTag, tagColor } from '@/lib/menu/dish-tags'
 import type { Product, ProductMedia, PublicProductArModel } from '@/types/database'
-import ArButton from '@/components/ar/ArButton'
+import ArButton, { type ArCart, type ArSequenceItem } from '@/components/ar/ArButton'
 import FeedDescription from './FeedDescription'
 import FeedSizeSheet from './FeedSizeSheet'
 import type { FeedSize } from './feed-sizes'
@@ -30,6 +30,10 @@ interface FeedProps {
   autoplayVideos: boolean
   directOrdersEnabled: boolean
   cartCount: number
+  /** The order as the AR camera's order sheet shows it. */
+  arOrder?: ArCart['summary']
+  /** The menu's 3D dishes, to walk through inside the camera. */
+  arSequence?: ArSequenceItem[]
   /** Adds one of a dish without options from the AR camera (no upsell, the camera stays open). */
   onAddFromAr?: (product: Product) => void
   exitLabel: string
@@ -70,6 +74,8 @@ export default function MenuFeed({
   autoplayVideos,
   directOrdersEnabled,
   cartCount,
+  arOrder,
+  arSequence,
   onAddFromAr,
   exitLabel,
   hasCustomization,
@@ -223,10 +229,22 @@ export default function MenuFeed({
                         lang={lang}
                         onOpen={() => onArOpened?.(product)}
                         onArLaunch={() => onArLaunched?.(product)}
+                        priceLabel={priceLabel ? priceLabel(product) : formatMoney(product.price, currency, lang)}
+                        details={{ description: product.description }}
+                        theme={{ primary: primaryColor, accent: accentColor }}
+                        sequence={arSequence && arSequence.length > 1 ? { items: arSequence, startId: product.id } : null}
                         cart={directOrdersEnabled && onAddFromAr ? (
                           sizesFor(product).length > 0 || customizable
-                            ? { mode: 'choose', count: cartCount, onAdd: () => {}, onChoose: () => onOpen(product) }
-                            : { mode: 'add', count: cartCount, priceLabel: priceLabel ? priceLabel(product) : formatMoney(product.price, currency, lang), onAdd: () => onAddFromAr(product), onChoose: () => onOpen(product) }
+                            ? { mode: 'choose', count: cartCount, summary: arOrder, onOpenCart, onAdd: () => {}, onChoose: () => onOpen(product) }
+                            : {
+                                mode: 'add', count: cartCount, summary: arOrder, onOpenCart,
+                                priceLabel: priceLabel ? priceLabel(product) : formatMoney(product.price, currency, lang),
+                                quantity: quantity,
+                                onRemove: () => onDecrement(product),
+                                lineLabel: formatMoney(product.price * quantity, currency, lang),
+                                onAdd: () => onAddFromAr(product),
+                                onChoose: () => onOpen(product),
+                              }
                         ) : null}
                         className="flex size-12 shrink-0 items-center justify-center rounded-full border border-white/25 bg-black/35 text-white backdrop-blur-xl transition active:scale-90"
                       />

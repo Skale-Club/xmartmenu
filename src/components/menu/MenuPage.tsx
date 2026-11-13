@@ -10,6 +10,7 @@ import { MenuAnalyticsTracker } from '@/lib/analytics/client'
 import type { Category, Product, TenantWithSettings, ProductIngredientWithIngredient, IngredientModifications, DeliveryZone, ProductMedia, PublicProductArModel } from '@/types/database'
 import type { GroupWithOptions } from '@/app/(admin)/menu/products/[id]/page'
 import { type CartItem, type CartAddedVia, type CartEditorState, buildCartKey, getProductImages, isProductVisibleInFeed, summarizeOptions } from './menu-utils'
+import { arOrderSummary, dishQuantity, lineToDecrement } from './ar-cart'
 import { getGuestCopy } from './guest-copy'
 import WaiterCallButtons from './WaiterCallButtons'
 import { fill, formatMoney, formatWeekday, getMenuCopy, localeFor, matchDeviceLanguage, translateTag } from './menu-i18n'
@@ -24,7 +25,7 @@ import { dishDetailsFor } from '@/lib/public-dish-details'
 import { extraDishImagesFor } from '@/lib/public-dish-media'
 import { describeOpenState, menuTimeZone, type OpenLabel } from './open-label'
 import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
-import { ArBadge } from '@/components/ar/ArButton'
+import { ArBadge, type ArSequenceItem } from '@/components/ar/ArButton'
 import { baseName, localizeGroups, localizeItem } from '@/lib/menu-translations'
 import {
   CART_TTL_MS,
@@ -913,6 +914,18 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
   // ── Presentation ───────────────────────────────────────────────────────────
   const onPrimary = computePrimaryForeground(primaryColor)
   const money = (value: number) => formatMoney(value, currency, selectedLanguage)
+  // The AR camera's view of the cart: order sheet, this dish's count, its "−" and line total.
+  const arOrder = arOrderSummary(cart, money)
+  const arCartFor = (productId: string, onOpenCart: () => void) => ({
+    quantity: dishQuantity(cart, productId),
+    onRemove: () => {
+      const line = lineToDecrement(cart, productId)
+      if (line) updateCartQuantity(line.cartKey, line.quantity - 1)
+    },
+    lineLabel: money(cart.reduce((sum, item) => sum + (item.product.id === productId ? item.unitPrice * item.quantity : 0), 0)),
+    summary: arOrder,
+    onOpenCart,
+  })
   // "From $15.00" for a dish whose sizes set the price (showcase.ts).
   const priceOf = (product: Product) => {
     const shown = displayPrice(product.price, optionGroupsByProductId[product.id])
@@ -924,6 +937,27 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
       fromLabel: shown.from ? fill(guestCopy.fromPrice, { price: '' }).trim() : null,
     }
   }
+  // The AR carousel: every dish with a 3D model, in menu order, with its own price, details and cart actions.
+  const arSequence: ArSequenceItem[] = orderedProducts.filter(p => productArModelByProductId[p.id]).map(p => ({
+    id: p.id,
+    name: p.name,
+    model: productArModelByProductId[p.id],
+    priceLabel: priceOf(p).text,
+    details: {
+      description: p.description,
+      ingredients: (productIngredientsByProductId[p.id] ?? []).filter(pi => pi.is_default).map(pi => pi.ingredient.name),
+    },
+    cart: directOrdersEnabled ? {
+      ...arCartFor(p.id, () => { closeProductModal(); setCartOpen(true) }),
+      // A dish with a required choice goes back to its sheet; any other is added as it is.
+      mode: (optionGroupsByProductId[p.id] ?? []).some(group => group.required) ? 'choose' as const : 'add' as const,
+      priceLabel: money(p.price),
+      count: cartCount,
+      onAdd: () => addToCart(p, {}, p.price, undefined, undefined, undefined, 'ar'),
+      onChoose: () => openProduct(p, 'detail'),
+    } : null,
+  }))
+
   const hasCustomization = (productId: string) =>
     (optionGroupsByProductId[productId]?.length ?? 0) > 0
     || (ingredientCustomizationEnabled && (productIngredientsByProductId[productId]?.length ?? 0) > 0)
@@ -1154,6 +1188,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
             autoplayVideos={feedAutoplayVideos}
             directOrdersEnabled={directOrdersEnabled}
             cartCount={cartCount}
+            arOrder={arOrder}
+            arSequence={arSequence}
             onAddFromAr={product => addToCart(product, {}, product.price, undefined, undefined, undefined, 'ar')}
             exitLabel={copy.viewMenu}
             onExit={() => changeView('list')}
@@ -1322,6 +1358,7 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           onPrevProduct={!editingCartKey && !upsell?.choosing && prevProduct ? () => openProduct(prevProduct, 'detail') : undefined}
           onNextProduct={!editingCartKey && !upsell?.choosing && nextProduct ? () => openProduct(nextProduct, 'detail') : undefined}
           primaryColor={primaryColor}
+          accentColor={accentColor}
           priceColor={accentText}
           currency={currency}
           whatsapp={whatsapp}
@@ -1341,6 +1378,8 @@ export default function MenuPage({ tenant, categories: baseCategories, products:
           productMedia={productMediaByProductId[selectedProduct.id] ?? []}
           arModel={productArModelByProductId[selectedProduct.id] ?? null}
           cartCount={cartCount}
+          arCart={directOrdersEnabled ? arCartFor(selectedProduct.id, () => { closeProductModal(); setCartOpen(true) }) : undefined}
+          arSequence={arSequence}
           onAddToCartFromAr={directOrdersEnabled
             // The camera stays open: no closing the sheet, no "Complete your order".
             ? (selectedOptions, unitPrice, note, ingredientModifications, editorState) =>

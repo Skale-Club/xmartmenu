@@ -99,9 +99,15 @@ describe('Scene Viewer scale correction', () => {
 })
 
 describe('quickLookUrl', () => {
-  it('lets guests resize: no scaling switch in the URL', () => {
+  it('lets guests resize a model without a calibrated size: no scaling switch in the URL', () => {
     expect(quickLookUrl('https://cdn.example.com/a.usdz')).toBe('https://cdn.example.com/a.usdz')
     expect(quickLookUrl('blob:https://m.example.com/123', null)).toBe('blob:https://m.example.com/123')
+    expect(quickLookUrl('https://cdn.example.com/a.usdz', null, { realScale: false })).toBe('https://cdn.example.com/a.usdz')
+  })
+
+  it('locks a real-size model at its real size, alone or before the order button', () => {
+    expect(quickLookUrl('https://cdn.example.com/a.usdz', null, { realScale: true })).toBe('https://cdn.example.com/a.usdz#allowsContentScaling=0')
+    expect(quickLookUrl('blob:x', { label: 'Add', title: 'Pie' }, { realScale: true })).toBe('blob:x#allowsContentScaling=0&callToAction=Add&checkoutTitle=Pie')
   })
 
   it('adds Quick Look\'s order button with the dish and price', () => {
