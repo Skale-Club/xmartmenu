@@ -1,4 +1,4 @@
-# AGENTS.md - xmartmenu
+# AGENTS.md - xmartmenu (product name: Xprout)
 
 <!-- journal-protocol:v1 -->
 ## Journal (mandatory)

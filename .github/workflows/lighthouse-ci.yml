@@ -1,6 +1,6 @@
 # Lighthouse — production health (informational)
 #
-# Audits the site that is LIVE (xmartmenu.skale.club), so it reports the state
+# Audits the site that is LIVE (xprout.app), so it reports the state
 # of production, not of the pull request: a PR cannot turn it green and should
 # not be blocked by it. The merge gate is the Lighthouse step inside the e2e
 # job of ci.yml, which audits the PR's own build against the local database.
