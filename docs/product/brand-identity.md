@@ -6,6 +6,16 @@ Source of truth for the product's own name and colours. Decided by the owner on 
 
 **Xprout** ("es-prout" = sprout), main address **https://xprout.app**. Why and how it was chosen: [brand-name-decision.md](brand-name-decision.md). Code constant: `src/lib/brand.ts`.
 
+## Logo pack v1
+
+On 2026-11-13 the owner approved the minimally cleaned organic X symbol (v7) and requested a consolidated logo pack and brand manual. The logo reads **Xprout**, without `.app`; **xprout.app** remains the web address. Preserve the approved symbol path, inner spoon-bowl spaces, center opening and handle proportions. Do not redraw it to enforce symmetry or narrow its interior.
+
+Versioned vector masters, outline/layout data and editable manual text live in [the v1 source folder](../brand/xprout/v1/README.md). The complete generated pack is `output/branding/xprout/xprout-brand-pack-v1.zip`, with a ten-page PDF manual, four-page vector print master, horizontal/stacked/wordmark/symbol versions, transparent PNGs, icons, favicon and licensed support fonts. Its SVG lettering is outlined from the selected reference and requires no installed font.
+
+The manual defines clear space as one quarter of the visible symbol height, already included in the logo SVG artboards. Supporting editorial type is Fraunces Semibold; body/UI support is Inter. This is a brand-asset handoff: no runtime logo, customer-menu typography or production settings were changed. Platform integration and release remain separate work.
+
+Owner-designated delivery location (2026-11-13): `N:\My Drive\Xprout\Brand`. The former `N:\My Drive\XmartMenu` folder was renamed to `Xprout`, preserving its existing contents. The complete extracted pack, ZIP, standalone manual and vector print PDF are stored under `Brand`; repository/output paths above remain the local source/build locations. Future brand deliverables belong in this Drive folder.
+
 ## Colours
 
 The red `#F52323` is retired. The brand has two colours:
