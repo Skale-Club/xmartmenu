@@ -1,8 +1,8 @@
 # Menu image framing
 
-## Current status: approved composition, catalog rollout in progress
+## Current status: published across all three restaurants
 
-The owner approved the revised picanha v2 continuous full-bleed feed screenshot, then requested this treatment for all 57 products: Aurora 20, Bella Vista 19, Celes Confections 18 (including two unavailable products), together with corrected main images. The composition is approved; generation, encoded-file verification and full catalog review are in progress. No complete production rollout or runtime deployment is claimed here.
+Published on 2026-11-13 after the owner approved the picanha v2 feed and requested all products plus main photos: Aurora 20, Bella Vista 19 and Celes Confections 18. All 57 products have a main and feed source; the two unavailable Celes products remain unavailable. The 114 WebP assets total 9,882,190 bytes, each at most 100KiB. Runtime release `a9f2361` passed CI and production readiness. Public verification covers 55 visible products across four menus, including Bella's separate drinks menu, and 57 responsive thumbnails. See the [versioned sources, prompts and published hashes](../media/menu-photo-batches/2026-11-13.json).
 
 Keep the actual dish/serving visually centered and understandable, including its complete rim/base/garnish, without a caption collision. Centering the image element alone is insufficient when the subject is off-center. Review actual short/tall feed viewports and normal cards, featured cards and detail.
 
@@ -12,11 +12,11 @@ Use the standardized [photo recipe](menu-photo-recipe.md), version `feed-v2-main
 
 `products.feed_image_url` is optional/nullable and supplies the authored feed still when present. `image_url` and `image_urls` stay the main/gallery role; portraits never enter the ordinary carousel. Existing videos remain in the feed. Missing feed URLs fall back to the existing gallery/media using full-scene cover, with no inset.
 
-The prepared runtime uses one immediate cover image in `DishPhoto`, including the explicit feed source. It has no image-load aspect switch, measured inset fallback, duplicate decorative blur or drift/zoom. Detail and featured crops retain their container geometry and remove the earlier 15%/18% top bias. Upstream endless feed navigation, guest-controlled dish changes, horizontal media track, shared DishHeading and tenant color roles are preserved.
+The runtime uses one immediate cover image in `DishPhoto`, including the explicit feed source. It has no image-load aspect switch, measured inset fallback, duplicate decorative blur or drift/zoom. Detail and featured crops retain their container geometry and remove the earlier 15%/18% top bias. Upstream endless feed navigation, guest-controlled dish changes, horizontal media track, shared DishHeading and tenant color roles are preserved.
 
 Both image roles pass the shared WebP encoder and actual photo limits: at most 1200px longest edge and 100KiB. The encoder can reduce dimensions to meet bytes, including 1100px outputs. Source PNGs are retained for recovery/review and are not public delivery files.
 
-The additive owned feed-field migration has been applied by the root operator on the intended owned PostgreSQL host, with schema backup; product assignments and runtime release are separate steps. A present database column does not demonstrate that the complete catalog or deployed app uses it.
+The additive feed-field migration is applied in owned production PostgreSQL, with a schema backup, and in the existing development database. Product assignments were committed atomically after all 114 public uploads passed byte/hash checks. Other product fields and all 16 existing 3D records were verified unchanged. Old objects, the prior references and a guarded rollback procedure remain available.
 
 ## Review evidence
 
@@ -24,7 +24,7 @@ Picanha pilot history: `output/feed-framing/fullbleed/picanha-feed-v1.png` and i
 
 Current catalog artifacts, exact expanded prompts, sources, hashes, role metadata and contact sheets are under `output/catalog-photo-rollout/`. The `review/` harness uses actual latest MenuFeed, ProductModal and DishPhoto with exported real descriptions, prices, tags and tenant colors. It captures all available products at 360×640, 390×844 and 430×932, plus main 4:3/square/3:4 crops and detail. Its README documents the Next Image/AR stubs and single-product fixture limits. Geometry checks are not automatic food detection, delivery/CDN verification or production proof.
 
-First review covers a bowl (Porcini Risotto), dessert (Lemon) and tall drink (Aperol Spritz). At 360×640 their serving remains complete and clear of the caption; Aperol's base-to-caption gap is tight and needs continued attention across the catalog. Full 57-product visual acceptance, final bytes, guest delivery and publication verification remain open.
+Final local review covers all 57 products: 285 screenshots and 171 feed checks, with complete servings across three phone sizes plus normal crops and detail. Four Bella feed scenes were regenerated to restore full side rims. Real production verification then checked all 55 visible feed sources, centered main images in three actual detail sheets, and all 57 responsive 256px thumbnails (3,062–12,828 bytes). Evidence: `output/catalog-photo-rollout/review/final-catalog-qa.json`, `live-verification.json` and `live/`. Browser checks do not substitute for physical-device or expanded-description testing.
 
 ## Earlier contained layout: rejected
 
@@ -62,4 +62,4 @@ The public menu returned all 20 new lightweight URLs. Measured 256px mobile thum
 
 After visual comparison across all 20 Aurora products at 360×640, the reviewed shared crop is `object-position: center 65%` **only for an explicit `feed_image_url` source**. URL role matching happens before any image load; no aspect detection or per-dish CSS is involved. Main/gallery images and legacy feed fallbacks remain centered. With a 9:20 source, this moves the scene up about 24px on 360×640 and only about 3.4px on 390×844, preserving the approved taller-screen composition while improving dense-caption clearance.
 
-The long Filet Madeira title was the limiting first-pass case: at centered cover its recipe rectangle overlapped the first caption by about 19.6px; the shared 65% crop leaves about 4.4px conservative clearance (the actual plate rim has more space). Mojito and Cola garnish remained clear of header/progress controls in visual review. Evidence is retained under `output/catalog-photo-rollout/review/crop-65/`. Recipe bounds are not food detection. Long captions, expanded details and each remaining catalog image still need visual QA; this refinement is not proof of a completed production rollout.
+The long Filet Madeira title was the limiting first-pass case: at centered cover its recipe rectangle overlapped the first caption by about 19.6px; the shared 65% crop leaves about 4.4px conservative clearance (the actual plate rim has more space). Mojito and Cola garnish remained clear of header/progress controls in visual review. Evidence is retained under `output/catalog-photo-rollout/review/crop-65/`. Recipe bounds are not food detection. The final 57-product catalog passed the three viewport checks and public delivery verification. Expanded-description extremes, landscape and physical devices still require separate review.
