@@ -1,6 +1,6 @@
 name: Final cutover (Supabase to own PostgreSQL)
 
-# One operation, only from main, started by hand. See docs/xmartmenu-final-cutover.md.
+# One operation, only from main, started by hand. See docs/xprout-final-cutover.md.
 #   plan      read only; prints counts
 #   apply     stop app, freeze Supabase, copy, SQL proposals, login, env, one deploy, verify
 #   rollback  only while the own database has no new writes
@@ -53,7 +53,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           policy="$(gh api "repos/${GITHUB_REPOSITORY}/environments/final-cutover" --jq '.deployment_branch_policy.custom_branch_policies // false' 2>/dev/null || echo unreadable)"
-          [[ "${policy}" == "true" ]] || { echo "::error::Environment final-cutover must restrict deployments to selected branches (main); see docs/xmartmenu-final-cutover.md."; exit 1; }
+          [[ "${policy}" == "true" ]] || { echo "::error::Environment final-cutover must restrict deployments to selected branches (main); see docs/xprout-final-cutover.md."; exit 1; }
 
       - name: Guard (apply and rollback)
         if: inputs.mode != 'plan'
