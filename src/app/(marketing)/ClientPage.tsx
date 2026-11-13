@@ -3,8 +3,10 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { LazyMotion, domAnimation, m } from 'framer-motion'
 import Image from 'next/image'
-import { Globe, QrCode, Sparkles, ShoppingCart, ChevronDown, Camera, MessageCircle, UserPlus, UtensilsCrossed, ArrowRight, Sandwich, CupSoda, Zap, Star, ChefHat, CreditCard, BookOpen, Coffee, BarChart2, Search, Palette, ClipboardList, Link2 } from 'lucide-react'
+import { Globe, QrCode, Sparkles, ShoppingCart, ChevronDown, MessageCircle, UserPlus, UtensilsCrossed, ArrowRight, Sandwich, CupSoda, Zap, Star, ChefHat, CreditCard, BookOpen, Coffee, BarChart2, Search, Palette, ClipboardList, Link2 } from 'lucide-react'
 import dynamic from 'next/dynamic'
+import { Nav, Footer, type FooterData } from '@/components/marketing/MarketingChrome'
+import { PROJECTS, PLANS, PRICING_PATH, formatUsd } from '@/lib/marketing/pricing'
 
 const AdminLoginModal = dynamic(() => import('@/components/auth/AdminLoginModal'), { ssr: false })
 
@@ -39,10 +41,6 @@ interface CtaData {
   text?: string
   button?: string
   bg_image_url?: string
-}
-
-interface FooterData {
-  copyright?: string
 }
 
 // ─── Section data ───────
@@ -93,8 +91,8 @@ const features = [
 
 const faqs = [
   {
-    q: 'Is it free?',
-    a: "Yes, XmartMenu is free during beta. We'll announce pricing changes with advance notice.",
+    q: 'How much does it cost?',
+    a: `Every menu is built by our team. Projects start at ${formatUsd(PROJECTS.diy.launch)} and plans at ${formatUsd(PLANS.menu.monthly)}/month. See the pricing page for the full list.`,
   },
   {
     q: 'Do I need a developer?',
@@ -160,33 +158,6 @@ function getIcon(name: string): React.ComponentType<{ className?: string }> {
 }
 
 // ─── Components ──────────────────────────────────────────────────────────────
-
-function Nav({ appName, logoUrl, onLoginOpen }: { appName?: string | null; logoUrl?: string | null; onLoginOpen: () => void }) {
-  return (
-    <m.nav
-      initial={{ y: -100 }}
-      animate={{ y: 0 }}
-      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed top-0 inset-x-0 z-50 h-16 border-b border-white/10 bg-zinc-950/50 backdrop-blur-xl flex items-center px-4 sm:px-6"
-    >
-      <div className="mx-auto flex w-full max-w-[1320px] items-center justify-between px-0 sm:px-8">
-        <div className="flex items-center gap-3">
-          <a href="/" className="flex items-center gap-3">
-            <Image src={logoUrl ?? '/icon.png'} alt="Logo" width={32} height={32} className="w-8 h-8 object-contain object-center" />
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-200">{appName ?? 'XmartMenu'}</span>
-          </a>
-        </div>
-        <button
-          onClick={onLoginOpen}
-          className="relative group overflow-hidden bg-primary text-primary-foreground px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2"
-        >
-          <span className="relative z-10">Start</span>
-          <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
-        </button>
-      </div>
-    </m.nav>
-  )
-}
 
 /**
  * The hero background video is decoration, and the production file weighs
@@ -488,6 +459,37 @@ function FAQ() {
   )
 }
 
+function PricingTeaser() {
+  return (
+    <section className="px-4 pb-[86px]">
+      <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
+        <m.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="relative overflow-hidden rounded-[1.25rem] border border-white/25 bg-white/10 backdrop-blur-sm p-8 sm:p-12 text-center"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-transparent pointer-events-none" />
+          <div className="relative z-10 flex flex-col items-center gap-5">
+            <h2 className="text-2xl sm:text-4xl font-bold text-white">
+              Menu websites from {formatUsd(PROJECTS.diy.launch)}
+            </h2>
+            <p className="max-w-xl text-zinc-400">
+              We build it, you approve it, we keep it updated. Plans from {formatUsd(PLANS.menu.monthly)}/month.
+            </p>
+            <a
+              href={PRICING_PATH}
+              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+            >
+              See pricing <ArrowRight className="w-5 h-5" />
+            </a>
+          </div>
+        </m.div>
+      </div>
+    </section>
+  )
+}
+
 function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOpen: () => void }) {
   const heading = data?.heading ?? 'Ready to get started?'
   const text = data?.text ?? 'Join the first restaurants using XmartMenu and transform your customer experience today.'
@@ -548,68 +550,6 @@ function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOp
   )
 }
 
-function Footer({ data, appName, logoUrl }: { data?: FooterData | null; appName?: string | null; logoUrl?: string | null }) {
-  const brandName = appName ?? 'XmartMenu'
-  const copyright = data?.copyright ? `© ${data.copyright}` : '© 2026 XmartMenu. All rights reserved.'
-
-  return (
-    <footer className="border-t border-white/10 bg-zinc-950 px-4 pt-16 md:pt-32 lg:pt-16 pb-8">
-      <div className="mx-auto max-w-[1320px] px-4 sm:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
-          {/* Logo + tagline */}
-          <div>
-            <div className="flex items-center gap-3 mb-4">
-              <Image src={logoUrl ?? '/icon.png'} alt="Logo" width={24} height={24} className="w-6 h-6 object-contain object-center" />
-              <span className="text-lg font-bold text-white">{brandName}</span>
-            </div>
-            <p className="text-zinc-400 text-sm whitespace-nowrap">
-              Digital menu for restaurants. Modernize the way your customers order.
-            </p>
-            {/* Social icons */}
-            <div className="flex gap-4 mt-6">
-              <a
-                href="#"
-                aria-label="Instagram"
-                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-primary hover:border-primary/50 transition-colors"
-              >
-                <Camera className="w-5 h-5" />
-              </a>
-              <a
-                href="#"
-                aria-label="WhatsApp"
-                className="w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400 hover:text-primary hover:border-primary/50 transition-colors"
-              >
-                <MessageCircle className="w-5 h-5" />
-              </a>
-            </div>
-          </div>
-          {/* Legal links */}
-          <div className="md:text-right">
-            <p className="text-sm font-bold text-white uppercase tracking-wider mb-4">Legal</p>
-            <ul className="flex flex-col md:items-end gap-3">
-              <li>
-                <a href="/privacy" className="text-sm text-zinc-400 hover:text-white transition-colors">
-                  Privacy Policy
-                </a>
-              </li>
-              <li>
-                <a href="/terms" className="text-sm text-zinc-400 hover:text-white transition-colors">
-                  Terms of Service
-                </a>
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-zinc-500">
-            {copyright}
-          </p>
-        </div>
-      </div>
-    </footer>
-  )
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ClientLandingPage({ platformLanding, appName, logoUrl }: { platformLanding?: any; appName?: string | null; logoUrl?: string | null }) {
@@ -625,6 +565,7 @@ export default function ClientLandingPage({ platformLanding, appName, logoUrl }:
         <HowItWorks data={platformLanding?.how_it_works} />
         <FeatureBlocks data={platformLanding?.features} />
         <FAQ />
+        <PricingTeaser />
         <FooterCTABand data={platformLanding?.cta} onLoginOpen={() => setLoginOpen(true)} />
       </main>
       <Footer data={platformLanding?.footer} appName={appName} logoUrl={logoUrl} />
