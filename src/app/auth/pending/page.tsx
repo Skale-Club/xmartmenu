@@ -1,4 +1,5 @@
-﻿import { DeliveryImage } from '@/components/delivery-image'
+import { platformLogoUrl } from '@/lib/platform-brand'
+import { DeliveryImage } from '@/components/delivery-image'
 import { Clock } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/server'
 import { platformSettingsOwned } from '@/lib/data/platform-settings'
@@ -9,19 +10,19 @@ async function pendingLogoUrl(): Promise<string> {
     try {
       const { readOwnedPlatformSettings } = await import('@/lib/data/platform-settings-runtime')
       const favicon = (await readOwnedPlatformSettings(['favicon_url']))?.favicon_url
-      return typeof favicon === 'string' && favicon ? favicon : '/icon.png'
-    } catch { return '/icon.png' }
+      return platformLogoUrl(typeof favicon === 'string' ? favicon : null)
+    } catch { return platformLogoUrl() }
   }
   const service = createServiceClient()
   const { data: ps } = await service.from('platform_settings').select('favicon_url').single()
-  return ps?.favicon_url ?? '/icon.png'
+  return platformLogoUrl(ps?.favicon_url)
 }
 
 export default async function PendingPage() {
   const logoUrl = await pendingLogoUrl()
 
   return (
-    <div className="platform-dark min-h-screen flex items-center justify-center bg-zinc-950 px-4">
+    <div className="platform-dark relative overflow-clip min-h-screen flex items-center justify-center bg-zinc-950 px-4">
       {/* Background Glows */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] opacity-40 pointer-events-none" />
 

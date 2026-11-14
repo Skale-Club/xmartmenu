@@ -5,6 +5,8 @@ import Image from 'next/image'
 import { m } from 'framer-motion'
 import { ArrowRight, Camera, MessageCircle } from 'lucide-react'
 import { PRICING_PATH } from '@/lib/marketing/pricing'
+import PlatformSignature from '@/components/branding/PlatformSignature'
+import { isDefaultPlatformLogo, platformLogoUrl } from '@/lib/platform-brand'
 
 // Shared by the marketing home and /pricing. Render inside a <LazyMotion strict>.
 
@@ -23,26 +25,28 @@ export function Nav({ appName, logoUrl, onLoginOpen, startHref }: { appName?: st
       <div className="mx-auto flex w-full max-w-[1320px] items-center justify-between px-0 sm:px-8">
         <div className="flex items-center gap-3">
           <a href="/" className="flex items-center gap-3">
-            <Image src={logoUrl ?? '/icon.png'} alt="Logo" width={32} height={32} className="w-8 h-8 object-contain object-center" />
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-platform-ivory to-zinc-200">{appName ?? BRAND_NAME}</span>
+            {(appName ?? BRAND_NAME) === BRAND_NAME && isDefaultPlatformLogo(logoUrl) ? <PlatformSignature tone="ivory" /> : <>
+              <Image src={platformLogoUrl(logoUrl)} alt="" width={32} height={32} className="w-8 h-8 object-contain object-center" />
+              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-platform-ivory to-zinc-200">{appName ?? BRAND_NAME}</span>
+            </>}
           </a>
         </div>
         <div className="flex items-center gap-2 sm:gap-4">
           <a
             href={PRICING_PATH}
-            className="text-sm font-semibold text-zinc-300 hover:text-platform-ivory transition-colors px-2 py-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-on-dark"
+            className="text-sm font-semibold text-zinc-300 hover:text-platform-ivory transition-colors px-0 sm:px-2 py-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-on-dark"
           >
             Pricing
           </a>
           {startHref ? (
-            <a href={startHref} className="relative group overflow-hidden bg-primary text-primary-foreground px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2">
+            <a href={startHref} className="relative group overflow-hidden bg-primary text-primary-foreground px-2 sm:px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2">
               <span className="relative z-10">Start</span>
-              <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="hidden sm:block w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
             </a>
           ) : (
-            <button onClick={onLoginOpen} className="relative group overflow-hidden bg-primary text-primary-foreground px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2">
+            <button onClick={onLoginOpen} className="relative group overflow-hidden bg-primary text-primary-foreground px-2 sm:px-5 py-2 rounded-full text-sm font-bold transition-all hover:scale-105 active:scale-95 inline-flex items-center gap-2">
               <span className="relative z-10">Start</span>
-              <ArrowRight className="w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
+              <ArrowRight className="hidden sm:block w-4 h-4 relative z-10 group-hover:translate-x-1 transition-transform" />
             </button>
           )}
         </div>
@@ -62,10 +66,12 @@ export function Footer({ data, appName, logoUrl }: { data?: FooterData | null; a
           {/* Logo + tagline */}
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <Image src={logoUrl ?? '/icon.png'} alt="Logo" width={24} height={24} className="w-6 h-6 object-contain object-center" />
-              <span className="text-lg font-bold text-platform-ivory">{brandName}</span>
+              {brandName === BRAND_NAME && isDefaultPlatformLogo(logoUrl) ? <PlatformSignature tone="ivory" /> : <>
+                <Image src={platformLogoUrl(logoUrl)} alt="" width={24} height={24} className="w-6 h-6 object-contain object-center" />
+                <span className="text-lg font-bold text-platform-ivory">{brandName}</span>
+              </>}
             </div>
-            <p className="text-zinc-400 text-sm whitespace-nowrap">
+            <p className="text-zinc-400 text-sm">
               Digital menu for restaurants. Modernize the way your customers order.
             </p>
             {/* Social icons */}

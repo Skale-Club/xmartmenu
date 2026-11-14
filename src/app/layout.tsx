@@ -4,6 +4,7 @@ import { Inter } from 'next/font/google'
 import { getPlatformAppearance } from '@/lib/data/platform-appearance-runtime'
 import { platformColors } from '@/lib/platform-colors'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
+import { platformMetadataIcons } from '@/lib/platform-metadata'
 import './globals.css'
 
 const inter = Inter({
@@ -37,14 +38,12 @@ export async function generateMetadata(): Promise<Metadata> {
       statusBarStyle: 'default',
       title: BRAND_NAME,
     },
-    icons: ps?.favicon_url
-      ? { icon: ps.favicon_url, shortcut: ps.favicon_url, apple: '/icons/apple-touch-icon.png' }
-      : { apple: '/icons/apple-touch-icon.png' },
+    icons: platformMetadataIcons(ps?.favicon_url),
     openGraph: {
       type: 'website',
       locale: 'en_US',
       siteName: BRAND_NAME,
-      images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: BRAND_NAME }],
+      images: [{ url: '/opengraph-image?v=xprout-v1', width: 1200, height: 630, alt: BRAND_NAME }],
     },
     twitter: { card: 'summary_large_image' },
   }

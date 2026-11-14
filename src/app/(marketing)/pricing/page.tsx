@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   title: { absolute: title },
   description,
   alternates: { canonical: '/pricing' },
-  openGraph: { title, description, url: '/pricing', type: 'website', images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: title }] },
-  twitter: { card: 'summary_large_image', title, description, images: ['/opengraph-image'] },
+  openGraph: { title, description, url: '/pricing', type: 'website', images: [{ url: '/opengraph-image?v=xprout-v1', width: 1200, height: 630, alt: title }] },
+  twitter: { card: 'summary_large_image', title, description, images: ['/opengraph-image?v=xprout-v1'] },
 }
 
 export default function PricingPage() {

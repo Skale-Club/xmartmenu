@@ -1,5 +1,7 @@
 'use client'
 
+import { platformLogoUrl } from '@/lib/platform-brand'
+
 export const dynamic = 'force-dynamic'
 
 import { DeliveryImage } from '@/components/delivery-image'
@@ -17,7 +19,7 @@ export default function LegacyLogin() {
   const [password, setPassword] = useState('')
   const [emailLoading, setEmailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [logoUrl, setLogoUrl] = useState('/icon.png')
+  const [logoUrl, setLogoUrl] = useState(platformLogoUrl())
   const router = useRouter()
 
   useEffect(() => {

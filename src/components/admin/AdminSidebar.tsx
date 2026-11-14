@@ -1,4 +1,6 @@
-﻿'use client'
+'use client'
+
+import { platformLogoUrl } from '@/lib/platform-brand'
 
 import { BRAND_NAME } from '@/lib/brand'
 import { DeliveryImage } from '@/components/delivery-image'
@@ -148,8 +150,8 @@ export default function AdminSidebar({
     <aside className="flex h-full w-full flex-col border-r border-zinc-800 bg-zinc-950 text-zinc-400">
       <div className="border-b border-zinc-800/50 p-6 pr-16 lg:pr-6">
         <div className="flex items-center gap-2.5 mb-4">
-          {/* The platform icon (crossed fork and knife) needs room: at 24 px it read as an "X". */}
-          <DeliveryImage src={logoUrl ?? '/icon.png'} width={32} height={32} sizes="32px" alt="" className="size-8 rounded-lg object-contain object-center" />
+          {/* Reserve a consistent slot for the configured platform symbol. */}
+          <DeliveryImage src={platformLogoUrl(logoUrl)} width={32} height={32} sizes="32px" alt="" className="size-8 rounded-lg object-contain object-center" />
           <Link href="/" className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] hover:text-primary transition-colors">{appName}</Link>
         </div>
         <p className="text-lg font-black text-white truncate tracking-tight">{tenantName}</p>

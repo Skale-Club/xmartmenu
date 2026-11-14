@@ -1,6 +1,7 @@
 'use client'
 
 import { DeliveryImage } from '@/components/delivery-image'
+import { platformLogoUrl } from '@/lib/platform-brand'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { googleProof, phoneProof, type IdentityWebConfig } from '@/lib/auth/identity-browser'
 import { requireLoginAuthority } from '@/lib/auth/browser-login-authority'
@@ -296,7 +297,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
       <section aria-labelledby="identity-title" className="relative">
         <div className="mb-8 text-center">
 
-          {platformLogo ? <DeliveryImage src={platformLogo} width={48} height={48} sizes="48px" alt="" className="mx-auto mb-5 size-12 object-contain" /> : <span aria-hidden="true" className="mx-auto mb-5 block size-12 rounded-xl bg-primary" />}
+          <DeliveryImage src={platformLogoUrl(platformLogo)} width={48} height={48} sizes="48px" alt="" className="mx-auto mb-5 size-12 object-contain" />
           <h1 id="identity-title" className="text-2xl font-black tracking-tight">Xprout</h1>
           <p className="mt-2 text-sm font-bold text-zinc-400">{sent ? `Enter the code we sent to ${phoneLabel(sentPhone) || sentPhone}` : 'Sign in to your menu dashboard'}</p>
         </div>

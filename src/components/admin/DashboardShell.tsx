@@ -1,5 +1,7 @@
 'use client'
 
+import { platformLogoUrl } from '@/lib/platform-brand'
+
 import { ReactNode, useEffect, useState } from 'react'
 import Image from 'next/image'
 import { Menu, X } from 'lucide-react'
@@ -55,7 +57,7 @@ export default function DashboardShell({
           <Menu className="size-5" />
         </button>
         <Image
-          src={logoUrl ?? '/icon.png'}
+          src={platformLogoUrl(logoUrl)}
           alt=""
           width={32}
           height={32}

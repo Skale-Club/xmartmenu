@@ -1,3 +1,4 @@
+import { platformMetadataIcons } from '@/lib/platform-metadata'
 import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
 import type { Metadata } from 'next'
 import type { CSSProperties } from 'react'
@@ -59,7 +60,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: 'website',
       images: [
         {
-          url: '/opengraph-image',
+          url: '/opengraph-image?v=xprout-v1',
           width: 1200,
           height: 630,
           alt: title,
@@ -70,10 +71,10 @@ export async function generateMetadata(): Promise<Metadata> {
       card: 'summary_large_image',
       title,
       description,
-      images: ['/opengraph-image'],
+      images: ['/opengraph-image?v=xprout-v1'],
       ...(ps?.twitter_handle ? { site: ps.twitter_handle, creator: ps.twitter_handle } : {}),
     },
-    icons: ps?.favicon_url ? { icon: ps.favicon_url, shortcut: ps.favicon_url } : undefined,
+    icons: platformMetadataIcons(ps?.favicon_url),
   }
 }
 

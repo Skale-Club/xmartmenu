@@ -1,5 +1,7 @@
 'use client'
 
+import { platformLogoUrl } from '@/lib/platform-brand'
+
 import { DeliveryImage } from '@/components/delivery-image'
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -13,7 +15,7 @@ function RegisterForm() {
   const from = searchParams.get('from') ?? '/'
   const isQrFlow = from !== '/' && !from.startsWith('/auth')
 
-  const [logoSrc, setLogoSrc] = useState('/icon.png')
+  const [logoSrc, setLogoSrc] = useState(platformLogoUrl())
   const [googleLoading, setGoogleLoading] = useState(false)
 
   useEffect(() => {
