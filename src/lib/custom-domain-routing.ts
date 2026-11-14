@@ -24,6 +24,7 @@ const GLOBAL_PREFIXES = [
   '/terms',
   '/demo',
   '/_next/',
+  '/brand/xprout/v1/',
   '/.well-known/',
   '/monitoring',
 ]

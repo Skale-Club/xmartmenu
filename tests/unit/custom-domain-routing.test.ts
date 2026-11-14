@@ -30,4 +30,10 @@ describe('resolveCustomDomainRoute', () => {
     expect(route('/apis')).toEqual({ kind: 'rewrite', pathname: '/pizza/apis' })
     expect(route('/checkouts')).toEqual({ kind: 'rewrite', pathname: '/pizza/checkouts' })
   })
+
+  it('serves versioned platform icons on custom domains without capturing menu names', () => {
+    expect(route('/brand/xprout/v1/favicon.ico')).toEqual({ kind: 'pass' })
+    expect(route('/brand/xprout/v1/icon-512.png')).toEqual({ kind: 'pass' })
+    expect(route('/brand/xprout/v10/menu')).toEqual({ kind: 'rewrite', pathname: '/pizza/brand/xprout/v10/menu' })
+  })
 })
