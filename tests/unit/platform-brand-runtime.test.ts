@@ -27,7 +27,7 @@ describe('approved platform identity preserves explicit configuration', () => {
     expect(markup).not.toContain('<span')
   })
   it('uses the signature only for the default Xprout identity in navigation and footer', () => {
-    const nav = (props: Parameters<typeof Nav>[0]) => renderToStaticMarkup(createElement(LazyMotion, { features: domAnimation, children: createElement(Nav, props) }))
+    const nav = (props: Parameters<typeof Nav>[0]) => renderToStaticMarkup(createElement(LazyMotion, { features: domAnimation }, createElement(Nav, props)))
     expect(nav({})).toContain(PLATFORM_BRAND_ASSETS.horizontalIvory)
     expect(nav({ appName: 'Custom', logoUrl: 'https://custom.example/logo.png' })).not.toContain(PLATFORM_BRAND_ASSETS.horizontalIvory)
     expect(nav({ appName: 'Custom' })).toContain('Custom')
