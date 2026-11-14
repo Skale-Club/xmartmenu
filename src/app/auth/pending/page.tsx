@@ -3,6 +3,7 @@ import { DeliveryImage } from '@/components/delivery-image'
 import { Clock } from 'lucide-react'
 import { createServiceClient } from '@/lib/supabase/server'
 import { platformSettingsOwned } from '@/lib/data/platform-settings'
+import { connection } from 'next/server'
 
 async function pendingLogoUrl(): Promise<string> {
   if (platformSettingsOwned()) {
@@ -19,6 +20,8 @@ async function pendingLogoUrl(): Promise<string> {
 }
 
 export default async function PendingPage() {
+  // Appearance comes from live runtime configuration, never the build database.
+  await connection()
   const logoUrl = await pendingLogoUrl()
 
   return (

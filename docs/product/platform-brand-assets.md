@@ -8,7 +8,8 @@ geometry and layouts. It does not depend on ignored `output/` source files.
 
 The script checks the canonical SVG paths against versioned geometry and the
 approved symbol path SHA-256 before rendering. Horizontal and symbol signatures
-are copied byte-for-byte. Raster placements match the approved brand-pack build:
+retain the exact SVG content with LF line endings, independent of the checkout
+platform. Raster placements match the approved brand-pack build:
 ivory symbol on forest square, symbol width 328 of 512 for app icons, 288 for
 maskable icons. The maskable symbol's bounding rectangle fits inside the central
 40%-radius safe circle (conservative corner-radius test); no symbol points move.
@@ -55,7 +56,8 @@ dimensions, MIME expectations, SHA-256 for every artifact and symbol-path hash
 preservation. This edition measured app PNGs at most 13,491 bytes, favicon ICO
 2,390 bytes, social WebP 16,162 bytes and social PNG 28,581 bytes. App 512,
 maskable 512, favicon ICO and social WebP were also compared byte-for-byte with
-the approved pack and matched. Signatures are direct canonical copies.
+the approved pack and matched. Signature paths and lettering are direct canonical
+copies; only Windows CRLF endings are normalized to the repository's LF bytes.
 
 Platform components and metadata use the versioned assets; custom platform logos stay explicit. The default horizontal signature renders only for the Xprout name and default icon. Restaurant colors, tenant logos and menu typography stay unchanged.
 

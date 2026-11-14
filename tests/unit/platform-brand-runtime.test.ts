@@ -5,11 +5,29 @@ import { describe, expect, it } from 'vitest'
 import { isDefaultPlatformLogo, PLATFORM_BRAND_ASSETS, platformLogoUrl } from '@/lib/platform-brand'
 import { platformMetadataIcons } from '@/lib/platform-metadata'
 import PlatformSignature from '@/components/branding/PlatformSignature'
+import IdentityPilot from '@/app/identity/IdentityPilot'
 import { Nav, Footer } from '@/components/marketing/MarketingChrome'
 import manifest from '@/app/manifest'
 import socialImage, { contentType, size } from '@/app/opengraph-image'
 
 describe('approved platform identity preserves explicit configuration', () => {
+  it('renders the approved signature on the actual standalone sign-in and account-link pages', () => {
+    const config = { apiKey: 'public-test-key', projectId: 'synthetic', authDomain: 'synthetic.example' }
+    for (const existingAccountLink of [false, true]) {
+      const markup = renderToStaticMarkup(createElement(IdentityPilot, { config, continueToApp: true, existingAccountLink }))
+      expect(markup).toContain(PLATFORM_BRAND_ASSETS.horizontalIvory)
+      expect(markup).toContain('alt="Xprout"')
+      expect(markup).toContain(existingAccountLink ? 'Link your existing account' : 'Sign in with your phone')
+    }
+    const tenant = renderToStaticMarkup(createElement(IdentityPilot, {
+      config, continueToApp: true, existingAccountLink: true, embedded: true, customerFlow: true,
+      brand: { slug: 'restaurant', name: 'Restaurant identity', logoUrl: '/tenant-logo.png', bannerUrl: null,
+        primaryColor: '#123456', country: 'US', currency: 'usd', lang: 'en' },
+    }))
+    expect(tenant).toContain('Restaurant identity')
+    expect(tenant).toContain('tenant-logo.png')
+    expect(tenant).not.toContain(PLATFORM_BRAND_ASSETS.horizontalIvory)
+  })
   it('selects versioned default assets without silently rewriting old or custom logos', () => {
     expect(platformLogoUrl(null)).toBe(PLATFORM_BRAND_ASSETS.icon)
     expect(isDefaultPlatformLogo(`https://xprout.app${PLATFORM_BRAND_ASSETS.icon}`)).toBe(true)

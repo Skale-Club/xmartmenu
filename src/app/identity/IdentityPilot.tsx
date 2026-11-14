@@ -1,6 +1,7 @@
 'use client'
 
 import { DeliveryImage } from '@/components/delivery-image'
+import PlatformSignature from '@/components/branding/PlatformSignature'
 import { platformLogoUrl } from '@/lib/platform-brand'
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import { googleProof, phoneProof, type IdentityWebConfig } from '@/lib/auth/identity-browser'
@@ -353,7 +354,7 @@ export default function IdentityPilot({ config, continueToApp = false, existingA
     </> : null}
     <section aria-labelledby="identity-title" className={embedded ? 'w-full px-6 pb-6 pt-7' : 'w-full max-w-sm rounded-3xl border border-white/10 bg-zinc-900/60 p-6 sm:p-8'}>
       {!tenantLinkBrand ? <>
-      <p className="mb-6 text-sm font-black tracking-wide">Xprout</p>
+      <PlatformSignature tone="ivory" className="mb-6" />
       <h1 id="identity-title" className="text-2xl font-bold tracking-tight">{existingAccountLink ? 'Link your existing account' : 'Sign in with your phone'}</h1>
       <p className="mt-2 text-sm leading-6 text-zinc-400">{existingAccountLink ? 'Prove your previous account, then verify a phone number or Google account. Your company access stays unchanged.' : 'Verify your number by SMS, or continue with Google.'}</p>
       </> : null}

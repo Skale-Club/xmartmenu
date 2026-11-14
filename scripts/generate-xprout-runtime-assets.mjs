@@ -7,7 +7,6 @@ import sharp from 'sharp'
 // Exact approved v7 paths; only approved pack placement and raster encoding vary.
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const canonical = path.join(root, 'docs/brand/xprout/v1')
-const destination = path.join(root, 'public/brand/xprout/v1')
 const geometry = JSON.parse(await fs.readFile(path.join(canonical, 'geometry.json'), 'utf8'))
 const layouts = JSON.parse(await fs.readFile(path.join(canonical, 'layouts.json'), 'utf8'))
 sharp.concurrency(1)
@@ -52,7 +51,8 @@ const versioned = name => `public/brand/xprout/v1/${name}`
 for (const kind of ['horizontal', 'symbol']) {
   for (const color of ['forest', 'ivory']) {
     const name = `xprout-${kind}-${color}.svg`
-    await save(versioned(name), await fs.readFile(path.join(canonical, name)), 'svg')
+    const svg = (await fs.readFile(path.join(canonical, name), 'utf8')).replace(/\r\n/g, '\n')
+    await save(versioned(name), Buffer.from(svg), 'svg')
   }
 }
 // Approved pack app tile: symbol width 328px; maskable tile: 288px.
