@@ -28,6 +28,20 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); vi.resetAllMocks() })
 const payload = (type = 'checkout.session.completed') => ` { "id": "evt_${randomUUID().replaceAll('-', '')}", "type": "${type}", "data": {"object":{"metadata":{"tenant_id":"${tenant}","kind":"plan"}}} } `
 const request = (raw: string, signature = Stripe.webhooks.generateTestHeaderString({ payload: raw, secret })) => new NextRequest('http://localhost/api/stripe/webhooks', { method: 'POST', body: raw, headers: { 'stripe-signature': signature } })
+it.each([undefined, '', '   '])('rejects an unconfigured webhook secret (%s) before SDK verification or data access', async (configured) => {
+  const raw = payload()
+  // Reproduce the dangerous case: the SDK itself accepts an empty-key HMAC.
+  const forged = Stripe.webhooks.generateTestHeaderString({ payload: raw, secret: configured ?? '' })
+  if (configured === undefined) delete process.env.STRIPE_WEBHOOK_SECRET
+  else vi.stubEnv('STRIPE_WEBHOOK_SECRET', configured)
+  const response = await POST(request(raw, forged), undefined)
+  expect([400, 401]).toContain(response.status)
+  expect(state.raw).not.toHaveBeenCalled()
+  expect(state.owned).not.toHaveBeenCalled()
+  expect(state.source).not.toHaveBeenCalled()
+  expect(state.publish).not.toHaveBeenCalled()
+  expect(state.enqueue).not.toHaveBeenCalled()
+})
 it('verifies byte-exact original raw payload with the actual SDK before native SQL and Source construction', async () => {
   const raw = payload(), response = await POST(request(raw), undefined)
   expect(response.status).toBe(200); expect(await response.json()).toEqual({ received: true })

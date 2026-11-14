@@ -56,12 +56,18 @@ async function handlePOST(request: NextRequest) {
     }
 
     // 2. Verify webhook signature
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+    if (!webhookSecret?.trim()) {
+      log.error('Stripe webhook signing secret is not configured')
+      captureSecurityEvent('Stripe webhook: signing secret is not configured')
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
+    }
     let event
     try {
       event = stripe.webhooks.constructEvent(
         body,
         signature,
-        process.env.STRIPE_WEBHOOK_SECRET!
+        webhookSecret
       )
     } catch (sigError) {
       log.error('Webhook signature verification failed', { err: sigError })
