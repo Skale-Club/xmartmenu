@@ -346,7 +346,7 @@ export default function CheckoutModal({ cart, confirmedCart, currency, lang, cus
                     type="submit"
                     disabled={submittingOrder}
                     style={ctaStyle(primary, onPrimary)}
-                    className={`${ui.cta} h-12 w-full hover:opacity-95 disabled:opacity-60`}
+                    className={`${ui.cta} h-12 w-full  disabled:opacity-60`}
                   >
                     {submittingOrder ? copy.placingOrder : (
                       <>

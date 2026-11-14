@@ -134,7 +134,7 @@ describe('bounded owned order transactions', () => {
       ORDERS_DATABASE_URL: `postgres://runtime:${randomUUID()}@private-db:5432/menu`, ORDERS_DATABASE_SSL: 'disable' })
     expect(pool.options.max).toBe(2)
     expect(pool.options.options).toContain('default_transaction_read_only=on')
-    expect(pool.options.application_name).toBe('xmartmenu-orders')
+    expect(pool.options.application_name).toBe('xprout-orders')
     await pool.end()
   })
   it('keeps READ COMMITTED for RPC retries and converts only P0409 into a safe domain conflict', async () => {

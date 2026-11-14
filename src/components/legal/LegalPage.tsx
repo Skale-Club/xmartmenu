@@ -44,11 +44,12 @@ export default async function LegalPage({ docKey }: { docKey: LegalKey }) {
   const title = legalTitle(docKey, doc)
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-16">
+    <main className="platform-light min-h-screen px-4 py-16">
+      <div className="mx-auto max-w-2xl">
       <h1 className="text-3xl font-bold text-zinc-900 mb-2">{title}</h1>
 
       {doc?.updated_at && (
-        <p className="text-xs text-zinc-400 mb-8">Last updated: {doc.updated_at}</p>
+        <p className="text-xs text-zinc-600 mb-8">Last updated: {doc.updated_at}</p>
       )}
 
       {doc?.body ? (
@@ -60,9 +61,10 @@ export default async function LegalPage({ docKey }: { docKey: LegalKey }) {
       )}
 
       <div className="mt-12">
-        <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-900 transition-colors">
+        <Link href="/" className="text-sm text-zinc-600 hover:text-zinc-900 transition-colors">
           ← Back to home
         </Link>
+      </div>
       </div>
     </main>
   )

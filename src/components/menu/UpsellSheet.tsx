@@ -24,6 +24,7 @@ export default function UpsellSheet({
   lang,
   currency,
   primaryColor,
+  priceColor,
   canQuickAdd,
   onAdd,
   onChoose,
@@ -39,6 +40,7 @@ export default function UpsellSheet({
   lang: string
   currency: string
   primaryColor: string
+  priceColor: string
   canQuickAdd: (product: Product) => boolean
   onAdd: (product: Product) => void
   onChoose: (product: Product) => void
@@ -67,7 +69,7 @@ export default function UpsellSheet({
                 <Check className="size-4" aria-hidden="true" />
                 <span className="truncate">{fill(copy.upsellAdded, { name: triggerName })}</span>
               </p>
-              <p className="mt-0.5 text-[12px] font-semibold uppercase tracking-wide text-zinc-400">
+              <p className="mt-0.5 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
                 {copy.upsellTitle}
                 {steps.length > 1 && <> · {fill(copy.upsellStep, { current: stepIndex + 1, total: steps.length })}</>}
               </p>
@@ -100,7 +102,7 @@ export default function UpsellSheet({
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="line-clamp-2 text-[15px] font-semibold leading-snug text-zinc-900">{product.name}</span>
-                      <span className="mt-0.5 block text-[14px] font-medium tabular-nums text-zinc-600">{formatMoney(product.price, currency, lang)}</span>
+                      <span className="mt-0.5 block text-[14px] font-medium tabular-nums" style={{ color: priceColor }}>{formatMoney(product.price, currency, lang)}</span>
                     </span>
                     {added ? (
                       <span className="flex min-h-10 shrink-0 items-center gap-1 rounded-full bg-emerald-50 px-3 text-[13px] font-semibold text-emerald-700">

@@ -48,7 +48,7 @@ export const XPHERE_STAGES = {
 
 export type XphereStage = (typeof XPHERE_STAGES)[keyof typeof XPHERE_STAGES]
 
-/** Target pipeline in the XmartMenu org — the receiver resolves the stage by name. */
+/** Legacy target pipeline in the Xprout CRM org — the receiver resolves the stage by name. */
 export const XPHERE_PIPELINE = 'XmartMenu Lifecycle'
 
 /** Producing system, inside the shared org model. */
@@ -63,7 +63,7 @@ export const XPHERE_SOURCE = 'xmartmenu'
  * The tenant business + its store-admin owner. The receiver derives an Account
  * (the business) and a Contact (the owner) from this single object, both keyed on
  * `id`. `email` is REQUIRED for the Contact to exist — the CRM identity invariant
- * needs phone OR email and XmartMenu collects no phone, so a null email means the
+ * needs phone OR email and Xprout collects no phone, so a null email means the
  * tenant mirrors as Account+Opportunity with no person.
  */
 export interface XphereCompanyInput {

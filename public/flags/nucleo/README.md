@@ -1,7 +1,7 @@
 # Nucleo flags
 
 Country flags from Nucleo (https://nucleoapp.com/svg-flag-icons), used under the
-Nucleo license inside XmartMenu only. They are not covered by this repository's
+Nucleo license inside Xprout only. They are not covered by this repository's
 license and must not be redistributed as an icon set.
 
 Copied 2026-11-09 from the owner's Stuscle storefront (same set), one file per

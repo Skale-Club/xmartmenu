@@ -4,7 +4,8 @@
  * v2: the old three-step intro (drag, twist, pinch) was replaced by this hint,
  * so browsers that saw v1 still see the new hint once.
  */
-export const AR_GESTURE_ONBOARDING_KEY = 'xmartmenu:ar-move-hint:v2'
+export const AR_GESTURE_ONBOARDING_KEY = 'xprout:ar-move-hint:v2'
+const LEGACY_ONBOARDING_KEY = 'xmartmenu:ar-move-hint:v2'
 
 export interface OnboardingStorage {
   getItem(key: string): string | null
@@ -17,7 +18,9 @@ export function createGestureOnboardingClaim() {
   return (storage?: OnboardingStorage | null): boolean => {
     if (claimed) return false
     try {
-      if (storage?.getItem(AR_GESTURE_ONBOARDING_KEY)) {
+      if (storage?.getItem(AR_GESTURE_ONBOARDING_KEY) || storage?.getItem(LEGACY_ONBOARDING_KEY)) {
+        // Preserve the once-per-browser claim across the product rename.
+        try { storage?.setItem(AR_GESTURE_ONBOARDING_KEY, 'shown') } catch { /* Keep the memory claim. */ }
         claimed = true
         return false
       }

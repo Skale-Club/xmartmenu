@@ -1,5 +1,5 @@
 // npm run db:pull — replace the DEVELOPMENT database (Supabase) with a snapshot of the
-// Xmartmenu database. `npm run dev` never does this on its own; only this explicit
+// Xprout database. `npm run dev` never does this on its own; only this explicit
 // command does.
 //
 // SOURCE CAVEAT: the source is the `xmartmenu` database imported into the shared
@@ -13,7 +13,7 @@
 // 2. Open a temporary SSH tunnel (127.0.0.1 only) and refuse any destination that is not
 //    the declared Supabase development project (DEV_*), or that is a known production
 //    project.
-// 3. Save a JSON backup of the destination (../xmartmenu-db-backups/).
+// 3. Save a JSON backup of the destination (../xprout-db-backups/).
 // 4. Bring the destination schema to the repo's state with the SQL migrations
 //    (scripts/apply-migrations.mjs --apply; never db:push) and compare it with the
 //    source. Any difference aborts before data moves.
@@ -24,9 +24,10 @@
 // 6. Close the tunnel.
 //
 // Settings (none secret), in .env.local / .env:
-//   XMARTMENU_PROD_SSH            ssh target of the host that runs the cluster (e.g. root@<host>)
-//   XMARTMENU_PROD_DB_CONTAINER   PostgreSQL container (default below)
-//   XMARTMENU_PROD_DB_NAME        database inside the cluster (default: xmartmenu)
+//   XPROUT_PROD_SSH            ssh target of the host that runs the cluster (e.g. root@<host>)
+//   XPROUT_PROD_DB_CONTAINER   PostgreSQL container (default below)
+//   XPROUT_PROD_DB_NAME        database inside the cluster (default: xmartmenu)
+//   Legacy XMARTMENU_PROD_* aliases remain supported; XPROUT_PROD_* takes precedence.
 //   DEV_DATABASE_URL, DEV_SUPABASE_PROJECT_REF   the destination, as for npm run dev
 // Flags: --allow-triggers  copy even if user triggers cannot be disabled.
 
@@ -38,17 +39,15 @@ import { resolve } from 'node:path'
 import pg from 'pg'
 import { installDevOutboundGuard } from './lib/dev-outbound-guard.mjs'
 import {
-  assertPullDestination, backupDestination, EXCLUDED_TABLES, pullDatabase, SCRUBBED_COLUMNS,
+  assertPullDestination, backupDestination, DEV_PULL_BACKUP_DIRECTORY, EXCLUDED_TABLES, productionPullSource, pullDatabase, SCRUBBED_COLUMNS,
   SOURCE_CANDIDATE_NOTICE, SOURCE_IS_CANDIDATE,
 } from './lib/dev-db-pull'
 
 dotenv.config({ path: ['.env.local', '.env'], quiet: true })
 
-const SSH_TARGET = process.env.XMARTMENU_PROD_SSH
-const CONTAINER = process.env.XMARTMENU_PROD_DB_CONTAINER || 'e12scyfsrp822dag7m9wwd4x'
-const SOURCE_DB = process.env.XMARTMENU_PROD_DB_NAME || 'xmartmenu'
+const { sshTarget: SSH_TARGET, container: CONTAINER, database: SOURCE_DB } = productionPullSource()
 const TUNNEL_PORT = 55435
-const BACKUP_DIR = resolve(process.cwd(), '..', 'xmartmenu-db-backups')
+const BACKUP_DIR = resolve(process.cwd(), '..', DEV_PULL_BACKUP_DIRECTORY)
 
 function fail(message: string): never {
   throw new Error(message)
@@ -62,8 +61,8 @@ function ssh(remote: string, what: string): string {
 
 /** Private address + credentials of the cluster container, read on the server. */
 function sourceTarget() {
-  if (!/^[a-z0-9]+$/.test(CONTAINER)) fail('XMARTMENU_PROD_DB_CONTAINER must be a plain container name')
-  if (!/^[a-z0-9_]+$/.test(SOURCE_DB)) fail('XMARTMENU_PROD_DB_NAME must be a plain database name')
+  if (!/^[a-z0-9]+$/.test(CONTAINER)) fail('XPROUT_PROD_DB_CONTAINER (or XMARTMENU_PROD_DB_CONTAINER) must be a plain container name')
+  if (!/^[a-z0-9_]+$/.test(SOURCE_DB)) fail('XPROUT_PROD_DB_NAME (or XMARTMENU_PROD_DB_NAME) must be a plain database name')
   const ip = ssh(`docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' ${CONTAINER}`, 'finding the source database')
     .trim().split(/\s+/)[0]
   if (!ip) fail(`container ${CONTAINER} has no network address`)
@@ -110,8 +109,8 @@ function migrateDestination() {
 }
 
 async function main() {
-  console.warn(`! ${SOURCE_IS_CANDIDATE ? SOURCE_CANDIDATE_NOTICE : 'Source: the Xmartmenu production database.'}`)
-  if (!SSH_TARGET) fail('set XMARTMENU_PROD_SSH (the ssh target of the host that runs the cluster)')
+  console.warn(`! ${SOURCE_IS_CANDIDATE ? SOURCE_CANDIDATE_NOTICE : 'Source: the Xprout production database.'}`)
+  if (!SSH_TARGET) fail('set XPROUT_PROD_SSH (or XMARTMENU_PROD_SSH; the ssh target of the host that runs the cluster)')
   const destination = assertPullDestination(process.env)
   // The pull itself only needs loopback (the tunnel) and the development database.
   installDevOutboundGuard({ ...process.env, NODE_ENV: 'development' })

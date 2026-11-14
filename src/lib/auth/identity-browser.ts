@@ -20,7 +20,7 @@ async function client(config: IdentityWebConfig) {
     // Validate key-to-project ownership before importing/initializing any SDK
     // that can create an account or send SMS. Merely labelling a key DEV is not proof.
     const [app, sdk] = await Promise.all([import('firebase/app'), import('firebase/auth')])
-    const name = `xmartmenu-identity-${config.projectId}`
+    const name = `xprout-identity-${config.projectId}`
     const existing = app.getApps().find(candidate => candidate.name === name)
     if (existing && existing.options.apiKey !== config.apiKey) throw new Error('Reload to use the updated sign-in configuration')
     const instance = existing ?? app.initializeApp(config, name)

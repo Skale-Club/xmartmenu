@@ -172,7 +172,7 @@ export default function CartPanel({
               type="button"
               onClick={onCheckout}
               style={ctaStyle(primaryColor, onPrimary)}
-              className={`${ui.cta} h-12 w-full hover:opacity-95`}
+              className={`${ui.cta} h-12 w-full `}
             >
               {copy.checkout}
               <ArrowRight className="size-5" />

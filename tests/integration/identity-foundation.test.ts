@@ -3,8 +3,8 @@ import { after, before, test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import pg from 'pg'
-import { buildFoundationSql, foundationTransaction } from '../../scripts/ops/prepare-xmartmenu-identity-foundation.mjs'
-import { assertManifest, MANIFEST_SQL, SOURCE_PROJECT, TABLES } from '../../scripts/ops/xmartmenu-source-protocol.mjs'
+import { buildFoundationSql, foundationTransaction } from '../../scripts/ops/prepare-xprout-identity-foundation.mjs'
+import { assertManifest, MANIFEST_SQL, SOURCE_PROJECT, TABLES } from '../../scripts/ops/xprout-source-protocol.mjs'
 
 const raw = process.env.IDENTITY_TEST_DATABASE_URL
 if (!raw) throw Error('Explicit disposable CI target required')
@@ -122,7 +122,7 @@ test('fresh seven exact accounts commit without anon and preserve UUIDs, control
 
 test('retry refuses existing foundation instead of replaying migrations or enabling accounts', async () => {
   // The old baseline is enough to compile; preflight must refuse before DDL.
-  const { preservedManifestSql } = await import('../../scripts/ops/prepare-xmartmenu-identity-foundation.mjs')
+  const { preservedManifestSql } = await import('../../scripts/ops/prepare-xprout-identity-foundation.mjs')
   const state = assertManifest((await db.query(preservedManifestSql())).rows[0].manifest)
   await assert.rejects(db.query(await buildFoundationSql(state)), /Identity foundation preflight refused/)
   await db.query('ROLLBACK')

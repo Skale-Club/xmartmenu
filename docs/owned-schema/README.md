@@ -29,7 +29,7 @@ GitHub › Actions › **Owned schema** › Run workflow (branch `main`):
 2. `mode=apply`, `confirm_sha` = first 8 characters of the main commit
    (needs a green CI run on that commit).
 
-The workflow ships `scripts/ops/xmartmenu-owned-schema.py` and these files to
+The workflow ships `scripts/ops/xprout-owned-schema.py` and these files to
 the PostgreSQL host over SSH (`CUTOVER_SSH_*` secrets, `final-cutover`
 environment) and runs it as root. Apply takes the operator lock and refuses
 while the cutover or an Xmail deploy holds its lock, writes a schema-only
@@ -39,5 +39,5 @@ file through `psql` in the PostgreSQL container as `xmail_owner` →
 Output is `xmartmenu-owned-schema key=value` lines only (no SQL text, no
 secrets; errors as SQLSTATE).
 
-Tests: `python3 -B scripts/ops/test_xmartmenu_owned_schema.py` (CI job
+Tests: `python3 -B scripts/ops/test_xprout_owned_schema.py` (CI job
 `owned-schema-postgres` also runs them against a disposable PostgreSQL 17).

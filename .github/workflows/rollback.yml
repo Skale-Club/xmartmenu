@@ -21,7 +21,8 @@ permissions:
   actions: read
 
 env:
-  IMAGE_NAME: ghcr.io/skale-club/xmartmenu
+  IMAGE_NAME: ghcr.io/skale-club/xprout
+  LEGACY_IMAGE_NAME: ghcr.io/skale-club/xmartmenu
   APP_UUID: gmaayluj11x1m6j7baogonfn
   COOLIFY_BASE: https://coolify.skale.club
   PUBLIC_URL: https://xprout.app
@@ -52,7 +53,14 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: The image exists
-        run: docker manifest inspect "${IMAGE_NAME}:${{ inputs.sha }}" > /dev/null
+        run: |
+          # Old validated SHAs may exist only in the original package.
+          repository="${IMAGE_NAME}"
+          if ! docker manifest inspect "${repository}:${{ inputs.sha }}" > /dev/null 2>&1; then
+            repository="${LEGACY_IMAGE_NAME}"
+            docker manifest inspect "${repository}:${{ inputs.sha }}" > /dev/null
+          fi
+          echo "IMAGE_REPOSITORY=${repository}" >> "$GITHUB_ENV"
 
       - name: Deploy this SHA with Coolify
         env:

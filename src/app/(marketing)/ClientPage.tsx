@@ -118,7 +118,7 @@ const faqs = [
 
 function FoodDrinkCombo({ className }: { className?: string }) {
   const base = className?.replace(/w-\S+|h-\S+/g, '').trim()
-  const iconClassName = `w-4 h-4 ${(base || 'text-primary')}`.trim()
+  const iconClassName = `w-4 h-4 ${(base || 'text-primary-on-dark')}`.trim()
 
   return (
     <span className="inline-flex items-center gap-0.5">
@@ -260,27 +260,27 @@ function Hero({ s, onLoginOpen }: { s: HeroSettings; onLoginOpen: () => void }) 
       {bgType === 'color' && (
         <>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-primary/10 rounded-full blur-[120px] opacity-40 pointer-events-none" />
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-yellow-400/5 rounded-full blur-[100px] opacity-30 pointer-events-none" />
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[100px] opacity-30 pointer-events-none" />
         </>
       )}
 
       <div className="relative z-10 mx-auto max-w-[1320px] px-4 pb-12 pt-20 text-center sm:px-8">
         <div>
-          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/40 text-white text-sm font-medium mb-8">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/40 text-platform-ivory text-sm font-medium mb-8">
             <Sparkles className="w-4 h-4" />
             {badge}
           </span>
         </div>
 
-        <h1 className="text-5xl md:text-[3.6rem] lg:text-7xl font-extrabold text-white leading-tight tracking-tight mb-6"
+        <h1 className="text-5xl md:text-[3.6rem] lg:text-7xl font-extrabold text-platform-ivory leading-tight tracking-tight mb-6"
         >
           {heading} <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-red-200 to-white">
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-on-dark via-platform-ivory/80 to-platform-ivory">
             {highlight}
           </span>
         </h1>
 
-        <p className="text-[0.85rem] sm:text-[1.15rem] text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed"
+        <p className="text-[0.85rem] sm:text-[1.15rem] text-platform-ivory/80 mb-10 max-w-2xl mx-auto leading-relaxed"
         >
           {sub}
         </p>
@@ -289,13 +289,13 @@ function Hero({ s, onLoginOpen }: { s: HeroSettings; onLoginOpen: () => void }) 
         >
           <button
             onClick={onLoginOpen}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:scale-105 transition-all"
           >
             Start <ArrowRight className="w-5 h-5" />
           </button>
           <a
             href="#how-it-works"
-            className="w-full sm:w-auto inline-flex items-center justify-center bg-white/15 border border-white/30 backdrop-blur-sm text-white px-8 py-4 rounded-full text-lg font-bold hover:bg-primary/20 hover:border-primary/40 hover:scale-105 transition-all"
+            className="w-full sm:w-auto inline-flex items-center justify-center bg-white/15 border border-white/30 backdrop-blur-sm text-platform-ivory px-8 py-4 rounded-full text-lg font-bold hover:bg-primary/20 hover:border-primary/40 hover:scale-105 transition-all"
           >
             {ctaSecondary}
           </a>
@@ -326,7 +326,7 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6 pb-2">{sectionTitle}</h2>
+          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-platform-ivory to-primary-on-dark mb-6 pb-2">{sectionTitle}</h2>
           <p className="text-sm md:text-base text-zinc-400">{sectionSubtitle}</p>
         </m.div>
 
@@ -344,11 +344,11 @@ function HowItWorks({ data }: { data?: HowItWorksData | null }) {
               className="relative bg-white/10 backdrop-blur-sm border border-white/25 p-5 md:p-8 rounded-[1.25rem] transition-all group overflow-hidden flex items-center gap-4 md:block"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="relative z-10 w-12 h-12 flex-shrink-0 rounded-xl md:rounded-2xl md:w-16 md:h-16 md:mx-auto bg-primary/10 border border-primary/20 text-primary flex items-center justify-center mb-0 md:mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
+              <div className="relative z-10 w-12 h-12 flex-shrink-0 rounded-xl md:rounded-2xl md:w-16 md:h-16 md:mx-auto bg-primary/10 border border-primary/20 text-primary-on-dark flex items-center justify-center mb-0 md:mb-6 group-hover:scale-110 group-hover:bg-primary group-hover:text-primary-foreground transition-all duration-300">
                 <Icon className="w-6 h-6 md:w-8 md:h-8" />
               </div>
               <div className="relative z-10 md:mt-4">
-                <p className="text-base lg:text-2xl font-bold text-white mb-1 lg:mb-3">{title}</p>
+                <p className="text-base lg:text-2xl font-bold text-platform-ivory mb-1 lg:mb-3">{title}</p>
                 <p className="text-sm lg:text-base text-zinc-400 leading-relaxed">{body}</p>
               </div>
             </m.div>
@@ -380,7 +380,7 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6 pb-2">
+          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-platform-ivory to-primary-on-dark mb-6 pb-2">
             {sectionTitle}
           </h2>
           <p className="text-base text-zinc-400">{sectionSubtitle}</p>
@@ -401,9 +401,9 @@ function FeatureBlocks({ data }: { data?: FeaturesData | null }) {
 
               <div className="relative z-10">
                 <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center mb-6">
-                  <Icon className="w-6 h-6 text-primary" />
+                  <Icon className="w-6 h-6 text-primary-on-dark" />
                 </div>
-                <h3 className="text-base lg:text-xl font-bold text-white mb-3">{title}</h3>
+                <h3 className="text-base lg:text-xl font-bold text-platform-ivory mb-3">{title}</h3>
                 <p className="text-sm lg:text-base text-zinc-400 leading-relaxed">{body}</p>
               </div>
             </m.div>
@@ -426,7 +426,7 @@ function FAQ() {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-primary/70 mb-6 pb-2">
+          <h2 className="text-3xl sm:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-platform-ivory to-primary-on-dark mb-6 pb-2">
             Frequently asked questions
           </h2>
         </m.div>
@@ -442,10 +442,10 @@ function FAQ() {
               className="group bg-white/10 backdrop-blur-sm border border-white/25 rounded-xl overflow-hidden [&_summary::-webkit-details-marker]:hidden select-none relative"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-              <summary className="relative z-10 p-6 text-base font-bold text-white cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+              <summary className="relative z-10 p-6 text-base font-bold text-platform-ivory cursor-pointer flex justify-between items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-on-dark">
                 {q}
                 <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center group-open:rotate-180 transition-transform duration-300 shrink-0 ml-4">
-                  <ChevronDown className="w-4 h-4 text-white" />
+                  <ChevronDown className="w-4 h-4 text-platform-ivory" />
                 </div>
               </summary>
               <div className="relative z-10 p-6 text-zinc-400 text-sm leading-relaxed border-t border-white/5 group-open:animate-in group-open:fade-in group-open:slide-in-from-top-4 duration-300">
@@ -471,7 +471,7 @@ function PricingTeaser() {
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/15 to-transparent pointer-events-none" />
           <div className="relative z-10 flex flex-col items-center gap-5">
-            <h2 className="text-2xl sm:text-4xl font-bold text-white">
+            <h2 className="text-2xl sm:text-4xl font-bold text-platform-ivory">
               Menu websites from {formatUsd(PROJECTS.diy.launch)}
             </h2>
             <p className="max-w-xl text-zinc-400">
@@ -479,7 +479,7 @@ function PricingTeaser() {
             </p>
             <a
               href={PRICING_PATH}
-              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-8 py-4 rounded-full text-lg font-bold hover:scale-105 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
               See pricing <ArrowRight className="w-5 h-5" />
             </a>
@@ -518,7 +518,7 @@ function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOp
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="text-4xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary via-red-200 to-white mb-6 pb-2 leading-tight tracking-tight"
+            className="text-4xl sm:text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-primary-on-dark via-platform-ivory/80 to-platform-ivory mb-6 pb-2 leading-tight tracking-tight"
           >
             {heading}
           </m.h2>
@@ -539,7 +539,7 @@ function FooterCTABand({ data, onLoginOpen }: { data?: CtaData | null; onLoginOp
           >
             <button
               onClick={onLoginOpen}
-              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-10 py-5 rounded-full text-lg font-bold hover:brightness-110 hover:scale-105 transition-all active:scale-95"
+              className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-10 py-5 rounded-full text-lg font-bold hover:scale-105 transition-all active:scale-95"
             >
               Start <ArrowRight className="w-5 h-5" />
             </button>
@@ -558,7 +558,7 @@ export default function ClientLandingPage({ platformLanding, appName, logoUrl }:
 
   return (
     <LazyMotion features={domAnimation} strict>
-    <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30 select-none">
+    <div className="platform-dark min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30 select-none">
       <Nav appName={appName} logoUrl={logoUrl} onLoginOpen={() => setLoginOpen(true)} />
       <main>
         <Hero s={heroSettings} onLoginOpen={() => setLoginOpen(true)} />

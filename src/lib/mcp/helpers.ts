@@ -8,7 +8,7 @@ import { getTenantCapabilities, getTenantPlan } from '@/lib/tenant-plan'
 import { lockedServiceKeys, planRequirementFor } from '@/lib/service-settings'
 
 /**
- * Shared helpers for the xmartmenu MCP tools.
+ * Shared helpers for the Xprout MCP tools.
  *
  * All tools run only after `verifyMcpToken` has authenticated the caller as a
  * platform superadmin, so they use the service-role client and mirror the

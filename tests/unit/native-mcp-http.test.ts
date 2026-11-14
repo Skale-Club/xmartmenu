@@ -42,7 +42,7 @@ it('bounded JSON/form parsing denies large, malformed or wrong content-type requ
 it('client authentication and rate-limit errors use OAuth status/challenge without leaking errors',async()=>{
   state.token.mockRejectedValue(new McpOAuthError(401,'invalid_client','Invalid client authentication'))
   const response=await nativeOAuthHttp('token',request('token','grant_type=authorization_code',false))
-  expect(response.status).toBe(401); expect(response.headers.get('www-authenticate')).toBe('Basic realm="xmartmenu-mcp"'); expect(response.headers.get('cache-control')).toBe('no-store')
+  expect(response.status).toBe(401); expect(response.headers.get('www-authenticate')).toBe('Basic realm="xprout-mcp"'); expect(response.headers.get('cache-control')).toBe('no-store')
   state.rate.mockResolvedValue({ ok:false }); const limited=await nativeOAuthHttp('register',request('register',{})); expect(limited.status).toBe(429); expect(limited.headers.get('retry-after')).toBe('60')
 })
 it('the request reader has a five-second deadline without a database/provider call',async()=>{

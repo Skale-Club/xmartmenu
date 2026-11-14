@@ -39,14 +39,14 @@ describe('URL do webhook', () => {
     // Um URL por restaurante poria o id do tenant no caminho, ou seja poria a
     // identidade num sítio que o atacante escolhe, ao lado de um segredo que
     // ele não escolhe. Só o segredo prova alguma coisa, portanto só ele decide.
-    expect(webhookUrl('https://xmartmenu.com')).toBe(
-      'https://xmartmenu.com/api/internal/blog/telegram-webhook',
+    expect(webhookUrl('https://xprout.app')).toBe(
+      'https://xprout.app/api/internal/blog/telegram-webhook',
     )
   })
 
   it('não duplica a barra quando o site já traz uma', () => {
-    expect(webhookUrl('https://xmartmenu.com/')).toBe(
-      'https://xmartmenu.com/api/internal/blog/telegram-webhook',
+    expect(webhookUrl('https://xprout.app/')).toBe(
+      'https://xprout.app/api/internal/blog/telegram-webhook',
     )
   })
 })
@@ -68,7 +68,7 @@ describe('cartão de aprovação', () => {
       await sendDraftForApproval(
         settings(),
         { id: 'p1', title: 'A melhor pizza do bairro', excerpt: null, pillarLabel: 'Bairro' },
-        { panelUrl: 'https://xmartmenu.com/posts', audience: 'tenant', label: 'Pizzaria do Zé' },
+        { panelUrl: 'https://xprout.app/posts', audience: 'tenant', label: 'Pizzaria do Zé' },
       )
     } finally {
       restore()
@@ -78,7 +78,7 @@ describe('cartão de aprovação', () => {
     // O nome vai no cartão porque quem aprova pode gerir mais do que um
     // restaurante; sem ele, dois cartões seguidos são indistinguíveis.
     expect(text).toContain('Pizzaria do Zé')
-    expect(text).toContain('https://xmartmenu.com/posts')
+    expect(text).toContain('https://xprout.app/posts')
     expect(text).not.toContain('superadmin')
 
     const keyboard = sent[0].body.reply_markup as {
@@ -94,14 +94,14 @@ describe('cartão de aprovação', () => {
       await sendDraftForApproval(
         settings(),
         { id: 'p1', title: 'Menu engineering', excerpt: null },
-        { panelUrl: 'https://xmartmenu.com/admin/blog', audience: 'platform' },
+        { panelUrl: 'https://xprout.app/admin/blog', audience: 'platform' },
       )
     } finally {
       restore()
     }
     const text = String(sent[0].body.text)
     expect(text).toContain('New blog draft awaiting approval')
-    expect(text).toContain('https://xmartmenu.com/admin/blog')
+    expect(text).toContain('https://xprout.app/admin/blog')
   })
 
   it('escapa HTML no título — o título vem de um modelo, não de nós', async () => {

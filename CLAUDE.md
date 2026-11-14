@@ -1,4 +1,4 @@
-# CLAUDE.md - xmartmenu
+# CLAUDE.md - Xprout
 
 Read `AGENTS.md` first; everything there applies to Claude.
 

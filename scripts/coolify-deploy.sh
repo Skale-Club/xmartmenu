@@ -3,15 +3,21 @@
 #
 #   scripts/coolify-deploy.sh <git-sha>
 #
-# Env: COOLIFY_TOKEN, COOLIFY_BASE, APP_UUID, PUBLIC_URL.
+# Env: COOLIFY_TOKEN, COOLIFY_BASE, APP_UUID, PUBLIC_URL, optional IMAGE_REPOSITORY.
 #
-# docker-compose.yaml runs ghcr.io/skale-club/xmartmenu:${IMAGE_TAG:-latest}.
+# Compose runs the pinned repository and SHA (legacy package remains rollback-compatible).
 # Setting IMAGE_TAG to the commit SHA before deploying means a later push to
 # :latest can never slip a different, unvalidated build into this deploy, and
 # a rollback is the same call with an older SHA.
 set -euo pipefail
 
 SHA="${1:?usage: coolify-deploy.sh <git-sha>}"
+IMAGE_REPOSITORY="${IMAGE_REPOSITORY:-${IMAGE_NAME:-ghcr.io/skale-club/xprout}}"
+[[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Expected a full commit SHA."; exit 1; }
+case "$IMAGE_REPOSITORY" in
+  ghcr.io/skale-club/xprout|ghcr.io/skale-club/xmartmenu) ;;
+  *) echo "::error::Unreviewed image repository."; exit 1 ;;
+esac
 : "${COOLIFY_TOKEN:?}" "${COOLIFY_BASE:?}" "${APP_UUID:?}" "${PUBLIC_URL:?}"
 
 api() {
@@ -25,20 +31,21 @@ if api "${COOLIFY_BASE}/api/v1/applications/${APP_UUID}/envs" | jq -e '[.[] | se
   exit 1
 fi
 
-echo "Pinning IMAGE_TAG=${SHA}"
-payload="$(jq -nc --arg v "${SHA}" '{key: "IMAGE_TAG", value: $v}')"
-if ! api -X PATCH "${COOLIFY_BASE}/api/v1/applications/${APP_UUID}/envs" -d "${payload}" >/dev/null; then
-  # First run: the variable does not exist yet. Coolify may answer this POST
-  # with a validation error and still create the variable, so check instead of
-  # retrying (a retry would create a duplicate).
-  api -X POST "${COOLIFY_BASE}/api/v1/applications/${APP_UUID}/envs" -d "${payload}" >/dev/null || true
-fi
-current="$(api "${COOLIFY_BASE}/api/v1/applications/${APP_UUID}/envs" \
-  | jq -r '[.[] | select(.key == "IMAGE_TAG" and (.is_preview | not))][0].value // empty')"
-if [ "${current}" != "${SHA}" ]; then
-  echo "::error::IMAGE_TAG is '${current:-unset}', expected ${SHA}."
-  exit 1
-fi
+# Pin both coordinates: rolling back a legacy-only SHA must not pull it from the new package.
+for key in IMAGE_REPOSITORY IMAGE_TAG; do
+  if [[ "$key" == IMAGE_TAG ]]; then expected="$SHA"; else expected="$IMAGE_REPOSITORY"; fi
+  payload="$(jq -nc --arg key "$key" --arg v "$expected" '{key: $key, value: $v}')"
+  if ! api -X PATCH "${COOLIFY_BASE}/api/v1/applications/${APP_UUID}/envs" -d "$payload" >/dev/null; then
+    # Readback, rather than retrying a possibly successful create, avoids duplicates.
+    api -X POST "${COOLIFY_BASE}/api/v1/applications/${APP_UUID}/envs" -d "$payload" >/dev/null || true
+  fi
+  current="$(api "${COOLIFY_BASE}/api/v1/applications/${APP_UUID}/envs" \
+    | jq -r --arg key "$key" '[.[] | select(.key == $key and (.is_preview | not))][0].value // empty')"
+  if [[ "$current" != "$expected" ]]; then
+    echo "::error::${key} readback does not match the reviewed image."
+    exit 1
+  fi
+done
 
 echo "Triggering Coolify deploy for ${APP_UUID}"
 deploy_response="$(api -X POST "${COOLIFY_BASE}/api/v1/deploy?uuid=${APP_UUID}")"

@@ -3,7 +3,7 @@ name: Owned schema (apply docs/owned-schema to production PostgreSQL)
 # Schema changes after the final cutover. Started by hand, only from main.
 #   plan   read only: which docs/owned-schema/*.sql are applied, pending or changed
 #   apply  lock, schema-only dump, apply pending files as xmartmenu_owner, record them
-# Operator: scripts/ops/xmartmenu-owned-schema.py. Secrets: CUTOVER_SSH_HOST, CUTOVER_SSH_KEY, CUTOVER_SSH_HOST_KEY.
+# Operator: scripts/ops/xprout-owned-schema.py. Secrets: CUTOVER_SSH_HOST, CUTOVER_SSH_KEY, CUTOVER_SSH_HOST_KEY.
 
 on:
   workflow_dispatch:
@@ -56,4 +56,4 @@ jobs:
           CUTOVER_SSH_HOST: ${{ secrets.CUTOVER_SSH_HOST }}
           CUTOVER_SSH_KEY: ${{ secrets.CUTOVER_SSH_KEY }}
           CUTOVER_SSH_HOST_KEY: ${{ secrets.CUTOVER_SSH_HOST_KEY }}
-        run: bash scripts/ops/run-xmartmenu-owned-schema.sh "${{ inputs.mode }}" "${{ github.sha }}"
+        run: bash scripts/ops/run-xprout-owned-schema.sh "${{ inputs.mode }}" "${{ github.sha }}"

@@ -11,7 +11,7 @@ export function createPlatformAppearancePool(env: Record<string, string | undefi
   const config = postgresRuntimeConfig(env, 'PLATFORM_APPEARANCE')
   const created = new pg.Pool({ ...config, max: 2, connectionTimeoutMillis: 5_000, idleTimeoutMillis: 10_000,
     statement_timeout: 5_000, query_timeout: 6_000,
-    options: '-c default_transaction_read_only=on -c lock_timeout=2000', application_name: 'xmartmenu-platform-appearance' })
+    options: '-c default_transaction_read_only=on -c lock_timeout=2000', application_name: 'xprout-platform-appearance' })
   // Idle connection errors must not crash the process or log credential details.
   created.on('error', () => {})
   return created

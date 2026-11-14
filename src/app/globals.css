@@ -25,6 +25,7 @@ body[data-menu-feed="open"] [data-demo-banner] {
 }
 
 @theme inline {
+  --color-platform-ivory: #F3EFE5;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
@@ -267,20 +268,15 @@ input[type="file"] {
 }
 
 /*
- * Panel contrast with any brand colour. Dark blocks get the brand colour lightened until it reads
- * on them (and dark text on it); brand-coloured text on the light panel is darkened until it reads
- * on white. A dark-brown or a yellow restaurant then looks as clear as the default red.
+ * Panel text has explicit surface roles. Never replace the configured action
+ * fill or its paired foreground merely because an ancestor is dark.
  */
-.dashboard-content :is(.bg-zinc-950, .bg-zinc-900, .bg-black) {
-  --primary: var(--primary-on-dark);
-  --primary-foreground: #09090b;
-}
 .dashboard-content .text-primary {
   color: var(--primary-on-light);
 }
 .dashboard-content :is(.bg-zinc-950, .bg-zinc-900, .bg-black) .text-primary,
 .dashboard-content .text-primary:is(.bg-zinc-950, .bg-zinc-900, .bg-black) {
-  color: var(--primary);
+  color: var(--primary-on-dark);
 }
 
 /* AR camera (src/components/ar/WebXrDishViewer.tsx): the phone sweeping the table while it is scanned. */
@@ -305,4 +301,24 @@ input[type="file"] {
 @keyframes ar-shimmer {
   from { transform: translateX(-100%); }
   to { transform: translateX(100%); }
+}
+
+/* Platform-only surfaces: restaurant menus retain their own palette. */
+.platform-light {
+  background-color: #F3EFE5;
+  color: #283F32;
+}
+.platform-dark {
+  /* An explicit surface role, never a replacement for the raw primary. */
+  --primary-on-dark: #F3EFE5;
+  color: #F3EFE5;
+}
+/* Always keep focus distinct from the action fill on a dark surface. */
+.platform-dark :is(a, button, input, select, summary):focus-visible {
+  outline: 2px solid #F3EFE5;
+  outline-offset: 4px;
+}
+.platform-light :where(a, button, input, select, summary):focus-visible {
+  outline: 2px solid #283F32;
+  outline-offset: 4px;
 }

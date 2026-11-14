@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import { Check, Plus, X } from 'lucide-react'
 import ModalPortal from '@/components/ui/ModalPortal'
 import { useDragToDismiss } from '@/components/ui/use-drag-to-dismiss'
-import { computePrimaryForeground } from '@/lib/color-utils'
+import { computePrimaryForeground, readableTextColor } from '@/lib/color-utils'
 import { formatMoney, getMenuCopy } from './menu-i18n'
 import type { FeedSize } from './feed-sizes'
 import { ctaStyle, ui } from './menu-ui'
@@ -19,6 +19,7 @@ export default function FeedSizeSheet({
   currency,
   lang,
   primaryColor,
+  priceColor,
   onClose,
   onConfirm,
 }: {
@@ -27,6 +28,7 @@ export default function FeedSizeSheet({
   currency: string
   lang: string
   primaryColor: string
+  priceColor: string
   onClose: () => void
   onConfirm: (size: FeedSize) => void
 }) {
@@ -70,12 +72,12 @@ export default function FeedSizeSheet({
                 >
                   <span
                     className="flex size-6 shrink-0 items-center justify-center rounded-full border-2"
-                    style={active ? { backgroundColor: primaryColor, borderColor: primaryColor, color: onPrimary } : { borderColor: '#d4d4d8' }}
+                    style={active ? { backgroundColor: primaryColor, borderColor: readableTextColor(primaryColor, '#ffffff', 3), color: onPrimary } : { borderColor: '#71717a' }}
                   >
                     {active ? <Check className="size-3.5" strokeWidth={3} aria-hidden="true" /> : null}
                   </span>
                   <span className="min-w-0 flex-1 text-[15px] font-medium">{size.label}</span>
-                  <span className="shrink-0 text-[15px] font-semibold tabular-nums text-zinc-700">{formatMoney(size.price, currency, lang)}</span>
+                  <span className="shrink-0 text-[15px] font-semibold tabular-nums" style={{ color: priceColor }}>{formatMoney(size.price, currency, lang)}</span>
                 </button>
               )
             })}
@@ -85,7 +87,7 @@ export default function FeedSizeSheet({
             type="button"
             onClick={() => onConfirm(selected)}
             style={ctaStyle(primaryColor, onPrimary)}
-            className={`${ui.cta} mt-4 h-12 w-full hover:opacity-95`}
+            className={`${ui.cta} mt-4 h-12 w-full `}
           >
             {/* The chosen size's price is in its row above; the button is one short word. */}
             <Plus className="size-5 shrink-0" strokeWidth={2.5} aria-hidden="true" />

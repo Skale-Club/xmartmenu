@@ -1,6 +1,6 @@
 'use client'
 
-import { BRAND_PRIMARY } from '@/lib/brand'
+import { BRAND_PRIMARY, BRAND_BASE } from '@/lib/brand'
 import { useEffect } from 'react'
 
 export default function GlobalError({
@@ -25,7 +25,7 @@ export default function GlobalError({
           alignItems: 'center',
           justifyContent: 'center',
           backgroundColor: '#0f0f0f',
-          color: '#f5f5f5',
+          color: BRAND_BASE,
           fontFamily:
             'Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif',
           padding: '24px',
@@ -39,7 +39,7 @@ export default function GlobalError({
               fontWeight: 600,
               letterSpacing: '0.08em',
               textTransform: 'uppercase',
-              color: BRAND_PRIMARY,
+              color: BRAND_BASE,
             }}
           >
             Xprout
@@ -66,7 +66,7 @@ export default function GlobalError({
               border: 'none',
               borderRadius: '8px',
               backgroundColor: BRAND_PRIMARY,
-              color: '#ffffff',
+              color: BRAND_BASE,
               fontSize: '15px',
               fontWeight: 600,
               padding: '12px 24px',

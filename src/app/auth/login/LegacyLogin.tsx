@@ -83,7 +83,7 @@ export default function LegacyLogin() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-zinc-950 px-4 selection:bg-primary/30 relative overflow-hidden">
+    <div className="platform-dark min-h-screen flex items-center justify-center bg-zinc-950 px-4 selection:bg-primary/30 relative overflow-hidden">
       {/* Background Glows */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] opacity-40 pointer-events-none" />
 
@@ -92,8 +92,8 @@ export default function LegacyLogin() {
           {/* Marca */}
           <div className="mb-8 text-center">
             <DeliveryImage src={logoUrl} width={48} height={48} sizes="48px" alt="Logo" className="w-12 h-12 mx-auto mb-5" />
-            <a href="/" className="text-2xl font-black text-white hover:text-primary transition-colors tracking-tight">Xprout</a>
-            <p className="text-sm font-bold text-zinc-500 mt-2">Sign in to your menu dashboard</p>
+            <a href="/" className="text-2xl font-black text-platform-ivory hover:text-primary transition-colors tracking-tight">Xprout</a>
+            <p className="text-sm font-bold text-zinc-400 mt-2">Sign in to your menu dashboard</p>
           </div>
 
           {step === 'email' ? (
@@ -102,7 +102,7 @@ export default function LegacyLogin() {
               <button
                 onClick={handleGoogleLogin}
                 disabled={googleLoading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-white/10 rounded-full text-sm font-bold text-white bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
+                className="w-full flex items-center justify-center gap-3 px-4 py-3.5 border border-white/10 rounded-full text-sm font-bold text-platform-ivory bg-white/5 hover:bg-white/10 disabled:opacity-50 transition-all hover:scale-[1.02] active:scale-95"
               >
                 {googleLoading ? (
                   <svg className="w-5 h-5 animate-spin text-zinc-400" fill="none" viewBox="0 0 24 24">
@@ -123,7 +123,7 @@ export default function LegacyLogin() {
               {/* Divisor */}
               <div className="flex items-center gap-3 my-8">
                 <div className="flex-1 h-px bg-white/5" />
-                <span className="text-[10px] text-zinc-600 font-black uppercase tracking-[0.2em]">or sign in with email</span>
+                <span className="text-[10px] text-zinc-400 font-black uppercase tracking-[0.2em]">or sign in with email</span>
                 <div className="flex-1 h-px bg-white/5" />
               </div>
 
@@ -138,7 +138,7 @@ export default function LegacyLogin() {
                     value={email}
                     onChange={e => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-platform-ivory placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
                   />
                 </div>
 
@@ -147,7 +147,7 @@ export default function LegacyLogin() {
                 <button
                   type="submit"
                   disabled={googleLoading}
-                  className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
+                  className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
                 >
                   Continue
                   <ArrowRight className="w-4 h-4" />
@@ -160,7 +160,7 @@ export default function LegacyLogin() {
               <div className="mb-6">
                 <button
                   onClick={() => { setStep('email'); setError(null) }}
-                  className="flex items-center gap-1 text-xs font-bold text-zinc-500 hover:text-zinc-300 transition-colors mb-4"
+                  className="flex items-center gap-1 text-xs font-bold text-zinc-400 hover:text-zinc-300 transition-colors mb-4"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                   Back
@@ -178,7 +178,7 @@ export default function LegacyLogin() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     placeholder="••••••••"
-                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                    className="w-full px-5 py-3.5 bg-white/5 border border-white/10 rounded-xl text-sm text-platform-ivory placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
                   />
                 </div>
 
@@ -187,7 +187,7 @@ export default function LegacyLogin() {
                 <button
                   type="submit"
                   disabled={emailLoading}
-                  className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black hover:bg-white transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
+                  className="w-full bg-primary text-primary-foreground py-4 rounded-full text-base font-black transition-all hover:scale-[1.02] active:scale-95 mt-4 flex items-center justify-center gap-2"
                 >
                   {emailLoading ? 'Signing in...' : (
                     <>
@@ -200,13 +200,13 @@ export default function LegacyLogin() {
             </>
           )}
 
-          <p className="text-[10px] font-medium text-zinc-600 text-center mt-8 px-4 leading-relaxed">
+          <p className="text-[10px] font-medium text-zinc-400 text-center mt-8 px-4 leading-relaxed">
             By signing in, you agree to the platform terms of use and privacy policy.
           </p>
           <div className="mt-8 pt-8 border-t border-white/5 text-center">
-            <p className="text-sm text-zinc-500 font-medium">
+            <p className="text-sm text-zinc-400 font-medium">
               Don&apos;t have an account?{' '}
-              <a href="/auth/register" className="text-white font-black hover:text-primary transition-colors underline underline-offset-4 decoration-white/20 hover:decoration-primary/50">
+              <a href="/auth/register" className="text-platform-ivory font-black hover:text-primary transition-colors underline underline-offset-4 decoration-white/20 hover:decoration-primary/50">
                 Create one
               </a>
             </p>
@@ -214,7 +214,7 @@ export default function LegacyLogin() {
         </div>
 
         <p className="text-[10px] font-bold text-zinc-700 text-center mt-8 uppercase tracking-[0.2em]">
-          <a href="/" className="hover:text-zinc-500 transition-colors">Xprout</a> © {new Date().getFullYear()}
+          <a href="/" className="hover:text-zinc-400 transition-colors">Xprout</a> © {new Date().getFullYear()}
         </p>
       </div>
     </div>

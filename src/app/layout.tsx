@@ -1,8 +1,8 @@
-import { BRAND_NAME, BRAND_URL, BRAND_PRIMARY } from '@/lib/brand'
+import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { getPlatformAppearance } from '@/lib/data/platform-appearance-runtime'
-import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
+import { platformColors } from '@/lib/platform-colors'
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar'
 import './globals.css'
 
@@ -16,7 +16,7 @@ const inter = Inter({
 export async function generateViewport(): Promise<Viewport> {
   const ps = await getPlatformAppearance()
   return {
-    themeColor: ps?.cta_color ?? BRAND_PRIMARY,
+    themeColor: platformColors(ps?.cta_color).primary,
     viewportFit: 'cover',
   }
 }
@@ -56,13 +56,12 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   const ps = await getPlatformAppearance()
-  const primary = ps?.cta_color ?? BRAND_PRIMARY
-  const primaryFg = computePrimaryForeground(primary)
+  const { primary, onPrimary } = platformColors(ps?.cta_color)
 
   return (
     <html lang="en" className={`h-full antialiased ${inter.variable}`}>
       <head>
-        <style>{`:root{--primary:${safeCssColor(primary)};--primary-foreground:${primaryFg};}`}</style>
+        <style>{`:root{--primary:${primary};--primary-foreground:${onPrimary};}`}</style>
       </head>
       <body className={`${inter.className} min-h-full`}>
         {children}

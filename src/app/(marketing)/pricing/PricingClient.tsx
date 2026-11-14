@@ -11,18 +11,18 @@ import {
 } from '@/lib/marketing/pricing'
 
 const card = 'rounded-[1.25rem] border border-white/25 bg-white/10 backdrop-blur-sm'
-const focus = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950'
-const ctaBtn = `inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-bold text-primary-foreground transition-all hover:brightness-110 ${focus}`
+const focus = 'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-on-dark focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950'
+const ctaBtn = `inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-bold text-primary-foreground transition-all hover:scale-[1.01] ${focus}`
 
 function Eyebrow({ children }: { children: ReactNode }) {
-  return <p className="text-xs font-bold uppercase tracking-widest text-primary">{children}</p>
+  return <p className="text-xs font-bold uppercase tracking-widest text-primary-on-dark">{children}</p>
 }
 
 function SectionHead({ eyebrow, title, lead, id }: { eyebrow: string; title: string; lead?: string; id: string }) {
   return (
     <div className="mb-8 grid gap-2">
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 id={id} className="text-3xl font-bold text-white sm:text-4xl">{title}</h2>
+      <h2 id={id} className="text-3xl font-bold text-platform-ivory sm:text-4xl">{title}</h2>
       {lead && <p className="max-w-2xl text-zinc-400">{lead}</p>}
     </div>
   )
@@ -32,8 +32,8 @@ function SectionHead({ eyebrow, title, lead, id }: { eyebrow: string; title: str
 function Price({ launch, list, note }: { launch: number; list: number; note?: string }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <strong className="text-4xl font-extrabold tabular-nums text-white">{formatUsd(launch)}</strong>
-      <s className="text-base tabular-nums text-zinc-500" aria-label={`regular price ${formatUsd(list)}`}>{formatUsd(list)}</s>
+      <strong className="text-4xl font-extrabold tabular-nums text-platform-ivory">{formatUsd(launch)}</strong>
+      <s className="text-base tabular-nums text-zinc-400" aria-label={`regular price ${formatUsd(list)}`}>{formatUsd(list)}</s>
       {note && <span className="w-full text-sm text-zinc-400">{note}</span>}
     </div>
   )
@@ -73,7 +73,7 @@ function BuildSection() {
         </article>
 
         <article className={`${card} grid content-start gap-4 border-primary p-6 ring-1 ring-primary`}>
-          <p className="text-xs font-bold uppercase tracking-wider text-primary">Most popular · we do everything</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-primary-on-dark">Most popular · we do everything</p>
           <Price launch={we.launch} list={we.list} note={`one-time · up to ${we.includedItems} items`} />
           <Inc items={[
             'Everything in "You add the items"',
@@ -83,8 +83,8 @@ function BuildSection() {
             'Ready in about a week',
           ]} />
           <p className="border-t border-white/10 pt-3 text-sm text-zinc-400">
-            Extra item: <strong className="tabular-nums text-white">+{formatUsd(we.extraItem.launch)}</strong>{' '}
-            <s className="text-zinc-500">{formatUsd(we.extraItem.list)}</s>
+            Extra item: <strong className="tabular-nums text-platform-ivory">+{formatUsd(we.extraItem.launch)}</strong>{' '}
+            <s className="text-zinc-400">{formatUsd(we.extraItem.list)}</s>
           </p>
         </article>
 
@@ -99,9 +99,9 @@ function BuildSection() {
             'Made from your own dish photos',
           ]} />
           <p className="border-t border-white/10 pt-3 text-sm text-zinc-400">
-            Extra item with 3D: <strong className="tabular-nums text-white">+{formatUsd(td.extraItemWith3D.launch)}</strong>{' '}
-            <s className="text-zinc-500">{formatUsd(td.extraItemWith3D.list)}</s>. Without 3D:{' '}
-            <strong className="tabular-nums text-white">+{formatUsd(td.extraItemWithout3D)}</strong>.
+            Extra item with 3D: <strong className="tabular-nums text-platform-ivory">+{formatUsd(td.extraItemWith3D.launch)}</strong>{' '}
+            <s className="text-zinc-400">{formatUsd(td.extraItemWith3D.list)}</s>. Without 3D:{' '}
+            <strong className="tabular-nums text-platform-ivory">+{formatUsd(td.extraItemWithout3D)}</strong>.
           </p>
         </article>
       </div>
@@ -109,20 +109,20 @@ function BuildSection() {
       <div className={`${card} mt-6 grid items-center gap-6 p-6 md:grid-cols-[1.3fr_1fr]`}>
         <div className="grid gap-2">
           <Eyebrow>Add 3D to any menu</Eyebrow>
-          <h3 className="text-xl font-bold text-white">Start with your best dishes</h3>
+          <h3 className="text-xl font-bold text-platform-ivory">Start with your best dishes</h3>
           <p className="text-sm text-zinc-400">
             Each dish is scaled to the real plate: a 12-inch main, a 9-inch starter, an 8-inch dessert; drinks by glass height. You approve every dish before it goes live.
           </p>
-          <p className="text-sm text-zinc-500">{NFC_NOTE}</p>
+          <p className="text-sm text-zinc-400">{NFC_NOTE}</p>
         </div>
         <div className="grid gap-2">
-          <div className="flex justify-between gap-3 rounded-xl bg-zinc-950/60 px-4 py-3 font-semibold text-white">
+          <div className="flex justify-between gap-3 rounded-xl bg-zinc-950/60 px-4 py-3 font-semibold text-platform-ivory">
             <span>1 to {THREE_D_TIER_10 - 1} dishes</span><span className="tabular-nums">{formatUsd(ADDONS.threeDDish.launch)} each</span>
           </div>
-          <div className="flex justify-between gap-3 rounded-xl bg-zinc-950/60 px-4 py-3 font-semibold text-white">
+          <div className="flex justify-between gap-3 rounded-xl bg-zinc-950/60 px-4 py-3 font-semibold text-platform-ivory">
             <span>{THREE_D_TIER_10} dishes</span><span className="tabular-nums">{formatUsd(ADDONS.threeDDish.from10Total)}</span>
           </div>
-          <div className="flex justify-between gap-3 rounded-xl bg-zinc-950/60 px-4 py-3 font-semibold text-white">
+          <div className="flex justify-between gap-3 rounded-xl bg-zinc-950/60 px-4 py-3 font-semibold text-platform-ivory">
             <span>{THREE_D_TIER_20} dishes or more</span><span className="tabular-nums">{formatUsd(ADDONS.threeDDish.from20Each)} each</span>
           </div>
         </div>
@@ -158,7 +158,7 @@ const ROWS: Row[] = [
 function CellView({ v, hl }: { v: Cell; hl?: boolean }) {
   const cls = `px-4 py-3 text-center border-b border-white/10 ${hl ? 'bg-primary/10' : ''}`
   if (v === true) return <td className={cls}><Check className="mx-auto h-5 w-5 text-emerald-400" aria-label="Included" /></td>
-  if (v === false) return <td className={cls}><Minus className="mx-auto h-5 w-5 text-zinc-600" aria-label="Not included" /></td>
+  if (v === false) return <td className={cls}><Minus className="mx-auto h-5 w-5 text-zinc-400" aria-label="Not included" /></td>
   return <td className={`${cls} text-sm font-semibold tabular-nums text-zinc-200`}>{v}</td>
 }
 
@@ -167,7 +167,7 @@ function PlansSection() {
   const keys: PlanKey[] = ['menu', 'waiter', 'payments']
   const names: Record<PlanKey, string> = { menu: 'Menu', waiter: 'Waiter', payments: 'Payments' }
   const seg = (on: boolean) =>
-    `rounded-full px-4 py-2 text-sm font-semibold transition-colors ${focus} ${on ? 'bg-white text-zinc-950' : 'text-zinc-400 hover:text-white'}`
+    `rounded-full px-4 py-2 text-sm font-semibold transition-colors ${focus} ${on ? 'bg-platform-ivory text-zinc-950' : 'text-zinc-400 hover:text-platform-ivory'}`
   return (
     <section aria-labelledby="monthly-title" className="mx-auto w-full max-w-[1320px] px-4 py-12 sm:px-8">
       <SectionHead id="monthly-title" eyebrow="Step two · every month" title="Choose how guests use it" lead="Hosting, software, changes and support. Start with the menu and move up when you are ready." />
@@ -182,8 +182,8 @@ function PlansSection() {
               <th scope="col" className="px-4 py-4 text-left align-top text-sm font-medium text-zinc-400">What is included</th>
               {keys.map((k) => (
                 <th key={k} scope="col" className={`px-4 py-4 text-center align-top ${k === 'waiter' ? 'bg-primary/10' : ''}`}>
-                  <span className="block text-lg font-extrabold text-white">{names[k]}</span>
-                  <span className="mt-1 block text-3xl font-extrabold tabular-nums text-white">{formatUsd(yearly ? PLANS[k].yearly : PLANS[k].monthly)}</span>
+                  <span className="block text-lg font-extrabold text-platform-ivory">{names[k]}</span>
+                  <span className="mt-1 block text-3xl font-extrabold tabular-nums text-platform-ivory">{formatUsd(yearly ? PLANS[k].yearly : PLANS[k].monthly)}</span>
                   <span className="block text-xs font-medium text-zinc-400">{yearly ? 'per year' : 'per month'}</span>
                   {PLANS[k].paymentFeePercent ? <span className="block text-xs font-medium text-zinc-400">+ {PLANS[k].paymentFeePercent}% per payment</span> : null}
                 </th>
@@ -217,8 +217,8 @@ function PlansSection() {
 function Pair({ launch, list, unit }: { launch: ReactNode; list?: ReactNode; unit?: string }) {
   return (
     <span className="tabular-nums">
-      <strong className="text-white">{launch}</strong>{unit ? <span className="text-zinc-400"> {unit}</span> : null}
-      {list ? <s className="ml-2 text-zinc-500">{list}</s> : null}
+      <strong className="text-platform-ivory">{launch}</strong>{unit ? <span className="text-zinc-400"> {unit}</span> : null}
+      {list ? <s className="ml-2 text-zinc-400">{list}</s> : null}
     </span>
   )
 }
@@ -257,7 +257,7 @@ function AddonsSection() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.name} className="border-t border-white/10">
-                <th scope="row" className="px-4 py-3 text-left font-semibold text-white">
+                <th scope="row" className="px-4 py-3 text-left font-semibold text-platform-ivory">
                   {r.name}
                   {r.detail && <span className="block text-xs font-normal text-zinc-400">{r.detail}</span>}
                 </th>
@@ -283,7 +283,7 @@ function Estimator() {
   const n = (v: string) => parseInt(v, 10) || 0
   const e = estimateProject({ mode, items: n(items), threeDDishes: n(threeD), extraLanguages: n(langs), photos: n(photos), plan })
 
-  const field = `w-full rounded-xl border border-white/20 bg-zinc-950/60 px-3 py-2.5 text-base text-white ${focus}`
+  const field = `w-full rounded-xl border border-white/20 bg-zinc-950/60 px-3 py-2.5 text-base text-platform-ivory ${focus}`
   const label = 'grid gap-1.5 text-sm font-semibold text-zinc-200'
   const hint = 'text-xs font-normal text-zinc-400'
   const line = (name: string, v: number, extra?: string) => (
@@ -336,13 +336,13 @@ function Estimator() {
             {line('3D dishes', e.threeD, e.threeDCount ? String(e.threeDCount) : undefined)}
             {line('Extra languages', e.languages)}
             {mode === 'diy' && line('Photo touch-ups', e.photoTouchUps)}
-            <div className="flex justify-between gap-3 border-t border-white/10 pt-3 text-base font-bold text-white"><span>Project, one-time</span><span className="tabular-nums">{formatUsd(e.project)}</span></div>
+            <div className="flex justify-between gap-3 border-t border-white/10 pt-3 text-base font-bold text-platform-ivory"><span>Project, one-time</span><span className="tabular-nums">{formatUsd(e.project)}</span></div>
           </div>
-          <p className="text-4xl font-extrabold tabular-nums text-white">{formatUsd(e.project)}</p>
+          <p className="text-4xl font-extrabold tabular-nums text-platform-ivory">{formatUsd(e.project)}</p>
           <p className="text-sm text-zinc-400">
             Then {formatUsd(e.monthly)} / month from month two{e.paymentFeePercent ? `, plus ${e.paymentFeePercent}% of payments made through Xprout` : ''}.
           </p>
-          <p className="text-sm text-zinc-400">First year: <strong className="tabular-nums text-white">{formatUsd(e.firstYear)}</strong> (first month included in the project).</p>
+          <p className="text-sm text-zinc-400">First year: <strong className="tabular-nums text-platform-ivory">{formatUsd(e.firstYear)}</strong> (first month included in the project).</p>
           <a href={PRICING_CTA_HREF} className={`${ctaBtn} w-full sm:w-fit`}>Talk to us <ArrowRight className="h-4 w-4" aria-hidden="true" /></a>
         </div>
       </div>
@@ -364,8 +364,8 @@ function ProcessSection() {
       <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {STEPS.map((s, i) => (
           <li key={s.t} className="grid content-start gap-2">
-            <span className="grid h-9 w-9 place-items-center rounded-full bg-white text-sm font-extrabold text-zinc-950" aria-hidden="true">{i + 1}</span>
-            <h3 className="text-lg font-bold text-white">{s.t}</h3>
+            <span className="grid h-9 w-9 place-items-center rounded-full bg-platform-ivory text-sm font-extrabold text-zinc-950" aria-hidden="true">{i + 1}</span>
+            <h3 className="text-lg font-bold text-platform-ivory">{s.t}</h3>
             <p className="text-sm text-zinc-400">{s.d}</p>
           </li>
         ))}
@@ -377,16 +377,16 @@ function ProcessSection() {
 export default function PricingClient() {
   return (
     <LazyMotion features={domAnimation} strict>
-      <div className="min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30">
+      <div className="platform-dark min-h-screen bg-zinc-950 text-zinc-50 selection:bg-primary/30">
         <Nav startHref={PRICING_CTA_HREF} />
         <main className="pt-16">
           <header className="relative overflow-hidden px-4 pb-8 pt-16 sm:px-8">
             <div className="pointer-events-none absolute left-1/2 top-0 h-[600px] w-[800px] -translate-x-1/2 rounded-full bg-primary/10 blur-[120px]" />
             <div className="relative mx-auto grid max-w-[1320px] gap-5">
-              <span className="inline-flex w-fit items-center rounded-full border border-primary/40 bg-primary/20 px-3 py-1 text-sm font-semibold text-white">
+              <span className="inline-flex w-fit items-center rounded-full border border-primary/40 bg-primary/20 px-3 py-1 text-sm font-semibold text-platform-ivory">
                 Launch pricing for our first {LAUNCH_SLOTS} restaurants · USD
               </span>
-              <h1 className="max-w-3xl text-4xl font-extrabold leading-tight tracking-tight text-white sm:text-6xl">
+              <h1 className="max-w-3xl text-4xl font-extrabold leading-tight tracking-tight text-platform-ivory sm:text-6xl">
                 Your restaurant&apos;s menu website, built for you.
               </h1>
               <p className="max-w-2xl text-lg text-zinc-300">

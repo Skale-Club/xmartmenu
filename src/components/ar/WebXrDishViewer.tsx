@@ -28,7 +28,7 @@ import { ChevronLeft, ChevronRight, Minus, Plus, ShoppingBag, Smartphone, X } fr
 import type { DishStage } from '@/lib/ar/webxr-dish-session'
 import { scanningHintIndex } from '@/lib/ar/surface-finder'
 import { dishSwipe } from '@/lib/ar/gesture-router'
-import { computePrimaryForeground, relativeLuminance } from '@/lib/color-utils'
+import { computePrimaryForeground, visibleFillColor } from '@/lib/color-utils'
 import DragSheet from '@/components/sheet/DragSheet'
 import { ui } from '@/components/menu/menu-ui'
 import type { ArCopy } from './ar-copy'
@@ -145,10 +145,12 @@ export default function WebXrDishViewer({ active, stage, name, priceLabel, copy,
   const tips = [copy.hintLight, copy.hintTexture, copy.hintStepBack]
   const tipIndex = stage === 'scanning' ? scanningHintIndex(scanSeconds * 1000, tips.length) : null
   const placed = stage === 'placed'
-  const brand = { backgroundColor: theme.primary, color: computePrimaryForeground(theme.primary) }
-  const accent = { backgroundColor: theme.accent, color: computePrimaryForeground(theme.accent) }
-  // A near-black primary disappears on the dark sheets: use the secondary colour there (owner choice).
-  const sheetPrimary = relativeLuminance(theme.primary) < 0.06 ? accent : brand
+  const brand = { backgroundColor: theme.primary, color: computePrimaryForeground(theme.primary, '#151819') }
+  const accent = { backgroundColor: theme.accent, color: computePrimaryForeground(theme.accent, '#151819') }
+  // Keep tenant identity while ensuring the action separates from the dark sheet.
+  // The 94% dark sheet's lightest composite (over a white camera frame).
+  const sheetFill = visibleFillColor(theme.primary, theme.accent, '#232627')
+  const sheetPrimary = { backgroundColor: sheetFill, color: computePrimaryForeground(sheetFill, '#151819') }
   const price = cart?.priceLabel ?? priceLabel
   const quantity = cart?.quantity ?? 0
   const stepper = cart?.mode === 'add' && quantity > 0 && cart.onRemove

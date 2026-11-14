@@ -14,7 +14,7 @@ export type PaymentOrder={id:string;tenant_id:string;customer_id:string|null;sta
 export type PaymentConfiguration={currency:string|null;stripe_account_id:string|null;payments:boolean;stripe:boolean;fee:number}
 export type PaymentSnapshot={order:PaymentOrder;config:PaymentConfiguration}
 export type PaymentFacts={id:string;amount:number;currency:string;metadata?:{order_id?:string;tenant_id?:string}|null}
-export type CheckoutOrder=PaymentOrder&{order_items:Array<Record<string,unknown>>;tenants:{slug:string;name:string;tenant_settings:{currency:string|null}}}
+export type CheckoutOrder=PaymentOrder&{order_items:Array<Record<string,unknown>>;tenants:{slug:string;name:string;tenant_settings:{currency:string|null;primary_color:string|null;accent_color:string|null}}}
 export function assertPayable(order:PaymentOrder){if(!payable.has(order.status))throw new PaymentDataError(409,'Order is not awaiting payment')}
 export function paymentMoney(snapshot:PaymentSnapshot){
   const {order,config}=snapshot,currency=(order.currency??config.currency??'usd').toLowerCase()||'usd'
@@ -71,12 +71,12 @@ export class OwnedPaymentRepository {
   }
   async checkout(id:string):Promise<CheckoutOrder|null>{
     const order=await this.order(id);if(!order)return null
-    const tenant=(await this.query(`SELECT t.slug,t.name,s.currency FROM public.tenants t LEFT JOIN public.tenant_settings s ON s.tenant_id=t.id WHERE t.id=$1`,[order.tenant_id])).rows[0]
+    const tenant=(await this.query(`SELECT t.slug,t.name,s.currency,s.primary_color,s.accent_color FROM public.tenants t LEFT JOIN public.tenant_settings s ON s.tenant_id=t.id WHERE t.id=$1`,[order.tenant_id])).rows[0]
     if(!tenant)return null
     const items=await this.query(`SELECT oi.id,oi.product_name,oi.quantity,oi.unit_price,oi.selected_options
       FROM public.order_items oi JOIN public.orders o ON o.id=oi.order_id AND o.tenant_id=$1 WHERE oi.order_id=$2 ORDER BY oi.id LIMIT 1001`,[order.tenant_id,id])
     if(items.rows.length>1000)throw new PaymentDataError(503,'Order items are unavailable')
-    return{...order,order_items:items.rows,tenants:{slug:String(tenant.slug),name:String(tenant.name),tenant_settings:{currency:tenant.currency===null?null:String(tenant.currency)}}}
+    return{...order,order_items:items.rows,tenants:{slug:String(tenant.slug),name:String(tenant.name),tenant_settings:{currency:tenant.currency===null?null:String(tenant.currency),primary_color:typeof tenant.primary_color==='string'?tenant.primary_color:null,accent_color:typeof tenant.accent_color==='string'?tenant.accent_color:null}}}
   }
   async claim(snapshot:PaymentSnapshot,intentId:string){
     if(!/^pi_[A-Za-z0-9]+$/.test(intentId))throw new PaymentDataError(503,'Payment provider response is unavailable')

@@ -4,7 +4,7 @@ export const SOURCE_SUPABASE_PROJECT = 'ktogbpqookfcqilqvici'
 /**
  * Owner decision 2026-11-07: production lives only in the owned PostgreSQL, and the retired
  * source project above is now the Supabase DEVELOPMENT project (`npm run dev`, `db:pull`).
- * XmartMenu had no paying customers at the cutover, so the old data is not protected data.
+ * Xprout had no paying customers at the cutover, so the old data is not protected data.
  */
 export const DEVELOPMENT_SUPABASE_PROJECT = SOURCE_SUPABASE_PROJECT
 /**

@@ -16,6 +16,8 @@ import { loadOwnedPaymentCheckout } from '@/lib/data/payments-runtime'
 import Link from 'next/link'
 import { formatPrice } from '@/lib/utils'
 import { embeddedCurrency } from '@/components/menu/menu-utils'
+import { checkoutTheme } from '@/lib/payments/checkout-theme'
+import { ui, ctaStyle } from '@/components/menu/menu-ui'
 import { stripe,retrieveOwnedPaymentIntent } from '@/lib/stripe'
 import { applyPaymentSignal, signalForIntentStatus } from '@/lib/orders/payment-sync'
 import { log } from '@/lib/observability/log'
@@ -40,18 +42,19 @@ export default async function ConfirmationPage({ params }: ConfirmationPageProps
 
   const loadOrder = async () => owned?{data:await loadOwnedPaymentCheckout(orderId)}:await supabase!
     .from('orders')
-    .select('*, tenants(slug, name, tenant_settings(currency))')
+    .select('*, tenants(slug, name, tenant_settings(currency, primary_color, accent_color))')
     .eq('id', orderId)
     .maybeSingle()
 
   let { data: order } = await loadOrder()
 
+  const fallbackTheme = checkoutTheme(null)
   if (!order) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Order Not Found</h1>
-          <Link href="/" className="text-indigo-600 hover:text-indigo-700">Return to Home</Link>
+          <Link href="/" className="underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900" style={{ color: fallbackTheme.focus }}>Return to Home</Link>
         </div>
       </div>
     )
@@ -81,6 +84,7 @@ export default async function ConfirmationPage({ params }: ConfirmationPageProps
         ? 'failed'
         : 'processing'
 
+  const theme = checkoutTheme(order.tenants)
   const total = formatPrice(Number(order.total ?? 0), embeddedCurrency(order.tenants))
   const slug = order.tenants?.slug as string | undefined
 
@@ -117,17 +121,18 @@ export default async function ConfirmationPage({ params }: ConfirmationPageProps
           </>
         )}
 
-        <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+        <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6 text-left">
           <p className="text-sm text-gray-500 mb-2">Order Details</p>
           <p className="font-semibold text-gray-900">{order.tenants?.name}</p>
-          <p className="text-sm text-gray-600">Total: {total}</p>
+          <p className="text-sm font-semibold tabular-nums" style={{ color: theme.accentText }}>Total: {total}</p>
         </div>
 
         <div className="space-y-3">
           {state === 'failed' && (
             <Link
               href={`/checkout/${orderId}`}
-              className="block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+              className={`${ui.cta} h-12 w-full enabled:hover:scale-[1.01] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900`}
+              style={ctaStyle(theme.primary, theme.onPrimary)}
             >
               Try Again
             </Link>
@@ -136,8 +141,9 @@ export default async function ConfirmationPage({ params }: ConfirmationPageProps
             <Link
               href={`/${slug}`}
               className={state === 'failed'
-                ? 'block w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-3 px-4 rounded-lg transition-colors'
-                : 'block w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors'}
+                ? `${ui.ctaQuiet} h-12 w-full bg-gray-100 hover:bg-gray-200 text-gray-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900`
+                : `${ui.cta} h-12 w-full hover:scale-[1.01] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900`}
+              style={state === 'failed' ? undefined : ctaStyle(theme.primary, theme.onPrimary)}
             >
               Return to Menu
             </Link>

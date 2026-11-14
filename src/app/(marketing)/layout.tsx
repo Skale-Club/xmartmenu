@@ -1,8 +1,9 @@
-import { BRAND_NAME, BRAND_URL, BRAND_PRIMARY } from '@/lib/brand'
+import { BRAND_NAME, BRAND_URL } from '@/lib/brand'
 import type { Metadata } from 'next'
+import type { CSSProperties } from 'react'
 import '../globals.css'
 import { createServiceClient } from '@/lib/supabase/server'
-import { computePrimaryForeground, safeCssColor } from '@/lib/color-utils'
+import { platformColors } from '@/lib/platform-colors'
 import { PlatformTagManager } from '@/components/tracking/PlatformTagManager'
 import { platformSettingsOwned } from '@/lib/data/platform-settings'
 
@@ -82,16 +83,15 @@ export default async function MarketingLayout({
   children: React.ReactNode
 }) {
   const ps = await getPlatformSettings()
-  const primary = ps?.cta_color ?? BRAND_PRIMARY
-  const primaryFg = computePrimaryForeground(primary)
+  const { primary, onPrimary } = platformColors(ps?.cta_color)
 
   return (
-    <html lang="en">
-      <body className="min-h-full bg-white no-text-cursor">
-        <style>{`:root{--primary:${safeCssColor(primary)};--primary-foreground:${primaryFg};}`}</style>
-        <PlatformTagManager />
-        {children}
-      </body>
-    </html>
+    <div
+      className="platform-light min-h-screen no-text-cursor"
+      style={{ '--primary': primary, '--primary-foreground': onPrimary } as CSSProperties}
+    >
+      <PlatformTagManager />
+      {children}
+    </div>
   )
 }

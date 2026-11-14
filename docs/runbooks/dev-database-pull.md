@@ -18,7 +18,7 @@
 > cutover (`xm_cutover_fence`) foi removido. Não há clientes e o login é Google Identity, então
 > esses dados não são protegidos. Com isso, o aviso abaixo sobre "candidato congelado" ficou
 > desatualizado: o banco `xmartmenu` do cluster **é** a produção, e o `db:pull` traz dados atuais
-> (precisa de `XMARTMENU_PROD_SSH` e acesso SSH ao host do cluster).
+> (precisa de `XPROUT_PROD_SSH` e acesso SSH ao host do cluster).
 
 `npm run dev` usa um projeto Supabase de **desenvolvimento** (`DEV_DATABASE_URL`).
 `npm run db:pull` copia, sob demanda, um retrato do banco `xmartmenu` do cluster
@@ -26,18 +26,18 @@ PostgreSQL compartilhado para esse projeto. `npm run dev` **nunca** copia nada s
 
 ## Atenção: a origem é um candidato congelado
 
-O banco próprio do Xmartmenu (`xmartmenu`, no container `e12scyfsrp822dag7m9wwd4x`, o mesmo
+O banco próprio do Xprout (`xmartmenu`, no container `e12scyfsrp822dag7m9wwd4x`, o mesmo
 cluster do Xmail) foi importado em **2026-11-04**. Produção ainda lê a fonte anterior
 (Supabase), então esse banco **não é atualizado pela produção**: o `db:pull` traz dados
 parados na importação. O comando funciona assim mesmo, imprime esse aviso em toda
 execução (`SOURCE_CANDIDATE_NOTICE`) e a constante `SOURCE_IS_CANDIDATE` em
 `scripts/lib/dev-db-pull.ts` deve virar `false` no corte da aplicação (um teste fixa o
-valor para a mudança ser deliberada). Detalhes do banco: `docs/xmartmenu-shared-postgres-admission.md`
-e `docs/xmartmenu-private-postgres-transport.md`.
+valor para a mudança ser deliberada). Detalhes do banco: `docs/xprout-shared-postgres-admission.md`
+e `docs/xprout-private-postgres-transport.md`.
 
 A leitura usa o administrador do cluster, em transação `REPEATABLE READ READ ONLY` e apenas
 no banco `xmartmenu` (o nome nunca vem do container, que também guarda o banco do Xmail).
-Os papéis do próprio Xmartmenu seguem `NOLOGIN` e não são usados.
+Os papéis do próprio Xprout seguem `NOLOGIN` e não são usados.
 
 ## Como o `npm run dev` escolhe o banco
 
@@ -48,14 +48,16 @@ Os papéis do próprio Xmartmenu seguem `NOLOGIN` e não são usados.
 `PRODUCTION_PROJECT_REFS` (hoje `ktogbpqookfcqilqvici`) são recusados tanto pelo dev quanto
 pelo `db:pull`.
 
+Preferred configuration uses XPROUT_PROD_*; existing XMARTMENU_PROD_* aliases remain supported independently. Physical database names and emergency-only authorization are unchanged.
+
 ## Configuração (nenhum valor é segredo, exceto a URL do banco de dev)
 
 ```
 DEV_SUPABASE_PROJECT_REF=<ref de 20 letras do projeto de dev>
 DEV_DATABASE_URL=postgresql://postgres.<ref>:<senha>@aws-...pooler.supabase.com:5432/postgres
-XMARTMENU_PROD_SSH=root@<host do cluster>
-# opcional: XMARTMENU_PROD_DB_CONTAINER (padrão e12scyfsrp822dag7m9wwd4x)
-# opcional: XMARTMENU_PROD_DB_NAME (padrão xmartmenu)
+XPROUT_PROD_SSH=root@<host do cluster>
+# opcional: XPROUT_PROD_DB_CONTAINER (padrão e12scyfsrp822dag7m9wwd4x)
+# opcional: XPROUT_PROD_DB_NAME (padrão xmartmenu)
 # opcional: DEV_DATABASE_CA_FILE (PEM para verificar o certificado do banco de dev)
 ```
 

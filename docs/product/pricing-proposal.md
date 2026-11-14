@@ -1,4 +1,4 @@
-# XmartMenu pricing (proposal v5)
+# Xprout pricing (proposal v5)
 
 Status: **proposal for the owner's decision**, 2026-11-12. All prices in US dollars. Nothing here is live: the plans table, Stripe prices and the public pricing section still show the old numbers.
 

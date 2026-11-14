@@ -26,7 +26,7 @@ export const ui = {
   /** Prices and totals. */
   price: 'font-black tabular-nums tracking-tight',
   /** Primary action: a full pill, uppercase, wide tracking (height set per surface: h-12 menu, h-11 AR). */
-  cta: 'inline-flex items-center justify-center gap-2 rounded-full px-6 text-xs font-black uppercase tracking-widest transition-[opacity,scale] active:scale-[0.98]',
+  cta: 'inline-flex items-center justify-center gap-2 rounded-full px-6 text-xs font-black uppercase tracking-widest transition-[scale] hover:scale-[1.01] active:scale-[0.98]',
   /** Quiet secondary action with the same shape and type. */
   ctaQuiet: 'inline-flex items-center justify-center gap-2 rounded-full px-6 text-xs font-black uppercase tracking-widest transition active:scale-[0.98]',
 } as const

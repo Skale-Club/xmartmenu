@@ -1,7 +1,7 @@
 /**
  * client.ts - The ONLY network seam to the Xphere `/api/v1/sync` contract.
  *
- * v2.4 Phase 51 / FND-04..06: every byte that leaves XmartMenu for Xphere goes
+ * v2.4 Phase 51 / FND-04..06: every byte that leaves Xprout for Xphere goes
  * through `postXphereSync`. Isolating the entire network surface here means the
  * (not-yet-finalized) wire contract, the auth headers, the timeout, and the
  * retry classification all live in one file — the Plan 02 worker stays mechanical.
